@@ -93,6 +93,11 @@ export function analyzeErrorMessage(status: number, reason?: string): string {
   }
 }
 
+/** 課金 Checkout 開始に失敗したときの日本語メッセージ（web/mobile 共通）。501=未設定。 */
+export function checkoutErrorMessage(status: number): string {
+  return status === 501 ? "課金は準備中です。" : "開始できませんでした。";
+}
+
 // ============================================================
 // 描画用の「面仕様」（プラットフォーム非依存）
 // ------------------------------------------------------------

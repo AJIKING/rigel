@@ -4,6 +4,7 @@ import {
   analyzeErrorMessage,
   applyTileEdit,
   cameraLabel,
+  checkoutErrorMessage,
   collectReviewItems,
   describeTile,
   needsReview,
@@ -98,6 +99,13 @@ describe("analyzeErrorMessage", () => {
   it("既定は reason かフォールバック", () => {
     expect(analyzeErrorMessage(400, "bad")).toBe("bad");
     expect(analyzeErrorMessage(400)).toBe("保存に失敗しました。");
+  });
+});
+
+describe("checkoutErrorMessage", () => {
+  it("501 は準備中、その他は汎用メッセージ", () => {
+    expect(checkoutErrorMessage(501)).toMatch(/準備中/);
+    expect(checkoutErrorMessage(500)).toBe("開始できませんでした。");
   });
 });
 

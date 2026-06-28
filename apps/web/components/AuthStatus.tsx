@@ -1,5 +1,6 @@
 "use client";
 
+import { checkoutErrorMessage } from "@rigel/ui";
 import Link from "next/link";
 import { useState } from "react";
 import { createCheckout } from "../lib/api";
@@ -23,7 +24,7 @@ function UpgradeButton({ token }: { token: string }) {
         window.location.href = result.url;
         return;
       }
-      setNote(result.status === 501 ? "課金は準備中です。" : "開始できませんでした。");
+      setNote(checkoutErrorMessage(result.status));
     } catch {
       setNote("通信に失敗しました。");
     } finally {

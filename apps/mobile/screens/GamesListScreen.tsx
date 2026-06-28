@@ -1,5 +1,6 @@
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
+import { checkoutErrorMessage } from "@rigel/ui";
 import { useState } from "react";
 import {
   ActivityIndicator,
@@ -35,7 +36,7 @@ function UpgradeBanner({ token }: { token: string }) {
         await Linking.openURL(result.url);
         return;
       }
-      setNote(result.status === 501 ? "課金は準備中です。" : "開始できませんでした。");
+      setNote(checkoutErrorMessage(result.status));
     } catch {
       setNote("通信に失敗しました。");
     } finally {
