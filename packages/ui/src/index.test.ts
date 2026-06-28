@@ -8,6 +8,7 @@ import {
   RED_TILE_COLOR,
   REVIEW_CONFIDENCE_THRESHOLD,
   seatLabel,
+  tileAssetName,
   tileFace,
   tileLabel,
 } from "./index";
@@ -106,6 +107,25 @@ describe("tileFace（描画用の面仕様）", () => {
 
   it("読めない牌(null)は kind=unknown で ?", () => {
     expect(tileFace(null)).toMatchObject({ kind: "unknown", glyph: "?" });
+  });
+});
+
+describe("tileAssetName（OSS牌画像のファイル名）", () => {
+  it("数牌は Man/Pin/Sou + 数字", () => {
+    expect(tileAssetName("1m")).toBe("Man1");
+    expect(tileAssetName("9s")).toBe("Sou9");
+    expect(tileAssetName("5p")).toBe("Pin5");
+  });
+  it("赤ドラは *5-Dora", () => {
+    expect(tileAssetName("0m")).toBe("Man5-Dora");
+    expect(tileAssetName("0p")).toBe("Pin5-Dora");
+    expect(tileAssetName("0s")).toBe("Sou5-Dora");
+  });
+  it("字牌は固有名", () => {
+    expect(tileAssetName("1z")).toBe("Ton");
+    expect(tileAssetName("4z")).toBe("Pei");
+    expect(tileAssetName("5z")).toBe("Haku");
+    expect(tileAssetName("7z")).toBe("Chun");
   });
 });
 

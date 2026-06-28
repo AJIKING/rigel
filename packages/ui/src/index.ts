@@ -116,6 +116,23 @@ export function tileFace(tile: Tile | null): TileFace {
   };
 }
 
+// ------------------------------------------------------------
+// OSS 牌画像（FluffyStuff/riichi-mahjong-tiles, CC0）のファイル名マッピング
+//   牌コード → アセットのベース名（web=public/tiles/<name>.svg, mobile=assets/tiles/<name>.png）。
+//   各プラットフォームは Front + このシンボルを重ねて1牌を描く。
+// ------------------------------------------------------------
+const SUIT_ASSET: Record<"m" | "p" | "s", string> = { m: "Man", p: "Pin", s: "Sou" };
+const HONOR_ASSET = ["Ton", "Nan", "Shaa", "Pei", "Haku", "Hatsu", "Chun"]; // 1z..7z
+
+/** 牌コードを OSS アセットのベース名へ。例: "1m"→"Man1", "0p"→"Pin5-Dora", "1z"→"Ton"。 */
+export function tileAssetName(tile: Tile): string {
+  const info = describeTile(tile);
+  if (!info) return "Blank";
+  if (info.suit === "z") return HONOR_ASSET[info.rank - 1] ?? "Blank";
+  const prefix = SUIT_ASSET[info.suit];
+  return info.red ? `${prefix}5-Dora` : `${prefix}${info.rank}`;
+}
+
 // ============================================================
 // 牌譜の確認・修正ロジック（純貋・共有）
 // ------------------------------------------------------------

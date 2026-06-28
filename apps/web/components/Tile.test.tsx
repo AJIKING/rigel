@@ -2,10 +2,11 @@ import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { Tile } from "./Tile";
 
-describe("Tile", () => {
-  it("牌ラベルを表示する", () => {
+describe("Tile（OSS画像）", () => {
+  it("牌のシンボル画像を牌ラベルの alt で出す", () => {
     render(<Tile read={{ tile: "1m", confidence: 0.99 }} />);
-    expect(screen.getByTestId("tile").textContent).toBe("1萬");
+    expect(screen.getByAltText("1萬")).toBeDefined();
+    expect(screen.getByTestId("tile").getAttribute("data-review")).toBeNull();
   });
 
   it("低confidenceは要確認(data-review)になる", () => {

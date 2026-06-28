@@ -1,69 +1,65 @@
 import type { ReadTile } from "@rigel/schema";
-import { needsReview, REVIEW_COLOR, tileFace, tileLabel } from "@rigel/ui";
-import Svg, { Rect, Text as SvgText } from "react-native-svg";
+import { needsReview, REVIEW_COLOR, tileAssetName, tileLabel } from "@rigel/ui";
+import { Image, StyleSheet, Text, View } from "react-native";
+import { TILE_FRONT, TILE_IMAGES } from "./tile-images";
 
 const W = 30;
 const H = 40;
 
 /**
- * 1牌の表示（RN / react-native-svg。web と同じ tileFace 仕様を描く）。
- * 数牌=数字+スート記号、字牌=漢字、赤ドラ=赤、読めない牌=?。要確認は赤枠。
+ * 1牌の表示（OSS 画像 = FluffyStuff/riichi-mahjong-tiles, CC0）。
+ * Front の上にシンボル画像を重ねる。要確認は赤枠、リーチは下に赤帯。自前は SimpleTile.tsx（予備）。
  */
 export function Tile({ read, riichi = false }: { read: ReadTile; riichi?: boolean }) {
   const review = needsReview(read);
-  const face = tileFace(read.tile);
+  const symbol = read.tile ? TILE_IMAGES[tileAssetName(read.tile)] : undefined;
 
   return (
-    <Svg width={W} height={H} accessibilityLabel={tileLabel(read.tile)} style={{ margin: 2 }}>
-      <Rect
-        x={1}
-        y={1}
-        width={W - 2}
-        height={H - 2}
-        rx={4}
-        fill={review ? "#fff5f5" : "#ffffff"}
-        stroke={review ? REVIEW_COLOR : "#cfcfcf"}
-        strokeWidth={1.5}
-      />
-
-      {face.kind === "number" && (
-        <>
-          <SvgText
-            x={W / 2}
-            y={20}
-            fontSize={17}
-            fontWeight="700"
-            fill={face.color}
-            textAnchor="middle"
-          >
-            {String(face.rank)}
-          </SvgText>
-          <SvgText x={W / 2} y={33} fontSize={11} fill={face.color} textAnchor="middle">
-            {face.glyph}
-          </SvgText>
-        </>
+    <View style={styles.tile} accessibilityLabel={tileLabel(read.tile)}>
+      <Image source={TILE_FRONT} style={styles.img} resizeMode="contain" />
+      {symbol !== undefined ? (
+        <Image source={symbol} style={[styles.img, styles.overlay]} resizeMode="contain" />
+      ) : (
+        <Text style={styles.unknown}>?</Text>
       )}
-
-      {face.kind === "honor" && (
-        <SvgText
-          x={W / 2}
-          y={27}
-          fontSize={15}
-          fontWeight="700"
-          fill={face.color}
-          textAnchor="middle"
-        >
-          {face.glyph}
-        </SvgText>
-      )}
-
-      {face.kind === "unknown" && (
-        <SvgText x={W / 2} y={27} fontSize={16} fill={face.color} textAnchor="middle">
-          ?
-        </SvgText>
-      )}
-
-      {riichi && <Rect x={5} y={H - 6} width={W - 10} height={2.5} rx={1} fill={REVIEW_COLOR} />}
-    </Svg>
+      {review && <View pointerEvents="none" style={styles.reviewBorder} />}
+      {riichi && <View pointerEvents="none" style={styles.riichiBar} />}
+    </View>
   );
 }
+
+const styles = StyleSheet.create({
+  tile: { width: W, height: H, margin: 2 },
+  img: { width: W, height: H },
+  overlay: { position: "absolute", top: 0, left: 0 },
+  unknown: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    width: W,
+    height: H,
+    textAlign: "center",
+    lineHeight: H,
+    color: "#999",
+    fontWeight: "700",
+  },
+  reviewBorder: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    width: W,
+    height: H,
+    borderWidth: 2,
+    borderColor: REVIEW_COLOR,
+    borderRadius: 4,
+  },
+  riichiBar: {
+    position: "absolute",
+    left: 5,
+    right: 5,
+    bottom: 3,
+    height: 2.5,
+    backgroundColor: REVIEW_COLOR,
+    borderRadius: 1,
+  },
+});
