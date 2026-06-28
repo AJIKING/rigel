@@ -13,7 +13,7 @@ import { parseKifu } from "./validate";
 
 type AppEnv = {
   Bindings: Env;
-  Variables: { container: AppContainer };
+  Variables: { container: AppContainer; userId?: string };
 };
 
 export function createApp(): Hono<AppEnv> {
@@ -25,7 +25,49 @@ export function createApp(): Hono<AppEnv> {
     await next();
   });
 
+  // 認証: Bearer セッショントークンがあれば検証して userId を載せる（無くても通す）。
+  app.use("*", async (c, next) => {
+    const auth = c.req.header("authorization");
+    if (auth?.startsWith("Bearer ")) {
+      const result = await c.get("container").session.verify(auth.slice("Bearer ".length));
+      if (result) c.set("userId", result.userId);
+    }
+    await next();
+  });
+
   app.get("/health", (c) => c.json({ ok: true }));
+
+  // Google ID トークンでログイン → 自前セッショントークンを発行。
+  app.post("/auth/google", async (c) => {
+    const body = (await c.req.json().catch(() => null)) as { idToken?: unknown } | null;
+    if (typeof body?.idToken !== "string") {
+      return c.json({ error: "idToken required" }, 400);
+    }
+    try {
+      const { sessionToken, user, created } = await c
+        .get("container")
+        .authenticateWithGoogle.execute({ idToken: body.idToken });
+      return c.json(
+        { sessionToken, created, user: { id: user.id, plan: user.plan } },
+        created ? 201 : 200,
+      );
+    } catch {
+      return c.json({ error: "invalid Google token" }, 401);
+    }
+  });
+
+  // 認証済みユーザー自身。
+  app.get("/me", async (c) => {
+    const userId = c.get("userId");
+    if (!userId) return c.json({ error: "unauthorized" }, 401);
+    const user = await c.get("container").getUser.execute(userId);
+    if (!user) return c.json({ error: "not found" }, 404);
+    return c.json({
+      id: user.id,
+      plan: user.plan,
+      analysisCountThisMonth: user.analysisCountThisMonth,
+    });
+  });
 
   // 牌譜JSONの検証のみ（保存はしない）。背骨スキーマで弾く。
   app.post("/kifu/validate", async (c) => {

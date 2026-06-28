@@ -8,6 +8,8 @@ const fakeEnv = {
   DB: {} as unknown as D1Database,
   GEMINI_API_KEY: "",
   CLOUDFLARE_AI_GATEWAY_URL: "",
+  GOOGLE_CLIENT_ID: "test-client-id",
+  SESSION_SECRET: "test-secret",
 } satisfies Env;
 
 const jsonInit = (body: unknown): RequestInit => ({
@@ -38,5 +40,24 @@ describe("HTTP app (Hono)", () => {
   it("POST /analyze は M5 まで 501", async () => {
     const res = await app.request("/analyze", { method: "POST" }, fakeEnv);
     expect(res.status).toBe(501);
+  });
+
+  it("POST /auth/google は idToken が無ければ 400", async () => {
+    const res = await app.request("/auth/google", jsonInit({}), fakeEnv);
+    expect(res.status).toBe(400);
+  });
+
+  it("GET /me はトークン無しで 401", async () => {
+    const res = await app.request("/me", {}, fakeEnv);
+    expect(res.status).toBe(401);
+  });
+
+  it("GET /me は偽のトークンで 401", async () => {
+    const res = await app.request(
+      "/me",
+      { headers: { authorization: "Bearer not-a-real-token" } },
+      fakeEnv,
+    );
+    expect(res.status).toBe(401);
   });
 });

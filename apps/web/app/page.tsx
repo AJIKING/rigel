@@ -1,34 +1,44 @@
-import { TILE_VALUES, type ReadTile } from "@rigel/schema";
-import { needsReview } from "@rigel/ui";
-
-// 共有パッケージのデモ:
-//  - 背骨スキーマ(@rigel/schema)の牌種を参照
-//  - confidence の低い/読めなかった牌は @rigel/ui の判定で「要確認」ハイライト
-const sampleReads: ReadTile[] = [
-  { tile: "1m", confidence: 0.99 },
-  { tile: "5p", confidence: 0.4 },
-  { tile: null, confidence: 0 },
-];
+import Link from "next/link";
 
 export default function Home() {
   return (
-    <main style={{ fontFamily: "sans-serif", padding: 24 }}>
-      <h1>rigel — 麻雀牌譜</h1>
-      <p>背骨スキーマの牌種数: {TILE_VALUES.length}</p>
-      <ul>
-        {sampleReads.map((read, i) => {
-          const review = needsReview(read);
-          return (
-            <li
-              key={i}
-              data-testid={review ? "review" : undefined}
-              style={{ color: review ? "crimson" : "inherit" }}
-            >
-              {read.tile ?? "??"}（confidence {read.confidence}）{review ? " ← 要確認" : ""}
-            </li>
-          );
-        })}
+    <div>
+      <h1>麻雀牌譜を、写真から</h1>
+      <p style={{ color: "#555", lineHeight: 1.7 }}>
+        実物の麻雀卓を撮るだけで、盤面（手牌・鳴き・河）の牌譜ドラフトを自動生成します。
+        確信度の低い箇所だけを直して、保存・共有できます。
+      </p>
+      <ul style={{ color: "#555", lineHeight: 1.8 }}>
+        <li>卓全体を1枚 + 各自の手牌を撮影</li>
+        <li>AI が牌譜ドラフトを生成（読めない牌は推測せず「要確認」）</li>
+        <li>人が確認・修正して保存</li>
       </ul>
-    </main>
+      <div style={{ display: "flex", gap: 12, marginTop: 16 }}>
+        <Link
+          href="/kifu/sample"
+          style={{
+            padding: "10px 16px",
+            borderRadius: 8,
+            background: "#222",
+            color: "#fff",
+            textDecoration: "none",
+          }}
+        >
+          サンプル牌譜を見る
+        </Link>
+        <Link
+          href="/login"
+          style={{
+            padding: "10px 16px",
+            borderRadius: 8,
+            border: "1px solid #ccc",
+            textDecoration: "none",
+            color: "#222",
+          }}
+        >
+          ログイン
+        </Link>
+      </div>
+    </div>
   );
 }

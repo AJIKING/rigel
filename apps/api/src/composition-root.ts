@@ -7,9 +7,14 @@
 // ============================================================
 
 import { AnalyzeAndSaveKifu } from "./application/analyze-and-save-kifu.usecase";
+import { AuthenticateWithGoogle } from "./application/authenticate-with-google.usecase";
 import { GetKifu } from "./application/get-kifu.usecase";
+import { GetUser } from "./application/get-user.usecase";
 import { ListKifu } from "./application/list-kifu.usecase";
+import type { SessionService } from "./domain/auth/session";
 import type { Env } from "./env";
+import { JoseGoogleTokenVerifier } from "./infrastructure/auth/jose-google-token-verifier";
+import { JwtSessionService } from "./infrastructure/auth/jwt-session-service";
 import { createDb } from "./infrastructure/db/client";
 import { GeminiAnalyzer } from "./infrastructure/gemini/gemini-analyzer";
 import { HttpGeminiClient } from "./infrastructure/gemini/gemini-client";
@@ -24,6 +29,10 @@ export interface AppContainer {
   analyzeAndSaveKifu: AnalyzeAndSaveKifu;
   getKifu: GetKifu;
   listKifu: ListKifu;
+  authenticateWithGoogle: AuthenticateWithGoogle;
+  getUser: GetUser;
+  /** 認証ミドルウェアが Bearer トークン検証に使う。 */
+  session: SessionService;
 }
 
 /** 既定モデル。⚠️ AI Studio で現行の対応モデルを確認して env で上書きする。 */
@@ -49,6 +58,8 @@ export function buildContainer(env: Env): AppContainer {
     now: () => new Date(),
   });
 
+  const session = new JwtSessionService({ secret: env.SESSION_SECRET });
+
   return {
     analyzeAndSaveKifu: new AnalyzeAndSaveKifu({
       users,
@@ -59,5 +70,14 @@ export function buildContainer(env: Env): AppContainer {
     }),
     getKifu: new GetKifu(gameLogs),
     listKifu: new ListKifu(gameLogs),
+    authenticateWithGoogle: new AuthenticateWithGoogle({
+      users,
+      verifier: new JoseGoogleTokenVerifier(env.GOOGLE_CLIENT_ID),
+      session,
+      now: () => new Date(),
+      newId: () => crypto.randomUUID(),
+    }),
+    getUser: new GetUser(users),
+    session,
   };
 }

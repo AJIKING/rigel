@@ -1,0 +1,51 @@
+// テスト用の in-memory リポジトリ（ポートのフェイク実装）。本番バンドルには含まれない。
+
+import type { GameLog } from "../domain/kifu/game-log";
+import type { GameLogRepository } from "../domain/kifu/game-log.repository";
+import type { User } from "../domain/user/user";
+import type { UserRepository } from "../domain/user/user.repository";
+
+export class InMemoryUserRepository implements UserRepository {
+  private byId = new Map<string, User>();
+
+  constructor(seed: User[] = []) {
+    for (const u of seed) this.byId.set(u.id, u);
+  }
+
+  findById(id: string): Promise<User | null> {
+    return Promise.resolve(this.byId.get(id) ?? null);
+  }
+
+  findByGoogleSub(googleSub: string): Promise<User | null> {
+    for (const u of this.byId.values()) {
+      if (u.googleSub === googleSub) return Promise.resolve(u);
+    }
+    return Promise.resolve(null);
+  }
+
+  save(user: User): Promise<void> {
+    this.byId.set(user.id, user);
+    return Promise.resolve();
+  }
+
+  get size(): number {
+    return this.byId.size;
+  }
+}
+
+export class InMemoryGameLogRepository implements GameLogRepository {
+  readonly saved: GameLog[] = [];
+
+  save(gameLog: GameLog): Promise<void> {
+    this.saved.push(gameLog);
+    return Promise.resolve();
+  }
+
+  findById(id: string): Promise<GameLog | null> {
+    return Promise.resolve(this.saved.find((g) => g.id === id) ?? null);
+  }
+
+  listByUser(userId: string): Promise<GameLog[]> {
+    return Promise.resolve(this.saved.filter((g) => g.userId === userId));
+  }
+}

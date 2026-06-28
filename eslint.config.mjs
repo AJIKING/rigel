@@ -10,6 +10,7 @@ export default tseslint.config(
       "**/.wrangler/**",
       "**/node_modules/**",
       "**/coverage/**",
+      "**/next-env.d.ts",
     ],
   },
   ...tseslint.configs.recommended,

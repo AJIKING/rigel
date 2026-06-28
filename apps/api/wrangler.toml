@@ -16,11 +16,14 @@ migrations_dir = "migrations"
 [observability]
 enabled = true
 
-# Gemini / AI Gateway のキーは Secret で渡す（コミットしない）:
+# Secret で渡す（コミットしない）:
 #   wrangler secret put GEMINI_API_KEY
 #   wrangler secret put CLOUDFLARE_AI_GATEWAY_URL   # google-ai-studio ベースURL（/v1beta の手前まで）
+#   wrangler secret put SESSION_SECRET              # セッション署名鍵
 
 [vars]
 # 読み取りモデル。⚠️ AI Studio で現行の対応モデルを確認して差し替える（ハードコードしない）。
 GEMINI_RIVER_MODEL = "gemini-2.5-flash"       # 河=難所
 GEMINI_HAND_MODEL = "gemini-2.5-flash-lite"   # 手牌=素直なタスク
+# Google OAuth クライアントID（公開値）。実値に差し替える。
+GOOGLE_CLIENT_ID = "REPLACE_WITH_GOOGLE_CLIENT_ID"

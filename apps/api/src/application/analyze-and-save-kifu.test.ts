@@ -1,10 +1,8 @@
 import type { Kifu } from "@rigel/schema";
 import { describe, expect, it } from "vitest";
 import type { AnalysisInput, Analyzer } from "../domain/kifu/analyzer";
-import type { GameLog } from "../domain/kifu/game-log";
-import type { GameLogRepository } from "../domain/kifu/game-log.repository";
-import type { UserRepository } from "../domain/user/user.repository";
 import { User, firstOfNextMonthUtc } from "../domain/user/user";
+import { InMemoryGameLogRepository, InMemoryUserRepository } from "../test-support/in-memory";
 import { validKifu } from "../test-support/kifu";
 import { AnalyzeAndSaveKifu } from "./analyze-and-save-kifu.usecase";
 
@@ -14,38 +12,6 @@ const dummyInput: AnalysisInput = {
   riverImage: { data: new ArrayBuffer(0), mimeType: "image/jpeg" },
   cameraBottomSeat: "east",
 };
-
-class InMemoryUserRepository implements UserRepository {
-  private byId = new Map<string, User>();
-  constructor(seed: User[] = []) {
-    for (const u of seed) this.byId.set(u.id, u);
-  }
-  findById(id: string): Promise<User | null> {
-    return Promise.resolve(this.byId.get(id) ?? null);
-  }
-  findByGoogleSub(googleSub: string): Promise<User | null> {
-    for (const u of this.byId.values()) if (u.googleSub === googleSub) return Promise.resolve(u);
-    return Promise.resolve(null);
-  }
-  save(user: User): Promise<void> {
-    this.byId.set(user.id, user);
-    return Promise.resolve();
-  }
-}
-
-class InMemoryGameLogRepository implements GameLogRepository {
-  readonly saved: GameLog[] = [];
-  save(gameLog: GameLog): Promise<void> {
-    this.saved.push(gameLog);
-    return Promise.resolve();
-  }
-  findById(id: string): Promise<GameLog | null> {
-    return Promise.resolve(this.saved.find((g) => g.id === id) ?? null);
-  }
-  listByUser(userId: string): Promise<GameLog[]> {
-    return Promise.resolve(this.saved.filter((g) => g.userId === userId));
-  }
-}
 
 class FakeAnalyzer implements Analyzer {
   calls = 0;
