@@ -12,6 +12,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@rigel/client": "workspace:*",
     "@rigel/schema": "workspace:*",
     "@rigel/ui": "workspace:*",
     "next": "^15.1.3",
