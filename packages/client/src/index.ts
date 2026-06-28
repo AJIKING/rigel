@@ -38,6 +38,9 @@ export interface GameDetail {
   logs: GameLog[];
 }
 
+export type AnalyzeResult =
+  { ok: true; gameId: string; logId: string } | { ok: false; status: number; reason?: string };
+
 export interface ApiClient {
   /** Google ID トークンでログインし、セッショントークンとユーザーを得る。 */
   authWithGoogle(idToken: string): Promise<AuthResult>;
@@ -47,6 +50,12 @@ export interface ApiClient {
   getGames(token: string): Promise<Game[]>;
   /** 半荘詳細（半荘 + 局一覧）。見つからなければ null。 */
   getGame(token: string, id: string): Promise<GameDetail | null>;
+  /**
+   * 撮影画像(multipart FormData)を解析し、半荘に局として保存する。
+   * FormData は各プラットフォームで組む（web=File / RN={uri,name,type}）。
+   * 必要フィールド: river, cameraBottomSeat（任意: hand_*, gameId）。
+   */
+  analyze(token: string, form: FormData): Promise<AnalyzeResult>;
 }
 
 /**
@@ -86,6 +95,21 @@ export function createApiClient(baseUrl: string, fetchImpl?: typeof fetch): ApiC
       if (res.status === 404) return null;
       if (!res.ok) throw new Error(`game failed: ${res.status}`);
       return res.json() as Promise<GameDetail>;
+    },
+
+    async analyze(token, form) {
+      // content-type は付けない（fetch が multipart 境界を設定する）。
+      const res = await doFetch(`${baseUrl}/analyze`, {
+        method: "POST",
+        headers: bearer(token),
+        body: form,
+      });
+      if (res.ok) {
+        const d = (await res.json()) as { gameId: string; logId: string };
+        return { ok: true, gameId: d.gameId, logId: d.logId };
+      }
+      const body = (await res.json().catch(() => ({}))) as { reason?: string; error?: string };
+      return { ok: false, status: res.status, reason: body.reason ?? body.error };
     },
   };
 }

@@ -45,4 +45,25 @@ describe("createApiClient", () => {
     );
     await expect(client.authWithGoogle("idtok")).rejects.toThrow(/500/);
   });
+
+  it("analyze は 201 で gameId/logId を返す", async () => {
+    const client = createApiClient(
+      "https://api.test",
+      fakeFetch((url) => {
+        expect(url).toBe("https://api.test/analyze");
+        return json({ ok: true, gameId: "g1", logId: "l1" }, 201);
+      }),
+    );
+    const result = await client.analyze("tok", new FormData());
+    expect(result).toEqual({ ok: true, gameId: "g1", logId: "l1" });
+  });
+
+  it("analyze は枠超過(402)を理由付きで返す", async () => {
+    const client = createApiClient(
+      "https://api.test",
+      fakeFetch(() => json({ ok: false, reason: "quota_exceeded" }, 402)),
+    );
+    const result = await client.analyze("tok", new FormData());
+    expect(result).toEqual({ ok: false, status: 402, reason: "quota_exceeded" });
+  });
 });

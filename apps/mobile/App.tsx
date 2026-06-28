@@ -5,6 +5,7 @@ import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-nati
 import { AuthProvider, useAuth } from "./lib/auth";
 import type { RootStackParamList } from "./lib/navigation";
 import { BoardScreen } from "./screens/BoardScreen";
+import { CaptureScreen } from "./screens/CaptureScreen";
 import { GameDetailScreen } from "./screens/GameDetailScreen";
 import { GamesListScreen } from "./screens/GamesListScreen";
 import { LoginScreen } from "./screens/LoginScreen";
@@ -42,6 +43,7 @@ function Root() {
         />
         <Stack.Screen name="GameDetail" component={GameDetailScreen} options={{ title: "半荘" }} />
         <Stack.Screen name="Board" component={BoardScreen} options={{ title: "牌譜" }} />
+        <Stack.Screen name="Capture" component={CaptureScreen} options={{ title: "撮影" }} />
       </Stack.Navigator>
     </NavigationContainer>
   );

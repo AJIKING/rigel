@@ -3,4 +3,5 @@ export type RootStackParamList = {
   GamesList: undefined;
   GameDetail: { gameId: string };
   Board: { gameId: string; logId: string };
+  Capture: undefined;
 };

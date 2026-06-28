@@ -28,6 +28,9 @@ export function GamesListScreen() {
 
   return (
     <View style={styles.container}>
+      <Pressable style={styles.capture} onPress={() => nav.navigate("Capture")}>
+        <Text style={styles.captureText}>＋ 牌譜を撮る</Text>
+      </Pressable>
       {sample && <Text style={styles.sample}>サンプル表示中（ログインで自分の半荘が出ます）</Text>}
       {games.length === 0 ? (
         <Text style={styles.empty}>まだ半荘がありません。卓を撮影して記録してください。</Text>
@@ -60,4 +63,13 @@ const styles = StyleSheet.create({
   card: { borderWidth: 1, borderColor: "#eee", borderRadius: 10, padding: 14 },
   title: { fontWeight: "700", fontSize: 15 },
   date: { color: "#999", fontSize: 12, marginTop: 2 },
+  capture: {
+    backgroundColor: "#222",
+    borderRadius: 8,
+    paddingVertical: 12,
+    alignItems: "center",
+    margin: 12,
+    marginBottom: 0,
+  },
+  captureText: { color: "#fff", fontWeight: "600" },
 });

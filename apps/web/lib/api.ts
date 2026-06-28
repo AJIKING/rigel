@@ -3,8 +3,8 @@
 
 import { createApiClient } from "@rigel/client";
 
-export type { AuthUser, Game, GameDetail, GameLog } from "@rigel/client";
+export type { AnalyzeResult, AuthUser, Game, GameDetail, GameLog } from "@rigel/client";
 
 const client = createApiClient(process.env.NEXT_PUBLIC_API_URL ?? "");
 
-export const { authWithGoogle, fetchMe, getGames, getGame } = client;
+export const { authWithGoogle, fetchMe, getGames, getGame, analyze } = client;

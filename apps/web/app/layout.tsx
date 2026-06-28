@@ -26,6 +26,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
               rigel
             </Link>
             <nav style={{ display: "flex", gap: 12, fontSize: 14, flex: 1 }}>
+              <Link href="/capture">撮影</Link>
               <Link href="/kifu">牌譜</Link>
             </nav>
             <AuthStatus />
