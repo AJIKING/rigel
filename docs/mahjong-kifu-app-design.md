@@ -114,8 +114,8 @@
 - `users`: `id`, `google_sub`(Google認証のsub), `plan`(free/paid), `analysis_count_this_month`, `count_reset_at`, ...
 - `game_logs`: `id`, `user_id`, `kifu`(Kifu の JSON を丸ごと), `created_at`, ...
 - 撮影画像は保存しない。`game_logs` に入るのは解析後の `Kifu` JSON のみ。
-- **[未確定] ORM**: Drizzle が候補（軽量・D1相性良・型連動）。Prisma も選択肢。未決定。
-- **[未確定] カウンタの整合性**: 「確認→解析→加算」の競合状態に注意。D1トランザクション or Durable Objects で直列化。課金が絡むので雑にしない。
+- **[決定] ORM = Drizzle**（軽量・D1相性良・型連動）。スキーマ実体は `apps/api/src/infrastructure/db/schema.ts`、マイグレーションは drizzle-kit + `wrangler d1`。詳細は [開発ガイド/05_APIアーキテクチャ.md](開発ガイド/05_APIアーキテクチャ.md)。
+- **[未確定] カウンタの整合性**: 「確認→解析→加算」の競合状態に注意。D1トランザクション or Durable Objects で直列化。課金が絡むので雑にしない。ユースケースの手順上は「保存成功→加算」を守る実装済み。原子化アダプタは要設計。
 
 ---
 
@@ -127,8 +127,9 @@
 | ブラウザ | Next.js | [決定] |
 | 共有 | 型・ロジックは**完全共有**、UIコンポーネントも共有志向 | [決定] |
 | UIコンポーネント共有手段 | Tamagui / React Native Web / 自前(react-native-svg) | **[未確定]**（実装時に決定。牌はSVG描画想定） |
-| バックエンド | Cloudflare Workers (TypeScript) | [決定] |
-| DB | Cloudflare D1 (SQLite) | [決定] |
+| バックエンド | Cloudflare Workers (TypeScript) + **Hono**（HTTP） | [決定] |
+| API 構成 | **DDD レイヤード**（domain/application/infrastructure/interfaces）| [決定]（[開発ガイド/05](開発ガイド/05_APIアーキテクチャ.md)） |
+| DB | Cloudflare D1 (SQLite) + **Drizzle ORM** | [決定] |
 | 認証 | Google認証のみ | [決定]（実装は後回し） |
 | AI | Gemini API + AI Gateway | [決定] |
 | 画像保存 | しない | [決定] |
@@ -180,8 +181,8 @@
 | 2 | Agentic Vision の要否 | A/B検証 | 4分割後、素のFlashで足りるか |
 | 3 | AI読み取り精度の実測 | 要検証 | テスト画像20–30枚で3指標を測定 |
 | 4 | UIコンポーネント共有手段 | 実装時決定 | Tamagui / RN Web / 自前SVG |
-| 5 | ORM選定 | 未決定 | Drizzle 有力 |
-| 6 | カウンタ整合性の実装 | 設計要 | トランザクション / Durable Objects |
+| 5 | ~~ORM選定~~ | **[決定] Drizzle** | スキーマ実装済み（`apps/api`）。[開発ガイド/05](開発ガイド/05_APIアーキテクチャ.md) |
+| 6 | カウンタ整合性の実装 | 設計要 | D1トランザクション/batch で原子化。ユースケースの手順（保存→加算）は実装済み |
 | 7 | 認証の具体実装 | 後回し | Google認証。Better Auth / Lucia 等 |
 | 8 | 無料枠件数・月額価格 | ビジネス判断 | コストではなく価値で決める |
 | 9 | Web集客方針 | 未決定 | 共有URLのSEO要否（Next.jsなら対応可） |

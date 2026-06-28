@@ -97,7 +97,13 @@ rigel/
 │   ├── schema/  @rigel/schema     # Zod スキーマ（全層共有の背骨。src/index.ts が単一真実源）※実在(M1)
 │   └── ui/      @rigel/ui         # 牌SVG・confidenceハイライト・修正UI（RN/Web共有）※土台のみ(M6)
 └── apps/
-    ├── api/     api               # Cloudflare Workers（AI Gateway 経由で Gemini、D1 保存）※土台のみ(M5/M7)
+    ├── api/     api               # Cloudflare Workers。Hono + Drizzle + D1。DDD レイヤード ※実在
+    │   ├── src/domain/            #   エンティティ + ポート（User / GameLog / Analyzer）
+    │   ├── src/application/       #   ユースケース（AnalyzeAndSaveKifu / Get / List）
+    │   ├── src/infrastructure/    #   Drizzle スキーマ・リポジトリ / GeminiAnalyzer(M5スタブ)
+    │   ├── src/interfaces/http/   #   Hono アプリ
+    │   ├── drizzle.config.ts / migrations/  #   D1 マイグレーション
+    │   └── 詳細: docs/開発ガイド/05_APIアーキテクチャ.md
     ├── web/                       # Next.js ※未作成（M5+）
     └── mobile/                    # React Native (Expo) ※未作成（M5+）
 ```
@@ -112,15 +118,16 @@ rigel/
 | モバイル | **React Native (Expo)** | — |
 | ブラウザ | **Next.js** | 共有URLのSEO対応も可 |
 | UI共有手段 | **[未確定]** | Tamagui / RN Web / 自前SVG。牌は SVG 描画想定 |
-| バックエンド | **Cloudflare Workers (TS)** | — |
-| DB | **Cloudflare D1 (SQLite)** | 撮影画像は保存しない。`Kifu` JSON のみ |
+| バックエンド | **Cloudflare Workers (TS) + Hono** | HTTP は Hono。api は DDD レイヤード（[開発ガイド/05](docs/開発ガイド/05_APIアーキテクチャ.md)） |
+| DB / ORM | **Cloudflare D1 (SQLite) + Drizzle** | 撮影画像は保存しない。`Kifu` JSON のみ。スキーマ=`apps/api/src/infrastructure/db/schema.ts` |
 | 認証 | **Google認証のみ** | 実装は後回し（M8） |
 | AI | **Gemini API + Cloudflare AI Gateway** | モデル名はハードコードしない。河=Gemini 3 Flash、手牌=Flash-Lite 系 |
 | 画像保存 | **しない** | 解析後 JSON のみ |
-| モノレポ | turborepo / pnpm workspace 想定 | `packages/schema`,`packages/ui`,`apps/{mobile,web,api}` |
+| モノレポ | turborepo / pnpm workspace | `packages/schema`,`packages/ui`,`apps/{mobile,web,api}` |
 
 `[未確定]` の主要項目（設計ドキュメント 9章 TODO一覧）：`toAbsoluteSeat` の回転方向 / Agentic Vision の要否 /
-AI精度の実測 / UI共有手段 / ORM（Drizzle 有力）/ カウンタ整合 / 認証実装 / 無料枠・価格。**勝手に確定しない。**
+AI精度の実測 / UI共有手段 / カウンタ整合の原子化 / 認証実装 / 無料枠・価格。**勝手に確定しない。**
+（ORM は Drizzle に確定済み。）
 
 ---
 

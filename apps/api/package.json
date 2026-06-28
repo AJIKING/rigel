@@ -7,12 +7,20 @@
   "scripts": {
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test": "vitest run",
-    "lint": "eslint src"
+    "lint": "eslint src",
+    "dev": "wrangler dev",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate:local": "wrangler d1 migrations apply rigel --local",
+    "db:migrate": "wrangler d1 migrations apply rigel --remote"
   },
   "dependencies": {
-    "@rigel/schema": "workspace:*"
+    "@rigel/schema": "workspace:*",
+    "drizzle-orm": "^0.38.2",
+    "hono": "^4.6.14"
   },
   "devDependencies": {
-    "@cloudflare/workers-types": "^4.20241218.0"
+    "@cloudflare/workers-types": "^4.20241218.0",
+    "drizzle-kit": "^0.30.1",
+    "wrangler": "^3.99.0"
   }
 }

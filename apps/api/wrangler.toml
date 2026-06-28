@@ -1,15 +1,21 @@
-# Cloudflare Workers 設定（API 本体）
-# 実行/デプロイには wrangler を使う: `pnpm --filter api exec wrangler dev`
-# D1・AI Gateway バインディングは M5/M7 で追加する。
+# Cloudflare Workers 設定（API 本体 / Hono + Drizzle + D1）
+# 実行: `pnpm --filter api dev`（wrangler dev）
+# マイグレーション: `pnpm --filter api db:generate` → `db:migrate:local` / `db:migrate`
 
 name = "rigel-api"
 main = "src/index.ts"
 compatibility_date = "2025-01-01"
+compatibility_flags = ["nodejs_compat"]
 
-# [[d1_databases]]            # ← M7（保存/閲覧）で有効化
-# binding = "DB"
-# database_name = "rigel"
-# database_id = "<未設定>"
+[[d1_databases]]
+binding = "DB"                 # env.DB（src/env.ts）に対応
+database_name = "rigel"
+database_id = "REPLACE_WITH_REAL_D1_ID" # `wrangler d1 create rigel` で発行して差し替える
+migrations_dir = "migrations"
 
 [observability]
 enabled = true
+
+# Gemini / AI Gateway のキーは Secret で渡す（コミットしない）:
+#   wrangler secret put GEMINI_API_KEY
+#   wrangler secret put CLOUDFLARE_AI_GATEWAY_URL

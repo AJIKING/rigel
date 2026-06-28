@@ -18,5 +18,12 @@ export default tseslint.config(
       ecmaVersion: 2022,
       sourceType: "module",
     },
+    rules: {
+      // `_` 始まりの引数・変数は未使用でも許可（ポート実装やフェイクで使う）
+      "@typescript-eslint/no-unused-vars": [
+        "error",
+        { argsIgnorePattern: "^_", varsIgnorePattern: "^_" },
+      ],
+    },
   },
 );

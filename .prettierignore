@@ -4,6 +4,7 @@
 **/.wrangler/**
 **/node_modules/**
 **/coverage/**
+**/migrations/**
 pnpm-lock.yaml
 .claude/settings.local.json
 
