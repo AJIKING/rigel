@@ -1,14 +1,61 @@
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from "react-native";
+import { useState } from "react";
+import {
+  ActivityIndicator,
+  FlatList,
+  Linking,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
+import { createCheckout } from "../lib/api";
+import { useAuth } from "../lib/auth";
 import { fmtDate } from "../lib/format";
 import type { RootStackParamList } from "../lib/navigation";
 import { useGames } from "../lib/use-kifu-data";
 
 type Nav = NativeStackNavigationProp<RootStackParamList, "GamesList">;
 
+/** 無料ユーザー向け: Stripe Checkout をブラウザで開いてアップグレードする。 */
+function UpgradeBanner({ token }: { token: string }) {
+  const [busy, setBusy] = useState(false);
+  const [note, setNote] = useState<string | null>(null);
+
+  async function onUpgrade() {
+    setBusy(true);
+    setNote(null);
+    try {
+      const result = await createCheckout(token, {
+        successUrl: "https://rigel.app/ok",
+        cancelUrl: "https://rigel.app/ng",
+      });
+      if (result.ok) {
+        await Linking.openURL(result.url);
+        return;
+      }
+      setNote(result.status === 501 ? "課金は準備中です。" : "開始できませんでした。");
+    } catch {
+      setNote("通信に失敗しました。");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <View style={styles.upgrade}>
+      <Pressable disabled={busy} onPress={() => void onUpgrade()}>
+        <Text style={styles.upgradeText}>{busy ? "…" : "有料プランにアップグレード"}</Text>
+      </Pressable>
+      {note ? <Text style={styles.upgradeNote}>{note}</Text> : null}
+    </View>
+  );
+}
+
 export function GamesListScreen() {
   const nav = useNavigation<Nav>();
+  const { user, token } = useAuth();
   const { loading, games, sample, error } = useGames();
 
   if (loading) {
@@ -31,6 +78,7 @@ export function GamesListScreen() {
       <Pressable style={styles.capture} onPress={() => nav.navigate("Capture")}>
         <Text style={styles.captureText}>＋ 牌譜を撮る</Text>
       </Pressable>
+      {user?.plan === "free" && token ? <UpgradeBanner token={token} /> : null}
       {sample && <Text style={styles.sample}>サンプル表示中（ログインで自分の半荘が出ます）</Text>}
       {games.length === 0 ? (
         <Text style={styles.empty}>まだ半荘がありません。卓を撮影して記録してください。</Text>
@@ -72,4 +120,16 @@ const styles = StyleSheet.create({
     marginBottom: 0,
   },
   captureText: { color: "#fff", fontWeight: "600" },
+  upgrade: {
+    backgroundColor: "#fdf6e3",
+    borderColor: "#e6d28a",
+    borderWidth: 1,
+    borderRadius: 8,
+    padding: 12,
+    marginHorizontal: 12,
+    marginTop: 10,
+    alignItems: "center",
+  },
+  upgradeText: { color: "#8a6d00", fontWeight: "700" },
+  upgradeNote: { color: "#a60", fontSize: 12, marginTop: 4 },
 });

@@ -11,13 +11,16 @@ import { AuthenticateWithGoogle } from "./application/authenticate-with-google.u
 import { GetGameWithLogs } from "./application/get-game-with-logs.usecase";
 import { GetKifu } from "./application/get-kifu.usecase";
 import { GetUser } from "./application/get-user.usecase";
+import { HandleBillingWebhook } from "./application/handle-billing-webhook.usecase";
 import { ListGames } from "./application/list-games.usecase";
 import { ListKifu } from "./application/list-kifu.usecase";
+import { StartCheckout } from "./application/start-checkout.usecase";
 import { UpdateKifu } from "./application/update-kifu.usecase";
 import type { SessionService } from "./domain/auth/session";
 import type { Env } from "./env";
 import { JoseGoogleTokenVerifier } from "./infrastructure/auth/jose-google-token-verifier";
 import { JwtSessionService } from "./infrastructure/auth/jwt-session-service";
+import { StripeBillingGateway } from "./infrastructure/billing/stripe-billing-gateway";
 import { DrizzleAnalysisStore } from "./infrastructure/analysis/drizzle-analysis-store";
 import { createDb } from "./infrastructure/db/client";
 import { DrizzleGameRepository } from "./infrastructure/game/drizzle-game.repository";
@@ -39,6 +42,10 @@ export interface AppContainer {
   getGameWithLogs: GetGameWithLogs;
   authenticateWithGoogle: AuthenticateWithGoogle;
   getUser: GetUser;
+  startCheckout: StartCheckout;
+  handleBillingWebhook: HandleBillingWebhook;
+  /** Stripe 鍵が揃っているか。未設定なら課金ルートは 501 を返す。 */
+  billingEnabled: boolean;
   /** 認証ミドルウェアが Bearer トークン検証に使う。 */
   session: SessionService;
 }
@@ -73,6 +80,15 @@ export function buildContainer(env: Env): AppContainer {
 
   const session = new JwtSessionService({ secret: env.SESSION_SECRET });
 
+  const billing = new StripeBillingGateway({
+    secretKey: env.STRIPE_SECRET_KEY ?? "",
+    webhookSecret: env.STRIPE_WEBHOOK_SECRET ?? "",
+    priceId: env.STRIPE_PRICE_ID ?? "",
+  });
+  const billingEnabled = Boolean(
+    env.STRIPE_SECRET_KEY && env.STRIPE_WEBHOOK_SECRET && env.STRIPE_PRICE_ID,
+  );
+
   return {
     analyzeAndSaveKifu: new AnalyzeAndSaveKifu({
       users,
@@ -96,6 +112,9 @@ export function buildContainer(env: Env): AppContainer {
       newId,
     }),
     getUser: new GetUser(users),
+    startCheckout: new StartCheckout(billing),
+    handleBillingWebhook: new HandleBillingWebhook(billing, users),
+    billingEnabled,
     session,
   };
 }

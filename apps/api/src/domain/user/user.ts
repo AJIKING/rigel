@@ -87,6 +87,14 @@ export class User {
     this._count += 1;
   }
 
+  /**
+   * プランを変更する（課金 Webhook から呼ぶ）。
+   * 決済の成立/解約は外部(Stripe)の真実なので、ここでは結果のプランを反映するだけ。
+   */
+  changePlan(plan: Plan): void {
+    this._plan = plan;
+  }
+
   /** 永続化用のスナップショット。 */
   toProps(): UserProps {
     return {

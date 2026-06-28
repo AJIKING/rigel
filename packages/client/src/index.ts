@@ -41,6 +41,8 @@ export interface GameDetail {
 export type AnalyzeResult =
   { ok: true; gameId: string; logId: string } | { ok: false; status: number; reason?: string };
 
+export type CheckoutResult = { ok: true; url: string } | { ok: false; status: number };
+
 export interface ApiClient {
   /** Google ID トークンでログインし、セッショントークンとユーザーを得る。 */
   authWithGoogle(idToken: string): Promise<AuthResult>;
@@ -58,6 +60,15 @@ export interface ApiClient {
   analyze(token: string, form: FormData): Promise<AnalyzeResult>;
   /** 牌譜の修正を保存する（所有者のみ）。成否を返す。 */
   updateKifu(token: string, logId: string, kifu: Kifu): Promise<{ ok: boolean; status: number }>;
+  /**
+   * 有料プランへのアップグレード Checkout を開始し、決済ページURLを得る。
+   * urls は決済後/中断後の戻り先（各アプリが自分のオリジンで組む）。
+   * 課金未設定(501)や失敗時は ok:false（status 付き）。
+   */
+  createCheckout(
+    token: string,
+    urls: { successUrl: string; cancelUrl: string },
+  ): Promise<CheckoutResult>;
 }
 
 /**
@@ -121,6 +132,17 @@ export function createApiClient(baseUrl: string, fetchImpl?: typeof fetch): ApiC
         body: JSON.stringify(kifu),
       });
       return { ok: res.ok, status: res.status };
+    },
+
+    async createCheckout(token, urls) {
+      const res = await doFetch(`${baseUrl}/billing/checkout`, {
+        method: "POST",
+        headers: { ...bearer(token), "content-type": "application/json" },
+        body: JSON.stringify(urls),
+      });
+      if (!res.ok) return { ok: false, status: res.status };
+      const d = (await res.json()) as { url: string };
+      return { ok: true, url: d.url };
     },
   };
 }

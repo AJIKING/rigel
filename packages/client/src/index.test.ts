@@ -84,4 +84,28 @@ describe("createApiClient", () => {
     expect(method).toBe("PUT");
     expect(result.ok).toBe(true);
   });
+
+  it("createCheckout は決済URLを返す", async () => {
+    const client = createApiClient(
+      "https://api.test",
+      fakeFetch((url) => {
+        expect(url).toBe("https://api.test/billing/checkout");
+        return json({ url: "https://stripe.test/pay/abc" });
+      }),
+    );
+    const result = await client.createCheckout("tok", {
+      successUrl: "https://app/ok",
+      cancelUrl: "https://app/ng",
+    });
+    expect(result).toEqual({ ok: true, url: "https://stripe.test/pay/abc" });
+  });
+
+  it("createCheckout は課金未設定(501)で ok:false", async () => {
+    const client = createApiClient(
+      "https://api.test",
+      fakeFetch(() => new Response("no", { status: 501 })),
+    );
+    const result = await client.createCheckout("tok", { successUrl: "a", cancelUrl: "b" });
+    expect(result).toEqual({ ok: false, status: 501 });
+  });
 });

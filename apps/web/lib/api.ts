@@ -7,4 +7,5 @@ export type { AnalyzeResult, AuthUser, Game, GameDetail, GameLog } from "@rigel/
 
 const client = createApiClient(process.env.NEXT_PUBLIC_API_URL ?? "");
 
-export const { authWithGoogle, fetchMe, getGames, getGame, analyze, updateKifu } = client;
+export const { authWithGoogle, fetchMe, getGames, getGame, analyze, updateKifu, createCheckout } =
+  client;

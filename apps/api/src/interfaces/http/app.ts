@@ -125,6 +125,44 @@ export function createApp(): Hono<AppEnv> {
     return c.json({ ok: true });
   });
 
+  // 課金: サブスク用 Checkout を開始（要認証）。body: { successUrl, cancelUrl }。
+  app.post("/billing/checkout", requireAuth, async (c) => {
+    const container = c.get("container");
+    if (!container.billingEnabled) return c.json({ error: "billing not configured" }, 501);
+    const body = (await c.req.json().catch(() => null)) as {
+      successUrl?: unknown;
+      cancelUrl?: unknown;
+    } | null;
+    if (typeof body?.successUrl !== "string" || typeof body?.cancelUrl !== "string") {
+      return c.json({ error: "successUrl と cancelUrl が必要です" }, 400);
+    }
+    try {
+      const { url } = await container.startCheckout.execute({
+        userId: c.get("userId")!,
+        successUrl: body.successUrl,
+        cancelUrl: body.cancelUrl,
+      });
+      return c.json({ url });
+    } catch {
+      return c.json({ error: "checkout の作成に失敗しました" }, 502);
+    }
+  });
+
+  // 課金: Stripe Webhook（署名検証。認証は通さない＝Stripe から直接呼ばれる）。
+  app.post("/billing/webhook", async (c) => {
+    const container = c.get("container");
+    if (!container.billingEnabled) return c.json({ error: "billing not configured" }, 501);
+    const signature = c.req.header("stripe-signature");
+    if (!signature) return c.json({ error: "missing signature" }, 400);
+    const payload = await c.req.text(); // 署名検証には生ボディが要る。
+    try {
+      const result = await container.handleBillingWebhook.execute({ payload, signature });
+      return c.json({ received: true, handled: result.handled });
+    } catch {
+      return c.json({ error: "invalid webhook" }, 400);
+    }
+  });
+
   // ユーザーの牌譜一覧（閲覧は無料）。
   app.get("/users/:id/kifu", async (c) => {
     const logs = await c.get("container").listKifu.execute(c.req.param("id"));

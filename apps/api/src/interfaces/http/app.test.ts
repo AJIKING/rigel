@@ -19,6 +19,12 @@ const jsonInit = (body: unknown): RequestInit => ({
   body: JSON.stringify(body),
 });
 
+const jsonInitAuth = (token: string, body: unknown): RequestInit => ({
+  method: "POST",
+  headers: { "content-type": "application/json", authorization: `Bearer ${token}` },
+  body: JSON.stringify(body),
+});
+
 describe("HTTP app (Hono)", () => {
   const app = createApp();
 
@@ -78,6 +84,26 @@ describe("HTTP app (Hono)", () => {
       fakeEnv,
     );
     expect(res.status).toBe(400);
+  });
+
+  it("POST /billing/checkout はトークン無しで 401", async () => {
+    const res = await app.request("/billing/checkout", { method: "POST" }, fakeEnv);
+    expect(res.status).toBe(401);
+  });
+
+  it("POST /billing/checkout は Stripe 未設定なら 501", async () => {
+    const token = await new JwtSessionService({ secret: "test-secret" }).issue("u1");
+    const res = await app.request(
+      "/billing/checkout",
+      jsonInitAuth(token, { successUrl: "https://app/ok", cancelUrl: "https://app/ng" }),
+      fakeEnv,
+    );
+    expect(res.status).toBe(501);
+  });
+
+  it("POST /billing/webhook は Stripe 未設定なら 501", async () => {
+    const res = await app.request("/billing/webhook", { method: "POST" }, fakeEnv);
+    expect(res.status).toBe(501);
   });
 
   it("POST /auth/google は idToken が無ければ 400", async () => {

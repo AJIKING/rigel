@@ -155,9 +155,15 @@
 - カウントは**解析成功時のみ+1**（失敗時は消費させない）。
 - 無料/有料の差は「回数」中心。ただし**保存済み牌譜の閲覧は無料でも可能**にし、新規解析実行だけ制限する想定。
 
-### [未確定]
-- 無料枠の具体的件数（例: 月10件ならAIコスト月30円以下）。
-- 月額の価格（AIコストは安いので価格は「提供価値」で決められる）。
+### 実装状況（2026-06 時点）
+- 課金の**判定・導線は実装済み**: `User.plan`（free/paid）＋月次無料枠（`FREE_MONTHLY_QUOTA`、解析成功時のみ加算）、超過は `/analyze` が 402。
+- **Stripe サブスク方式で free→paid を実装**（構造）: `POST /billing/checkout`（Checkout 作成）→ Stripe Webhook（`checkout.session.completed`→paid /`customer.subscription.deleted`→free）で `User.changePlan` 反映。`BillingGateway` ポート + `StripeBillingGateway` 実装。userId は `client_reference_id` と subscription metadata に載せ、独自の顧客ID保存は不要。
+- web/mobile に「有料にする」導線（Stripe Checkout へ遷移）。
+- **鍵が未設定なら課金は無効**: `STRIPE_SECRET_KEY`/`STRIPE_WEBHOOK_SECRET`/`STRIPE_PRICE_ID` の3つが揃わなければ `/billing/*` は 501。
+
+### [未確定]（=実値・運用待ち。実装ではなくビジネス判断）
+- 無料枠の具体的件数（暫定 `FREE_MONTHLY_QUOTA = 10`。例: 月10件ならAIコスト月30円以下）。
+- 月額の価格（= Stripe の price_... を作って `STRIPE_PRICE_ID` に設定）。
 - 無料/有料の機能差を回数以外にも設けるか（保存件数上限など）。
 
 ---
