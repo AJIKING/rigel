@@ -56,6 +56,23 @@ export function createApp(): Hono<AppEnv> {
     }
   });
 
+  // ログインユーザーの半荘一覧。
+  app.get("/games", async (c) => {
+    const userId = c.get("userId");
+    if (!userId) return c.json({ error: "unauthorized" }, 401);
+    const games = await c.get("container").listGames.execute(userId);
+    return c.json(games);
+  });
+
+  // 半荘詳細（半荘 + 局一覧）。所有者のみ。
+  app.get("/games/:id", async (c) => {
+    const userId = c.get("userId");
+    if (!userId) return c.json({ error: "unauthorized" }, 401);
+    const detail = await c.get("container").getGameWithLogs.execute(c.req.param("id"));
+    if (!detail || detail.game.userId !== userId) return c.json({ error: "not found" }, 404);
+    return c.json(detail);
+  });
+
   // 認証済みユーザー自身。
   app.get("/me", async (c) => {
     const userId = c.get("userId");

@@ -7,6 +7,8 @@ const TOKEN_KEY = "rigel.session";
 
 interface AuthState {
   user: AuthUser | null;
+  /** セッショントークン（API 呼び出し用）。 */
+  token: string | null;
   loading: boolean;
   signInWithGoogle: (idToken: string) => Promise<void>;
   signOut: () => void;
@@ -16,19 +18,24 @@ const AuthContext = createContext<AuthState | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
+  const [token, setToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   // 起動時: 保存済みトークンがあれば /me で復元。
   useEffect(() => {
-    const token = readToken();
-    if (!token) {
+    const saved = readToken();
+    if (!saved) {
       setLoading(false);
       return;
     }
-    fetchMe(token)
+    fetchMe(saved)
       .then((u) => {
-        if (!u) clearToken();
-        setUser(u);
+        if (u) {
+          setUser(u);
+          setToken(saved);
+        } else {
+          clearToken();
+        }
       })
       .finally(() => setLoading(false));
   }, []);
@@ -36,16 +43,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signInWithGoogle = useCallback(async (idToken: string) => {
     const { sessionToken, user: u } = await authWithGoogle(idToken);
     writeToken(sessionToken);
+    setToken(sessionToken);
     setUser(u);
   }, []);
 
   const signOut = useCallback(() => {
     clearToken();
+    setToken(null);
     setUser(null);
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, loading, signInWithGoogle, signOut }}>
+    <AuthContext.Provider value={{ user, token, loading, signInWithGoogle, signOut }}>
       {children}
     </AuthContext.Provider>
   );

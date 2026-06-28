@@ -30,24 +30,47 @@ export const users = sqliteTable("users", {
     .$defaultFn(() => new Date()),
 });
 
-export const gameLogs = sqliteTable(
-  "game_logs",
+// 半荘（ゲーム）。1半荘 = 複数局の牌譜(game_logs)のまとまり。
+export const games = sqliteTable(
+  "games",
   {
-    /** 牌譜ID（= 共有URL単位 / 課金単位）。 */
     id: text("id").primaryKey(),
     userId: text("user_id")
       .notNull()
       .references(() => users.id),
+    /** 任意のラベル（例: "6/28 友人戦"）。 */
+    title: text("title").notNull().default(""),
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
+      .notNull()
+      .$defaultFn(() => new Date()),
+  },
+  (t) => [index("games_user_idx").on(t.userId)],
+);
+
+export const gameLogs = sqliteTable(
+  "game_logs",
+  {
+    /** 牌譜ID（= 共有URL単位 / 課金単位）。1局のスナップショット。 */
+    id: text("id").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id),
+    /** 所属する半荘。 */
+    gameId: text("game_id").references(() => games.id),
+    /** 半荘内での順序（東1局→… の表示順）。 */
+    seq: integer("seq").notNull().default(0),
     /** 解析後の牌譜 JSON（KifuSchema 検証済み）。撮影画像は保存しない。 */
     kifu: text("kifu", { mode: "json" }).$type<Kifu>().notNull(),
     createdAt: integer("created_at", { mode: "timestamp_ms" })
       .notNull()
       .$defaultFn(() => new Date()),
   },
-  (t) => [index("game_logs_user_idx").on(t.userId)],
+  (t) => [index("game_logs_user_idx").on(t.userId), index("game_logs_game_idx").on(t.gameId)],
 );
 
 export type UserRow = typeof users.$inferSelect;
 export type NewUserRow = typeof users.$inferInsert;
+export type GameRow = typeof games.$inferSelect;
+export type NewGameRow = typeof games.$inferInsert;
 export type GameLogRow = typeof gameLogs.$inferSelect;
 export type NewGameLogRow = typeof gameLogs.$inferInsert;

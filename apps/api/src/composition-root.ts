@@ -8,14 +8,17 @@
 
 import { AnalyzeAndSaveKifu } from "./application/analyze-and-save-kifu.usecase";
 import { AuthenticateWithGoogle } from "./application/authenticate-with-google.usecase";
+import { GetGameWithLogs } from "./application/get-game-with-logs.usecase";
 import { GetKifu } from "./application/get-kifu.usecase";
 import { GetUser } from "./application/get-user.usecase";
+import { ListGames } from "./application/list-games.usecase";
 import { ListKifu } from "./application/list-kifu.usecase";
 import type { SessionService } from "./domain/auth/session";
 import type { Env } from "./env";
 import { JoseGoogleTokenVerifier } from "./infrastructure/auth/jose-google-token-verifier";
 import { JwtSessionService } from "./infrastructure/auth/jwt-session-service";
 import { createDb } from "./infrastructure/db/client";
+import { DrizzleGameRepository } from "./infrastructure/game/drizzle-game.repository";
 import { GeminiAnalyzer } from "./infrastructure/gemini/gemini-analyzer";
 import { HttpGeminiClient } from "./infrastructure/gemini/gemini-client";
 import { HAND_PROMPT_SINGLE } from "./infrastructure/gemini/hand-prompt";
@@ -29,6 +32,8 @@ export interface AppContainer {
   analyzeAndSaveKifu: AnalyzeAndSaveKifu;
   getKifu: GetKifu;
   listKifu: ListKifu;
+  listGames: ListGames;
+  getGameWithLogs: GetGameWithLogs;
   authenticateWithGoogle: AuthenticateWithGoogle;
   getUser: GetUser;
   /** 認証ミドルウェアが Bearer トークン検証に使う。 */
@@ -43,6 +48,7 @@ export function buildContainer(env: Env): AppContainer {
   const db = createDb(env.DB);
   const users = new DrizzleUserRepository(db);
   const gameLogs = new DrizzleGameLogRepository(db);
+  const gamesRepo = new DrizzleGameRepository(db);
 
   // 副作用（時刻・ID生成）の供給は1か所に集約してユースケースへ注入する。
   const now = () => new Date();
@@ -68,6 +74,8 @@ export function buildContainer(env: Env): AppContainer {
     analyzeAndSaveKifu: new AnalyzeAndSaveKifu({ users, gameLogs, analyzer, now, newId }),
     getKifu: new GetKifu(gameLogs),
     listKifu: new ListKifu(gameLogs),
+    listGames: new ListGames(gamesRepo),
+    getGameWithLogs: new GetGameWithLogs(gamesRepo, gameLogs),
     authenticateWithGoogle: new AuthenticateWithGoogle({
       users,
       verifier: new JoseGoogleTokenVerifier(env.GOOGLE_CLIENT_ID),

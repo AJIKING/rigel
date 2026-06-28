@@ -52,6 +52,16 @@ describe("HTTP app (Hono)", () => {
     expect(res.status).toBe(401);
   });
 
+  it("GET /games はトークン無しで 401", async () => {
+    const res = await app.request("/games", {}, fakeEnv);
+    expect(res.status).toBe(401);
+  });
+
+  it("GET /games/:id はトークン無しで 401", async () => {
+    const res = await app.request("/games/g1", {}, fakeEnv);
+    expect(res.status).toBe(401);
+  });
+
   it("GET /me は偽のトークンで 401", async () => {
     const res = await app.request(
       "/me",

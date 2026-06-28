@@ -45,6 +45,8 @@ export class AnalyzeAndSaveKifu {
     const gameLog: GameLog = {
       id: newId(),
       userId: user.id,
+      gameId: null,
+      seq: 0,
       kifu,
       createdAt: now(),
     };

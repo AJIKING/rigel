@@ -7,4 +7,6 @@ export interface GameLogRepository {
   findById(id: string): Promise<GameLog | null>;
   /** ユーザーの牌譜一覧（新しい順）。閲覧は無料でも可能。 */
   listByUser(userId: string): Promise<GameLog[]>;
+  /** 半荘内の局一覧（seq 昇順）。 */
+  listByGame(gameId: string): Promise<GameLog[]>;
 }

@@ -1,5 +1,7 @@
 // テスト用の in-memory リポジトリ（ポートのフェイク実装）。本番バンドルには含まれない。
 
+import type { Game } from "../domain/game/game";
+import type { GameRepository } from "../domain/game/game.repository";
 import type { GameLog } from "../domain/kifu/game-log";
 import type { GameLogRepository } from "../domain/kifu/game-log.repository";
 import type { User } from "../domain/user/user";
@@ -47,5 +49,32 @@ export class InMemoryGameLogRepository implements GameLogRepository {
 
   listByUser(userId: string): Promise<GameLog[]> {
     return Promise.resolve(this.saved.filter((g) => g.userId === userId));
+  }
+
+  listByGame(gameId: string): Promise<GameLog[]> {
+    return Promise.resolve(
+      this.saved.filter((g) => g.gameId === gameId).sort((a, b) => a.seq - b.seq),
+    );
+  }
+}
+
+export class InMemoryGameRepository implements GameRepository {
+  private byId = new Map<string, Game>();
+
+  constructor(seed: Game[] = []) {
+    for (const g of seed) this.byId.set(g.id, g);
+  }
+
+  listByUser(userId: string): Promise<Game[]> {
+    return Promise.resolve([...this.byId.values()].filter((g) => g.userId === userId));
+  }
+
+  findById(id: string): Promise<Game | null> {
+    return Promise.resolve(this.byId.get(id) ?? null);
+  }
+
+  save(game: Game): Promise<void> {
+    this.byId.set(game.id, game);
+    return Promise.resolve();
   }
 }
