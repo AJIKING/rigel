@@ -12,6 +12,7 @@
     },
     "android": {
       "package": "co.plaria.rigel"
-    }
+    },
+    "plugins": ["expo-secure-store"]
   }
 }
