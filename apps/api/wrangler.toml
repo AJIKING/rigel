@@ -1,0 +1,15 @@
+# Cloudflare Workers 設定（API 本体）
+# 実行/デプロイには wrangler を使う: `pnpm --filter api exec wrangler dev`
+# D1・AI Gateway バインディングは M5/M7 で追加する。
+
+name = "rigel-api"
+main = "src/index.ts"
+compatibility_date = "2025-01-01"
+
+# [[d1_databases]]            # ← M7（保存/閲覧）で有効化
+# binding = "DB"
+# database_name = "rigel"
+# database_id = "<未設定>"
+
+[observability]
+enabled = true

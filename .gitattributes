@@ -1,0 +1,12 @@
+# 行末は LF に正規化（Linux CI と Windows ローカルで差分が出ないように）
+* text=auto eol=lf
+
+# バイナリは変換しない
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.webp binary
+*.pdf binary
+*.exe binary

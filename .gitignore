@@ -1,0 +1,31 @@
+# dependencies
+node_modules/
+
+# build output
+dist/
+out/
+.next/
+.turbo/
+*.tsbuildinfo
+
+# cloudflare / wrangler
+.wrangler/
+.dev.vars
+
+# expo / react native
+.expo/
+
+# test
+coverage/
+
+# local overrides (machine-managed, do not commit)
+.claude/settings.local.json
+
+# env / secrets
+.env
+.env.*
+!.env.example
+
+# misc
+.DS_Store
+*.log

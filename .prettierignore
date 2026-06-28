@@ -1,0 +1,11 @@
+**/dist/**
+**/.next/**
+**/.expo/**
+**/.wrangler/**
+**/node_modules/**
+**/coverage/**
+pnpm-lock.yaml
+.claude/settings.local.json
+
+# Markdown は手作業で整形（CJKの表・ASCII図を Prettier に崩させない）
+**/*.md
