@@ -48,9 +48,13 @@ export function createApp(): Hono<AppEnv> {
     return c.json(logs);
   });
 
-  // 撮影画像 → 解析 → 保存。【M5 で実装】解析パイプラインが入るまで 501。
+  // 撮影画像 → 解析 → 保存。河の読み取り(Gemini)・組み立ては実装済みだが、
+  // 河の4分割＋正立(image processing)が未実装(M5b)のため、まだ通しでは動かせない → 501。
   app.post("/analyze", (c) =>
-    c.json({ ok: false, error: "analyze は M5（解析パイプライン）で実装予定" }, 501),
+    c.json(
+      { ok: false, error: "analyze は準備中（河の4分割＋正立が未実装。読み取り自体は実装済み）" },
+      501,
+    ),
   );
 
   return app;

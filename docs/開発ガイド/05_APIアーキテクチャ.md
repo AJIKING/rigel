@@ -50,7 +50,7 @@ apps/api/
     │   ├── db/                  # schema.ts(Drizzle) / client.ts(drizzle(d1))
     │   ├── user/               # DrizzleUserRepository
     │   ├── kifu/               # DrizzleGameLogRepository
-    │   └── gemini/             # GeminiAnalyzer（M5 で実装）
+    │   └── gemini/             # Gemini 連携（client / extract-json / read-river / assemble / analyzer）
     └── interfaces/http/         # app.ts(Hono) / validate.ts
 ```
 
@@ -69,8 +69,35 @@ POST /analyze
       5. user.recordSuccessfulAnalysis / users.save  （…カウント+1。成功時のみ）
 ```
 
-> `/analyze` は **M5（解析パイプライン）まで 501**。`GeminiAnalyzer` は未実装スタブ。
-> ポート（`Analyzer`）は確定しているので、M5 は infrastructure 側を埋めるだけで済む。
+> `/analyze` は **まだ 501**。河の読み取り・組み立ては実装済みだが、河の4分割＋正立
+> （image processing）が未実装（M5b）のため通しでは動かせない。下記参照。
+
+---
+
+## Gemini 連携（解析パイプライン）
+
+`infrastructure/gemini/` に、河の読み取りを部品化して実装する。
+
+```
+GeminiAnalyzer.analyze(input):
+  1. preprocessor.split(riverImage)      河1枚 → bottom/right/top/left の正立画像
+                                          ※ image processing が要るため未実装(M5b)。今はポート＋スタブ
+  2. readRiverDirection × 4 (並列)        各方向: client.generateText → extractJson → AiRiverResponseSchema.parse
+  3. assembleKifu                         toAbsoluteSeat で相対→絶対、KifuSchema.parse で最終検証
+```
+
+| 部品 | 役割 | テスト |
+|---|---|---|
+| `gemini-client` | Gemini generateContent を AI Gateway 経由で叩く。**応答パーツを種類で仕分け、テキストのみ連結**（混在パーツ対策）。fetch 注入可 | fake fetch |
+| `extract-json` | テキストから JSON 抽出（フェンス/前置き/釣り合い括弧に頑健） | 純粋 |
+| `read-river` | 1方向: Gemini → JSON抽出 → `AiRiverResponseSchema.parse` | fake client |
+| `assemble` | 相対→絶対変換 + `KifuSchema.parse` | 純粋 |
+| `river-prompt` | 単方向の河読み取りプロンプト（`AiRiverResponse` 形式） | — |
+| `river-preprocessor` | **ポート＋未実装スタブ**（4分割＋正立。M5b） | — |
+
+> **モデル名はハードコードしない**。`env.GEMINI_RIVER_MODEL`（未指定なら既定値）で渡し、AI Studio の現行モデルに合わせる。
+> 設計ドキュメント 4章 `[未確定]`「JSON強制とtool併用の挙動」は **client の種類別仕分け + extract-json で解決済み**。
+> 残り `[未確定]`: 4分割＋正立の実体（image processing）、Agentic Vision の要否（A/B）、手牌の読み取り（assemble は手牌任意対応済み）。
 
 ---
 
@@ -78,10 +105,10 @@ POST /analyze
 
 | 信頼ゲート | どの層で守るか |
 |---|---|
-| AI出力を使う前に Zod 検証 | `Analyzer` の**契約**（返す Kifu は `KifuSchema` 検証済み）/ `interfaces/http/validate.ts` |
-| 推測で埋めない（null+confidence） | `@rigel/schema`（`ReadTile`/`Discard`）+ Analyzer 実装（M5） |
+| AI出力を使う前に Zod 検証 | `read-river` が `AiRiverResponseSchema.parse`、`assemble` が `KifuSchema.parse` / `interfaces/http/validate.ts` |
+| 推測で埋めない（null+confidence） | `@rigel/schema`（`ReadTile`/`Discard`）+ 河プロンプトの指示 |
 | 課金は成功時のみ加算 | `domain/user`（`recordSuccessfulAnalysis`）+ `AnalyzeAndSaveKifu` の手順 |
-| 画像を保存しない | `GameLog`/`game_logs` に画像列を持たない（`kifu` JSON のみ） |
+| 画像を保存しない | `GameLog`/`game_logs` に画像列を持たない（`kifu` JSON のみ）。`ImageRef` は解析中のみ |
 
 ---
 

@@ -12,7 +12,6 @@ const NOW = new Date("2026-06-28T00:00:00.000Z");
 
 const dummyInput: AnalysisInput = {
   riverImage: { data: new ArrayBuffer(0), mimeType: "image/jpeg" },
-  handImages: [],
   cameraBottomSeat: "east",
 };
 

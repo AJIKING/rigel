@@ -6,6 +6,8 @@ export interface Env {
   DB: D1Database;
   /** Gemini API キー（Secret）。 */
   GEMINI_API_KEY: string;
-  /** Cloudflare AI Gateway のエンドポイント。 */
+  /** Cloudflare AI Gateway の google-ai-studio ベースURL（`/v1beta/...` の手前まで）。 */
   CLOUDFLARE_AI_GATEWAY_URL: string;
+  /** 河読み取りモデル名（任意。未指定なら既定値）。ハードコードせず AI Studio の現行モデルを設定。 */
+  GEMINI_RIVER_MODEL?: string;
 }
