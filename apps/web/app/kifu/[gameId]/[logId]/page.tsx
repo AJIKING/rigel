@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { KifuEditor } from "../../../../components/KifuEditor";
+import { fmtDate } from "../../../../lib/format";
 import { useGame } from "../../../../lib/use-kifu-data";
 
 export default function BoardPage() {
@@ -26,7 +27,7 @@ export default function BoardPage() {
             第 {log.seq} 局 <small style={{ color: "#999" }}>#{log.id}</small>
           </h1>
           <p style={{ color: "#888", fontSize: 13 }}>
-            撮影: {log.kifu.capturedAt.slice(0, 10)} ／
+            撮影: {fmtDate(log.kifu.capturedAt)} ／
             赤枠は「要確認」。下の一覧から選んで正しい牌に直せます。
           </p>
           <KifuEditor initialKifu={log.kifu} kifuId={log.id} />

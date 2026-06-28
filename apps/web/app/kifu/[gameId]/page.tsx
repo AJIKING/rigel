@@ -3,6 +3,7 @@
 import { collectReviewItems } from "@rigel/ui";
 import Link from "next/link";
 import { useParams } from "next/navigation";
+import { fmtDate } from "../../../lib/format";
 import { useGame } from "../../../lib/use-kifu-data";
 
 export default function GameDetailPage() {
@@ -25,7 +26,7 @@ export default function GameDetailPage() {
         <>
           <h1 style={{ fontSize: 20 }}>{detail.game.title || "（無題の半荘）"}</h1>
           <p style={{ color: "#999", fontSize: 12 }}>
-            {detail.game.createdAt.slice(0, 10)} ／ {detail.logs.length} 局
+            {fmtDate(detail.game.createdAt)} ／ {detail.logs.length} 局
             {sample ? "（サンプル）" : ""}
           </p>
 

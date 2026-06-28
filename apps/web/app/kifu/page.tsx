@@ -1,11 +1,8 @@
 "use client";
 
 import Link from "next/link";
+import { fmtDate } from "../../lib/format";
 import { useGames } from "../../lib/use-kifu-data";
-
-function fmtDate(iso: string): string {
-  return iso.slice(0, 10);
-}
 
 export default function KifuListPage() {
   const { loading, games, sample, error } = useGames();
