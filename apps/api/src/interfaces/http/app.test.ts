@@ -53,6 +53,33 @@ describe("HTTP app (Hono)", () => {
     expect(res.status).toBe(400);
   });
 
+  it("PUT /kifu/:id はトークン無しで 401", async () => {
+    const res = await app.request(
+      "/kifu/l1",
+      {
+        method: "PUT",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(minimalKifuInput),
+      },
+      fakeEnv,
+    );
+    expect(res.status).toBe(401);
+  });
+
+  it("PUT /kifu/:id は認証済みでも不正な牌譜は 400", async () => {
+    const token = await new JwtSessionService({ secret: "test-secret" }).issue("u1");
+    const res = await app.request(
+      "/kifu/l1",
+      {
+        method: "PUT",
+        headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
+        body: JSON.stringify({ schemaVersion: "9.9.9" }),
+      },
+      fakeEnv,
+    );
+    expect(res.status).toBe(400);
+  });
+
   it("POST /auth/google は idToken が無ければ 400", async () => {
     const res = await app.request("/auth/google", jsonInit({}), fakeEnv);
     expect(res.status).toBe(400);

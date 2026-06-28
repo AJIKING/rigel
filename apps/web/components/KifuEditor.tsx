@@ -10,22 +10,66 @@ import {
   type TileArea,
 } from "@rigel/ui";
 import { useMemo, useState } from "react";
+import { updateKifu } from "../lib/api";
+import { useAuth } from "../lib/auth-context";
 import { KifuBoard } from "./KifuBoard";
 import { TilePicker } from "./TilePicker";
 
 const AREA_LABEL: Record<TileArea, string> = { hand: "手牌", river: "河", meld: "鳴き" };
+type SaveState = "idle" | "saving" | "saved" | "error";
 
 /**
  * 牌譜の閲覧＋修正画面。盤面を表示し、「要確認」な牌を一覧から選んで正しい牌に直す。
  * 修正ロジックは @rigel/ui の純粋関数（collectReviewItems / applyTileEdit）に委譲。
  */
-export function KifuEditor({ initialKifu }: { initialKifu: Kifu; kifuId?: string }) {
+export function KifuEditor({ initialKifu, kifuId }: { initialKifu: Kifu; kifuId?: string }) {
+  const { token } = useAuth();
   const [kifu, setKifu] = useState<Kifu>(initialKifu);
   const [editing, setEditing] = useState<ReviewItem | null>(null);
+  const [save, setSave] = useState<SaveState>("idle");
   const reviews = useMemo(() => collectReviewItems(kifu), [kifu]);
+
+  const canSave = Boolean(token && kifuId);
+
+  async function onSave() {
+    if (!token || !kifuId) return;
+    setSave("saving");
+    try {
+      const res = await updateKifu(token, kifuId, kifu);
+      setSave(res.ok ? "saved" : "error");
+    } catch {
+      setSave("error");
+    }
+  }
 
   return (
     <div style={{ display: "grid", gap: 16 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+        <button
+          type="button"
+          onClick={onSave}
+          disabled={!canSave || save === "saving"}
+          style={{
+            padding: "8px 16px",
+            borderRadius: 8,
+            border: "none",
+            background: !canSave || save === "saving" ? "#999" : "#222",
+            color: "#fff",
+            cursor: !canSave || save === "saving" ? "default" : "pointer",
+            fontSize: 14,
+          }}
+        >
+          {save === "saving" ? "保存中…" : "修正を保存"}
+        </button>
+        {!canSave && (
+          <span style={{ color: "#888", fontSize: 13 }}>ログインすると保存できます</span>
+        )}
+        {save === "saved" && <span style={{ color: "#1b7a2f", fontSize: 13 }}>保存しました</span>}
+        {save === "error" && (
+          <span style={{ color: "crimson", fontSize: 13 }}>保存に失敗しました</span>
+        )}
+      </div>
+
       <KifuBoard kifu={kifu} />
 
       <section
@@ -75,6 +119,7 @@ export function KifuEditor({ initialKifu }: { initialKifu: Kifu; kifuId?: string
             onPick={(tile) => {
               setKifu((k) => applyTileEdit(k, editing.location, tile));
               setEditing(null);
+              setSave("idle");
             }}
           />
           <button

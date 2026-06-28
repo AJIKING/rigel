@@ -1,3 +1,4 @@
+import { KifuSchema } from "@rigel/schema";
 import { describe, expect, it } from "vitest";
 import { createApiClient } from "./index";
 
@@ -65,5 +66,22 @@ describe("createApiClient", () => {
     );
     const result = await client.analyze("tok", new FormData());
     expect(result).toEqual({ ok: false, status: 402, reason: "quota_exceeded" });
+  });
+
+  it("updateKifu は PUT /kifu/:id して成否を返す", async () => {
+    let method = "";
+    const client = createApiClient("https://api.test", ((url: string, init?: RequestInit) => {
+      method = init?.method ?? "GET";
+      expect(String(url)).toBe("https://api.test/kifu/l1");
+      return Promise.resolve(json({ ok: true }));
+    }) as unknown as typeof fetch);
+    const minimalKifu = KifuSchema.parse({
+      schemaVersion: "1.0.0",
+      capturedAt: "2026-06-28T00:00:00.000Z",
+      seats: { east: {}, south: {}, west: {}, north: {} },
+    });
+    const result = await client.updateKifu("tok", "l1", minimalKifu);
+    expect(method).toBe("PUT");
+    expect(result.ok).toBe(true);
   });
 });

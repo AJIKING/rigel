@@ -13,6 +13,7 @@ import { GetKifu } from "./application/get-kifu.usecase";
 import { GetUser } from "./application/get-user.usecase";
 import { ListGames } from "./application/list-games.usecase";
 import { ListKifu } from "./application/list-kifu.usecase";
+import { UpdateKifu } from "./application/update-kifu.usecase";
 import type { SessionService } from "./domain/auth/session";
 import type { Env } from "./env";
 import { JoseGoogleTokenVerifier } from "./infrastructure/auth/jose-google-token-verifier";
@@ -33,6 +34,7 @@ export interface AppContainer {
   analyzeAndSaveKifu: AnalyzeAndSaveKifu;
   getKifu: GetKifu;
   listKifu: ListKifu;
+  updateKifu: UpdateKifu;
   listGames: ListGames;
   getGameWithLogs: GetGameWithLogs;
   authenticateWithGoogle: AuthenticateWithGoogle;
@@ -83,6 +85,7 @@ export function buildContainer(env: Env): AppContainer {
     }),
     getKifu: new GetKifu(gameLogs),
     listKifu: new ListKifu(gameLogs),
+    updateKifu: new UpdateKifu(gameLogs),
     listGames: new ListGames(gamesRepo),
     getGameWithLogs: new GetGameWithLogs(gamesRepo, gameLogs),
     authenticateWithGoogle: new AuthenticateWithGoogle({

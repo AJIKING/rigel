@@ -112,6 +112,19 @@ export function createApp(): Hono<AppEnv> {
     return c.json(log);
   });
 
+  // 牌譜の修正を保存（所有者のみ）。body は Kifu JSON。
+  app.put("/kifu/:id", requireAuth, async (c) => {
+    const parsed = parseKifu(await c.req.json().catch(() => null));
+    if (!parsed.ok) return c.json({ ok: false, errors: parsed.errors }, 400);
+    const result = await c.get("container").updateKifu.execute({
+      userId: c.get("userId")!,
+      logId: c.req.param("id"),
+      kifu: parsed.kifu,
+    });
+    if (!result.ok) return c.json({ error: "not found" }, 404);
+    return c.json({ ok: true });
+  });
+
   // ユーザーの牌譜一覧（閲覧は無料）。
   app.get("/users/:id/kifu", async (c) => {
     const logs = await c.get("container").listKifu.execute(c.req.param("id"));

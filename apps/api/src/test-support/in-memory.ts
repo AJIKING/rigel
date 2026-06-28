@@ -40,7 +40,10 @@ export class InMemoryGameLogRepository implements GameLogRepository {
   readonly saved: GameLog[] = [];
 
   save(gameLog: GameLog): Promise<void> {
-    this.saved.push(gameLog);
+    // 実 Drizzle 実装(onConflictDoUpdate)に合わせて id で upsert する。
+    const i = this.saved.findIndex((g) => g.id === gameLog.id);
+    if (i >= 0) this.saved[i] = gameLog;
+    else this.saved.push(gameLog);
     return Promise.resolve();
   }
 

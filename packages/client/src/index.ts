@@ -56,6 +56,8 @@ export interface ApiClient {
    * 必要フィールド: river, cameraBottomSeat（任意: hand_*, gameId）。
    */
   analyze(token: string, form: FormData): Promise<AnalyzeResult>;
+  /** 牌譜の修正を保存する（所有者のみ）。成否を返す。 */
+  updateKifu(token: string, logId: string, kifu: Kifu): Promise<{ ok: boolean; status: number }>;
 }
 
 /**
@@ -110,6 +112,15 @@ export function createApiClient(baseUrl: string, fetchImpl?: typeof fetch): ApiC
       }
       const body = (await res.json().catch(() => ({}))) as { reason?: string; error?: string };
       return { ok: false, status: res.status, reason: body.reason ?? body.error };
+    },
+
+    async updateKifu(token, logId, kifu) {
+      const res = await doFetch(`${baseUrl}/kifu/${logId}`, {
+        method: "PUT",
+        headers: { ...bearer(token), "content-type": "application/json" },
+        body: JSON.stringify(kifu),
+      });
+      return { ok: res.ok, status: res.status };
     },
   };
 }
