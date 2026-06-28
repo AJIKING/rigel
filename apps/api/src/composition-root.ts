@@ -44,6 +44,10 @@ export function buildContainer(env: Env): AppContainer {
   const users = new DrizzleUserRepository(db);
   const gameLogs = new DrizzleGameLogRepository(db);
 
+  // 副作用（時刻・ID生成）の供給は1か所に集約してユースケースへ注入する。
+  const now = () => new Date();
+  const newId = () => crypto.randomUUID();
+
   const analyzer = new GeminiAnalyzer({
     client: new HttpGeminiClient({
       apiKey: env.GEMINI_API_KEY,
@@ -55,27 +59,21 @@ export function buildContainer(env: Env): AppContainer {
     riverModel: env.GEMINI_RIVER_MODEL ?? DEFAULT_RIVER_MODEL,
     handPrompt: HAND_PROMPT_SINGLE,
     handModel: env.GEMINI_HAND_MODEL ?? DEFAULT_HAND_MODEL,
-    now: () => new Date(),
+    now,
   });
 
   const session = new JwtSessionService({ secret: env.SESSION_SECRET });
 
   return {
-    analyzeAndSaveKifu: new AnalyzeAndSaveKifu({
-      users,
-      gameLogs,
-      analyzer,
-      now: () => new Date(),
-      newId: () => crypto.randomUUID(),
-    }),
+    analyzeAndSaveKifu: new AnalyzeAndSaveKifu({ users, gameLogs, analyzer, now, newId }),
     getKifu: new GetKifu(gameLogs),
     listKifu: new ListKifu(gameLogs),
     authenticateWithGoogle: new AuthenticateWithGoogle({
       users,
       verifier: new JoseGoogleTokenVerifier(env.GOOGLE_CLIENT_ID),
       session,
-      now: () => new Date(),
-      newId: () => crypto.randomUUID(),
+      now,
+      newId,
     }),
     getUser: new GetUser(users),
     session,

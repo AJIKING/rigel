@@ -1,6 +1,6 @@
 import type { CameraSeat } from "@rigel/schema";
 import { describe, expect, it } from "vitest";
-import type { ImageRef } from "../../domain/kifu/analyzer";
+import { fakeImage } from "../../test-support/image";
 import { ImageRiverPreprocessor } from "./image-river-preprocessor";
 import type { FracRect, ImageProcessor, RotationCW } from "./image-processor";
 import { riverLayout } from "./river-layout";
@@ -14,7 +14,7 @@ class RecordingImageProcessor implements ImageProcessor {
   }
 }
 
-const river: ImageRef = { data: new ArrayBuffer(0), mimeType: "image/jpeg" };
+const river = fakeImage();
 
 describe("ImageRiverPreprocessor.split", () => {
   it("4方向ぶん cropRotate を呼び、JPEG の ImageRef を返す", async () => {

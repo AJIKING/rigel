@@ -1,11 +1,10 @@
 import type { CameraSeat } from "@rigel/schema";
 import { describe, expect, it } from "vitest";
 import type { AnalysisInput, ImageRef } from "../../domain/kifu/analyzer";
+import { fakeImage as img } from "../../test-support/image";
 import { GeminiAnalyzer, type GeminiAnalyzerDeps } from "./gemini-analyzer";
 import type { GenerateParams, GeminiClient } from "./gemini-client";
 import type { RiverPreprocessor } from "./river-preprocessor";
-
-const img = (tag: string): ImageRef => ({ data: new ArrayBuffer(0), mimeType: tag });
 
 const RIVER_PROMPT = "RIVER";
 const HAND_PROMPT = "HAND";

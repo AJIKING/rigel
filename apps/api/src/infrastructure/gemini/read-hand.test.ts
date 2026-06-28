@@ -1,8 +1,9 @@
 import { describe, expect, it } from "vitest";
+import { fakeImage } from "../../test-support/image";
 import type { GeminiClient } from "./gemini-client";
 import { readHand } from "./read-hand";
 
-const image = { data: new ArrayBuffer(0), mimeType: "image/jpeg" };
+const image = fakeImage();
 
 function clientReturning(text: string): GeminiClient {
   return { generateText: () => Promise.resolve(text) };

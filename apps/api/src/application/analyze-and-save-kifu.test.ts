@@ -2,6 +2,7 @@ import type { Kifu } from "@rigel/schema";
 import { describe, expect, it } from "vitest";
 import type { AnalysisInput, Analyzer } from "../domain/kifu/analyzer";
 import { User, firstOfNextMonthUtc } from "../domain/user/user";
+import { fakeImage } from "../test-support/image";
 import { InMemoryGameLogRepository, InMemoryUserRepository } from "../test-support/in-memory";
 import { validKifu } from "../test-support/kifu";
 import { AnalyzeAndSaveKifu } from "./analyze-and-save-kifu.usecase";
@@ -9,7 +10,7 @@ import { AnalyzeAndSaveKifu } from "./analyze-and-save-kifu.usecase";
 const NOW = new Date("2026-06-28T00:00:00.000Z");
 
 const dummyInput: AnalysisInput = {
-  riverImage: { data: new ArrayBuffer(0), mimeType: "image/jpeg" },
+  riverImage: fakeImage(),
   cameraBottomSeat: "east",
 };
 
