@@ -26,4 +26,11 @@ export default tseslint.config(
       ],
     },
   },
+  {
+    // CommonJS の設定ファイル（babel/metro 等）は require を許可する
+    files: ["**/*.cjs", "**/babel.config.js", "**/metro.config.js"],
+    rules: {
+      "@typescript-eslint/no-require-imports": "off",
+    },
+  },
 );

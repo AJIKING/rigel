@@ -14,12 +14,13 @@ packages/
   schema/   @rigel/schema  牌譜スキーマ(Zod)。全層共有の背骨。AI出力検証もこれ
   ui/       @rigel/ui      牌SVG・confidenceハイライト・修正UI（RN/Web共有）※M6
 apps/
-  api/      api            Cloudflare Workers（AI Gateway 経由で Gemini、D1 保存）※M5/M7
-  web/      （未作成）       Next.js ※M5+
-  mobile/   （未作成）       React Native (Expo) ※M5+
+  api/      api            Cloudflare Workers（Hono + Drizzle + D1）。DDD レイヤード
+  web/      web            Next.js（App Router）。背骨スキーマ・UIを共有
+  mobile/   mobile         React Native (Expo)。背骨スキーマ・UIを共有
 ```
 
-`web` / `mobile` は後続マイルストーン（[03 タスク分解](docs/開発ガイド/03_タスク分解とPlan運用.md)）で追加する。
+`api` の構成は [05 APIアーキテクチャ](docs/開発ガイド/05_APIアーキテクチャ.md) を参照。
+`web` / `mobile` は土台のみ（共有パッケージの利用デモ）。画面実装は後続。
 
 ## 開発コマンド
 
@@ -30,6 +31,14 @@ pnpm lint             # ESLint
 pnpm format:check     # Prettier（差分ゼロ）
 pnpm test             # Vitest
 pnpm build            # ビルド（schema の dist など）
+```
+
+アプリ別の起動:
+
+```bash
+pnpm --filter web dev          # Next.js 開発サーバ
+pnpm --filter mobile start     # Expo（QR / シミュレータ）
+pnpm --filter api dev          # Workers（wrangler dev）
 ```
 
 ゲートの詳細は [docs/開発ガイド/04_検証とCIゲート.md](docs/開発ガイド/04_検証とCIゲート.md)。

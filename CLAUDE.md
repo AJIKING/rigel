@@ -104,9 +104,12 @@ rigel/
     │   ├── src/interfaces/http/   #   Hono アプリ
     │   ├── drizzle.config.ts / migrations/  #   D1 マイグレーション
     │   └── 詳細: docs/開発ガイド/05_APIアーキテクチャ.md
-    ├── web/                       # Next.js ※未作成（M5+）
-    └── mobile/                    # React Native (Expo) ※未作成（M5+）
+    ├── web/     web               # Next.js (App Router)。背骨スキーマ・UIを共有 ※土台(画面はこれから)
+    └── mobile/  mobile            # React Native (Expo)。背骨スキーマ・UIを共有 ※土台(画面はこれから)
 ```
+
+> `web`/`mobile` は共有パッケージ（`@rigel/schema`/`@rigel/ui`）を使うデモ画面のみ。
+> web は `next build` + Vitest(jsdom)、mobile は `tsc`+ESLint がゲート（Expo の実機/EAS ビルドは CI 外）。
 
 ---
 

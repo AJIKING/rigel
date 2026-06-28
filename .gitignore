@@ -7,6 +7,8 @@ out/
 .next/
 .turbo/
 *.tsbuildinfo
+# Next.js が生成（build/dev で再生成される）
+next-env.d.ts
 
 # cloudflare / wrangler
 .wrangler/

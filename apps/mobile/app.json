@@ -1,0 +1,17 @@
+{
+  "expo": {
+    "name": "rigel",
+    "slug": "rigel",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "platforms": ["ios", "android"],
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "package": "co.plaria.rigel"
+    }
+  }
+}
