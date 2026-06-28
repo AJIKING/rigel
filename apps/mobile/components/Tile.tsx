@@ -1,35 +1,69 @@
 import type { ReadTile } from "@rigel/schema";
-import { describeTile, needsReview, tileLabel } from "@rigel/ui";
-import { StyleSheet, Text, View } from "react-native";
+import { needsReview, REVIEW_COLOR, tileFace, tileLabel } from "@rigel/ui";
+import Svg, { Rect, Text as SvgText } from "react-native-svg";
 
-/** 1牌の表示（RN）。確信度が低い/読めない牌は赤枠で「要確認」を示す。 */
-export function Tile({ read }: { read: ReadTile }) {
+const W = 30;
+const H = 40;
+
+/**
+ * 1牌の表示（RN / react-native-svg。web と同じ tileFace 仕様を描く）。
+ * 数牌=数字+スート記号、字牌=漢字、赤ドラ=赤、読めない牌=?。要確認は赤枠。
+ */
+export function Tile({ read, riichi = false }: { read: ReadTile; riichi?: boolean }) {
   const review = needsReview(read);
-  const info = describeTile(read.tile);
+  const face = tileFace(read.tile);
+
   return (
-    <View style={[styles.tile, review && styles.review]}>
-      <Text style={{ color: info?.red ? "#d00" : "#222", fontWeight: "600" }}>
-        {tileLabel(read.tile)}
-      </Text>
-    </View>
+    <Svg width={W} height={H} accessibilityLabel={tileLabel(read.tile)} style={{ margin: 2 }}>
+      <Rect
+        x={1}
+        y={1}
+        width={W - 2}
+        height={H - 2}
+        rx={4}
+        fill={review ? "#fff5f5" : "#ffffff"}
+        stroke={review ? REVIEW_COLOR : "#cfcfcf"}
+        strokeWidth={1.5}
+      />
+
+      {face.kind === "number" && (
+        <>
+          <SvgText
+            x={W / 2}
+            y={20}
+            fontSize={17}
+            fontWeight="700"
+            fill={face.color}
+            textAnchor="middle"
+          >
+            {String(face.rank)}
+          </SvgText>
+          <SvgText x={W / 2} y={33} fontSize={11} fill={face.color} textAnchor="middle">
+            {face.glyph}
+          </SvgText>
+        </>
+      )}
+
+      {face.kind === "honor" && (
+        <SvgText
+          x={W / 2}
+          y={27}
+          fontSize={15}
+          fontWeight="700"
+          fill={face.color}
+          textAnchor="middle"
+        >
+          {face.glyph}
+        </SvgText>
+      )}
+
+      {face.kind === "unknown" && (
+        <SvgText x={W / 2} y={27} fontSize={16} fill={face.color} textAnchor="middle">
+          ?
+        </SvgText>
+      )}
+
+      {riichi && <Rect x={5} y={H - 6} width={W - 10} height={2.5} rx={1} fill={REVIEW_COLOR} />}
+    </Svg>
   );
 }
-
-const styles = StyleSheet.create({
-  tile: {
-    minWidth: 30,
-    height: 38,
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 2,
-    borderColor: "#ccc",
-    borderRadius: 4,
-    margin: 2,
-    paddingHorizontal: 4,
-    backgroundColor: "#fff",
-  },
-  review: {
-    borderColor: "crimson",
-    backgroundColor: "#fff5f5",
-  },
-});

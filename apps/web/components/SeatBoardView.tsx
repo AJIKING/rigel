@@ -46,7 +46,7 @@ export function SeatBoardView({ seat, board }: { seat: Seat; board: SeatBoard })
           ) : (
             board.river.map((d, i) => (
               <span key={i} title={d.riichi ? `リーチ宣言牌: ${tileLabel(d.tile)}` : undefined}>
-                <Tile read={d} />
+                <Tile read={d} riichi={d.riichi} />
               </span>
             ))
           )}

@@ -127,7 +127,7 @@
 | モバイル | React Native (Expo) | [決定] |
 | ブラウザ | Next.js | [決定] |
 | 共有 | 型・ロジックは**完全共有**、UIコンポーネントも共有志向 | [決定] |
-| UIコンポーネント共有手段 | Tamagui / React Native Web / 自前(react-native-svg) | **[未確定]**（実装時に決定。牌はSVG描画想定） |
+| UIコンポーネント共有手段 | Tamagui / React Native Web / 自前(react-native-svg) | **[未確定]**（一般UIは未決。牌は[決定]: SVG自前・面仕様を@rigel/uiで共有 → [開発ガイド/06](開発ガイド/06_牌のデザイン.md)） |
 | バックエンド | Cloudflare Workers (TypeScript) + **Hono**（HTTP） | [決定] |
 | API 構成 | **DDD レイヤード**（domain/application/infrastructure/interfaces）| [決定]（[開発ガイド/05](開発ガイド/05_APIアーキテクチャ.md)） |
 | DB | Cloudflare D1 (SQLite) + **Drizzle ORM** | [決定] |
