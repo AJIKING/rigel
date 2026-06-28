@@ -6,7 +6,7 @@
 // ============================================================
 
 import { CameraSeatSchema, SeatSchema } from "@rigel/schema";
-import { Hono } from "hono";
+import { Hono, type MiddlewareHandler } from "hono";
 import type { AppContainer } from "../../composition-root";
 import { buildContainer } from "../../composition-root";
 import type { Env } from "../../env";
@@ -24,6 +24,12 @@ async function toImageRef(file: File): Promise<ImageRef> {
 type AppEnv = {
   Bindings: Env;
   Variables: { container: AppContainer; userId?: string };
+};
+
+/** 認証必須ルートのガード。userId（認証ミドルウェアが載せる）が無ければ 401。 */
+const requireAuth: MiddlewareHandler<AppEnv> = async (c, next) => {
+  if (!c.get("userId")) return c.json({ error: "unauthorized" }, 401);
+  await next();
 };
 
 export function createApp(): Hono<AppEnv> {
@@ -67,27 +73,22 @@ export function createApp(): Hono<AppEnv> {
   });
 
   // ログインユーザーの半荘一覧。
-  app.get("/games", async (c) => {
-    const userId = c.get("userId");
-    if (!userId) return c.json({ error: "unauthorized" }, 401);
-    const games = await c.get("container").listGames.execute(userId);
+  app.get("/games", requireAuth, async (c) => {
+    const games = await c.get("container").listGames.execute(c.get("userId")!);
     return c.json(games);
   });
 
   // 半荘詳細（半荘 + 局一覧）。所有者のみ。
-  app.get("/games/:id", async (c) => {
-    const userId = c.get("userId");
-    if (!userId) return c.json({ error: "unauthorized" }, 401);
+  app.get("/games/:id", requireAuth, async (c) => {
     const detail = await c.get("container").getGameWithLogs.execute(c.req.param("id"));
-    if (!detail || detail.game.userId !== userId) return c.json({ error: "not found" }, 404);
+    if (!detail || detail.game.userId !== c.get("userId"))
+      return c.json({ error: "not found" }, 404);
     return c.json(detail);
   });
 
   // 認証済みユーザー自身。
-  app.get("/me", async (c) => {
-    const userId = c.get("userId");
-    if (!userId) return c.json({ error: "unauthorized" }, 401);
-    const user = await c.get("container").getUser.execute(userId);
+  app.get("/me", requireAuth, async (c) => {
+    const user = await c.get("container").getUser.execute(c.get("userId")!);
     if (!user) return c.json({ error: "not found" }, 404);
     return c.json({
       id: user.id,
@@ -120,9 +121,8 @@ export function createApp(): Hono<AppEnv> {
   // 撮影画像 → 解析 → 半荘に局として保存（multipart）。
   // フォーム: river(file), cameraBottomSeat(east|south|west|north),
   //          hand_bottom/right/top/left(file 任意), gameId(任意=既存半荘へ追加)。
-  app.post("/analyze", async (c) => {
-    const userId = c.get("userId");
-    if (!userId) return c.json({ error: "unauthorized" }, 401);
+  app.post("/analyze", requireAuth, async (c) => {
+    const userId = c.get("userId")!;
 
     const form = await c.req.formData().catch(() => null);
     const river = asFile(form?.get("river"));
