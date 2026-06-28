@@ -8,12 +8,16 @@ import {
   collectReviewItems,
   describeTile,
   needsReview,
+  planLabel,
+  planMonthlyPrice,
   RED_TILE_COLOR,
   REVIEW_CONFIDENCE_THRESHOLD,
   seatLabel,
   tileAssetName,
   tileFace,
   tileLabel,
+  upgradeTargets,
+  visibilityLabel,
 } from "./index";
 
 const kifuWithReviews: Kifu = KifuSchema.parse({
@@ -106,6 +110,23 @@ describe("checkoutErrorMessage", () => {
   it("501 は準備中、その他は汎用メッセージ", () => {
     expect(checkoutErrorMessage(501)).toMatch(/準備中/);
     expect(checkoutErrorMessage(500)).toBe("開始できませんでした。");
+  });
+});
+
+describe("プラン表示", () => {
+  it("planLabel / planMonthlyPrice", () => {
+    expect(planLabel("free")).toBe("無料");
+    expect(planLabel("pro")).toBe("RIGEL Pro");
+    expect(planMonthlyPrice("next")).toBe(480);
+  });
+  it("upgradeTargets は上位プランだけ返す", () => {
+    expect(upgradeTargets("free")).toEqual(["next", "pro"]);
+    expect(upgradeTargets("next")).toEqual(["pro"]);
+    expect(upgradeTargets("pro")).toEqual([]);
+  });
+  it("visibilityLabel", () => {
+    expect(visibilityLabel("public")).toBe("公開");
+    expect(visibilityLabel("private")).toBe("非公開");
   });
 });
 

@@ -147,24 +147,31 @@
 
 ### [決定]
 - **Google認証必須**。ユーザーごとに牌譜を保存。
-- **ユーザーごとに月◯件まで無料**。超過分の解析・保存は**月額プラン**。
-- 課金単位はユーザーから見て「**牌譜1件**」。内部のAPIリクエスト数（8枚で複数回）とは切り離す。
-- この回数制限が、レート制限とAIコスト爆発の防止を兼ねる。
+- **牌譜には公開範囲がある**: `public`（他ユーザーも閲覧可・共有URL）/ `private`（自分だけ）。**新規解析の既定は private**。
+- **3プラン**（月額・Stripe サブスク）:
+  | プラン | 月額 | 月の Gemini 呼び出し枠 | private 牌譜 |
+  |---|---|---|---|
+  | 無料 | ¥0 | 20回（≒2局） | 4件まで（public は無制限） |
+  | RIGEL Next | ¥480 | 100回（≒10局） | 無制限 |
+  | RIGEL Pro | ¥1,480 | 320回（≒32局） | 無制限 |
+- **枠は「Gemini 呼び出し回数」で数える**（1局＝河4方向＋撮影した手牌の枚数ぶん呼ぶため、局数ではなく実呼び出し数）。これがレート制限とAIコスト爆発の防止を兼ねる。
+- public 牌譜は全プランで保存無制限。
 
 ### [決定] 設計上の配慮
-- カウントは**解析成功時のみ+1**（失敗時は消費させない）。
-- 無料/有料の差は「回数」中心。ただし**保存済み牌譜の閲覧は無料でも可能**にし、新規解析実行だけ制限する想定。
+- カウントは**解析成功時のみ**、**実際の呼び出し回数ぶん**加算（失敗時は消費させない）。`User.recordGeminiCalls`。
+- private の保存上限は**解析前にプリフライト判定**して、無料ユーザーの Gemini 枠を無駄にしない（`private_limit`）。
+- **保存済み牌譜の閲覧**: public は誰でも、private は所有者のみ（`GET /kifu/:id` と一覧で制御）。新規解析だけ枠で制限する。
 
 ### 実装状況（2026-06 時点）
-- 課金の**判定・導線は実装済み**: `User.plan`（free/paid）＋月次無料枠（`FREE_MONTHLY_QUOTA`、解析成功時のみ加算）、超過は `/analyze` が 402。
-- **Stripe サブスク方式で free→paid を実装**（構造）: `POST /billing/checkout`（Checkout 作成）→ Stripe Webhook（`checkout.session.completed`→paid /`customer.subscription.deleted`→free）で `User.changePlan` 反映。`BillingGateway` ポート + `StripeBillingGateway` 実装。userId は `client_reference_id` と subscription metadata に載せ、独自の顧客ID保存は不要。
-- web/mobile に「有料にする」導線（Stripe Checkout へ遷移）。
-- **鍵が未設定なら課金は無効**: `STRIPE_SECRET_KEY`/`STRIPE_WEBHOOK_SECRET`/`STRIPE_PRICE_ID` の3つが揃わなければ `/billing/*` は 501。
+- **3プラン＋呼び出し課金を実装**: `User.plan`（free/next/pro）、`MONTHLY_CALL_QUOTA`（20/100/320）、`PRIVATE_KIFU_LIMIT`（free=4・有料=無制限）。`recordGeminiCalls` が成功時のみ実呼び出し数を加算、枠超過は `/analyze` が 402、private 上限超過は 403。
+- **公開範囲**: `game_logs.visibility`（既定 private）。`PATCH /kifu/:id/visibility`（所有者のみ・`SetKifuVisibility`）。`GET /kifu/:id` と `/users/:id/kifu` は public のみ他者に見せる。
+- **Stripe サブスク**: `POST /billing/checkout`（plan→price_id 選択・Checkout 作成）→ Webhook（`checkout.session.completed`→申込 tier /`customer.subscription.deleted`→free）で `User.changePlan`。tier は session.metadata、userId は client_reference_id / subscription.metadata に載せ、顧客ID保存は不要。
+- web/mobile に Next/Pro のアップグレード導線（Stripe Checkout 遷移）と公開範囲トグル（web）。
+- **鍵が未設定なら課金は無効**: `STRIPE_SECRET_KEY`/`STRIPE_WEBHOOK_SECRET`/`STRIPE_PRICE_NEXT`/`STRIPE_PRICE_PRO` が揃わなければ `/billing/*` は 501。
 
-### [未確定]（=実値・運用待ち。実装ではなくビジネス判断）
-- 無料枠の具体的件数（暫定 `FREE_MONTHLY_QUOTA = 10`。例: 月10件ならAIコスト月30円以下）。
-- 月額の価格（= Stripe の price_... を作って `STRIPE_PRICE_ID` に設定）。
-- 無料/有料の機能差を回数以外にも設けるか（保存件数上限など）。
+### [未確定]（=運用・調整待ち）
+- 無料/有料の機能差を呼び出し枠・public/private 上限以外にも設けるか。
+- 呼び出し枠の数値（20/100/320）はコスト実測で再調整しうる。
 
 ---
 
@@ -191,7 +198,7 @@
 | 5 | ~~ORM選定~~ | **[決定] Drizzle** | スキーマ実装済み（`apps/api`）。[開発ガイド/05](開発ガイド/05_APIアーキテクチャ.md) |
 | 6 | ~~カウンタ整合性の実装~~ | **[決定] 実装済み** | AnalysisStore=D1 batch で半荘/局/カウントを原子化 |
 | 7 | 認証の具体実装 | 後回し | Google認証。Better Auth / Lucia 等 |
-| 8 | 無料枠件数・月額価格 | ビジネス判断 | コストではなく価値で決める |
+| 8 | ~~無料枠件数・月額価格~~ | **[決定] 実装済み** | free 20回/private4・Next¥480 100回・Pro¥1480 320回。Stripe サブスク（要鍵設定） |
 | 9 | Web集客方針 | 未決定 | 共有URLのSEO要否（Next.jsなら対応可） |
 
 ---

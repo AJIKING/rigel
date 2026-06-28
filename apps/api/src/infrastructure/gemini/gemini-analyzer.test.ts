@@ -53,9 +53,13 @@ describe("GeminiAnalyzer.analyze", () => {
     const client = new FakeClient();
     const analyzer = new GeminiAnalyzer(makeDeps(client, new FakePreprocessor()));
 
-    const kifu = await analyzer.analyze({ riverImage: img("river"), cameraBottomSeat: "east" });
+    const { kifu, geminiCalls } = await analyzer.analyze({
+      riverImage: img("river"),
+      cameraBottomSeat: "east",
+    });
 
     expect(client.riverCalls).toBe(4);
+    expect(geminiCalls).toBe(4); // 河4方向のみ（手牌なし）
     expect(kifu.schemaVersion).toBe("1.0.0");
     // bottom=手前=東 に河が入る（回転方向に依存しない不変条件）
     expect(kifu.seats.east.river[0]?.tile).toBe("1m");
@@ -70,9 +74,10 @@ describe("GeminiAnalyzer.analyze", () => {
       hands: { bottom: img("hand-bottom") },
       cameraBottomSeat: "east",
     };
-    const kifu = await analyzer.analyze(input);
+    const { kifu, geminiCalls } = await analyzer.analyze(input);
 
     expect(client.handCalls).toBe(1); // 提供された1方向だけ
+    expect(geminiCalls).toBe(5); // 河4 + 手牌1
     expect(kifu.seats.east.hand[0]?.tile).toBe("2p"); // bottom=東
   });
 

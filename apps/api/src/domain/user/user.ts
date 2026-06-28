@@ -6,10 +6,27 @@
 // 外部依存（DB/HTTP）を持たない純粋なドメインロジック。
 // ============================================================
 
-export type Plan = "free" | "paid";
+export type Plan = "free" | "next" | "pro";
 
-/** 無料プランの月あたり解析上限。【未確定】実際の件数はビジネス判断で確定する（暫定 10）。 */
-export const FREE_MONTHLY_QUOTA = 10;
+/**
+ * プランごとの月あたり Gemini 呼び出し上限。
+ * 1局の解析は河(4方向)＋撮影した手牌の枚数ぶん呼び出すので、枠は「局数」ではなく
+ * 実呼び出し回数で数える（free 20 ≒ 2局）。
+ */
+export const MONTHLY_CALL_QUOTA: Record<Plan, number> = { free: 20, next: 100, pro: 320 };
+
+/** プランごとの private(非公開)牌譜の保存上限。null は無制限（public は常に無制限）。 */
+export const PRIVATE_KIFU_LIMIT: Record<Plan, number | null> = { free: 4, next: null, pro: null };
+
+/** プランの月間呼び出し上限。 */
+export function monthlyCallQuota(plan: Plan): number {
+  return MONTHLY_CALL_QUOTA[plan];
+}
+
+/** プランの private 牌譜保存上限（null=無制限）。 */
+export function privateKifuLimit(plan: Plan): number | null {
+  return PRIVATE_KIFU_LIMIT[plan];
+}
 
 export interface UserProps {
   id: string;
@@ -71,20 +88,24 @@ export class User {
     }
   }
 
-  /** いま新規解析を実行できるか。有料は常に可、無料は当月の残枠で判定。 */
-  canAnalyze(now: Date): boolean {
+  /** 当月の残り呼び出し可能回数。 */
+  remainingCalls(now: Date): number {
     this.applyMonthlyReset(now);
-    if (this._plan === "paid") return true;
-    return this._count < FREE_MONTHLY_QUOTA;
+    return Math.max(0, monthlyCallQuota(this._plan) - this._count);
+  }
+
+  /** いま新規解析を実行できるか。当月の枠がまだ残っていれば可。 */
+  canAnalyze(now: Date): boolean {
+    return this.remainingCalls(now) > 0;
   }
 
   /**
-   * 解析が「成功したときだけ」呼ぶ。当月カウントを +1 する。
+   * 解析が「成功したときだけ」呼ぶ。当月カウントに実際の Gemini 呼び出し回数を加算する。
    * 失敗時に呼んではいけない（信頼ゲート: 成功時のみ加算）。
    */
-  recordSuccessfulAnalysis(now: Date): void {
+  recordGeminiCalls(now: Date, calls: number): void {
     this.applyMonthlyReset(now);
-    this._count += 1;
+    this._count += Math.max(0, calls);
   }
 
   /**

@@ -1,7 +1,7 @@
 // infrastructure/kifu — GameLogRepository の Drizzle/D1 実装。
 
-import { asc, desc, eq } from "drizzle-orm";
-import type { GameLog } from "../../domain/kifu/game-log";
+import { and, asc, count, desc, eq } from "drizzle-orm";
+import type { GameLog, Visibility } from "../../domain/kifu/game-log";
 import type { GameLogRepository } from "../../domain/kifu/game-log.repository";
 import type { Db } from "../db/client";
 import { gameLogs, type GameLogRow } from "../db/schema";
@@ -13,6 +13,7 @@ function toDomain(row: GameLogRow): GameLog {
     gameId: row.gameId,
     seq: row.seq,
     kifu: row.kifu,
+    visibility: row.visibility,
     createdAt: row.createdAt,
   };
 }
@@ -29,11 +30,17 @@ export class DrizzleGameLogRepository implements GameLogRepository {
         gameId: gameLog.gameId,
         seq: gameLog.seq,
         kifu: gameLog.kifu,
+        visibility: gameLog.visibility,
         createdAt: gameLog.createdAt,
       })
       .onConflictDoUpdate({
         target: gameLogs.id,
-        set: { kifu: gameLog.kifu, gameId: gameLog.gameId, seq: gameLog.seq },
+        set: {
+          kifu: gameLog.kifu,
+          gameId: gameLog.gameId,
+          seq: gameLog.seq,
+          visibility: gameLog.visibility,
+        },
       });
   }
 
@@ -60,5 +67,14 @@ export class DrizzleGameLogRepository implements GameLogRepository {
       .orderBy(asc(gameLogs.seq), asc(gameLogs.createdAt))
       .all();
     return rows.map(toDomain);
+  }
+
+  async countByUserAndVisibility(userId: string, visibility: Visibility): Promise<number> {
+    const row = await this.db
+      .select({ n: count() })
+      .from(gameLogs)
+      .where(and(eq(gameLogs.userId, userId), eq(gameLogs.visibility, visibility)))
+      .get();
+    return row?.n ?? 0;
   }
 }

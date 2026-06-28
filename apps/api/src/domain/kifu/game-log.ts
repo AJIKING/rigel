@@ -3,6 +3,9 @@
 
 import type { Kifu } from "@rigel/schema";
 
+/** 公開範囲。public=他ユーザーも閲覧可 / private=所有者のみ。 */
+export type Visibility = "public" | "private";
+
 export interface GameLog {
   /** 牌譜ID（= 共有URL単位 / 課金単位）。 */
   id: string;
@@ -14,5 +17,7 @@ export interface GameLog {
   seq: number;
   /** 解析後の牌譜（KifuSchema 検証済み）。撮影画像は含めない。 */
   kifu: Kifu;
+  /** 公開範囲（既定 private）。 */
+  visibility: Visibility;
   createdAt: Date;
 }

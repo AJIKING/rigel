@@ -8,9 +8,8 @@ import {
   type AiHandResponse,
   type AiRiverResponse,
   type CameraSeat,
-  type Kifu,
 } from "@rigel/schema";
-import type { AnalysisInput, Analyzer, ImageRef } from "../../domain/kifu/analyzer";
+import type { AnalysisInput, AnalysisResult, Analyzer, ImageRef } from "../../domain/kifu/analyzer";
 import { assembleKifu } from "./assemble";
 import type { GeminiClient } from "./gemini-client";
 import { readHand } from "./read-hand";
@@ -30,7 +29,7 @@ export interface GeminiAnalyzerDeps {
 export class GeminiAnalyzer implements Analyzer {
   constructor(private readonly deps: GeminiAnalyzerDeps) {}
 
-  async analyze(input: AnalysisInput): Promise<Kifu> {
+  async analyze(input: AnalysisInput): Promise<AnalysisResult> {
     const { client, preprocessor, riverPrompt, riverModel, handPrompt, handModel, now } = this.deps;
 
     // 河1枚 → 4方向の正立画像 → 各方向を並列に読む（Zod 検証済み）。
@@ -53,11 +52,15 @@ export class GeminiAnalyzer implements Analyzer {
     );
     const hands = Object.fromEntries(handEntries) as Partial<Record<CameraSeat, AiHandResponse>>;
 
-    return assembleKifu({
+    const kifu = assembleKifu({
       rivers,
       hands,
       cameraBottomSeat: input.cameraBottomSeat,
       capturedAt: now().toISOString(),
     });
+
+    // 河は4方向ぶん、手牌は提供された枚数ぶん呼び出す。
+    const geminiCalls = riverEntries.length + handEntries.length;
+    return { kifu, geminiCalls };
   }
 }

@@ -23,7 +23,7 @@ export class HandleBillingWebhook {
     const user = await this.users.findById(event.userId);
     if (!user) return { handled: false };
 
-    user.changePlan(event.type === "subscribed" ? "paid" : "free");
+    user.changePlan(event.type === "subscribed" ? event.plan : "free");
     await this.users.save(user);
     return { handled: true };
   }

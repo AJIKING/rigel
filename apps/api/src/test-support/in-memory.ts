@@ -3,7 +3,7 @@
 import type { AnalysisCommitInput, AnalysisStore } from "../domain/analysis/analysis-store";
 import type { Game } from "../domain/game/game";
 import type { GameRepository } from "../domain/game/game.repository";
-import type { GameLog } from "../domain/kifu/game-log";
+import type { GameLog, Visibility } from "../domain/kifu/game-log";
 import type { GameLogRepository } from "../domain/kifu/game-log.repository";
 import type { User } from "../domain/user/user";
 import type { UserRepository } from "../domain/user/user.repository";
@@ -58,6 +58,12 @@ export class InMemoryGameLogRepository implements GameLogRepository {
   listByGame(gameId: string): Promise<GameLog[]> {
     return Promise.resolve(
       this.saved.filter((g) => g.gameId === gameId).sort((a, b) => a.seq - b.seq),
+    );
+  }
+
+  countByUserAndVisibility(userId: string, visibility: Visibility): Promise<number> {
+    return Promise.resolve(
+      this.saved.filter((g) => g.userId === userId && g.visibility === visibility).length,
     );
   }
 }

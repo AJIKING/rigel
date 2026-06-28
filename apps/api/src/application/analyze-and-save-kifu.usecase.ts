@@ -16,11 +16,15 @@ import type { GameRepository } from "../domain/game/game.repository";
 import type { AnalysisInput, Analyzer } from "../domain/kifu/analyzer";
 import type { GameLog } from "../domain/kifu/game-log";
 import type { GameLogRepository } from "../domain/kifu/game-log.repository";
+import { privateKifuLimit } from "../domain/user/user";
 import type { UserRepository } from "../domain/user/user.repository";
 
 export type AnalyzeResult =
   | { ok: true; gameLog: GameLog; gameId: string }
-  | { ok: false; reason: "user_not_found" | "quota_exceeded" | "game_not_found" };
+  | {
+      ok: false;
+      reason: "user_not_found" | "quota_exceeded" | "game_not_found" | "private_limit";
+    };
 
 export interface AnalyzeDeps {
   users: UserRepository;
@@ -52,6 +56,14 @@ export class AnalyzeAndSaveKifu {
     if (!user) return { ok: false, reason: "user_not_found" };
     if (!user.canAnalyze(now())) return { ok: false, reason: "quota_exceeded" };
 
+    // 新規牌譜は private で作るので、無料プランの非公開上限に達していれば
+    // 解析(=Gemini 枠の消費)に入る前に断る。
+    const limit = privateKifuLimit(user.plan);
+    if (limit !== null) {
+      const current = await gameLogs.countByUserAndVisibility(user.id, "private");
+      if (current >= limit) return { ok: false, reason: "private_limit" };
+    }
+
     // 既存半荘の指定があれば、解析の前に所有確認（無駄な解析・課金を避ける）。
     let game: Game | null = null;
     if (params.gameId) {
@@ -61,7 +73,7 @@ export class AnalyzeAndSaveKifu {
 
     // 画像 → 牌譜ドラフト（Analyzer 内で Zod 検証済みのものが返る契約）。
     // ここで例外が出たら以降は実行されず、半荘作成も保存もカウント加算もされない。
-    const kifu = await analyzer.analyze(params.input);
+    const { kifu, geminiCalls } = await analyzer.analyze(params.input);
 
     // 解析が成功してから、新規なら半荘を組み立てる（保存はトランザクション内）。
     const isNewGame = game === null;
@@ -74,10 +86,12 @@ export class AnalyzeAndSaveKifu {
       gameId: game.id,
       seq: existing.length + 1,
       kifu,
+      // 新規牌譜は既定で非公開。公開は所有者が明示的に切り替える。
+      visibility: "private",
       createdAt: now(),
     };
 
-    user.recordSuccessfulAnalysis(now());
+    user.recordGeminiCalls(now(), geminiCalls);
 
     // 半荘(新規)・局・カウント加算を1トランザクションで保存（成功時のみ加算）。
     await store.commit({ newGame: isNewGame ? game : null, gameLog, user });

@@ -11,6 +11,7 @@ import type { AppContainer } from "../../composition-root";
 import { buildContainer } from "../../composition-root";
 import type { Env } from "../../env";
 import type { AnalysisInput, ImageRef } from "../../domain/kifu/analyzer";
+import { monthlyCallQuota } from "../../domain/user/user";
 import { parseKifu } from "./validate";
 
 function asFile(value: unknown): File | null {
@@ -86,7 +87,7 @@ export function createApp(): Hono<AppEnv> {
     return c.json(detail);
   });
 
-  // 認証済みユーザー自身。
+  // 認証済みユーザー自身（プランと当月の利用量・上限）。
   app.get("/me", requireAuth, async (c) => {
     const user = await c.get("container").getUser.execute(c.get("userId")!);
     if (!user) return c.json({ error: "not found" }, 404);
@@ -94,6 +95,8 @@ export function createApp(): Hono<AppEnv> {
       id: user.id,
       plan: user.plan,
       analysisCountThisMonth: user.analysisCountThisMonth,
+      monthlyCallQuota: monthlyCallQuota(user.plan),
+      remainingCalls: user.remainingCalls(new Date()),
     });
   });
 
@@ -105,11 +108,34 @@ export function createApp(): Hono<AppEnv> {
     return c.json({ ok: true });
   });
 
-  // 牌譜1件の取得（閲覧は無料）。
+  // 牌譜1件の取得（public は誰でも、private は所有者のみ）。
   app.get("/kifu/:id", async (c) => {
     const log = await c.get("container").getKifu.execute(c.req.param("id"));
     if (!log) return c.json({ error: "not found" }, 404);
+    if (log.visibility === "private" && log.userId !== c.get("userId")) {
+      return c.json({ error: "not found" }, 404); // 存在を漏らさない。
+    }
     return c.json(log);
+  });
+
+  // 牌譜の公開範囲を切り替え（所有者のみ）。body: { visibility: "public"|"private" }。
+  app.patch("/kifu/:id/visibility", requireAuth, async (c) => {
+    const body = (await c.req.json().catch(() => null)) as { visibility?: unknown } | null;
+    if (body?.visibility !== "public" && body?.visibility !== "private") {
+      return c.json({ error: "visibility は public か private" }, 400);
+    }
+    const result = await c.get("container").setKifuVisibility.execute({
+      userId: c.get("userId")!,
+      logId: c.req.param("id"),
+      visibility: body.visibility,
+    });
+    if (!result.ok) {
+      return c.json(
+        { ok: false, reason: result.reason },
+        result.reason === "private_limit" ? 403 : 404,
+      );
+    }
+    return c.json({ ok: true });
   });
 
   // 牌譜の修正を保存（所有者のみ）。body は Kifu JSON。
@@ -125,20 +151,25 @@ export function createApp(): Hono<AppEnv> {
     return c.json({ ok: true });
   });
 
-  // 課金: サブスク用 Checkout を開始（要認証）。body: { successUrl, cancelUrl }。
+  // 課金: サブスク用 Checkout を開始（要認証）。body: { plan: "next"|"pro", successUrl, cancelUrl }。
   app.post("/billing/checkout", requireAuth, async (c) => {
     const container = c.get("container");
     if (!container.billingEnabled) return c.json({ error: "billing not configured" }, 501);
     const body = (await c.req.json().catch(() => null)) as {
+      plan?: unknown;
       successUrl?: unknown;
       cancelUrl?: unknown;
     } | null;
-    if (typeof body?.successUrl !== "string" || typeof body?.cancelUrl !== "string") {
+    if (body?.plan !== "next" && body?.plan !== "pro") {
+      return c.json({ error: "plan は next か pro" }, 400);
+    }
+    if (typeof body.successUrl !== "string" || typeof body.cancelUrl !== "string") {
       return c.json({ error: "successUrl と cancelUrl が必要です" }, 400);
     }
     try {
       const { url } = await container.startCheckout.execute({
         userId: c.get("userId")!,
+        plan: body.plan,
         successUrl: body.successUrl,
         cancelUrl: body.cancelUrl,
       });
@@ -163,10 +194,12 @@ export function createApp(): Hono<AppEnv> {
     }
   });
 
-  // ユーザーの牌譜一覧（閲覧は無料）。
+  // ユーザーの牌譜一覧。public は誰でも、private は本人にだけ見せる。
   app.get("/users/:id/kifu", async (c) => {
     const logs = await c.get("container").listKifu.execute(c.req.param("id"));
-    return c.json(logs);
+    const viewer = c.get("userId");
+    const visible = logs.filter((l) => l.visibility === "public" || l.userId === viewer);
+    return c.json(visible);
   });
 
   // 撮影画像 → 解析 → 半荘に局として保存（multipart）。
@@ -203,7 +236,13 @@ export function createApp(): Hono<AppEnv> {
       const result = await c.get("container").analyzeAndSaveKifu.execute({ userId, input, gameId });
       if (!result.ok) {
         const status =
-          result.reason === "quota_exceeded" ? 402 : result.reason === "game_not_found" ? 404 : 400;
+          result.reason === "quota_exceeded"
+            ? 402
+            : result.reason === "private_limit"
+              ? 403
+              : result.reason === "game_not_found"
+                ? 404
+                : 400;
         return c.json({ ok: false, reason: result.reason }, status);
       }
       return c.json({ ok: true, gameId: result.gameId, logId: result.gameLog.id }, 201);

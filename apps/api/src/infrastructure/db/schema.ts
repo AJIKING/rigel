@@ -17,11 +17,11 @@ export const users = sqliteTable("users", {
   id: text("id").primaryKey(),
   /** Google認証の sub（一意）。 */
   googleSub: text("google_sub").notNull().unique(),
-  /** 課金プラン。 */
-  plan: text("plan", { enum: ["free", "paid"] })
+  /** 課金プラン（free / next=RIGEL Next / pro=RIGEL Pro）。 */
+  plan: text("plan", { enum: ["free", "next", "pro"] })
     .notNull()
     .default("free"),
-  /** 当月の解析回数（成功時のみ加算）。 */
+  /** 当月の Gemini 呼び出し回数（解析成功時のみ、実呼び出し数を加算）。 */
   analysisCountThisMonth: integer("analysis_count_this_month").notNull().default(0),
   /** この時刻を過ぎたら当月カウントをリセットする（次のリセット境界）。 */
   countResetAt: integer("count_reset_at", { mode: "timestamp_ms" }).notNull(),
@@ -61,11 +61,19 @@ export const gameLogs = sqliteTable(
     seq: integer("seq").notNull().default(0),
     /** 解析後の牌譜 JSON（KifuSchema 検証済み）。撮影画像は保存しない。 */
     kifu: text("kifu", { mode: "json" }).$type<Kifu>().notNull(),
+    /** 公開範囲。public=他ユーザーも閲覧可 / private=所有者のみ。既定は private。 */
+    visibility: text("visibility", { enum: ["public", "private"] })
+      .notNull()
+      .default("private"),
     createdAt: integer("created_at", { mode: "timestamp_ms" })
       .notNull()
       .$defaultFn(() => new Date()),
   },
-  (t) => [index("game_logs_user_idx").on(t.userId), index("game_logs_game_idx").on(t.gameId)],
+  (t) => [
+    index("game_logs_user_idx").on(t.userId),
+    index("game_logs_game_idx").on(t.gameId),
+    index("game_logs_visibility_idx").on(t.visibility),
+  ],
 );
 
 export type UserRow = typeof users.$inferSelect;

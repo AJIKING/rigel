@@ -59,6 +59,33 @@ describe("HTTP app (Hono)", () => {
     expect(res.status).toBe(400);
   });
 
+  it("PATCH /kifu/:id/visibility はトークン無しで 401", async () => {
+    const res = await app.request(
+      "/kifu/l1/visibility",
+      {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ visibility: "public" }),
+      },
+      fakeEnv,
+    );
+    expect(res.status).toBe(401);
+  });
+
+  it("PATCH /kifu/:id/visibility は不正な値を 400", async () => {
+    const token = await new JwtSessionService({ secret: "test-secret" }).issue("u1");
+    const res = await app.request(
+      "/kifu/l1/visibility",
+      {
+        method: "PATCH",
+        headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
+        body: JSON.stringify({ visibility: "secret" }),
+      },
+      fakeEnv,
+    );
+    expect(res.status).toBe(400);
+  });
+
   it("PUT /kifu/:id はトークン無しで 401", async () => {
     const res = await app.request(
       "/kifu/l1",

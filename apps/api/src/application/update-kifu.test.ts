@@ -11,6 +11,7 @@ const log = (id: string, userId: string): GameLog => ({
   gameId: "g1",
   seq: 1,
   kifu: validKifu,
+  visibility: "private",
   createdAt: NOW,
 });
 

@@ -22,11 +22,19 @@ export interface AnalysisInput {
   cameraBottomSeat: Seat;
 }
 
+export interface AnalysisResult {
+  /** KifuSchema 検証済みの牌譜ドラフト。 */
+  kifu: Kifu;
+  /** この解析で実際に行った Gemini 呼び出し回数（課金メータの加算量）。 */
+  geminiCalls: number;
+}
+
 export interface Analyzer {
   /**
    * 画像から牌譜ドラフトを生成する。
    * 返す Kifu は KifuSchema で検証済みであることを契約とする（信頼ゲート）。
    * 読めない牌は推測で埋めず null + confidence:0 のままにする。
+   * geminiCalls には実際の呼び出し回数を載せる（成功時のみ課金メータへ加算するため）。
    */
-  analyze(input: AnalysisInput): Promise<Kifu>;
+  analyze(input: AnalysisInput): Promise<AnalysisResult>;
 }

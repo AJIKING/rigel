@@ -18,6 +18,7 @@ export class DrizzleAnalysisStore implements AnalysisStore {
       gameId: gameLog.gameId,
       seq: gameLog.seq,
       kifu: gameLog.kifu,
+      visibility: gameLog.visibility,
       createdAt: gameLog.createdAt,
     });
 

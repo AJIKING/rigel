@@ -20,6 +20,8 @@ export interface Env {
   STRIPE_SECRET_KEY?: string;
   /** Stripe Webhook 署名シークレット（Secret）。 */
   STRIPE_WEBHOOK_SECRET?: string;
-  /** サブスクの価格ID（price_...）。 */
-  STRIPE_PRICE_ID?: string;
+  /** RIGEL Next の価格ID（price_...）。 */
+  STRIPE_PRICE_NEXT?: string;
+  /** RIGEL Pro の価格ID（price_...）。 */
+  STRIPE_PRICE_PRO?: string;
 }

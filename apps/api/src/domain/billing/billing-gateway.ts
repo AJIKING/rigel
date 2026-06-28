@@ -6,15 +6,20 @@
 // 「誰が」課金/解約したかは userId で表現する（プロバイダの顧客IDは持ち込まない）。
 // ============================================================
 
+/** 課金対象の有料プラン（無料以外）。 */
+export type PaidPlan = "next" | "pro";
+
 /** Webhook を解釈した結果。アプリ層はこの3種だけ知っていればよい。 */
 export type BillingEvent =
-  | { type: "subscribed"; userId: string }
+  | { type: "subscribed"; userId: string; plan: PaidPlan }
   | { type: "unsubscribed"; userId: string }
   /** 関心の無いイベント（無視してよい）。 */
   | { type: "ignored" };
 
 export interface CheckoutParams {
   userId: string;
+  /** 申し込む有料プラン。 */
+  plan: PaidPlan;
   /** 決済成功後に戻すURL。 */
   successUrl: string;
   /** 決済中断時に戻すURL。 */

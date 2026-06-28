@@ -98,6 +98,37 @@ export function checkoutErrorMessage(status: number): string {
   return status === 501 ? "課金は準備中です。" : "開始できませんでした。";
 }
 
+// ------------------------------------------------------------
+// プラン表示（free / RIGEL Next / RIGEL Pro）
+// ------------------------------------------------------------
+export type Plan = "free" | "next" | "pro";
+export type PaidPlan = "next" | "pro";
+
+const PLAN_LABELS: Record<Plan, string> = { free: "無料", next: "RIGEL Next", pro: "RIGEL Pro" };
+const PLAN_MONTHLY_PRICE: Record<Plan, number> = { free: 0, next: 480, pro: 1480 };
+
+/** プランの表示名。 */
+export function planLabel(plan: Plan): string {
+  return PLAN_LABELS[plan];
+}
+
+/** プランの月額（円）。 */
+export function planMonthlyPrice(plan: Plan): number {
+  return PLAN_MONTHLY_PRICE[plan];
+}
+
+/** いまのプランからアップグレード可能な有料プラン（上位のみ）。 */
+export function upgradeTargets(plan: Plan): PaidPlan[] {
+  if (plan === "pro") return [];
+  if (plan === "next") return ["pro"];
+  return ["next", "pro"];
+}
+
+/** 公開範囲の表示名。 */
+export function visibilityLabel(visibility: "public" | "private"): string {
+  return visibility === "public" ? "公開" : "非公開";
+}
+
 // ============================================================
 // 描画用の「面仕様」（プラットフォーム非依存）
 // ------------------------------------------------------------

@@ -1,6 +1,13 @@
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import { checkoutErrorMessage } from "@rigel/ui";
+import {
+  checkoutErrorMessage,
+  planLabel,
+  planMonthlyPrice,
+  upgradeTargets,
+  type PaidPlan,
+  type Plan,
+} from "@rigel/ui";
 import { useState } from "react";
 import {
   ActivityIndicator,
@@ -19,16 +26,19 @@ import { useGames } from "../lib/use-kifu-data";
 
 type Nav = NativeStackNavigationProp<RootStackParamList, "GamesList">;
 
-/** 無料ユーザー向け: Stripe Checkout をブラウザで開いてアップグレードする。 */
-function UpgradeBanner({ token }: { token: string }) {
-  const [busy, setBusy] = useState(false);
+/** 上位プラン(Next/Pro)への Stripe Checkout をブラウザで開く。 */
+function UpgradeBanner({ token, plan }: { token: string; plan: Plan }) {
+  const [busy, setBusy] = useState<PaidPlan | null>(null);
   const [note, setNote] = useState<string | null>(null);
+  const targets = upgradeTargets(plan);
+  if (targets.length === 0) return null;
 
-  async function onUpgrade() {
-    setBusy(true);
+  async function onUpgrade(target: PaidPlan) {
+    setBusy(target);
     setNote(null);
     try {
       const result = await createCheckout(token, {
+        plan: target,
         successUrl: "https://rigel.app/ok",
         cancelUrl: "https://rigel.app/ng",
       });
@@ -40,15 +50,19 @@ function UpgradeBanner({ token }: { token: string }) {
     } catch {
       setNote("通信に失敗しました。");
     } finally {
-      setBusy(false);
+      setBusy(null);
     }
   }
 
   return (
     <View style={styles.upgrade}>
-      <Pressable disabled={busy} onPress={() => void onUpgrade()}>
-        <Text style={styles.upgradeText}>{busy ? "…" : "有料プランにアップグレード"}</Text>
-      </Pressable>
+      {targets.map((target) => (
+        <Pressable key={target} disabled={busy !== null} onPress={() => void onUpgrade(target)}>
+          <Text style={styles.upgradeText}>
+            {busy === target ? "…" : `${planLabel(target)} ¥${planMonthlyPrice(target)} にする`}
+          </Text>
+        </Pressable>
+      ))}
       {note ? <Text style={styles.upgradeNote}>{note}</Text> : null}
     </View>
   );
@@ -79,7 +93,7 @@ export function GamesListScreen() {
       <Pressable style={styles.capture} onPress={() => nav.navigate("Capture")}>
         <Text style={styles.captureText}>＋ 牌譜を撮る</Text>
       </Pressable>
-      {user?.plan === "free" && token ? <UpgradeBanner token={token} /> : null}
+      {user && token ? <UpgradeBanner token={token} plan={user.plan} /> : null}
       {sample && <Text style={styles.sample}>サンプル表示中（ログインで自分の半荘が出ます）</Text>}
       {games.length === 0 ? (
         <Text style={styles.empty}>まだ半荘がありません。卓を撮影して記録してください。</Text>

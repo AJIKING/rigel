@@ -33,33 +33,35 @@ class FakeBillingGateway implements BillingGateway {
 }
 
 describe("StartCheckout", () => {
-  it("userId を載せて Checkout URL を返す", async () => {
+  it("userId と plan を載せて Checkout URL を返す", async () => {
     const gateway = new FakeBillingGateway({ type: "ignored" });
     const url = await new StartCheckout(gateway).execute({
       userId: "u1",
+      plan: "pro",
       successUrl: "https://app/ok",
       cancelUrl: "https://app/ng",
     });
     expect(url.url).toContain("u1");
+    expect(gateway.lastCheckout?.plan).toBe("pro");
     expect(gateway.lastCheckout?.successUrl).toBe("https://app/ok");
   });
 });
 
 describe("HandleBillingWebhook", () => {
-  it("subscribed でプランを paid にして保存する", async () => {
+  it("subscribed でプランを申し込んだ tier にして保存する", async () => {
     const users = new InMemoryUserRepository([freeUser("u1")]);
-    const gateway = new FakeBillingGateway({ type: "subscribed", userId: "u1" });
+    const gateway = new FakeBillingGateway({ type: "subscribed", userId: "u1", plan: "next" });
     const result = await new HandleBillingWebhook(gateway, users).execute({
       payload: "{}",
       signature: "sig",
     });
     expect(result.handled).toBe(true);
-    expect((await users.findById("u1"))?.plan).toBe("paid");
+    expect((await users.findById("u1"))?.plan).toBe("next");
   });
 
   it("unsubscribed でプランを free に戻す", async () => {
     const paid = freeUser("u1");
-    paid.changePlan("paid");
+    paid.changePlan("pro");
     const users = new InMemoryUserRepository([paid]);
     const gateway = new FakeBillingGateway({ type: "unsubscribed", userId: "u1" });
     const result = await new HandleBillingWebhook(gateway, users).execute({
@@ -83,7 +85,7 @@ describe("HandleBillingWebhook", () => {
 
   it("対象ユーザーが居なければ handled=false", async () => {
     const users = new InMemoryUserRepository([]);
-    const gateway = new FakeBillingGateway({ type: "subscribed", userId: "ghost" });
+    const gateway = new FakeBillingGateway({ type: "subscribed", userId: "ghost", plan: "pro" });
     const result = await new HandleBillingWebhook(gateway, users).execute({
       payload: "{}",
       signature: "sig",

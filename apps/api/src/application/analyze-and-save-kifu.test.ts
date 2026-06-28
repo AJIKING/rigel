@@ -1,8 +1,8 @@
 import type { Kifu } from "@rigel/schema";
 import { describe, expect, it } from "vitest";
 import type { Game } from "../domain/game/game";
-import type { AnalysisInput, Analyzer } from "../domain/kifu/analyzer";
-import { User, firstOfNextMonthUtc } from "../domain/user/user";
+import type { AnalysisInput, AnalysisResult, Analyzer } from "../domain/kifu/analyzer";
+import { MONTHLY_CALL_QUOTA, User, firstOfNextMonthUtc } from "../domain/user/user";
 import { fakeImage } from "../test-support/image";
 import {
   InMemoryAnalysisStore,
@@ -22,16 +22,19 @@ const dummyInput: AnalysisInput = {
 
 class FakeAnalyzer implements Analyzer {
   calls = 0;
-  constructor(private readonly result: Kifu) {}
-  analyze(_input: AnalysisInput): Promise<Kifu> {
+  constructor(
+    private readonly result: Kifu,
+    private readonly geminiCalls = 4,
+  ) {}
+  analyze(_input: AnalysisInput): Promise<AnalysisResult> {
     this.calls += 1;
-    return Promise.resolve(this.result);
+    return Promise.resolve({ kifu: this.result, geminiCalls: this.geminiCalls });
   }
 }
 
 class FailingAnalyzer implements Analyzer {
   calls = 0;
-  analyze(_input: AnalysisInput): Promise<Kifu> {
+  analyze(_input: AnalysisInput): Promise<AnalysisResult> {
     this.calls += 1;
     return Promise.reject(new Error("analyze failed"));
   }
@@ -66,11 +69,11 @@ function makeUsecase(opts: { user?: User; analyzer: Analyzer; games?: Game[] }) 
 }
 
 describe("AnalyzeAndSaveKifu", () => {
-  it("成功すると新規半荘に局として保存され、カウントが +1 される", async () => {
+  it("成功すると新規半荘に private 局として保存され、実呼び出し回数ぶん加算される", async () => {
     const user = freeUser(0);
     const { usecase, gameLogs, games } = makeUsecase({
       user,
-      analyzer: new FakeAnalyzer(validKifu),
+      analyzer: new FakeAnalyzer(validKifu, 4),
     });
 
     const result = await usecase.execute({ userId: "u1", input: dummyInput });
@@ -82,7 +85,8 @@ describe("AnalyzeAndSaveKifu", () => {
     expect(log?.gameId).not.toBeNull();
     expect(log?.seq).toBe(1);
     expect(log?.kifu).toEqual(validKifu);
-    expect(user.analysisCountThisMonth).toBe(1);
+    expect(log?.visibility).toBe("private"); // 既定は非公開
+    expect(user.analysisCountThisMonth).toBe(4); // Gemini 呼び出し回数を加算
   });
 
   it("gameId 指定で既存半荘に追加すると seq が増える", async () => {
@@ -99,6 +103,7 @@ describe("AnalyzeAndSaveKifu", () => {
       gameId: "g1",
       seq: 1,
       kifu: validKifu,
+      visibility: "private",
       createdAt: NOW,
     });
 
@@ -123,8 +128,8 @@ describe("AnalyzeAndSaveKifu", () => {
     expect(user.analysisCountThisMonth).toBe(0);
   });
 
-  it("無料枠を使い切っていると解析させず、保存もカウントもしない", async () => {
-    const user = freeUser(10); // 上限
+  it("月の呼び出し枠を使い切っていると解析させず、保存もカウントもしない", async () => {
+    const user = freeUser(MONTHLY_CALL_QUOTA.free); // 上限
     const analyzer = new FakeAnalyzer(validKifu);
     const { usecase, gameLogs } = makeUsecase({ user, analyzer });
 
@@ -133,7 +138,30 @@ describe("AnalyzeAndSaveKifu", () => {
     expect(result).toEqual({ ok: false, reason: "quota_exceeded" });
     expect(analyzer.calls).toBe(0); // 解析を呼ばない（コストもかけない）
     expect(gameLogs.saved).toHaveLength(0);
-    expect(user.analysisCountThisMonth).toBe(10);
+    expect(user.analysisCountThisMonth).toBe(MONTHLY_CALL_QUOTA.free);
+  });
+
+  it("無料の非公開上限(4)に達していると解析させず private_limit", async () => {
+    const user = freeUser(0);
+    const analyzer = new FakeAnalyzer(validKifu);
+    const { usecase, gameLogs } = makeUsecase({ user, analyzer });
+    for (let i = 0; i < 4; i++) {
+      await gameLogs.save({
+        id: `p${i}`,
+        userId: "u1",
+        gameId: null,
+        seq: 1,
+        kifu: validKifu,
+        visibility: "private",
+        createdAt: NOW,
+      });
+    }
+
+    const result = await usecase.execute({ userId: "u1", input: dummyInput });
+
+    expect(result).toEqual({ ok: false, reason: "private_limit" });
+    expect(analyzer.calls).toBe(0); // 解析(=Gemini 枠)を消費しない
+    expect(user.analysisCountThisMonth).toBe(0);
   });
 
   it("解析が失敗したらカウントを進めず保存もしない（成功時のみ加算）", async () => {

@@ -15,6 +15,13 @@
       "when": 1782626887998,
       "tag": "0001_smart_devos",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1782645465629,
+      "tag": "0002_sour_maximus",
+      "breakpoints": true
     }
   ]
 }

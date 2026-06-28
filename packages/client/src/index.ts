@@ -7,9 +7,17 @@
 
 import type { Kifu } from "@rigel/schema";
 
+export type Plan = "free" | "next" | "pro";
+export type PaidPlan = "next" | "pro";
+export type Visibility = "public" | "private";
+
 export interface AuthUser {
   id: string;
-  plan: "free" | "paid";
+  plan: Plan;
+  /** 当月の Gemini 呼び出し上限（/me のみ。auth レスポンスには無い場合あり）。 */
+  monthlyCallQuota?: number;
+  /** 当月の残り呼び出し回数。 */
+  remainingCalls?: number;
 }
 
 export interface AuthResult {
@@ -30,6 +38,7 @@ export interface GameLog {
   gameId: string | null;
   seq: number;
   kifu: Kifu;
+  visibility: Visibility;
   createdAt: string;
 }
 
@@ -61,14 +70,20 @@ export interface ApiClient {
   /** 牌譜の修正を保存する（所有者のみ）。成否を返す。 */
   updateKifu(token: string, logId: string, kifu: Kifu): Promise<{ ok: boolean; status: number }>;
   /**
-   * 有料プランへのアップグレード Checkout を開始し、決済ページURLを得る。
+   * 指定プラン(next/pro)へのアップグレード Checkout を開始し、決済ページURLを得る。
    * urls は決済後/中断後の戻り先（各アプリが自分のオリジンで組む）。
    * 課金未設定(501)や失敗時は ok:false（status 付き）。
    */
   createCheckout(
     token: string,
-    urls: { successUrl: string; cancelUrl: string },
+    params: { plan: PaidPlan; successUrl: string; cancelUrl: string },
   ): Promise<CheckoutResult>;
+  /** 牌譜の公開範囲を切り替える（所有者のみ）。成否を返す。 */
+  setVisibility(
+    token: string,
+    logId: string,
+    visibility: Visibility,
+  ): Promise<{ ok: boolean; status: number }>;
 }
 
 /**
@@ -134,15 +149,24 @@ export function createApiClient(baseUrl: string, fetchImpl?: typeof fetch): ApiC
       return { ok: res.ok, status: res.status };
     },
 
-    async createCheckout(token, urls) {
+    async createCheckout(token, params) {
       const res = await doFetch(`${baseUrl}/billing/checkout`, {
         method: "POST",
         headers: { ...bearer(token), "content-type": "application/json" },
-        body: JSON.stringify(urls),
+        body: JSON.stringify(params),
       });
       if (!res.ok) return { ok: false, status: res.status };
       const d = (await res.json()) as { url: string };
       return { ok: true, url: d.url };
+    },
+
+    async setVisibility(token, logId, visibility) {
+      const res = await doFetch(`${baseUrl}/kifu/${logId}/visibility`, {
+        method: "PATCH",
+        headers: { ...bearer(token), "content-type": "application/json" },
+        body: JSON.stringify({ visibility }),
+      });
+      return { ok: res.ok, status: res.status };
     },
   };
 }

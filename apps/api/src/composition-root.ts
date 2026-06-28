@@ -14,6 +14,7 @@ import { GetUser } from "./application/get-user.usecase";
 import { HandleBillingWebhook } from "./application/handle-billing-webhook.usecase";
 import { ListGames } from "./application/list-games.usecase";
 import { ListKifu } from "./application/list-kifu.usecase";
+import { SetKifuVisibility } from "./application/set-kifu-visibility.usecase";
 import { StartCheckout } from "./application/start-checkout.usecase";
 import { UpdateKifu } from "./application/update-kifu.usecase";
 import type { SessionService } from "./domain/auth/session";
@@ -38,6 +39,7 @@ export interface AppContainer {
   getKifu: GetKifu;
   listKifu: ListKifu;
   updateKifu: UpdateKifu;
+  setKifuVisibility: SetKifuVisibility;
   listGames: ListGames;
   getGameWithLogs: GetGameWithLogs;
   authenticateWithGoogle: AuthenticateWithGoogle;
@@ -83,10 +85,14 @@ export function buildContainer(env: Env): AppContainer {
   const billing = new StripeBillingGateway({
     secretKey: env.STRIPE_SECRET_KEY ?? "",
     webhookSecret: env.STRIPE_WEBHOOK_SECRET ?? "",
-    priceId: env.STRIPE_PRICE_ID ?? "",
+    priceNext: env.STRIPE_PRICE_NEXT ?? "",
+    pricePro: env.STRIPE_PRICE_PRO ?? "",
   });
   const billingEnabled = Boolean(
-    env.STRIPE_SECRET_KEY && env.STRIPE_WEBHOOK_SECRET && env.STRIPE_PRICE_ID,
+    env.STRIPE_SECRET_KEY &&
+    env.STRIPE_WEBHOOK_SECRET &&
+    env.STRIPE_PRICE_NEXT &&
+    env.STRIPE_PRICE_PRO,
   );
 
   return {
@@ -102,6 +108,7 @@ export function buildContainer(env: Env): AppContainer {
     getKifu: new GetKifu(gameLogs),
     listKifu: new ListKifu(gameLogs),
     updateKifu: new UpdateKifu(gameLogs),
+    setKifuVisibility: new SetKifuVisibility(gameLogs, users),
     listGames: new ListGames(gamesRepo),
     getGameWithLogs: new GetGameWithLogs(gamesRepo, gameLogs),
     authenticateWithGoogle: new AuthenticateWithGoogle({

@@ -6,6 +6,11 @@ function fakeFetch(handler: (url: string) => Response): typeof fetch {
   return ((url: string) => Promise.resolve(handler(String(url)))) as unknown as typeof fetch;
 }
 
+function fakeFetch2(handler: (url: string, init?: RequestInit) => Response): typeof fetch {
+  return ((url: string, init?: RequestInit) =>
+    Promise.resolve(handler(String(url), init))) as unknown as typeof fetch;
+}
+
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
 
@@ -85,19 +90,23 @@ describe("createApiClient", () => {
     expect(result.ok).toBe(true);
   });
 
-  it("createCheckout は決済URLを返す", async () => {
+  it("createCheckout は plan を送って決済URLを返す", async () => {
+    let body = "";
     const client = createApiClient(
       "https://api.test",
-      fakeFetch((url) => {
+      fakeFetch2((url, init) => {
         expect(url).toBe("https://api.test/billing/checkout");
+        body = String(init?.body ?? "");
         return json({ url: "https://stripe.test/pay/abc" });
       }),
     );
     const result = await client.createCheckout("tok", {
+      plan: "pro",
       successUrl: "https://app/ok",
       cancelUrl: "https://app/ng",
     });
     expect(result).toEqual({ ok: true, url: "https://stripe.test/pay/abc" });
+    expect(body).toContain('"pro"');
   });
 
   it("createCheckout は課金未設定(501)で ok:false", async () => {
@@ -105,7 +114,23 @@ describe("createApiClient", () => {
       "https://api.test",
       fakeFetch(() => new Response("no", { status: 501 })),
     );
-    const result = await client.createCheckout("tok", { successUrl: "a", cancelUrl: "b" });
+    const result = await client.createCheckout("tok", {
+      plan: "next",
+      successUrl: "a",
+      cancelUrl: "b",
+    });
     expect(result).toEqual({ ok: false, status: 501 });
+  });
+
+  it("setVisibility は PATCH /kifu/:id/visibility して成否を返す", async () => {
+    let method = "";
+    const client = createApiClient("https://api.test", ((url: string, init?: RequestInit) => {
+      method = init?.method ?? "GET";
+      expect(String(url)).toBe("https://api.test/kifu/l1/visibility");
+      return Promise.resolve(json({ ok: true }));
+    }) as unknown as typeof fetch);
+    const result = await client.setVisibility("tok", "l1", "public");
+    expect(method).toBe("PATCH");
+    expect(result.ok).toBe(true);
   });
 });

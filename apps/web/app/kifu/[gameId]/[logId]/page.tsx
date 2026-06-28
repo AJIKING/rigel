@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { KifuEditor } from "../../../../components/KifuEditor";
+import { VisibilityToggle } from "../../../../components/VisibilityToggle";
 import { fmtDate } from "../../../../lib/format";
 import { useGame } from "../../../../lib/use-kifu-data";
 
@@ -29,6 +30,9 @@ export default function BoardPage() {
           <p style={{ color: "#888", fontSize: 13 }}>
             撮影: {fmtDate(log.kifu.capturedAt)} ／
             赤枠は「要確認」。下の一覧から選んで正しい牌に直せます。
+          </p>
+          <p style={{ marginBottom: 12 }}>
+            <VisibilityToggle logId={log.id} ownerId={log.userId} initial={log.visibility} />
           </p>
           <KifuEditor initialKifu={log.kifu} kifuId={log.id} />
         </>

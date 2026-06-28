@@ -12,13 +12,20 @@ import type {
   BillingEvent,
   BillingGateway,
   CheckoutParams,
+  PaidPlan,
 } from "../../domain/billing/billing-gateway";
 
 export interface StripeBillingConfig {
   secretKey: string;
   webhookSecret: string;
-  /** サブスクの価格ID（Stripe ダッシュボードで作成した price_...）。 */
-  priceId: string;
+  /** RIGEL Next の価格ID（price_...）。 */
+  priceNext: string;
+  /** RIGEL Pro の価格ID（price_...）。 */
+  pricePro: string;
+}
+
+function asPaidPlan(value: unknown): PaidPlan | null {
+  return value === "next" || value === "pro" ? value : null;
 }
 
 export class StripeBillingGateway implements BillingGateway {
@@ -29,12 +36,18 @@ export class StripeBillingGateway implements BillingGateway {
     return new Stripe(this.config.secretKey, { httpClient: Stripe.createFetchHttpClient() });
   }
 
+  private priceFor(plan: PaidPlan): string {
+    return plan === "pro" ? this.config.pricePro : this.config.priceNext;
+  }
+
   async createCheckoutSession(params: CheckoutParams): Promise<{ url: string }> {
     const stripe = await this.client();
     const session = await stripe.checkout.sessions.create({
       mode: "subscription",
-      line_items: [{ price: this.config.priceId, quantity: 1 }],
+      line_items: [{ price: this.priceFor(params.plan), quantity: 1 }],
       client_reference_id: params.userId,
+      // session 側(=completed イベント)に tier、subscription 側(=deleted イベント)に userId を残す。
+      metadata: { tier: params.plan },
       subscription_data: { metadata: { userId: params.userId } },
       success_url: params.successUrl,
       cancel_url: params.cancelUrl,
@@ -55,7 +68,8 @@ export class StripeBillingGateway implements BillingGateway {
       case "checkout.session.completed": {
         const session = event.data.object;
         const userId = session.client_reference_id;
-        return userId ? { type: "subscribed", userId } : { type: "ignored" };
+        const plan = asPaidPlan(session.metadata?.tier);
+        return userId && plan ? { type: "subscribed", userId, plan } : { type: "ignored" };
       }
       case "customer.subscription.deleted": {
         const subscription = event.data.object;
