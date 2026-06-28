@@ -14,6 +14,7 @@
     "db:migrate": "wrangler d1 migrations apply rigel --remote"
   },
   "dependencies": {
+    "@cf-wasm/photon": "^0.3.6",
     "@rigel/schema": "workspace:*",
     "drizzle-orm": "^0.38.2",
     "hono": "^4.6.14"

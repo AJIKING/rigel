@@ -10,4 +10,6 @@ export interface Env {
   CLOUDFLARE_AI_GATEWAY_URL: string;
   /** 河読み取りモデル名（任意。未指定なら既定値）。ハードコードせず AI Studio の現行モデルを設定。 */
   GEMINI_RIVER_MODEL?: string;
+  /** 手牌読み取りモデル名（任意。未指定なら既定値。素直なタスクなので Flash-Lite 系）。 */
+  GEMINI_HAND_MODEL?: string;
 }

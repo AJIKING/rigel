@@ -21,5 +21,6 @@ enabled = true
 #   wrangler secret put CLOUDFLARE_AI_GATEWAY_URL   # google-ai-studio ベースURL（/v1beta の手前まで）
 
 [vars]
-# 河読み取りモデル。⚠️ AI Studio で現行の対応モデルを確認して差し替える（ハードコードしない）。
-GEMINI_RIVER_MODEL = "gemini-2.5-flash"
+# 読み取りモデル。⚠️ AI Studio で現行の対応モデルを確認して差し替える（ハードコードしない）。
+GEMINI_RIVER_MODEL = "gemini-2.5-flash"       # 河=難所
+GEMINI_HAND_MODEL = "gemini-2.5-flash-lite"   # 手牌=素直なタスク

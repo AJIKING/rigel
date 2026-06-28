@@ -13,8 +13,10 @@ import type { Env } from "./env";
 import { createDb } from "./infrastructure/db/client";
 import { GeminiAnalyzer } from "./infrastructure/gemini/gemini-analyzer";
 import { HttpGeminiClient } from "./infrastructure/gemini/gemini-client";
+import { HAND_PROMPT_SINGLE } from "./infrastructure/gemini/hand-prompt";
+import { ImageRiverPreprocessor } from "./infrastructure/gemini/image-river-preprocessor";
+import { PhotonImageProcessor } from "./infrastructure/gemini/photon-image-processor";
 import { RIVER_PROMPT_SINGLE } from "./infrastructure/gemini/river-prompt";
-import { UnimplementedRiverPreprocessor } from "./infrastructure/gemini/river-preprocessor";
 import { DrizzleGameLogRepository } from "./infrastructure/kifu/drizzle-game-log.repository";
 import { DrizzleUserRepository } from "./infrastructure/user/drizzle-user.repository";
 
@@ -24,8 +26,9 @@ export interface AppContainer {
   listKifu: ListKifu;
 }
 
-/** 河読み取りの既定モデル。⚠️ AI Studio で現行の対応モデルを確認して env で上書きする。 */
-const DEFAULT_RIVER_MODEL = "gemini-2.5-flash";
+/** 既定モデル。⚠️ AI Studio で現行の対応モデルを確認して env で上書きする。 */
+const DEFAULT_RIVER_MODEL = "gemini-2.5-flash"; // 河=難所
+const DEFAULT_HAND_MODEL = "gemini-2.5-flash-lite"; // 手牌=素直なタスク
 
 export function buildContainer(env: Env): AppContainer {
   const db = createDb(env.DB);
@@ -37,10 +40,12 @@ export function buildContainer(env: Env): AppContainer {
       apiKey: env.GEMINI_API_KEY,
       baseUrl: env.CLOUDFLARE_AI_GATEWAY_URL,
     }),
-    // 河の4分割＋正立は image processing 待ち（M5b）。今は呼ぶと明示的に失敗する。
-    preprocessor: new UnimplementedRiverPreprocessor(),
+    // 河1枚 → 4分割＋正立（Photon/WASM）。
+    preprocessor: new ImageRiverPreprocessor(new PhotonImageProcessor()),
     riverPrompt: RIVER_PROMPT_SINGLE,
     riverModel: env.GEMINI_RIVER_MODEL ?? DEFAULT_RIVER_MODEL,
+    handPrompt: HAND_PROMPT_SINGLE,
+    handModel: env.GEMINI_HAND_MODEL ?? DEFAULT_HAND_MODEL,
     now: () => new Date(),
   });
 

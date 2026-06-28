@@ -48,11 +48,11 @@ export function createApp(): Hono<AppEnv> {
     return c.json(logs);
   });
 
-  // 撮影画像 → 解析 → 保存。河の読み取り(Gemini)・組み立ては実装済みだが、
-  // 河の4分割＋正立(image processing)が未実装(M5b)のため、まだ通しでは動かせない → 501。
+  // 撮影画像 → 解析 → 保存。解析パイプライン（4分割＋正立・河/手牌読み取り・組み立て）は
+  // 実装済み。HTTP 配線（multipart 受け取り）と認証(userId)は M8 → それまで 501。
   app.post("/analyze", (c) =>
     c.json(
-      { ok: false, error: "analyze は準備中（河の4分割＋正立が未実装。読み取り自体は実装済み）" },
+      { ok: false, error: "analyze は HTTP配線＋認証(M8)待ち（解析パイプラインは実装済み）" },
       501,
     ),
   );

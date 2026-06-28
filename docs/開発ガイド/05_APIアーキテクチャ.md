@@ -76,28 +76,32 @@ POST /analyze
 
 ## Gemini 連携（解析パイプライン）
 
-`infrastructure/gemini/` に、河の読み取りを部品化して実装する。
+`infrastructure/gemini/` に、河・手牌の読み取りを部品化して実装する。
 
 ```
 GeminiAnalyzer.analyze(input):
   1. preprocessor.split(riverImage)      河1枚 → bottom/right/top/left の正立画像
-                                          ※ image processing が要るため未実装(M5b)。今はポート＋スタブ
+                                          (river-layout で切り出し/回転を決め、ImageProcessor=Photon が適用)
   2. readRiverDirection × 4 (並列)        各方向: client.generateText → extractJson → AiRiverResponseSchema.parse
-  3. assembleKifu                         toAbsoluteSeat で相対→絶対、KifuSchema.parse で最終検証
+  3. readHand × (提供された方向)          手牌(正立済み)を読む → AiHandResponseSchema.parse
+  4. assembleKifu                         toAbsoluteSeat で相対→絶対、KifuSchema.parse で最終検証
 ```
 
 | 部品 | 役割 | テスト |
 |---|---|---|
 | `gemini-client` | Gemini generateContent を AI Gateway 経由で叩く。**応答パーツを種類で仕分け、テキストのみ連結**（混在パーツ対策）。fetch 注入可 | fake fetch |
 | `extract-json` | テキストから JSON 抽出（フェンス/前置き/釣り合い括弧に頑健） | 純粋 |
-| `read-river` | 1方向: Gemini → JSON抽出 → `AiRiverResponseSchema.parse` | fake client |
-| `assemble` | 相対→絶対変換 + `KifuSchema.parse` | 純粋 |
-| `river-prompt` | 単方向の河読み取りプロンプト（`AiRiverResponse` 形式） | — |
-| `river-preprocessor` | **ポート＋未実装スタブ**（4分割＋正立。M5b） | — |
+| `read-river` / `read-hand` | 1方向/1人: Gemini → JSON抽出 → `Ai*ResponseSchema.parse` | fake client |
+| `river-prompt` / `hand-prompt` | 単方向の河 / 1人分の手牌プロンプト | — |
+| `river-layout` | **4分割の切り出し矩形＋正立回転（割合・純粋）**。bottom=0/top=180 確定、left/right の角と切り出し精度は要実機検証 | 純粋 |
+| `image-processor` + `image-river-preprocessor` | ポート（cropRotate）＋それを使う前処理。レイアウトを画像に適用 | fake ImageProcessor |
+| `photon-image-processor` | `ImageProcessor` の実体（`@cf-wasm/photon`/WASM、遅延import、メモリ解放） | 実機検証 |
+| `assemble` | 相対→絶対変換（鳴き元も）+ `KifuSchema.parse` | 純粋 |
 
-> **モデル名はハードコードしない**。`env.GEMINI_RIVER_MODEL`（未指定なら既定値）で渡し、AI Studio の現行モデルに合わせる。
-> 設計ドキュメント 4章 `[未確定]`「JSON強制とtool併用の挙動」は **client の種類別仕分け + extract-json で解決済み**。
-> 残り `[未確定]`: 4分割＋正立の実体（image processing）、Agentic Vision の要否（A/B）、手牌の読み取り（assemble は手牌任意対応済み）。
+> **モデル名はハードコードしない**。`env.GEMINI_RIVER_MODEL` / `GEMINI_HAND_MODEL`（未指定なら既定値）で渡す。
+> 設計4章 `[未確定]`「JSON強制とtool併用の挙動」は **client の種類別仕分け + extract-json で解決済み**。
+> 残り `[要実機検証]`: 4分割の切り出し精度・left/right の回転角（`river-layout`）、Photon の回転方向、AI読み取り精度（eval）、Agentic Vision の要否（A/B）。
+> `/analyze` の通し配線（multipart 受け取り）と認証(userId)は **M8** 待ち。
 
 ---
 
