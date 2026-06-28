@@ -1,7 +1,9 @@
 import { KifuSchema, type Kifu } from "@rigel/schema";
 import { describe, expect, it } from "vitest";
 import {
+  analyzeErrorMessage,
   applyTileEdit,
+  cameraLabel,
   collectReviewItems,
   describeTile,
   needsReview,
@@ -78,6 +80,24 @@ describe("seatLabel", () => {
   it("席を日本語にする", () => {
     expect(seatLabel("east")).toBe("東");
     expect(seatLabel("north")).toBe("北");
+  });
+});
+
+describe("cameraLabel", () => {
+  it("カメラ相対位置を日本語にする", () => {
+    expect(cameraLabel("bottom")).toBe("手前");
+    expect(cameraLabel("top")).toBe("向かい");
+  });
+});
+
+describe("analyzeErrorMessage", () => {
+  it("ステータスごとにメッセージを返す", () => {
+    expect(analyzeErrorMessage(402)).toMatch(/無料枠/);
+    expect(analyzeErrorMessage(502)).toMatch(/解析に失敗/);
+  });
+  it("既定は reason かフォールバック", () => {
+    expect(analyzeErrorMessage(400, "bad")).toBe("bad");
+    expect(analyzeErrorMessage(400)).toBe("保存に失敗しました。");
   });
 });
 

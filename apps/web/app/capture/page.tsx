@@ -1,7 +1,7 @@
 "use client";
 
 import { SeatSchema, type Seat } from "@rigel/schema";
-import { seatLabel } from "@rigel/ui";
+import { analyzeErrorMessage, cameraLabel, seatLabel } from "@rigel/ui";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
@@ -9,20 +9,6 @@ import { analyze } from "../../lib/api";
 import { useAuth } from "../../lib/auth-context";
 
 const CAMS = ["bottom", "right", "top", "left"] as const;
-const CAM_LABEL: Record<(typeof CAMS)[number], string> = {
-  bottom: "手前",
-  right: "右",
-  top: "向かい",
-  left: "左",
-};
-
-function messageFor(status: number, reason?: string): string {
-  if (status === 402) return "今月の無料枠を使い切りました。";
-  if (status === 401) return "ログインが必要です。";
-  if (status === 404) return "指定した半荘が見つかりません。";
-  if (status === 502) return "解析に失敗しました。少し待って再度お試しください。";
-  return reason ?? "保存に失敗しました。";
-}
 
 export default function CapturePage() {
   const { token, loading } = useAuth();
@@ -63,7 +49,7 @@ export default function CapturePage() {
         router.push(`/kifu/${result.gameId}`);
         return;
       }
-      setError(messageFor(result.status, result.reason));
+      setError(analyzeErrorMessage(result.status, result.reason));
     } catch {
       setError("通信に失敗しました。");
     } finally {
@@ -107,7 +93,7 @@ export default function CapturePage() {
         <div style={{ display: "grid", gap: 8 }}>
           {CAMS.map((cam) => (
             <label key={cam} style={{ display: "flex", gap: 8, alignItems: "center" }}>
-              <span style={{ width: 48, color: "#555", fontSize: 13 }}>{CAM_LABEL[cam]}</span>
+              <span style={{ width: 48, color: "#555", fontSize: 13 }}>{cameraLabel(cam)}</span>
               <input
                 type="file"
                 accept="image/*"

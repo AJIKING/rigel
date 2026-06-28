@@ -1,7 +1,7 @@
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { SeatSchema, type Seat } from "@rigel/schema";
-import { seatLabel } from "@rigel/ui";
+import { analyzeErrorMessage, cameraLabel, seatLabel } from "@rigel/ui";
 import * as ImagePicker from "expo-image-picker";
 import { useState } from "react";
 import { Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
@@ -12,12 +12,6 @@ import type { RootStackParamList } from "../lib/navigation";
 type Nav = NativeStackNavigationProp<RootStackParamList, "Capture">;
 
 const CAMS = ["bottom", "right", "top", "left"] as const;
-const CAM_LABEL: Record<(typeof CAMS)[number], string> = {
-  bottom: "手前",
-  right: "右",
-  top: "向かい",
-  left: "左",
-};
 
 interface Picked {
   uri: string;
@@ -36,12 +30,6 @@ async function pickImage(): Promise<Picked | null> {
     name: asset.fileName ?? "photo.jpg",
     type: asset.mimeType ?? "image/jpeg",
   };
-}
-
-function messageFor(status: number, reason?: string): string {
-  if (status === 402) return "今月の無料枠を使い切りました。";
-  if (status === 502) return "解析に失敗しました。少し待って再度お試しください。";
-  return reason ?? "保存に失敗しました。";
 }
 
 export function CaptureScreen() {
@@ -78,7 +66,7 @@ export function CaptureScreen() {
         nav.navigate("GameDetail", { gameId: result.gameId });
         return;
       }
-      setError(messageFor(result.status, result.reason));
+      setError(analyzeErrorMessage(result.status, result.reason));
     } catch {
       setError("通信に失敗しました。");
     } finally {
@@ -117,7 +105,7 @@ export function CaptureScreen() {
           style={styles.handRow}
           onPress={() => void pickImage().then((p) => p && setHands((h) => ({ ...h, [cam]: p })))}
         >
-          <Text style={styles.handLabel}>{CAM_LABEL[cam]}</Text>
+          <Text style={styles.handLabel}>{cameraLabel(cam)}</Text>
           {hands[cam] ? (
             <Image source={{ uri: hands[cam]?.uri }} style={styles.thumbSmall} />
           ) : (
