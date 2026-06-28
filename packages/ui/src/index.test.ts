@@ -1,5 +1,8 @@
+import { KifuSchema, type Kifu } from "@rigel/schema";
 import { describe, expect, it } from "vitest";
 import {
+  applyTileEdit,
+  collectReviewItems,
   describeTile,
   needsReview,
   RED_TILE_COLOR,
@@ -8,6 +11,23 @@ import {
   tileFace,
   tileLabel,
 } from "./index";
+
+const kifuWithReviews: Kifu = KifuSchema.parse({
+  schemaVersion: "1.0.0",
+  capturedAt: "2026-06-28T00:00:00.000Z",
+  seats: {
+    east: {
+      hand: [
+        { tile: "1m", confidence: 0.99 },
+        { tile: "2m", confidence: 0.3 }, // 要確認
+      ],
+      river: [{ order: 1, tile: null, confidence: 0 }], // 要確認
+    },
+    south: {},
+    west: {},
+    north: {},
+  },
+});
 
 describe("needsReview（confidence → 人手確認の入口）", () => {
   it("読めなかった牌(null)は必ず要確認", () => {
@@ -86,5 +106,32 @@ describe("tileFace（描画用の面仕様）", () => {
 
   it("読めない牌(null)は kind=unknown で ?", () => {
     expect(tileFace(null)).toMatchObject({ kind: "unknown", glyph: "?" });
+  });
+});
+
+describe("collectReviewItems", () => {
+  it("確信度の低い牌と読めない牌だけを席順に集める", () => {
+    const items = collectReviewItems(kifuWithReviews);
+    expect(items).toHaveLength(2);
+    expect(items[0]?.location).toMatchObject({ seat: "east", area: "hand", index: 1 });
+    expect(items[1]?.location).toMatchObject({ seat: "east", area: "river", index: 0 });
+  });
+});
+
+describe("applyTileEdit", () => {
+  it("対象牌を修正し confidence を 1 にする（元は不変）", () => {
+    const items = collectReviewItems(kifuWithReviews);
+    const loc = items[1]!.location; // east river[0] = null
+    const next = applyTileEdit(kifuWithReviews, loc, "5p");
+
+    expect(next.seats.east.river[0]).toMatchObject({ tile: "5p", confidence: 1 });
+    // 元の牌譜は変わらない
+    expect(kifuWithReviews.seats.east.river[0]?.tile).toBeNull();
+  });
+
+  it("修正後は要確認が1件減る", () => {
+    const loc = collectReviewItems(kifuWithReviews)[0]!.location;
+    const next = applyTileEdit(kifuWithReviews, loc, "2m");
+    expect(collectReviewItems(next)).toHaveLength(1);
   });
 });

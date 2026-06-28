@@ -6,7 +6,9 @@
 // 「どう見せるか」の純粋ロジックだけを共有する。
 // ============================================================
 
-import type { ReadTile, Seat, Tile } from "@rigel/schema";
+import { KifuSchema, type Kifu, type ReadTile, type Seat, type Tile } from "@rigel/schema";
+
+const SEAT_ORDER: Seat[] = ["east", "south", "west", "north"];
 
 /** confidence がこの値未満なら UI で「要確認」ハイライトにする閾値（暫定。eval で調整する）。 */
 export const REVIEW_CONFIDENCE_THRESHOLD = 0.8;
@@ -112,4 +114,71 @@ export function tileFace(tile: Tile | null): TileFace {
     glyph: SUIT_MARK[info.suit],
     color: info.red ? RED_TILE_COLOR : SUIT_COLOR[info.suit],
   };
+}
+
+// ============================================================
+// 牌譜の確認・修正ロジック（純貋・共有）
+// ------------------------------------------------------------
+// 「確信度の低い箇所を人が直す」ワークフローの中核。どの牌が要確認か（collectReviewItems）と、
+// 修正の不変更新（applyTileEdit）を純粋関数で提供し、各プラットフォームの編集UIが使う。
+// ============================================================
+
+export type TileArea = "hand" | "river" | "meld";
+
+export interface TileLocation {
+  seat: Seat;
+  area: TileArea;
+  /** hand/river 内、または meld.tiles 内のインデックス。 */
+  index: number;
+  /** area==="meld" のときの鳴きインデックス。 */
+  meldIndex?: number;
+}
+
+export interface ReviewItem {
+  location: TileLocation;
+  read: ReadTile;
+}
+
+/** 牌譜の中で「要確認」な牌（confidence 低 / 読めなかった）を席順に集める。 */
+export function collectReviewItems(kifu: Kifu): ReviewItem[] {
+  const items: ReviewItem[] = [];
+  for (const seat of SEAT_ORDER) {
+    const board = kifu.seats[seat];
+    board.hand.forEach((read, index) => {
+      if (needsReview(read)) items.push({ location: { seat, area: "hand", index }, read });
+    });
+    board.melds.forEach((meld, meldIndex) => {
+      meld.tiles.forEach((read, index) => {
+        if (needsReview(read)) {
+          items.push({ location: { seat, area: "meld", index, meldIndex }, read });
+        }
+      });
+    });
+    board.river.forEach((discard, index) => {
+      if (needsReview(discard)) {
+        items.push({ location: { seat, area: "river", index }, read: discard });
+      }
+    });
+  }
+  return items;
+}
+
+/**
+ * 1牌を修正した新しい牌譜を返す（不変）。
+ * 人が直したので confidence は 1（確定）にする。結果は KifuSchema で再検証する。
+ */
+export function applyTileEdit(kifu: Kifu, loc: TileLocation, tile: Tile | null): Kifu {
+  const draft = JSON.parse(JSON.stringify(kifu)) as Kifu;
+  const board = draft.seats[loc.seat];
+  const target: ReadTile | undefined =
+    loc.area === "hand"
+      ? board.hand[loc.index]
+      : loc.area === "river"
+        ? board.river[loc.index]
+        : board.melds[loc.meldIndex ?? 0]?.tiles[loc.index];
+  if (target) {
+    target.tile = tile;
+    target.confidence = 1;
+  }
+  return KifuSchema.parse(draft);
 }
