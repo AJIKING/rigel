@@ -10,7 +10,7 @@ compatibility_flags = ["nodejs_compat"]
 [[d1_databases]]
 binding = "DB"                 # env.DB（src/env.ts）に対応
 database_name = "rigel"
-database_id = "REPLACE_WITH_REAL_D1_ID" # `wrangler d1 create rigel` で発行して差し替える
+database_id = "ead7fd30-bc34-4570-afb3-f98fb2a9669a" # `wrangler d1 create rigel` で発行
 migrations_dir = "migrations"
 
 [observability]
@@ -27,8 +27,8 @@ enabled = true
 # 読み取りモデル。⚠️ AI Studio で現行の対応モデルを確認して差し替える（ハードコードしない）。
 GEMINI_RIVER_MODEL = "gemini-2.5-flash"       # 河=難所
 GEMINI_HAND_MODEL = "gemini-2.5-flash-lite"   # 手牌=素直なタスク
-# Google OAuth クライアントID（公開値）。実値に差し替える。
-GOOGLE_CLIENT_ID = "REPLACE_WITH_GOOGLE_CLIENT_ID"
+# Google OAuth クライアントID（公開値。IDトークンの aud 検証に使う。client secret は不要）。
+GOOGLE_CLIENT_ID = "561655423126-1r9luc1tveq2ruhkc6a23dp7ems868cq.apps.googleusercontent.com"
 # サブスクの価格ID（公開値・秘密ではない）。RIGEL Next=¥480 / RIGEL Pro=¥1480。
 STRIPE_PRICE_NEXT = "price_1TnGLeLYWvIdYJVUk7f9jGUk"
 STRIPE_PRICE_PRO = "price_1TnGN3LYWvIdYJVUvg6fCymx"
