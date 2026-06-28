@@ -17,6 +17,7 @@ import type { SessionService } from "./domain/auth/session";
 import type { Env } from "./env";
 import { JoseGoogleTokenVerifier } from "./infrastructure/auth/jose-google-token-verifier";
 import { JwtSessionService } from "./infrastructure/auth/jwt-session-service";
+import { DrizzleAnalysisStore } from "./infrastructure/analysis/drizzle-analysis-store";
 import { createDb } from "./infrastructure/db/client";
 import { DrizzleGameRepository } from "./infrastructure/game/drizzle-game.repository";
 import { GeminiAnalyzer } from "./infrastructure/gemini/gemini-analyzer";
@@ -76,6 +77,7 @@ export function buildContainer(env: Env): AppContainer {
       games: gamesRepo,
       gameLogs,
       analyzer,
+      store: new DrizzleAnalysisStore(db),
       now,
       newId,
     }),

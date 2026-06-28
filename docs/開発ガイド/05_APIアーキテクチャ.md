@@ -105,7 +105,7 @@ GeminiAnalyzer.analyze(input):
 > **モデル名はハードコードしない**。`env.GEMINI_RIVER_MODEL` / `GEMINI_HAND_MODEL`（未指定なら既定値）で渡す。
 > 設計4章 `[未確定]`「JSON強制とtool併用の挙動」は **client の種類別仕分け + extract-json で解決済み**。
 > 残り `[要実機検証]`: 4分割の切り出し精度・left/right の回転角（`river-layout`）、Photon の回転方向、AI読み取り精度（eval）、Agentic Vision の要否（A/B）。
-> `/analyze` の通し配線（multipart・認証・半荘への局保存）は **実装済み**。残りは実行時ランタイム（鍵/WASM）と、保存＋カウントの原子化。
+> `/analyze` の通し配線（multipart・認証・半荘への局保存・**保存＋カウントの原子化**）は **実装済み**。残りは実行時ランタイム（鍵/WASM）。
 
 ---
 
@@ -129,10 +129,9 @@ GeminiAnalyzer.analyze(input):
   2. `pnpm --filter api db:migrate:local` … wrangler がローカル D1 に適用。
   3. `pnpm --filter api db:migrate` … 本番 D1 に適用（`wrangler d1 create rigel` で発行した `database_id` を `wrangler.toml` に設定後）。
 
-> **⚠️【未確定/要設計】カウンタ整合**: 「保存→カウント加算」は競合で二重加算・取りこぼしが起きうる。
-> infrastructure 層で **D1 の batch/トランザクション**にまとめて原子化する（設計ドキュメント 5章・9章 #6）。
-> 現状のユースケースは順序を守るのみ。アプリケーションのロジックは変えずに、保存とカウントを束ねる
-> `TransactionalAnalyzeStore` 的なアダプタを infrastructure に足すのが素直。
+> **カウンタ整合（実装済み）**: 半荘・局・カウント加算は `AnalysisStore` ポート（実体=
+> `DrizzleAnalysisStore` の **D1 batch**）で**1トランザクション**にまとめて原子化。
+> ユースケースは domain の手順（読み取り→解析→カウント加算）だけ持ち、永続化の原子性は store に委譲する。
 
 ---
 

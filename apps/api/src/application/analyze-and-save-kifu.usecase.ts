@@ -2,13 +2,15 @@
 // application — AnalyzeAndSaveKifu ユースケース
 // ------------------------------------------------------------
 // 撮影画像 → 牌譜ドラフト生成 → 半荘に局として保存 → 課金カウント加算 を束ねる。
-// ドメインのポート（リポジトリ/Analyzer）だけに依存し、Drizzle/Gemini/HTTP を知らない。
+// ドメインのポート（リポジトリ/Analyzer/AnalysisStore）だけに依存し、Drizzle/Gemini/HTTP を知らない。
 //
 // 信頼ゲートの要:
 //   - 解析が成功して保存できたときだけカウントを進める（成功時のみ加算）。
 //   - 無料枠を超えるユーザーには解析させない。
+//   - 半荘作成・局保存・カウント加算は AnalysisStore で **1トランザクション** に束ねる（原子性）。
 // ============================================================
 
+import type { AnalysisStore } from "../domain/analysis/analysis-store";
 import type { Game } from "../domain/game/game";
 import type { GameRepository } from "../domain/game/game.repository";
 import type { AnalysisInput, Analyzer } from "../domain/kifu/analyzer";
@@ -25,6 +27,8 @@ export interface AnalyzeDeps {
   games: GameRepository;
   gameLogs: GameLogRepository;
   analyzer: Analyzer;
+  /** 半荘・局・カウントを原子的に保存する。 */
+  store: AnalysisStore;
   /** 現在時刻（テスト容易性のため注入）。 */
   now: () => Date;
   /** ID生成（テスト容易性のため注入）。 */
@@ -42,7 +46,7 @@ export class AnalyzeAndSaveKifu {
   constructor(private readonly deps: AnalyzeDeps) {}
 
   async execute(params: AnalyzeParams): Promise<AnalyzeResult> {
-    const { users, games, gameLogs, analyzer, now, newId } = this.deps;
+    const { users, games, gameLogs, analyzer, store, now, newId } = this.deps;
 
     const user = await users.findById(params.userId);
     if (!user) return { ok: false, reason: "user_not_found" };
@@ -59,13 +63,11 @@ export class AnalyzeAndSaveKifu {
     // ここで例外が出たら以降は実行されず、半荘作成も保存もカウント加算もされない。
     const kifu = await analyzer.analyze(params.input);
 
-    // 解析が成功してから、新規なら半荘を作る（失敗時に空の半荘を残さない）。
-    if (!game) {
-      game = { id: newId(), userId: user.id, title: "", createdAt: now() };
-      await games.save(game);
-    }
+    // 解析が成功してから、新規なら半荘を組み立てる（保存はトランザクション内）。
+    const isNewGame = game === null;
+    if (!game) game = { id: newId(), userId: user.id, title: "", createdAt: now() };
 
-    const existing = await gameLogs.listByGame(game.id);
+    const existing = isNewGame ? [] : await gameLogs.listByGame(game.id);
     const gameLog: GameLog = {
       id: newId(),
       userId: user.id,
@@ -75,12 +77,10 @@ export class AnalyzeAndSaveKifu {
       createdAt: now(),
     };
 
-    // 保存が成功してからカウントを進める（成功時のみ加算）。
-    // ⚠️【未確定/要設計】半荘作成・局保存・カウント加算の原子性は、infrastructure 層で
-    //    D1 の batch/トランザクションにまとめて担保する（競合での二重加算・取りこぼし防止）。
-    await gameLogs.save(gameLog);
     user.recordSuccessfulAnalysis(now());
-    await users.save(user);
+
+    // 半荘(新規)・局・カウント加算を1トランザクションで保存（成功時のみ加算）。
+    await store.commit({ newGame: isNewGame ? game : null, gameLog, user });
 
     return { ok: true, gameLog, gameId: game.id };
   }

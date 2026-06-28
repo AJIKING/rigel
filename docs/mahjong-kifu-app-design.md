@@ -116,7 +116,7 @@
 - `game_logs`: `id`, `user_id`, `kifu`(Kifu の JSON を丸ごと), `created_at`, ...
 - 撮影画像は保存しない。`game_logs` に入るのは解析後の `Kifu` JSON のみ。
 - **[決定] ORM = Drizzle**（軽量・D1相性良・型連動）。スキーマ実体は `apps/api/src/infrastructure/db/schema.ts`、マイグレーションは drizzle-kit + `wrangler d1`。詳細は [開発ガイド/05_APIアーキテクチャ.md](開発ガイド/05_APIアーキテクチャ.md)。
-- **[未確定] カウンタの整合性**: 「確認→解析→加算」の競合状態に注意。D1トランザクション or Durable Objects で直列化。課金が絡むので雑にしない。ユースケースの手順上は「保存成功→加算」を守る実装済み。原子化アダプタは要設計。
+- **[決定] カウンタの整合性**: 半荘・局・カウント加算を `AnalysisStore`（実体=D1 batch）で**1トランザクションに原子化**（`apps/api/src/infrastructure/analysis/drizzle-analysis-store.ts`）。途中失敗・競合での不整合を防ぐ。手順は「保存成功時のみ加算」。
 
 ---
 
@@ -183,7 +183,7 @@
 | 3 | AI読み取り精度の実測 | 要検証 | テスト画像20–30枚で3指標を測定 |
 | 4 | UIコンポーネント共有手段 | 実装時決定 | Tamagui / RN Web / 自前SVG |
 | 5 | ~~ORM選定~~ | **[決定] Drizzle** | スキーマ実装済み（`apps/api`）。[開発ガイド/05](開発ガイド/05_APIアーキテクチャ.md) |
-| 6 | カウンタ整合性の実装 | 設計要 | D1トランザクション/batch で原子化。ユースケースの手順（保存→加算）は実装済み |
+| 6 | ~~カウンタ整合性の実装~~ | **[決定] 実装済み** | AnalysisStore=D1 batch で半荘/局/カウントを原子化 |
 | 7 | 認証の具体実装 | 後回し | Google認証。Better Auth / Lucia 等 |
 | 8 | 無料枠件数・月額価格 | ビジネス判断 | コストではなく価値で決める |
 | 9 | Web集客方針 | 未決定 | 共有URLのSEO要否（Next.jsなら対応可） |

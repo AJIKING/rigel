@@ -5,6 +5,7 @@ import type { AnalysisInput, Analyzer } from "../domain/kifu/analyzer";
 import { User, firstOfNextMonthUtc } from "../domain/user/user";
 import { fakeImage } from "../test-support/image";
 import {
+  InMemoryAnalysisStore,
   InMemoryGameLogRepository,
   InMemoryGameRepository,
   InMemoryUserRepository,
@@ -50,12 +51,14 @@ function makeUsecase(opts: { user?: User; analyzer: Analyzer; games?: Game[] }) 
   const users = new InMemoryUserRepository(opts.user ? [opts.user] : []);
   const gameLogs = new InMemoryGameLogRepository();
   const games = new InMemoryGameRepository(opts.games ?? []);
+  const store = new InMemoryAnalysisStore(games, gameLogs, users);
   let n = 0;
   const usecase = new AnalyzeAndSaveKifu({
     users,
     games,
     gameLogs,
     analyzer: opts.analyzer,
+    store,
     now: () => NOW,
     newId: () => `id-${++n}`,
   });

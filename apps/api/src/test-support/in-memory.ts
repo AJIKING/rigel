@@ -1,5 +1,6 @@
 // テスト用の in-memory リポジトリ（ポートのフェイク実装）。本番バンドルには含まれない。
 
+import type { AnalysisCommitInput, AnalysisStore } from "../domain/analysis/analysis-store";
 import type { Game } from "../domain/game/game";
 import type { GameRepository } from "../domain/game/game.repository";
 import type { GameLog } from "../domain/kifu/game-log";
@@ -76,5 +77,20 @@ export class InMemoryGameRepository implements GameRepository {
   save(game: Game): Promise<void> {
     this.byId.set(game.id, game);
     return Promise.resolve();
+  }
+}
+
+/** 原子コミットのフェイク（テスト用）。実 D1 batch の代わりに各 in-memory リポジトリへ書く。 */
+export class InMemoryAnalysisStore implements AnalysisStore {
+  constructor(
+    private readonly games: InMemoryGameRepository,
+    private readonly gameLogs: InMemoryGameLogRepository,
+    private readonly users: InMemoryUserRepository,
+  ) {}
+
+  async commit({ newGame, gameLog, user }: AnalysisCommitInput): Promise<void> {
+    if (newGame) await this.games.save(newGame);
+    await this.gameLogs.save(gameLog);
+    await this.users.save(user);
   }
 }
