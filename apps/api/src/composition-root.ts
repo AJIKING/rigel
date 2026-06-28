@@ -71,7 +71,14 @@ export function buildContainer(env: Env): AppContainer {
   const session = new JwtSessionService({ secret: env.SESSION_SECRET });
 
   return {
-    analyzeAndSaveKifu: new AnalyzeAndSaveKifu({ users, gameLogs, analyzer, now, newId }),
+    analyzeAndSaveKifu: new AnalyzeAndSaveKifu({
+      users,
+      games: gamesRepo,
+      gameLogs,
+      analyzer,
+      now,
+      newId,
+    }),
     getKifu: new GetKifu(gameLogs),
     listKifu: new ListKifu(gameLogs),
     listGames: new ListGames(gamesRepo),

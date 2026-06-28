@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Env } from "../../env";
+import { JwtSessionService } from "../../infrastructure/auth/jwt-session-service";
 import { minimalKifuInput } from "../../test-support/kifu";
 import { createApp } from "./app";
 
@@ -37,9 +38,19 @@ describe("HTTP app (Hono)", () => {
     expect(res.status).toBe(400);
   });
 
-  it("POST /analyze は M5 まで 501", async () => {
+  it("POST /analyze はトークン無しで 401", async () => {
     const res = await app.request("/analyze", { method: "POST" }, fakeEnv);
-    expect(res.status).toBe(501);
+    expect(res.status).toBe(401);
+  });
+
+  it("POST /analyze は認証済みでも river/座席が無ければ 400", async () => {
+    const token = await new JwtSessionService({ secret: "test-secret" }).issue("u1");
+    const res = await app.request(
+      "/analyze",
+      { method: "POST", headers: { authorization: `Bearer ${token}` } },
+      fakeEnv,
+    );
+    expect(res.status).toBe(400);
   });
 
   it("POST /auth/google は idToken が無ければ 400", async () => {

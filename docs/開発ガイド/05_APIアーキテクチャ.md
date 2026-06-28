@@ -59,18 +59,22 @@ apps/api/
 ## リクエストの流れ（例: 解析→保存）
 
 ```
-POST /analyze
-  → Hono(app.ts) が container.analyzeAndSaveKifu を呼ぶ
+POST /analyze（要認証 / multipart: river, cameraBottomSeat, hand_*?, gameId?）
+  → 認証ミドルウェアで userId、無ければ 401
+  → Hono(app.ts) が File→ImageRef 変換して container.analyzeAndSaveKifu を呼ぶ
   → AnalyzeAndSaveKifu.execute:
       1. users.findById           （ポート / 実体=DrizzleUserRepository）
-      2. user.canAnalyze(now)      （ドメイン: 無料枠の判定）
-      3. analyzer.analyze(input)   （ポート / 実体=GeminiAnalyzer。Zod検証済みKifuを返す契約）
-      4. gameLogs.save(log)        （保存が成功してから…）
-      5. user.recordSuccessfulAnalysis / users.save  （…カウント+1。成功時のみ）
+      2. user.canAnalyze(now)      （ドメイン: 無料枠の判定。超過は 402）
+      3. 既存 gameId 指定なら所有確認（他人/不在は 404。解析前に弾く）
+      4. analyzer.analyze(input)   （ポート / 実体=GeminiAnalyzer。Zod検証済みKifuを返す契約）
+      5. 新規なら半荘を作成（解析成功後。失敗時に空半荘を残さない）
+      6. gameLogs.save(log, seq)   （半荘内の seq を採番。保存が成功してから…）
+      7. user.recordSuccessfulAnalysis / users.save  （…カウント+1。成功時のみ）
+  → 201 { gameId, logId }（解析失敗は 502）
 ```
 
-> `/analyze` は **まだ 501**。河の読み取り・組み立ては実装済みだが、河の4分割＋正立
-> （image processing）が未実装（M5b）のため通しでは動かせない。下記参照。
+> `/analyze` は **配線済み**（認証・multipart・半荘への局保存）。実際に通すには
+> 河の4分割＋正立(Photon/WASM)・Gemini 呼び出しが実行時に動くこと（鍵/ランタイム）が前提。
 
 ---
 
@@ -101,7 +105,7 @@ GeminiAnalyzer.analyze(input):
 > **モデル名はハードコードしない**。`env.GEMINI_RIVER_MODEL` / `GEMINI_HAND_MODEL`（未指定なら既定値）で渡す。
 > 設計4章 `[未確定]`「JSON強制とtool併用の挙動」は **client の種類別仕分け + extract-json で解決済み**。
 > 残り `[要実機検証]`: 4分割の切り出し精度・left/right の回転角（`river-layout`）、Photon の回転方向、AI読み取り精度（eval）、Agentic Vision の要否（A/B）。
-> `/analyze` の通し配線（multipart 受け取り）と認証(userId)は **M8** 待ち。
+> `/analyze` の通し配線（multipart・認証・半荘への局保存）は **実装済み**。残りは実行時ランタイム（鍵/WASM）と、保存＋カウントの原子化。
 
 ---
 

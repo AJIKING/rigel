@@ -5,11 +5,21 @@
 // AppContainer 経由でユースケースに委譲する。Hono を使う。
 // ============================================================
 
+import { CameraSeatSchema, SeatSchema } from "@rigel/schema";
 import { Hono } from "hono";
 import type { AppContainer } from "../../composition-root";
 import { buildContainer } from "../../composition-root";
 import type { Env } from "../../env";
+import type { AnalysisInput, ImageRef } from "../../domain/kifu/analyzer";
 import { parseKifu } from "./validate";
+
+function asFile(value: unknown): File | null {
+  return value instanceof File ? value : null;
+}
+
+async function toImageRef(file: File): Promise<ImageRef> {
+  return { data: await file.arrayBuffer(), mimeType: file.type || "image/jpeg" };
+}
 
 type AppEnv = {
   Bindings: Env;
@@ -107,14 +117,49 @@ export function createApp(): Hono<AppEnv> {
     return c.json(logs);
   });
 
-  // 撮影画像 → 解析 → 保存。解析パイプライン（4分割＋正立・河/手牌読み取り・組み立て）は
-  // 実装済み。HTTP 配線（multipart 受け取り）と認証(userId)は M8 → それまで 501。
-  app.post("/analyze", (c) =>
-    c.json(
-      { ok: false, error: "analyze は HTTP配線＋認証(M8)待ち（解析パイプラインは実装済み）" },
-      501,
-    ),
-  );
+  // 撮影画像 → 解析 → 半荘に局として保存（multipart）。
+  // フォーム: river(file), cameraBottomSeat(east|south|west|north),
+  //          hand_bottom/right/top/left(file 任意), gameId(任意=既存半荘へ追加)。
+  app.post("/analyze", async (c) => {
+    const userId = c.get("userId");
+    if (!userId) return c.json({ error: "unauthorized" }, 401);
+
+    const form = await c.req.formData().catch(() => null);
+    const river = asFile(form?.get("river"));
+    const seat = SeatSchema.safeParse(form?.get("cameraBottomSeat"));
+    if (!river || !seat.success) {
+      return c.json(
+        { error: "river(file) と cameraBottomSeat(east/south/west/north) が必要です" },
+        400,
+      );
+    }
+
+    const hands: Partial<Record<(typeof CameraSeatSchema.options)[number], ImageRef>> = {};
+    for (const cam of CameraSeatSchema.options) {
+      const f = asFile(form?.get(`hand_${cam}`));
+      if (f) hands[cam] = await toImageRef(f);
+    }
+
+    const input: AnalysisInput = {
+      riverImage: await toImageRef(river),
+      hands,
+      cameraBottomSeat: seat.data,
+    };
+    const gameIdRaw = form?.get("gameId");
+    const gameId = typeof gameIdRaw === "string" && gameIdRaw ? gameIdRaw : undefined;
+
+    try {
+      const result = await c.get("container").analyzeAndSaveKifu.execute({ userId, input, gameId });
+      if (!result.ok) {
+        const status =
+          result.reason === "quota_exceeded" ? 402 : result.reason === "game_not_found" ? 404 : 400;
+        return c.json({ ok: false, reason: result.reason }, status);
+      }
+      return c.json({ ok: true, gameId: result.gameId, logId: result.gameLog.id }, 201);
+    } catch {
+      return c.json({ ok: false, error: "解析に失敗しました" }, 502);
+    }
+  });
 
   return app;
 }
