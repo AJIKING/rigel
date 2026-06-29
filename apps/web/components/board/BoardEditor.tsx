@@ -235,11 +235,15 @@ function Editor(p: EditorProps) {
   const [flashKey, setFlashKey] = useState<string | null>(null);
   const [meldType, setMeldType] = useState<"none" | "chi" | "pon" | "kan">("none");
   const [meldWho, setMeldWho] = useState<CameraSeat>("bottom");
+  const [kanType, setKanType] = useState<"minkan" | "ankan" | "kakan">("minkan");
 
   const [save, setSave] = useState<"idle" | "saving" | "done">("idle");
   const [vis, setVis] = useState(log.visibility);
   const [visBusy, setVisBusy] = useState(false);
   const [hanchanName, setHanchanName] = useState(detail.game.title || "");
+  const [dateInput, setDateInput] = useState(
+    new Date(detail.game.createdAt).toISOString().slice(0, 10),
+  );
   const [roundMenu, setRoundMenu] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
   const [delArm, setDelArm] = useState(false);
@@ -349,7 +353,8 @@ function Editor(p: EditorProps) {
     if (meldType !== "none" && sel.loc.area !== "meld") {
       const draft = clone(kifu);
       const owner = toAbsoluteSeat(meldWho, bottomSeat);
-      const type = meldType === "chi" ? "chi" : meldType === "pon" ? "pon" : "kan_open";
+      const kanMap = { minkan: "kan_open", ankan: "kan_closed", kakan: "kan_added" } as const;
+      const type = meldType === "chi" ? "chi" : meldType === "pon" ? "pon" : kanMap[kanType];
       draft.seats[owner].melds.push({
         type,
         tiles: meldTiles(meldType, code).map((t) => ({ tile: t, confidence: 1 })),
@@ -400,7 +405,6 @@ function Editor(p: EditorProps) {
   }
 
   const round = `${WINDS[Math.min(Math.floor(idx / 4), 3)]}${KANJI[idx % 4]}局`;
-  const dateStr = new Date(detail.game.createdAt).toISOString().slice(0, 10);
   const shareUrl =
     typeof window !== "undefined" ? `${window.location.origin}/kifu/${gameId}/${log.id}` : "";
 
@@ -421,7 +425,7 @@ function Editor(p: EditorProps) {
         <nav className={s.crumb}>
           <span>{hanchanName || "無題の半荘"}</span>
           <span>·</span>
-          <span>{dateStr.replace(/-/g, "/")}</span>
+          <span>{dateInput.replace(/-/g, "/")}</span>
           <span>·</span>
           <b>{round}</b>
         </nav>
@@ -823,6 +827,14 @@ function Editor(p: EditorProps) {
                   <input value={hanchanName} onChange={(e) => setHanchanName(e.target.value)} />
                 </div>
                 <div className={s.field}>
+                  <label>日付</label>
+                  <input
+                    type="date"
+                    value={dateInput}
+                    onChange={(e) => setDateInput(e.target.value)}
+                  />
+                </div>
+                <div className={s.field}>
                   <label>公開範囲</label>
                   <div className={s.seg} role="group" aria-label="公開範囲">
                     <button
@@ -933,6 +945,28 @@ function Editor(p: EditorProps) {
                       ))}
                     </div>
                   </div>
+                  {meldType === "kan" && (
+                    <div className={s.meRow}>
+                      <span className={s.meLabel}>種類</span>
+                      <div className={s.meSeg}>
+                        {(
+                          [
+                            ["minkan", "大明槓"],
+                            ["ankan", "暗槓"],
+                            ["kakan", "加槓"],
+                          ] as const
+                        ).map(([k, lbl]) => (
+                          <button
+                            key={k}
+                            className={kanType === k ? s.on : ""}
+                            onClick={() => setKanType(k)}
+                          >
+                            {lbl}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                   <p className={s.meHint}>牌を選ぶと鳴きを作成します</p>
                 </>
               )}
