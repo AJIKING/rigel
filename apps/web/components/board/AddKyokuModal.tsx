@@ -1,0 +1,161 @@
+"use client";
+
+import { analyzeErrorMessage, cameraLabel } from "@rigel/ui";
+import type { CameraSeat, Seat } from "@rigel/schema";
+import { useState } from "react";
+import { analyze } from "../../lib/api";
+import s from "./board-editor.module.css";
+
+const HANDS: { cam: CameraSeat; label: string }[] = [
+  { cam: "bottom", label: "あなたの手牌" },
+  { cam: "right", label: "下家の手牌" },
+  { cam: "top", label: "対面の手牌" },
+  { cam: "left", label: "上家の手牌" },
+];
+
+/** 局の追加モーダル。AI再現=撮影画像を /analyze。手動=最小メタ（作成は準備中）。 */
+export function AddKyokuModal({
+  token,
+  gameId,
+  bottomSeat = "east",
+  onClose,
+  onDone,
+}: {
+  token: string;
+  gameId: string;
+  bottomSeat?: Seat;
+  onClose: () => void;
+  onDone: (newLogId: string) => void | Promise<void>;
+}) {
+  const [mode, setMode] = useState<"ai" | "manual">("ai");
+  const [river, setRiver] = useState<File | null>(null);
+  const [hands, setHands] = useState<Partial<Record<CameraSeat, File>>>({});
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function onAnalyze() {
+    if (!river) {
+      setError("河（卓を上から1枚）の写真を選んでください。");
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    try {
+      const form = new FormData();
+      form.append("river", river);
+      form.append("cameraBottomSeat", bottomSeat);
+      form.append("gameId", gameId);
+      for (const { cam } of HANDS) {
+        const f = hands[cam];
+        if (f) form.append(`hand_${cam}`, f);
+      }
+      const result = await analyze(token, form);
+      if (result.ok) {
+        await onDone(result.logId);
+        return;
+      }
+      setError(analyzeErrorMessage(result.status, result.reason));
+    } catch {
+      setError("通信に失敗しました。");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className={s.modalOv} onClick={onClose}>
+      <div
+        className={s.modal}
+        role="dialog"
+        aria-label="局を追加"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className={s.modalHead}>
+          <div className={s.modalTitle}>局を追加</div>
+          <button className={s.modalX} aria-label="閉じる" onClick={onClose}>
+            ✕
+          </button>
+        </div>
+        <div className={s.modalModes}>
+          <button
+            className={`${s.modeTab} ${mode === "ai" ? s.on : ""}`}
+            onClick={() => setMode("ai")}
+          >
+            AI再現
+          </button>
+          <button
+            className={`${s.modeTab} ${mode === "manual" ? s.on : ""}`}
+            onClick={() => setMode("manual")}
+          >
+            手動入力
+          </button>
+        </div>
+
+        {mode === "ai" ? (
+          <div className={s.modalBody}>
+            <label className={`${s.up} ${s.upRiver} ${river ? s.filled : ""}`}>
+              <input
+                type="file"
+                accept="image/*"
+                onChange={(e) => setRiver(e.target.files?.[0] ?? null)}
+              />
+              <div className={s.upIn}>
+                <svg viewBox="0 0 24 24">
+                  <path d="M3 8a2 2 0 0 1 2-2h2l1.5-2h7L19 6h0a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+                  <circle cx="12" cy="13" r="3.2" />
+                </svg>
+                <span>{river ? river.name : "河（卓を上から1枚）"}</span>
+              </div>
+            </label>
+            <div className={s.upGrid}>
+              {HANDS.map(({ cam, label }) => (
+                <label key={cam} className={`${s.up} ${hands[cam] ? s.filled : ""}`}>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) =>
+                      setHands((h) => ({ ...h, [cam]: e.target.files?.[0] ?? undefined }))
+                    }
+                  />
+                  <div className={s.upIn}>
+                    <svg viewBox="0 0 24 24">
+                      <path d="M12 5v14M5 12h14" />
+                    </svg>
+                    <span>{hands[cam] ? `${cameraLabel(cam)}：選択済` : label}</span>
+                  </div>
+                </label>
+              ))}
+            </div>
+            {error && (
+              <p className={s.note} style={{ color: "var(--vermilion)" }}>
+                {error}
+              </p>
+            )}
+          </div>
+        ) : (
+          <div className={s.modalBody}>
+            <p className={s.note}>
+              手動作成は準備中です。いまは「AI再現」で撮影画像から局を追加してください。
+            </p>
+          </div>
+        )}
+
+        <div className={s.modalFoot}>
+          <button className={s.btnGhost} onClick={onClose}>
+            キャンセル
+          </button>
+          {mode === "ai" ? (
+            <button className={s.btnPrimary} disabled={busy} onClick={() => void onAnalyze()}>
+              {busy && <span className={s.spinner} />}
+              {busy ? "解析中…" : "AI再現"}
+            </button>
+          ) : (
+            <button className={s.btnPrimary} disabled>
+              手動作成
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
