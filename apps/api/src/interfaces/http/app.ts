@@ -18,6 +18,21 @@ function asFile(value: unknown): File | null {
   return value instanceof File ? value : null;
 }
 
+/** ユースケースの失敗理由を HTTP ステータスに対応づける（ルート間で統一）。 */
+function reasonStatus(reason: string): 400 | 402 | 403 | 404 {
+  switch (reason) {
+    case "quota_exceeded":
+      return 402;
+    case "private_limit":
+      return 403;
+    case "game_not_found":
+    case "not_found":
+      return 404;
+    default:
+      return 400;
+  }
+}
+
 async function toImageRef(file: File): Promise<ImageRef> {
   return { data: await file.arrayBuffer(), mimeType: file.type || "image/jpeg" };
 }
@@ -142,10 +157,7 @@ export function createApp(): Hono<AppEnv> {
       visibility: body.visibility,
     });
     if (!result.ok) {
-      return c.json(
-        { ok: false, reason: result.reason },
-        result.reason === "private_limit" ? 403 : 404,
-      );
+      return c.json({ ok: false, reason: result.reason }, reasonStatus(result.reason));
     }
     return c.json({ ok: true });
   });
@@ -170,10 +182,7 @@ export function createApp(): Hono<AppEnv> {
       cameraBottomSeat: seat.success ? seat.data : "east",
     });
     if (!result.ok) {
-      return c.json(
-        { ok: false, reason: result.reason },
-        result.reason === "private_limit" ? 403 : 404,
-      );
+      return c.json({ ok: false, reason: result.reason }, reasonStatus(result.reason));
     }
     return c.json({ ok: true, logId: result.logId }, 201);
   });
@@ -275,15 +284,7 @@ export function createApp(): Hono<AppEnv> {
     try {
       const result = await c.get("container").analyzeAndSaveKifu.execute({ userId, input, gameId });
       if (!result.ok) {
-        const status =
-          result.reason === "quota_exceeded"
-            ? 402
-            : result.reason === "private_limit"
-              ? 403
-              : result.reason === "game_not_found"
-                ? 404
-                : 400;
-        return c.json({ ok: false, reason: result.reason }, status);
+        return c.json({ ok: false, reason: result.reason }, reasonStatus(result.reason));
       }
       return c.json({ ok: true, gameId: result.gameId, logId: result.gameLog.id }, 201);
     } catch {

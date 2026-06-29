@@ -79,6 +79,17 @@ type Selection =
   | { kind: "dora" }
   | null;
 
+/** OSS 牌の面（Front + シンボルの2枚重ね）。code が null なら Front のみ。 */
+function TileFace({ code }: { code: Tile | null }) {
+  const asset = code ? tileAssetName(code) : null;
+  return (
+    <>
+      <img src="/tiles/Front.svg" alt="" />
+      {asset ? <img src={`/tiles/${asset}.svg`} alt={tileLabel(code)} /> : null}
+    </>
+  );
+}
+
 function BoardTile({
   code,
   kind,
@@ -100,7 +111,6 @@ function BoardTile({
   label: string;
   onClick: (e: React.MouseEvent) => void;
 }) {
-  const asset = code ? tileAssetName(code) : null;
   const cls = [
     s.tile,
     kind === "river" ? s.riverT : "",
@@ -123,8 +133,7 @@ function BoardTile({
         onClick(e);
       }}
     >
-      <img src="/tiles/Front.svg" alt="" />
-      {asset ? <img src={`/tiles/${asset}.svg`} alt={tileLabel(code)} /> : null}
+      <TileFace code={code} />
     </button>
   );
 }
@@ -132,8 +141,7 @@ function BoardTile({
 function DoraGlyph({ code }: { code: Tile }) {
   return (
     <span className={s.doraT}>
-      <img src="/tiles/Front.svg" alt="" />
-      <img src={`/tiles/${tileAssetName(code)}.svg`} alt={tileLabel(code)} />
+      <TileFace code={code} />
     </span>
   );
 }
@@ -325,6 +333,13 @@ function Editor(p: EditorProps) {
     setTimeout(() => setFlashKey((c) => (c === k ? null : c)), 480);
   }
 
+  // Kifu を不変更新する共通ヘルパ（複製→変更→Zod 再検証→反映）。
+  function mutate(fn: (draft: Kifu) => void) {
+    const draft = clone(kifu);
+    fn(draft);
+    setKifu(KifuSchema.parse(draft));
+  }
+
   function meldTiles(type: "chi" | "pon" | "kan", code: Tile): Tile[] {
     if (type === "pon") return [code, code, code];
     if (type === "kan") return [code, code, code, code];
@@ -343,33 +358,34 @@ function Editor(p: EditorProps) {
       return;
     }
     if (sel.kind === "add") {
-      const draft = clone(kifu);
-      if (sel.area === "hand") draft.seats[sel.seat].hand.push({ tile: code, confidence: 1 });
-      else {
-        const river = draft.seats[sel.seat].river;
-        river.push({
-          order: river.length + 1,
-          tile: code,
-          riichi: false,
-          tsumogiri: false,
-          confidence: 1,
-        });
-      }
-      setKifu(KifuSchema.parse(draft));
+      const { seat, area } = sel;
+      mutate((d) => {
+        if (area === "hand") d.seats[seat].hand.push({ tile: code, confidence: 1 });
+        else {
+          const river = d.seats[seat].river;
+          river.push({
+            order: river.length + 1,
+            tile: code,
+            riichi: false,
+            tsumogiri: false,
+            confidence: 1,
+          });
+        }
+      });
       closePop();
       return;
     }
     if (meldType !== "none" && sel.loc.area !== "meld") {
-      const draft = clone(kifu);
       const owner = toAbsoluteSeat(meldWho, bottomSeat);
       const kanMap = { minkan: "kan_open", ankan: "kan_closed", kakan: "kan_added" } as const;
       const type = meldType === "chi" ? "chi" : meldType === "pon" ? "pon" : kanMap[kanType];
-      draft.seats[owner].melds.push({
-        type,
-        tiles: meldTiles(meldType, code).map((t) => ({ tile: t, confidence: 1 })),
-        from: null,
-      });
-      setKifu(KifuSchema.parse(draft));
+      mutate((d) =>
+        d.seats[owner].melds.push({
+          type,
+          tiles: meldTiles(meldType, code).map((t) => ({ tile: t, confidence: 1 })),
+          from: null,
+        }),
+      );
       closePop();
       return;
     }
@@ -393,18 +409,19 @@ function Editor(p: EditorProps) {
   }
 
   function setDealerSeat(seat: Seat) {
-    const draft = clone(kifu);
-    draft.meta.dealer = seat;
-    setKifu(KifuSchema.parse(draft));
+    mutate((d) => {
+      d.meta.dealer = seat;
+    });
   }
 
   // 捨牌の手出し/自摸切りを切り替える（選択は保持＝ポップアップを開いたまま）。
   function setDiscardKind(tsumogiri: boolean) {
     if (sel?.kind !== "edit" || sel.loc.area !== "river") return;
-    const draft = clone(kifu);
-    const d = draft.seats[sel.loc.seat].river[sel.loc.index];
-    if (d) d.tsumogiri = tsumogiri;
-    setKifu(KifuSchema.parse(draft));
+    const loc = sel.loc;
+    mutate((d) => {
+      const discard = d.seats[loc.seat].river[loc.index];
+      if (discard) discard.tsumogiri = tsumogiri;
+    });
   }
 
   async function onDelete() {
@@ -919,8 +936,7 @@ function Editor(p: EditorProps) {
             {NUMS[suit].map((code) => (
               <button key={code} className={s.pk} onClick={() => applyTile(code)}>
                 <span className={s.tile}>
-                  <img src="/tiles/Front.svg" alt="" />
-                  <img src={`/tiles/${tileAssetName(code)}.svg`} alt={tileLabel(code)} />
+                  <TileFace code={code} />
                 </span>
               </button>
             ))}

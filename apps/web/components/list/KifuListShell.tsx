@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { getMyGames, getPublicGames, type MyGameCard, type PublicGameCard } from "../../lib/api";
 import { useAuth } from "../../lib/auth-context";
 import s from "./kifu-list.module.css";
@@ -41,6 +41,35 @@ function FavButton({ on, onToggle }: { on: boolean; onToggle: () => void }) {
       <svg viewBox="0 0 24 24">
         <path d="M12 2.6l2.85 6.02 6.6.62-4.97 4.4 1.46 6.46L12 17.7 6.06 20.7l1.46-6.46-4.97-4.4 6.6-.62z" />
       </svg>
+    </button>
+  );
+}
+
+/** 一覧カード（マイページ・公開で共通）。meta は行内の説明、badge は任意。 */
+function GameCard({
+  title,
+  badge,
+  meta,
+  faved,
+  onToggleFav,
+  onOpen,
+}: {
+  title: string;
+  badge?: ReactNode;
+  meta: ReactNode;
+  faved: boolean;
+  onToggleFav: () => void;
+  onOpen: () => void;
+}) {
+  return (
+    <button type="button" className={s.card} onClick={onOpen}>
+      <FavButton on={faved} onToggle={onToggleFav} />
+      <Thumb />
+      <div className={s.ctop}>
+        <h3 className={s.ctitle}>{title}</h3>
+        {badge}
+      </div>
+      <div className={s.cmeta}>{meta}</div>
     </button>
   );
 }
@@ -237,27 +266,27 @@ export function KifuListShell() {
                 </div>
               ) : (
                 mineView.map((c) => (
-                  <button
+                  <GameCard
                     key={c.id}
-                    className={s.card}
-                    onClick={() => router.push(`/kifu/${c.id}`)}
-                  >
-                    <FavButton on={favs.has(c.id)} onToggle={() => toggleFav(c.id)} />
-                    <Thumb />
-                    <div className={s.ctop}>
-                      <h3 className={s.ctitle}>{c.title || "（無題の半荘）"}</h3>
-                      {c.publicCount > 0 ? (
+                    title={c.title || "（無題の半荘）"}
+                    badge={
+                      c.publicCount > 0 ? (
                         <span className={`${s.badge} ${s.pub}`}>公開</span>
                       ) : (
                         <span className={`${s.badge} ${s.priv}`}>非公開</span>
-                      )}
-                    </div>
-                    <div className={s.cmeta}>
-                      {fmtDate(c.createdAt)}
-                      <span className={s.sep}>·</span>
-                      {c.kyokuCount}局
-                    </div>
-                  </button>
+                      )
+                    }
+                    meta={
+                      <>
+                        {fmtDate(c.createdAt)}
+                        <span className={s.sep}>·</span>
+                        {c.kyokuCount}局
+                      </>
+                    }
+                    faved={favs.has(c.id)}
+                    onToggleFav={() => toggleFav(c.id)}
+                    onOpen={() => router.push(`/kifu/${c.id}`)}
+                  />
                 ))
               )}
             </div>
@@ -300,24 +329,22 @@ export function KifuListShell() {
                 <div className={s.empty}>公開されている牌譜がまだありません</div>
               ) : (
                 pubView.map((c) => (
-                  <button
+                  <GameCard
                     key={c.id}
-                    className={s.card}
-                    onClick={() => router.push(`/kifu/${c.id}`)}
-                  >
-                    <FavButton on={favs.has(c.id)} onToggle={() => toggleFav(c.id)} />
-                    <Thumb />
-                    <div className={s.ctop}>
-                      <h3 className={s.ctitle}>{c.title || "（無題の半荘）"}</h3>
-                    </div>
-                    <div className={s.cmeta}>
-                      <span className={s.au}>@{c.ownerId.slice(0, 6)}</span>
-                      <span className={s.sep}>·</span>
-                      {fmtDate(c.createdAt)}
-                      <span className={s.sep}>·</span>
-                      {c.kyokuCount}局
-                    </div>
-                  </button>
+                    title={c.title || "（無題の半荘）"}
+                    meta={
+                      <>
+                        <span className={s.au}>@{c.ownerId.slice(0, 6)}</span>
+                        <span className={s.sep}>·</span>
+                        {fmtDate(c.createdAt)}
+                        <span className={s.sep}>·</span>
+                        {c.kyokuCount}局
+                      </>
+                    }
+                    faved={favs.has(c.id)}
+                    onToggleFav={() => toggleFav(c.id)}
+                    onOpen={() => router.push(`/kifu/${c.id}`)}
+                  />
                 ))
               )}
             </div>
