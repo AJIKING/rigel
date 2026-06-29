@@ -1,0 +1,150 @@
+name: Deploy rigel-api
+
+# 手動 promote のみ。検証済みの main の特定 SHA を ref で指定する。
+# preflight（検証ゲート）→ migrate（D1 リモート適用）→ deploy の順序を保証する。
+# zoma の deploy.cloud.yml を参考に、pnpm/turborepo モノレポ（API は apps/api）へ移植。
+#
+# 前提（GitHub 側に用意するもの）:
+#   - environment "production" を作成（任意で必須レビュワー/ブランチ制限）
+#   - リポジトリ or 同 environment の Secrets:
+#       CLOUDFLARE_API_TOKEN   … Workers/D1 デプロイ権限のある API トークン
+#       CLOUDFLARE_ACCOUNT_ID  … Cloudflare アカウントID
+#       SESSION_SECRET         … セッションJWTの署名鍵
+#       GEMINI_API_KEY         … Gemini API キー
+#       CLOUDFLARE_AI_GATEWAY_URL … AI Gateway の google-ai-studio ベースURL
+#       STRIPE_SECRET_KEY      … Stripe シークレット（rk_/sk_。未設定なら /billing/* は 501）
+#       STRIPE_WEBHOOK_SECRET  … Stripe Webhook 署名シークレット（whsec_...）
+#   - apps/api/wrangler.toml の d1_databases[0].database_id は反映済み（`wrangler d1 create rigel`）
+#   - [vars]（GOOGLE_CLIENT_ID / STRIPE_PRICE_NEXT|PRO / GEMINI_*_MODEL）は wrangler.toml にコミット済み
+#
+# 注: web(Next.js) / mobile(Expo) はこのワークフロー対象外（別途 Vercel/Pages・EAS で配信）。
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "Git ref（検証済みの main ブランチ / 特定 SHA）"
+        required: true
+        default: "main"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-api
+  cancel-in-progress: false
+
+jobs:
+  preflight:
+    name: 検証ゲート（typecheck / test / dry-run）
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.13.1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Test
+        run: pnpm test
+
+      - name: Build dry-run（バインディング解決の確認）
+        working-directory: apps/api
+        run: pnpm exec wrangler deploy --dry-run --outdir dist
+
+  migrate:
+    name: D1 マイグレーション（remote）
+    needs: preflight
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.13.1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Apply D1 migrations (remote)
+        working-directory: apps/api
+        run: pnpm exec wrangler d1 migrations apply rigel --remote
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+  deploy:
+    name: Workers デプロイ（D1）
+    needs: migrate
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.13.1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # secrets ブロックは Worker のシークレットとして投入する（= wrangler secret put 相当）。
+      # 値は GitHub Secrets（environment production）から env 経由で渡す。
+      - name: Deploy to Cloudflare Workers
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: apps/api
+          command: deploy
+          secrets: |
+            SESSION_SECRET
+            GEMINI_API_KEY
+            CLOUDFLARE_AI_GATEWAY_URL
+            STRIPE_SECRET_KEY
+            STRIPE_WEBHOOK_SECRET
+        env:
+          SESSION_SECRET: ${{ secrets.SESSION_SECRET }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          CLOUDFLARE_AI_GATEWAY_URL: ${{ secrets.CLOUDFLARE_AI_GATEWAY_URL }}
+          STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
+          STRIPE_WEBHOOK_SECRET: ${{ secrets.STRIPE_WEBHOOK_SECRET }}
