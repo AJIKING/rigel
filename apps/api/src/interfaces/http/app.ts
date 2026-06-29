@@ -138,6 +138,34 @@ export function createApp(): Hono<AppEnv> {
     return c.json({ ok: true });
   });
 
+  // 牌譜（局）の削除（所有者のみ）。
+  app.delete("/kifu/:id", requireAuth, async (c) => {
+    const result = await c.get("container").deleteKifu.execute({
+      userId: c.get("userId")!,
+      logId: c.req.param("id"),
+    });
+    if (!result.ok) return c.json({ error: "not found" }, 404);
+    return c.json({ ok: true });
+  });
+
+  // 半荘に空の局を追加（手動入力の起点。所有者のみ）。body: { cameraBottomSeat }。
+  app.post("/games/:id/kifu", requireAuth, async (c) => {
+    const body = (await c.req.json().catch(() => null)) as { cameraBottomSeat?: unknown } | null;
+    const seat = SeatSchema.safeParse(body?.cameraBottomSeat);
+    const result = await c.get("container").createEmptyKifu.execute({
+      userId: c.get("userId")!,
+      gameId: c.req.param("id"),
+      cameraBottomSeat: seat.success ? seat.data : "east",
+    });
+    if (!result.ok) {
+      return c.json(
+        { ok: false, reason: result.reason },
+        result.reason === "private_limit" ? 403 : 404,
+      );
+    }
+    return c.json({ ok: true, logId: result.logId }, 201);
+  });
+
   // 牌譜の修正を保存（所有者のみ）。body は Kifu JSON。
   app.put("/kifu/:id", requireAuth, async (c) => {
     const parsed = parseKifu(await c.req.json().catch(() => null));

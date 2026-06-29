@@ -77,4 +77,8 @@ export class DrizzleGameLogRepository implements GameLogRepository {
       .get();
     return row?.n ?? 0;
   }
+
+  async deleteById(id: string): Promise<void> {
+    await this.db.delete(gameLogs).where(eq(gameLogs.id, id));
+  }
 }

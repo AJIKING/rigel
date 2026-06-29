@@ -1,0 +1,65 @@
+// application — 空の局（手動入力の起点）を半荘に追加するユースケース。
+// 解析を伴わないので Gemini 枠は消費しない。既定 private なので無料の非公開上限は守る。
+
+import { KifuSchema, type Kifu, type Seat } from "@rigel/schema";
+import type { GameRepository } from "../domain/game/game.repository";
+import type { GameLog } from "../domain/kifu/game-log";
+import type { GameLogRepository } from "../domain/kifu/game-log.repository";
+import { privateKifuLimit } from "../domain/user/user";
+import type { UserRepository } from "../domain/user/user.repository";
+
+export type CreateEmptyResult =
+  { ok: true; logId: string } | { ok: false; reason: "game_not_found" | "private_limit" };
+
+/** 全席空の Kifu を作る。 */
+export function emptyKifu(capturedAt: string, cameraBottomSeat: Seat): Kifu {
+  return KifuSchema.parse({
+    schemaVersion: "1.0.0",
+    capturedAt,
+    cameraBottomSeat,
+    seats: { east: {}, south: {}, west: {}, north: {} },
+  });
+}
+
+export interface CreateEmptyDeps {
+  games: GameRepository;
+  gameLogs: GameLogRepository;
+  users: UserRepository;
+  now: () => Date;
+  newId: () => string;
+}
+
+export class CreateEmptyKifu {
+  constructor(private readonly deps: CreateEmptyDeps) {}
+
+  async execute(params: {
+    userId: string;
+    gameId: string;
+    cameraBottomSeat: Seat;
+  }): Promise<CreateEmptyResult> {
+    const { games, gameLogs, users, now, newId } = this.deps;
+
+    const game = await games.findById(params.gameId);
+    if (!game || game.userId !== params.userId) return { ok: false, reason: "game_not_found" };
+
+    const user = await users.findById(params.userId);
+    const limit = user ? privateKifuLimit(user.plan) : 0;
+    if (limit !== null) {
+      const current = await gameLogs.countByUserAndVisibility(params.userId, "private");
+      if (current >= limit) return { ok: false, reason: "private_limit" };
+    }
+
+    const existing = await gameLogs.listByGame(params.gameId);
+    const log: GameLog = {
+      id: newId(),
+      userId: params.userId,
+      gameId: params.gameId,
+      seq: existing.length + 1,
+      kifu: emptyKifu(now().toISOString(), params.cameraBottomSeat),
+      visibility: "private",
+      createdAt: now(),
+    };
+    await gameLogs.save(log);
+    return { ok: true, logId: log.id };
+  }
+}

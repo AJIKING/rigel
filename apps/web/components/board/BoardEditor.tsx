@@ -18,7 +18,14 @@ import {
 } from "@rigel/ui";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { getGame, setVisibility, updateKifu, type GameDetail, type GameLog } from "../../lib/api";
+import {
+  deleteKifu,
+  getGame,
+  setVisibility,
+  updateKifu,
+  type GameDetail,
+  type GameLog,
+} from "../../lib/api";
 import { useAuth } from "../../lib/auth-context";
 import { AddKyokuModal } from "./AddKyokuModal";
 import s from "./board-editor.module.css";
@@ -59,6 +66,11 @@ function fkey(loc: TileLocation): string {
 }
 function clone(k: Kifu): Kifu {
   return JSON.parse(JSON.stringify(k)) as Kifu;
+}
+function fmtPts(v: string): string {
+  const n = parseFloat(v);
+  if (isNaN(n)) return "0.0";
+  return (n >= 0 ? "+" : "") + n.toFixed(1);
 }
 
 type Selection =
@@ -230,6 +242,21 @@ function Editor(p: EditorProps) {
   const [hanchanName, setHanchanName] = useState(detail.game.title || "");
   const [roundMenu, setRoundMenu] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
+  const [delArm, setDelArm] = useState(false);
+  // 点数（UI のみ。スキーマ外）。
+  const [showPoints, setShowPoints] = useState(false);
+  const [names, setNames] = useState<Record<Seat, string>>({
+    east: "",
+    south: "",
+    west: "",
+    north: "",
+  });
+  const [points, setPoints] = useState<Record<Seat, string>>({
+    east: "0",
+    south: "0",
+    west: "0",
+    north: "0",
+  });
   const [open, setOpen] = useState<Record<string, boolean>>({
     han: true,
     info: true,
@@ -357,6 +384,21 @@ function Editor(p: EditorProps) {
     setKifu(KifuSchema.parse(draft));
   }
 
+  async function onDelete() {
+    if (detail.logs.length <= 1) return;
+    if (!delArm) {
+      setDelArm(true);
+      setTimeout(() => setDelArm(false), 2200);
+      return;
+    }
+    setDelArm(false);
+    const res = await deleteKifu(token, log.id).catch(() => ({ ok: false, status: 0 }));
+    if (res.ok) {
+      const focus = detail.logs[idx + 1]?.id ?? detail.logs[idx - 1]?.id;
+      await p.reload(focus);
+    }
+  }
+
   const round = `${WINDS[Math.min(Math.floor(idx / 4), 3)]}${KANJI[idx % 4]}局`;
   const dateStr = new Date(detail.game.createdAt).toISOString().slice(0, 10);
   const shareUrl =
@@ -474,8 +516,20 @@ function Editor(p: EditorProps) {
 
                     <div className={`${s.nameplate} ${win ? s.win : ""}`}>
                       <span className={s.wd}>{wind}</span>
-                      <span className={s.nm}>{wind}家</span>
-                      <span className={s.sc}>{results[seat] || ""}</span>
+                      <span className={s.nm}>{names[seat] || `${wind}家`}</span>
+                      {results[seat] && <span className={s.sc}>{results[seat]}</span>}
+                      {showPoints && (
+                        <span
+                          style={{
+                            color: "var(--orange)",
+                            fontWeight: 700,
+                            fontVariantNumeric: "tabular-nums",
+                            fontSize: 12,
+                          }}
+                        >
+                          {fmtPts(points[seat])}
+                        </span>
+                      )}
                     </div>
 
                     <div className={s.hand}>
@@ -609,6 +663,13 @@ function Editor(p: EditorProps) {
                   <button className={s.addkyoku} onClick={() => setAddOpen(true)}>
                     ＋ 局の追加
                   </button>
+                  <button
+                    className={`${s.delkyoku} ${delArm ? s.arm : ""}`}
+                    disabled={detail.logs.length <= 1}
+                    onClick={() => void onDelete()}
+                  >
+                    {delArm ? "もう一度押して削除" : "この局を削除"}
+                  </button>
                 </div>
               </div>
             )}
@@ -689,6 +750,54 @@ function Editor(p: EditorProps) {
                         ))}
                       </select>
                     </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
+
+          {/* ポイント */}
+          <section className={s.navsec}>
+            <button
+              className={`${s.accHead} ${showPoints ? s.accHeadOpen : ""}`}
+              aria-expanded={showPoints}
+              onClick={() => setShowPoints((v) => !v)}
+            >
+              <svg className={s.arr} viewBox="0 0 12 12">
+                <path d="M4 2l5 4-5 4" />
+              </svg>
+              ポイント
+            </button>
+            {showPoints && (
+              <div className={s.accBody}>
+                {SEAT_ORDER.map((seat) => (
+                  <div key={seat} className={s.agrow}>
+                    <input
+                      className={s.field}
+                      style={{ flex: 1, minWidth: 0 }}
+                      value={names[seat]}
+                      placeholder={`${windOf(seat, dealer)}家`}
+                      aria-label="選手名"
+                      onChange={(e) => setNames((n) => ({ ...n, [seat]: e.target.value }))}
+                    />
+                    <input
+                      type="number"
+                      step="0.1"
+                      value={points[seat]}
+                      aria-label="ポイント"
+                      style={{
+                        width: 72,
+                        background: "transparent",
+                        border: 0,
+                        borderBottom: "1px solid var(--line)",
+                        color: "var(--orange)",
+                        fontWeight: 700,
+                        fontSize: 14,
+                        textAlign: "right",
+                        fontFamily: "var(--round)",
+                      }}
+                      onChange={(e) => setPoints((pt) => ({ ...pt, [seat]: e.target.value }))}
+                    />
                   </div>
                 ))}
               </div>

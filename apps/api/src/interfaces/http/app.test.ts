@@ -133,6 +133,16 @@ describe("HTTP app (Hono)", () => {
     expect(res.status).toBe(501);
   });
 
+  it("DELETE /kifu/:id はトークン無しで 401", async () => {
+    const res = await app.request("/kifu/l1", { method: "DELETE" }, fakeEnv);
+    expect(res.status).toBe(401);
+  });
+
+  it("POST /games/:id/kifu はトークン無しで 401", async () => {
+    const res = await app.request("/games/g1/kifu", { method: "POST" }, fakeEnv);
+    expect(res.status).toBe(401);
+  });
+
   it("POST /auth/google は idToken が無ければ 400", async () => {
     const res = await app.request("/auth/google", jsonInit({}), fakeEnv);
     expect(res.status).toBe(400);

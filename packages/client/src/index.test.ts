@@ -133,4 +133,28 @@ describe("createApiClient", () => {
     expect(method).toBe("PATCH");
     expect(result.ok).toBe(true);
   });
+
+  it("deleteKifu は DELETE /kifu/:id して成否を返す", async () => {
+    let method = "";
+    const client = createApiClient("https://api.test", ((url: string, init?: RequestInit) => {
+      method = init?.method ?? "GET";
+      expect(String(url)).toBe("https://api.test/kifu/l1");
+      return Promise.resolve(json({ ok: true }));
+    }) as unknown as typeof fetch);
+    const result = await client.deleteKifu("tok", "l1");
+    expect(method).toBe("DELETE");
+    expect(result.ok).toBe(true);
+  });
+
+  it("createEmptyKifu は POST /games/:id/kifu して logId を返す", async () => {
+    const client = createApiClient(
+      "https://api.test",
+      fakeFetch((url) => {
+        expect(url).toBe("https://api.test/games/g1/kifu");
+        return json({ ok: true, logId: "new-log" }, 201);
+      }),
+    );
+    const result = await client.createEmptyKifu("tok", "g1", "east");
+    expect(result).toEqual({ ok: true, logId: "new-log" });
+  });
 });

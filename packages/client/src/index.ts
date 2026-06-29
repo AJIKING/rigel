@@ -5,7 +5,7 @@
 // fetch は注入可能（テスト用）。型(DTO)もここに集約して両アプリの drift を防ぐ。
 // ============================================================
 
-import type { Kifu } from "@rigel/schema";
+import type { Kifu, Seat } from "@rigel/schema";
 
 export type Plan = "free" | "next" | "pro";
 export type PaidPlan = "next" | "pro";
@@ -84,6 +84,14 @@ export interface ApiClient {
     logId: string,
     visibility: Visibility,
   ): Promise<{ ok: boolean; status: number }>;
+  /** 牌譜（局）を削除する（所有者のみ）。成否を返す。 */
+  deleteKifu(token: string, logId: string): Promise<{ ok: boolean; status: number }>;
+  /** 半荘に空の局を追加する（手動入力の起点）。成功で新しい logId を返す。 */
+  createEmptyKifu(
+    token: string,
+    gameId: string,
+    cameraBottomSeat: Seat,
+  ): Promise<{ ok: true; logId: string } | { ok: false; status: number }>;
 }
 
 /**
@@ -167,6 +175,25 @@ export function createApiClient(baseUrl: string, fetchImpl?: typeof fetch): ApiC
         body: JSON.stringify({ visibility }),
       });
       return { ok: res.ok, status: res.status };
+    },
+
+    async deleteKifu(token, logId) {
+      const res = await doFetch(`${baseUrl}/kifu/${logId}`, {
+        method: "DELETE",
+        headers: bearer(token),
+      });
+      return { ok: res.ok, status: res.status };
+    },
+
+    async createEmptyKifu(token, gameId, cameraBottomSeat) {
+      const res = await doFetch(`${baseUrl}/games/${gameId}/kifu`, {
+        method: "POST",
+        headers: { ...bearer(token), "content-type": "application/json" },
+        body: JSON.stringify({ cameraBottomSeat }),
+      });
+      if (!res.ok) return { ok: false, status: res.status };
+      const d = (await res.json()) as { logId: string };
+      return { ok: true, logId: d.logId };
     },
   };
 }

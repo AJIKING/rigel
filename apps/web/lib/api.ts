@@ -16,4 +16,6 @@ export const {
   updateKifu,
   createCheckout,
   setVisibility,
+  deleteKifu,
+  createEmptyKifu,
 } = client;

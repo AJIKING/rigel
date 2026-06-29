@@ -3,7 +3,7 @@
 import { analyzeErrorMessage, cameraLabel } from "@rigel/ui";
 import type { CameraSeat, Seat } from "@rigel/schema";
 import { useState } from "react";
-import { analyze } from "../../lib/api";
+import { analyze, createEmptyKifu } from "../../lib/api";
 import s from "./board-editor.module.css";
 
 const HANDS: { cam: CameraSeat; label: string }[] = [
@@ -13,7 +13,7 @@ const HANDS: { cam: CameraSeat; label: string }[] = [
   { cam: "left", label: "上家の手牌" },
 ];
 
-/** 局の追加モーダル。AI再現=撮影画像を /analyze。手動=最小メタ（作成は準備中）。 */
+/** 局の追加モーダル。AI再現=撮影画像を /analyze、手動=空の局を作成（牌は盤面で手入力）。 */
 export function AddKyokuModal({
   token,
   gameId,
@@ -55,6 +55,25 @@ export function AddKyokuModal({
         return;
       }
       setError(analyzeErrorMessage(result.status, result.reason));
+    } catch {
+      setError("通信に失敗しました。");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function onManualCreate() {
+    setBusy(true);
+    setError(null);
+    try {
+      const result = await createEmptyKifu(token, gameId, bottomSeat);
+      if (result.ok) {
+        await onDone(result.logId);
+        return;
+      }
+      setError(
+        result.status === 403 ? "非公開の保存上限に達しています。" : "作成できませんでした。",
+      );
     } catch {
       setError("通信に失敗しました。");
     } finally {
@@ -134,9 +153,12 @@ export function AddKyokuModal({
           </div>
         ) : (
           <div className={s.modalBody}>
-            <p className={s.note}>
-              手動作成は準備中です。いまは「AI再現」で撮影画像から局を追加してください。
-            </p>
+            <p className={s.note}>空の盤面で局を作成します。牌は盤面の「＋」から手入力できます。</p>
+            {error && (
+              <p className={s.note} style={{ color: "var(--vermilion)" }}>
+                {error}
+              </p>
+            )}
           </div>
         )}
 
@@ -150,8 +172,9 @@ export function AddKyokuModal({
               {busy ? "解析中…" : "AI再現"}
             </button>
           ) : (
-            <button className={s.btnPrimary} disabled>
-              手動作成
+            <button className={s.btnPrimary} disabled={busy} onClick={() => void onManualCreate()}>
+              {busy && <span className={s.spinner} />}
+              {busy ? "作成中…" : "手動作成"}
             </button>
           )}
         </div>

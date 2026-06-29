@@ -66,6 +66,12 @@ export class InMemoryGameLogRepository implements GameLogRepository {
       this.saved.filter((g) => g.userId === userId && g.visibility === visibility).length,
     );
   }
+
+  deleteById(id: string): Promise<void> {
+    const i = this.saved.findIndex((g) => g.id === id);
+    if (i >= 0) this.saved.splice(i, 1);
+    return Promise.resolve();
+  }
 }
 
 export class InMemoryGameRepository implements GameRepository {
