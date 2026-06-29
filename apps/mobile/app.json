@@ -8,6 +8,7 @@
     "newArchEnabled": true,
     "platforms": ["ios", "android"],
     "ios": {
+      "bundleIdentifier": "co.plaria.rigel",
       "supportsTablet": true
     },
     "android": {

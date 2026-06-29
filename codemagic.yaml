@@ -1,0 +1,98 @@
+# Codemagic（iOS の TestFlight 配布用）。
+# テスト/型チェックの正典は GitHub Actions（ci.yml）で、Codemagic は
+# 「Mac がなくても IPA をビルドして TestFlight へ上げる」ためだけに使う。
+# 参考: mobiles/piano の codemagic.yaml（Flutter）を、Expo(React Native)・
+# pnpm/turborepo モノレポ（モバイルは apps/mobile）へ移植したもの。
+#
+# 事前に Codemagic の UI 側で必要な設定:
+# 1. Team settings → Integrations → App Store Connect で API キー
+#    （App Store Connect → ユーザとアクセス → 統合 で発行した Issuer ID / Key ID / .p8）
+#    を登録し、名前を `app_store_connect_key` にする（下の integrations が参照）。
+# 2. 環境変数グループ `appstore_credentials` に CERTIFICATE_PRIVATE_KEY
+#    （配布証明書用の RSA 秘密鍵。Secure で登録）を入れる。
+# 3. 環境変数グループ `rigel_mobile_env` に、ビルド時にバンドルへ焼き込む公開値:
+#       EXPO_PUBLIC_API_URL          … 本番 API のベースURL（Workers のデプロイ先）
+#       EXPO_PUBLIC_GOOGLE_CLIENT_ID … Google OAuth Web クライアントID（id_token フロー用）
+# 4. App Store Connect に App（Bundle ID: co.plaria.rigel）を登録しておく
+#    （app.json の ios.bundleIdentifier と一致させる）。
+# 5. アプリ設定で「Switch to codemagic.yaml configuration」を選ぶ。
+#
+# トリガーは設定しない = 手動起動のみ（Start new build → ios-testflight）。
+#
+# ⚠️ pnpm モノレポ × Expo prebuild の注意:
+#   ネイティブ依存の解決（CocoaPods / autolinking）が pnpm のシンボリックリンクで
+#   失敗する場合は、リポジトリ直下に `.npmrc` を作り `node-linker=hoisted` を指定して
+#   フラットな node_modules にすると解決する（その場合は他ワークスペースの
+#   ビルドも一度確認すること）。
+
+workflows:
+  ios-testflight:
+    name: iOS TestFlight (rigel)
+    instance_type: mac_mini_m2
+    max_build_duration: 60
+    integrations:
+      app_store_connect: app_store_connect_key
+    environment:
+      groups:
+        - appstore_credentials # CERTIFICATE_PRIVATE_KEY
+        - rigel_mobile_env # EXPO_PUBLIC_API_URL / EXPO_PUBLIC_GOOGLE_CLIENT_ID
+      node: 22
+      xcode: latest
+      cocoapods: default
+      vars:
+        BUNDLE_ID: "co.plaria.rigel" # app.json の ios.bundleIdentifier と一致
+        XCODE_WORKSPACE: "apps/mobile/ios/rigel.xcworkspace" # expo prebuild が生成
+        XCODE_SCHEME: "rigel" # Xcode スキーム名（= アプリ名。生成後に要確認）
+    scripts:
+      - name: pnpm を有効化
+        script: corepack enable && corepack prepare pnpm@10.13.1 --activate
+
+      - name: 依存をインストール（モノレポ・ルート）
+        script: pnpm install --frozen-lockfile
+
+      - name: 型チェック（mobile）
+        script: pnpm --filter mobile typecheck
+
+      - name: iOS ネイティブプロジェクトを生成（expo prebuild）
+        # --no-install: pod install / npm install をスキップ（pnpm で導入済み・pod は次工程）
+        # --clean: ios/ を作り直してビルドの再現性を上げる
+        script: |
+          cd apps/mobile
+          CI=1 npx expo prebuild --platform ios --no-install --clean
+
+      - name: CocoaPods
+        script: |
+          cd apps/mobile/ios
+          pod install
+
+      # ios_signing の自動署名はサーバ側で失敗するとログが残らないため、CLI で明示的に取得・作成する。
+      # 認証情報（APP_STORE_CONNECT_*）は上の integrations から環境変数で渡される。
+      - name: 署名ファイルを取得・作成して適用
+        script: |
+          cd apps/mobile/ios
+          app-store-connect fetch-signing-files "$BUNDLE_ID" \
+            --type IOS_APP_STORE --platform IOS --create
+          keychain initialize
+          keychain add-certificates
+          xcode-project use-profiles
+
+      - name: ビルド番号を設定（TestFlight 重複回避）
+        # BUILD_NUMBER は Codemagic のビルド連番。TestFlight はビルド番号の重複を拒否するため、
+        # app.json の version ではなく Codemagic 連番を CFBundleVersion に焼く。
+        script: |
+          cd apps/mobile/ios
+          agvtool new-version -all "$BUILD_NUMBER"
+
+      - name: IPA をビルド
+        script: |
+          xcode-project build-ipa \
+            --workspace "$XCODE_WORKSPACE" \
+            --scheme "$XCODE_SCHEME"
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log
+    publishing:
+      app_store_connect:
+        auth: integration
+        # アップロード後に TestFlight の内部テスターへ自動公開する。
+        submit_to_testflight: true
