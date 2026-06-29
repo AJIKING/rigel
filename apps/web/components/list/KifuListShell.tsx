@@ -340,7 +340,7 @@ export function KifuListShell() {
                     }
                     faved={favs.has(c.id)}
                     onToggleFav={() => toggleFav(c.id)}
-                    onOpen={() => router.push(`/k/${c.firstLogId}`)}
+                    onOpen={() => router.push(`/k/${c.id}`)}
                   />
                 ))
               )}

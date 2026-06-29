@@ -65,7 +65,7 @@ export function UserPageShell({ idOrHandle }: { idOrHandle: string }) {
                       key={g.id}
                       type="button"
                       className={s.card}
-                      onClick={() => router.push(`/k/${g.firstLogId}`)}
+                      onClick={() => router.push(`/k/${g.id}`)}
                     >
                       <button
                         type="button"

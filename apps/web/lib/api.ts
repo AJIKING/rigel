@@ -11,6 +11,7 @@ export type {
   GameLog,
   MyGameCard,
   PublicGameCard,
+  PublicGameDetail,
   PublicProfile,
 } from "@rigel/client";
 
@@ -24,6 +25,7 @@ export const {
   getPublicGames,
   getGame,
   getKifu,
+  getPublicGameDetail,
   analyze,
   updateKifu,
   createCheckout,

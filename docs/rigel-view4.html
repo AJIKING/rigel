@@ -1,0 +1,1543 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>RIGEL — 牌譜ビュー</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --em: #0c7a57;
+        --em-deep: #0a5f44;
+        --chrome: #16181d;
+        --chrome-2: #1e2128;
+        --chrome-3: #272b34;
+        --line: rgba(255, 255, 255, 0.13);
+        --line-2: rgba(255, 255, 255, 0.08);
+        --white: #fff;
+        --w85: rgba(255, 255, 255, 0.9);
+        --w70: rgba(255, 255, 255, 0.74);
+        --w45: rgba(255, 255, 255, 0.45);
+        --bone: #f5eee0;
+        --bone-edge: #dccdab;
+        --bone-shadow: #b7a880;
+        --man: #2a2a26;
+        --pin: #2f6fb0;
+        --sou: #2f7d4f;
+        --vermilion: #e24b3a;
+        --accent: #ff9e45;
+        --round: "Noto Sans JP", system-ui, sans-serif;
+        --r: 3px;
+        --r-sm: 2px;
+        --tile-w: 32px;
+        --tile-h: 46px;
+        --river-w: 28px;
+        --river-h: 40px;
+        --meld-w: 26px;
+        --meld-h: 37px;
+        --board: 760px;
+        --ease: cubic-bezier(0.22, 0.61, 0.36, 1);
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+      }
+      body {
+        background: var(--chrome);
+        color: var(--white);
+        font-family: var(--round);
+        min-height: 100vh;
+        -webkit-font-smoothing: antialiased;
+      }
+      button {
+        font-family: inherit;
+      }
+      :focus-visible {
+        outline: 2px solid var(--accent);
+        outline-offset: 2px;
+        border-radius: var(--r-sm);
+      }
+
+      /* top bar */
+      .bar {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        padding: 12px 20px;
+        background: var(--chrome);
+        border-bottom: 1px solid var(--line);
+      }
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        text-decoration: none;
+      }
+      .brand .star {
+        width: 18px;
+        height: 18px;
+      }
+      .brand .wm {
+        font-weight: 800;
+        font-size: 17px;
+        letter-spacing: 0.3em;
+        padding-left: 0.3em;
+        color: #fff;
+      }
+      .crumb {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        color: var(--w70);
+        font-size: 12px;
+        padding-left: 14px;
+        border-left: 1px solid var(--line);
+      }
+      .crumb a {
+        color: var(--w70);
+        text-decoration: none;
+      }
+      .crumb a:hover {
+        color: #fff;
+      }
+
+      /* kifu header */
+      .khead {
+        display: flex;
+        align-items: flex-start;
+        gap: 16px;
+        padding: 18px 22px;
+        background: var(--chrome);
+        border-bottom: 1px solid var(--line);
+      }
+      .kh-main {
+        min-width: 0;
+        flex: 1;
+      }
+      .ktitle {
+        font-weight: 800;
+        font-size: 19px;
+        line-height: 1.3;
+        margin: 0;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-wrap: wrap;
+      }
+      .badge {
+        font-size: 10.5px;
+        font-weight: 700;
+        padding: 2px 8px;
+        border-radius: var(--r-sm);
+      }
+      .badge.pub {
+        color: #0c0e12;
+        background: var(--accent);
+      }
+      .badge.priv {
+        color: var(--w70);
+        background: var(--chrome-3);
+        border: 1px solid var(--line);
+      }
+      .kmeta {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-top: 6px;
+        font-size: 12.5px;
+        color: var(--w45);
+      }
+      .kmeta a {
+        color: var(--w70);
+        text-decoration: none;
+      }
+      .kmeta a:hover {
+        color: #fff;
+      }
+      .kmeta .sep {
+        opacity: 0.5;
+      }
+      .kh-act {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex: 0 0 auto;
+      }
+      .iconbtn {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        background: var(--chrome-2);
+        border: 1px solid var(--line);
+        color: var(--w85);
+        font-family: var(--round);
+        font-weight: 700;
+        font-size: 12.5px;
+        padding: 8px 13px;
+        border-radius: var(--r);
+        cursor: pointer;
+        transition: 0.15s;
+      }
+      .iconbtn:hover {
+        border-color: var(--w45);
+        color: #fff;
+      }
+      .iconbtn svg {
+        width: 15px;
+        height: 15px;
+        stroke: currentColor;
+        fill: none;
+        stroke-width: 1.9;
+      }
+      .iconbtn.fav.on {
+        color: var(--accent);
+        border-color: rgba(255, 158, 69, 0.5);
+      }
+      .iconbtn.fav.on svg {
+        fill: var(--accent);
+        stroke: var(--accent);
+      }
+
+      /* layout */
+      .wrap {
+        display: grid;
+        grid-template-columns: 1fr 320px;
+      }
+      .main {
+        min-width: 0;
+        padding: 22px 24px;
+        background: var(--em);
+        display: flex;
+        justify-content: center;
+        align-items: flex-start;
+      }
+      .side {
+        border-left: 1px solid var(--line);
+        background: var(--chrome);
+        padding: 6px 20px 50px;
+        min-height: calc(100vh - 110px);
+      }
+
+      /* board */
+      .stage {
+        display: flex;
+        justify-content: center;
+        overflow: visible;
+        width: 100%;
+      }
+      .table {
+        position: relative;
+        width: var(--board);
+        height: var(--board);
+        transform-origin: top center;
+        opacity: 0;
+        animation: fade 0.5s var(--ease) forwards;
+      }
+      @keyframes fade {
+        to {
+          opacity: 1;
+        }
+      }
+      .seat {
+        position: absolute;
+        transform-origin: center;
+        transform: translate(-50%, -50%) rotate(var(--rot, 0deg));
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 16px;
+      }
+      .river {
+        display: flex;
+        flex-direction: column;
+        gap: 3px;
+        align-items: center;
+      }
+      .rrow {
+        display: flex;
+        gap: 3px;
+        justify-content: center;
+      }
+      .hand {
+        display: flex;
+        gap: 2px;
+        align-items: flex-end;
+      }
+      .melds {
+        display: flex;
+        gap: 6px;
+        align-items: flex-end;
+        margin-left: 9px;
+      }
+      .meld {
+        display: flex;
+        gap: 1px;
+        align-items: flex-end;
+      }
+      .seat-b {
+        left: 50%;
+        top: 75%;
+      }
+      .seat-t {
+        left: 50%;
+        top: 25%;
+        --rot: 180deg;
+      }
+      .seat-l {
+        left: 25%;
+        top: 50%;
+        --rot: 90deg;
+      }
+      .seat-r {
+        left: 75%;
+        top: 50%;
+        --rot: -90deg;
+      }
+      .seat-l,
+      .seat-r {
+        --tile-w: 24px;
+        --tile-h: 34px;
+        --river-w: 22px;
+        --river-h: 31px;
+        --meld-w: 21px;
+        --meld-h: 30px;
+        gap: 14px;
+      }
+      .nameplate {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        white-space: nowrap;
+        color: #fff;
+        text-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
+        padding: 1px 0;
+      }
+      .seat-t .nameplate {
+        transform: rotate(180deg);
+      }
+      .nameplate .wd {
+        font-weight: 800;
+        font-size: 13px;
+        line-height: 1;
+      }
+      .nameplate .nm {
+        font-weight: 700;
+        font-size: 13px;
+        color: var(--w85);
+      }
+      .nameplate.win .nm {
+        color: #fff;
+      }
+      .nameplate.win .wd {
+        color: var(--accent);
+      }
+      .nameplate .sc {
+        font-weight: 800;
+        font-size: 14px;
+        font-variant-numeric: tabular-nums;
+        letter-spacing: 0.01em;
+      }
+      .center {
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        transform: translate(-50%, -50%);
+        width: 170px;
+        text-align: center;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 2px;
+      }
+      .center .rd {
+        font-weight: 600;
+        font-size: 16px;
+        color: #fff;
+        display: flex;
+        align-items: baseline;
+        gap: 6px;
+        justify-content: center;
+        text-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+      }
+      .center .hb {
+        font-size: 13px;
+        font-weight: 700;
+        color: var(--w85);
+      }
+      .center .kyotaku {
+        margin-top: 8px;
+        font-size: 13px;
+        font-weight: 700;
+        color: var(--w85);
+        text-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+      }
+      .center .kyotaku b {
+        color: #fff;
+        font-weight: 800;
+        margin: 0 1px;
+      }
+      .center .dora {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        margin-top: 7px;
+      }
+      .tile {
+        position: relative;
+        width: var(--tile-w);
+        height: var(--tile-h);
+        border-radius: var(--r-sm);
+        background: linear-gradient(160deg, #fdf9ee 0%, var(--bone) 48%, #e9dec4 100%);
+        box-shadow:
+          inset 0 1px 0 rgba(255, 255, 255, 0.9),
+          inset 0 -2px 3px var(--bone-shadow),
+          0 2px 5px rgba(0, 0, 0, 0.28);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex: 0 0 auto;
+        opacity: 0;
+        transform: scale(0.6);
+        animation: deal 0.42s var(--ease) forwards;
+        animation-delay: var(--d, 0s);
+      }
+      @keyframes deal {
+        to {
+          opacity: 1;
+          transform: scale(1);
+        }
+      }
+      .tile.river-t {
+        width: var(--river-w);
+        height: var(--river-h);
+      }
+      .tile.meld-t {
+        width: var(--meld-w);
+        height: var(--meld-h);
+      }
+      .tile.lay {
+        transform: rotate(90deg) scale(0.6);
+        align-self: center;
+        animation: dealLay 0.42s var(--ease) forwards;
+        animation-delay: var(--d, 0s);
+      }
+      @keyframes dealLay {
+        to {
+          opacity: 1;
+          transform: rotate(90deg) scale(1);
+        }
+      }
+      .tile .glyph {
+        width: 78%;
+        height: 84%;
+        display: block;
+      }
+      .tile.tsumo {
+        margin-left: 8px;
+      }
+      .tile.tsumogiri {
+        filter: grayscale(0.6) brightness(0.93);
+      }
+      .tile.back {
+        background: linear-gradient(158deg, #1aa078 0%, #0c6b4c 55%, #0a5a40 100%);
+        box-shadow:
+          inset 0 1px 0 rgba(255, 255, 255, 0.22),
+          inset 0 -2px 4px rgba(0, 0, 0, 0.32),
+          0 2px 5px rgba(0, 0, 0, 0.28);
+      }
+      .tile.back::after {
+        content: "";
+        position: absolute;
+        inset: 18% 26%;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        border-radius: 1px;
+      }
+      .doraT {
+        width: 22px;
+        height: 30px;
+        display: inline-block;
+      }
+
+      /* sidebar */
+      .ssec {
+        padding: 16px 0;
+        border-bottom: 1px solid var(--line-2);
+      }
+      .ssec:last-child {
+        border-bottom: 0;
+      }
+      .ssec h4 {
+        margin: 0 0 12px;
+        font-size: 11px;
+        letter-spacing: 0.13em;
+        color: var(--w45);
+        font-weight: 700;
+      }
+      .snav {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .navg {
+        cursor: pointer;
+        background: var(--chrome-2);
+        border: 1px solid var(--line);
+        border-radius: var(--r);
+        color: #fff;
+        width: 38px;
+        height: 38px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: 0.15s;
+        flex: 0 0 auto;
+        font-size: 16px;
+      }
+      .navg:hover {
+        background: var(--chrome-3);
+        border-color: var(--w45);
+      }
+      .navg:disabled {
+        opacity: 0.3;
+        cursor: not-allowed;
+      }
+      .roundwrap {
+        position: relative;
+        flex: 1;
+      }
+      .rlabel {
+        width: 100%;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        background: var(--chrome-2);
+        border: 1px solid var(--line);
+        border-radius: var(--r);
+        color: #fff;
+        font-family: var(--round);
+        font-weight: 700;
+        font-size: 13.5px;
+        cursor: pointer;
+        padding: 9px;
+      }
+      .rlabel small {
+        font-weight: 400;
+        font-size: 11px;
+        color: var(--w70);
+      }
+      .rlabel .caret {
+        width: 11px;
+        height: 11px;
+        stroke: var(--w70);
+        fill: none;
+        stroke-width: 2;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+        transition: 0.15s;
+      }
+      .rmenu {
+        display: none;
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        margin-top: 6px;
+        background: var(--chrome);
+        border: 1px solid var(--line);
+        border-radius: var(--r);
+        padding: 4px;
+        z-index: 30;
+        box-shadow: 0 14px 32px -14px rgba(0, 0, 0, 0.75);
+      }
+      .rmenu.open {
+        display: block;
+      }
+      .ritem {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        width: 100%;
+        background: transparent;
+        border: 0;
+        color: var(--w85);
+        font-family: var(--round);
+        font-size: 13px;
+        font-weight: 500;
+        cursor: pointer;
+        padding: 9px 10px;
+        border-radius: var(--r-sm);
+        text-align: left;
+      }
+      .ritem small {
+        color: var(--w45);
+        font-weight: 400;
+      }
+      .ritem:hover {
+        background: var(--chrome-2);
+      }
+      .ritem.on {
+        color: #fff;
+        background: var(--chrome-2);
+      }
+      .ritem.on::after {
+        content: "";
+        width: 5px;
+        height: 5px;
+        border-radius: 50%;
+        background: var(--accent);
+        margin-left: auto;
+      }
+      .irow {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        padding: 8px 0;
+        font-size: 13px;
+      }
+      .irow span {
+        color: var(--w70);
+      }
+      .irow b {
+        font-weight: 700;
+        color: #fff;
+        font-size: 13.5px;
+      }
+      .irow .doraT {
+        width: 20px;
+        height: 28px;
+      }
+      .arow {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        padding: 7px 0;
+      }
+      .arow .an {
+        font-size: 13px;
+        color: var(--w85);
+      }
+      .arow .ar {
+        font-size: 12.5px;
+        font-weight: 700;
+        color: var(--w45);
+      }
+      .arow .ar.win {
+        color: var(--accent);
+      }
+      .rrow2 {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 7px 0;
+      }
+      .rrow2 .rk {
+        width: 20px;
+        height: 20px;
+        flex: 0 0 auto;
+        display: grid;
+        place-items: center;
+        font-weight: 800;
+        font-size: 11px;
+        border-radius: 50%;
+        background: var(--chrome-3);
+        color: var(--w70);
+      }
+      .rrow2:first-child .rk {
+        background: var(--accent);
+        color: #0c0e12;
+      }
+      .rrow2 .rn {
+        flex: 1;
+        font-size: 13px;
+        color: var(--w85);
+      }
+      .rrow2 .rp {
+        font-weight: 700;
+        font-size: 13px;
+        font-variant-numeric: tabular-nums;
+      }
+      .rrow2 .rp.pos {
+        color: #3ec487;
+      }
+      .rrow2 .rp.neg {
+        color: var(--vermilion);
+      }
+
+      @media (max-width: 920px) {
+        .wrap {
+          grid-template-columns: 1fr;
+        }
+        .side {
+          border-left: 0;
+          border-top: 1px solid var(--line);
+          min-height: auto;
+        }
+      }
+      .boardcol {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        width: 100%;
+      }
+      .controlbar {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 14px;
+        margin-top: 18px;
+        padding: 8px 12px;
+        background: #141821;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        flex-wrap: wrap;
+      }
+      .cgrp {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .cbtn {
+        width: 36px;
+        height: 30px;
+        border: 0;
+        border-radius: var(--r);
+        background: var(--accent);
+        color: #16181d;
+        cursor: pointer;
+        display: grid;
+        place-items: center;
+        transition: 0.15s;
+      }
+      .cbtn svg {
+        width: 15px;
+        height: 15px;
+        fill: currentColor;
+      }
+      .cbtn:hover {
+        filter: brightness(1.07);
+      }
+      .cbtn:disabled {
+        opacity: 0.32;
+        cursor: not-allowed;
+        background: var(--chrome-3);
+        color: var(--w45);
+      }
+      .cbtn.step {
+        background: var(--chrome-2);
+        color: #fff;
+        border: 1px solid var(--line);
+      }
+      .cbtn.step:hover {
+        background: var(--chrome-3);
+        filter: none;
+      }
+      .cbtn.step:disabled {
+        background: var(--chrome-2);
+        color: var(--w45);
+      }
+      .clabel {
+        min-width: 64px;
+        text-align: center;
+        font-weight: 700;
+        font-size: 13px;
+        color: #fff;
+        background: rgba(0, 0, 0, 0.3);
+        border: 1px solid var(--line);
+        border-radius: var(--r);
+        padding: 6px 8px;
+        font-variant-numeric: tabular-nums;
+      }
+      .csel {
+        appearance: none;
+        -webkit-appearance: none;
+        cursor: pointer;
+        padding: 6px 24px 6px 10px;
+        font-family: var(--round);
+        background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 12 12"><path d="M3 5l3 3 3-3" fill="none" stroke="%23ffffffaa" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>');
+        background-repeat: no-repeat;
+        background-position: right 7px center;
+        background-size: 11px;
+      }
+      .cbtn.ctog {
+        width: auto;
+        padding: 0 13px;
+        font-family: var(--round);
+        font-weight: 700;
+        font-size: 12.5px;
+        background: var(--chrome-2);
+        color: var(--w70);
+        border: 1px solid var(--line);
+      }
+      .cbtn.ctog:hover {
+        filter: none;
+        color: #fff;
+        background: var(--chrome-3);
+      }
+      .cbtn.ctog.on {
+        background: var(--accent);
+        color: #16181d;
+        border-color: var(--accent);
+      }
+      .cbtn.ctog.on:hover {
+        background: var(--accent);
+        color: #16181d;
+        filter: brightness(1.06);
+      }
+      .bar .sp {
+        flex: 1;
+      }
+      .wrap.no-side {
+        grid-template-columns: 1fr;
+      }
+      .wrap.no-side .side {
+        display: none;
+      }
+      .cbtn.fs svg {
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 2;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+      body.fs .bar,
+      body.fs .khead {
+        display: none;
+      }
+      body.fs .wrap {
+        grid-template-columns: 1fr;
+      }
+      body.fs .side {
+        display: none;
+      }
+      body.fs .main {
+        min-height: 100vh;
+        padding: 14px 16px;
+      }
+      .toggle-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        font-size: 13px;
+        color: var(--w85);
+        cursor: pointer;
+      }
+      .switch {
+        position: relative;
+        width: 40px;
+        height: 22px;
+        flex: 0 0 auto;
+        display: inline-block;
+      }
+      .switch input {
+        position: absolute;
+        inset: 0;
+        opacity: 0;
+        margin: 0;
+        cursor: pointer;
+        z-index: 1;
+      }
+      .track {
+        position: absolute;
+        inset: 0;
+        background: var(--chrome-3);
+        border: 1px solid var(--line-2);
+        border-radius: 99px;
+        transition: 0.18s;
+      }
+      .knob {
+        position: absolute;
+        top: 3px;
+        left: 3px;
+        width: 14px;
+        height: 14px;
+        border-radius: 50%;
+        background: var(--w70);
+        transition: 0.18s;
+      }
+      .switch input:checked ~ .track {
+        background: var(--accent);
+        border-color: var(--accent);
+      }
+      .switch input:checked ~ .track .knob {
+        left: 21px;
+        background: #0c0e12;
+      }
+      @media (prefers-reduced-motion: reduce) {
+        * {
+          animation-duration: 0.001s !important;
+          animation-delay: 0s !important;
+        }
+        .table,
+        .tile {
+          opacity: 1;
+          transform: none;
+        }
+        .tile.lay {
+          transform: rotate(90deg);
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="bar">
+      <a class="brand" href="#"
+        ><svg class="star" viewBox="0 0 24 24" fill="none">
+          <path
+            d="M12 1.6l2.7 6.9 7.4.4-5.8 4.6 2 7.1L12 16.9 5.7 20.6l2-7.1L1.9 8.9l7.4-.4z"
+            fill="#ff9e45"
+          /></svg
+        ><span class="wm">RIGEL</span></a
+      >
+      <div class="crumb"><a href="#">公開牌譜</a><span>›</span><span>牌譜を見る</span></div>
+    </div>
+
+    <div class="khead">
+      <div class="kh-main">
+        <h1 class="ktitle">金曜の友人宅セット卓 <span class="badge pub">公開</span></h1>
+        <div class="kmeta">
+          <a href="#">@kuro_2p</a><span class="sep">·</span>2026-06-27<span class="sep">·</span>半荘
+          3局
+        </div>
+      </div>
+      <div class="kh-act">
+        <button class="iconbtn" id="sideToggle" aria-pressed="true">
+          <svg viewBox="0 0 24 24">
+            <rect x="3" y="4" width="18" height="16" rx="2" />
+            <path d="M15 4v16" /></svg
+          >情報
+        </button>
+        <button class="iconbtn fav" id="favBtn" aria-pressed="false" aria-label="お気に入り">
+          <svg viewBox="0 0 24 24">
+            <path
+              d="M12 2.6l2.85 6.02 6.6.62-4.97 4.4 1.46 6.46L12 17.7 6.06 20.7l1.46-6.46-4.97-4.4 6.6-.62z"
+            /></svg
+          >お気に入り
+        </button>
+        <button class="iconbtn" id="shareBtn">
+          <svg viewBox="0 0 24 24">
+            <circle cx="18" cy="5" r="3" />
+            <circle cx="6" cy="12" r="3" />
+            <circle cx="18" cy="19" r="3" />
+            <path d="M8.6 13.5l6.8 4M15.4 6.5l-6.8 4" /></svg
+          ><span id="shareLabel">共有</span>
+        </button>
+      </div>
+    </div>
+
+    <div class="wrap">
+      <div class="main">
+        <div class="boardcol">
+          <div class="stage">
+            <div class="table" id="table"><div class="center" id="center"></div></div>
+          </div>
+          <div class="controlbar">
+            <div class="cgrp">
+              <button class="cbtn" data-c="rprev" aria-label="前の局">
+                <svg viewBox="0 0 24 24">
+                  <rect x="5" y="5" width="2.4" height="14" rx="1" />
+                  <path d="M20 5l-10 7 10 7z" />
+                </svg>
+              </button>
+              <select class="clabel csel" id="cRound" aria-label="局を選択"></select>
+              <button class="cbtn" data-c="rnext" aria-label="次の局">
+                <svg viewBox="0 0 24 24">
+                  <rect x="16.6" y="5" width="2.4" height="14" rx="1" />
+                  <path d="M4 5l10 7-10 7z" />
+                </svg>
+              </button>
+            </div>
+            <div class="cgrp">
+              <button class="cbtn" data-c="jprev" aria-label="前の巡目">
+                <svg viewBox="0 0 24 24"><path d="M12 5l-8 7 8 7zM21 5l-8 7 8 7z" /></svg>
+              </button>
+              <select class="clabel csel" id="cJunme" aria-label="巡目を選択"></select>
+              <button class="cbtn" data-c="jnext" aria-label="次の巡目">
+                <svg viewBox="0 0 24 24"><path d="M12 5l8 7-8 7zM3 5l8 7-8 7z" /></svg>
+              </button>
+            </div>
+            <div class="cgrp">
+              <button class="cbtn step" data-c="sprev" aria-label="1手戻る">
+                <svg viewBox="0 0 24 24"><path d="M16 5l-9 7 9 7z" /></svg>
+              </button>
+              <button class="cbtn step" data-c="snext" aria-label="1手進む">
+                <svg viewBox="0 0 24 24"><path d="M8 5l9 7-9 7z" /></svg>
+              </button>
+            </div>
+            <div class="cgrp">
+              <button class="cbtn ctog on" id="handToggle" aria-pressed="true">手牌表示</button>
+            </div>
+            <div class="cgrp">
+              <button class="cbtn step fs" id="fsBtn" aria-label="全画面">
+                <svg viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" /></svg>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <aside class="side">
+        <div class="ssec">
+          <div class="snav">
+            <button class="navg" data-nav="prev" aria-label="前の局">‹</button>
+            <div class="roundwrap">
+              <button class="rlabel" id="roundLabel" aria-haspopup="true">東一局</button>
+              <div class="rmenu" id="roundMenu"></div>
+            </div>
+            <button class="navg" data-nav="next" aria-label="次の局">›</button>
+          </div>
+        </div>
+
+        <div class="ssec">
+          <h4>局情報</h4>
+          <div class="irow"><span>親</span><b id="iOya">—</b></div>
+          <div class="irow"><span>最終巡目</span><b id="iJunme">—</b></div>
+          <div class="irow"><span>ドラ</span><span class="doraT" id="iDora"></span></div>
+          <div class="irow"><span>本場</span><b id="iHonba">—</b></div>
+          <div class="irow"><span>供託</span><b id="iKyotaku">—</b></div>
+        </div>
+
+        <div class="ssec">
+          <h4>和了</h4>
+          <div id="agariView"></div>
+        </div>
+
+        <div class="ssec">
+          <h4>最終成績</h4>
+          <div id="rankView"></div>
+        </div>
+      </aside>
+    </div>
+
+    <script>
+      /* ===== tile glyph (placeholder — swap with real SVGs) ===== */
+      const ORD = { m: 0, p: 1, s: 2, z: 3 };
+      function tileSort(a, b) {
+        const oa = ORD[a[1]],
+          ob = ORD[b[1]];
+        if (oa !== ob) return oa - ob;
+        return (a[0] === "0" ? 5.5 : +a[0]) - (b[0] === "0" ? 5.5 : +b[0]);
+      }
+      function gridDots(n) {
+        const cols = n === 1 ? 1 : n <= 4 ? 2 : 3;
+        const rows = Math.ceil(n / cols);
+        const cw = 40,
+          gw = 24,
+          my = 10,
+          gh = 36;
+        const pts = [];
+        let left = n;
+        for (let r = 0; r < rows; r++) {
+          const inRow = Math.min(cols, left);
+          left -= inRow;
+          const y = my + (gh / rows) * (r + 0.5);
+          const step = gw / Math.max(cols - 1, 1);
+          for (let c = 0; c < inRow; c++) {
+            const x = (cw - (inRow - 1) * step) / 2 + c * step;
+            pts.push([x, y]);
+          }
+        }
+        return pts;
+      }
+      function glyph(code) {
+        const n = parseInt(code[0], 10),
+          s = code[1];
+        if (s === "m") {
+          const red = n === 0,
+            num = red ? 5 : n,
+            col = red ? "var(--vermilion)" : "var(--man)";
+          return `<svg class="glyph" viewBox="0 0 40 56"><text x="20" y="27" text-anchor="middle" font-family="Noto Sans JP,sans-serif" font-weight="800" font-size="25" fill="${col}">${num}</text><text x="20" y="51" text-anchor="middle" font-family="Noto Sans JP,sans-serif" font-weight="800" font-size="18" fill="${col}">萬</text></svg>`;
+        }
+        if (s === "p") {
+          const red = n === 0,
+            cnt = red ? 5 : n;
+          let c = "";
+          gridDots(cnt).forEach((p, i) => {
+            const r = red && i === Math.floor(cnt / 2);
+            const f = r ? "var(--vermilion)" : "var(--pin)";
+            c += `<circle cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="4.4" fill="${f}"/><circle cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="1.7" fill="#f5eee0"/>`;
+          });
+          return `<svg class="glyph" viewBox="0 0 40 56">${c}</svg>`;
+        }
+        if (s === "s") {
+          const red = n === 0,
+            cnt = red ? 5 : n;
+          let b = "";
+          gridDots(cnt).forEach((p, i) => {
+            const r = red && i === Math.floor(cnt / 2);
+            const f = r ? "var(--vermilion)" : "var(--sou)";
+            b += `<rect x="${(p[0] - 2.4).toFixed(1)}" y="${(p[1] - 7).toFixed(1)}" width="4.8" height="14" rx="2.4" fill="${f}"/>`;
+          });
+          return `<svg class="glyph" viewBox="0 0 40 56">${b}</svg>`;
+        }
+        if (code === "5z")
+          return '<svg class="glyph" viewBox="0 0 40 56"><rect x="9" y="11" width="22" height="34" rx="3" fill="none" stroke="var(--pin)" stroke-width="2.4"/></svg>';
+        const H = {
+          "1z": ["東", "var(--man)"],
+          "2z": ["南", "var(--man)"],
+          "3z": ["西", "var(--man)"],
+          "4z": ["北", "var(--man)"],
+          "6z": ["發", "var(--sou)"],
+          "7z": ["中", "var(--vermilion)"],
+        };
+        const h = H[code] || ["?", "var(--man)"];
+        return `<svg class="glyph" viewBox="0 0 40 56"><text x="20" y="42" text-anchor="middle" font-family="Noto Sans JP,sans-serif" font-weight="800" font-size="32" fill="${h[1]}">${h[0]}</text></svg>`;
+      }
+
+      /* ===== sample data ===== */
+      const ALL = [];
+      ["m", "p", "s"].forEach((su) => {
+        for (let n = 1; n <= 9; n++) ALL.push(n + su);
+      });
+      for (let n = 1; n <= 7; n++) ALL.push(n + "z");
+      function rng(seed) {
+        let a = seed >>> 0;
+        return () => {
+          a |= 0;
+          a = (a + 0x6d2b79f5) | 0;
+          let t = Math.imul(a ^ (a >>> 15), 1 | a);
+          t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+          return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+        };
+      }
+      function hashId(s) {
+        let h = 2166136261;
+        for (let i = 0; i < s.length; i++) {
+          h ^= s.charCodeAt(i);
+          h = Math.imul(h, 16777619);
+        }
+        return h >>> 0;
+      }
+      function pickTile(r, rc) {
+        if (rc && r() < rc) return "0" + ["m", "p", "s"][Math.floor(r() * 3)];
+        return ALL[Math.floor(r() * ALL.length)];
+      }
+      function makeHand(r, len) {
+        const h = [];
+        for (let i = 0; i < len; i++) h.push(pickTile(r, 0.05));
+        h.sort(tileSort);
+        return h;
+      }
+      function makeRiver(r, len) {
+        const a = [];
+        for (let i = 0; i < len; i++) a.push(pickTile(r, 0.02));
+        return a;
+      }
+      const POS = ["b", "r", "t", "l"];
+      const NAMES = { b: "kuro", r: "のどか", t: "TSURU", l: "まる" };
+      const POINTS = { b: 55.4, r: -10.0, t: -20.4, l: -25.0 };
+      function fmtPts(v) {
+        return (v >= 0 ? "+" : "") + v.toFixed(1);
+      }
+      const WIND_ROT = [
+        { b: "東", r: "南", t: "西", l: "北" },
+        { r: "東", t: "南", l: "西", b: "北" },
+        { t: "東", l: "南", b: "西", r: "北" },
+        { l: "東", b: "南", r: "西", t: "北" },
+      ];
+      function isWinResult(r) {
+        return r === "ツモ" || r === "ロン";
+      }
+      function makeGame(cfg) {
+        const r = rng(hashId(cfg.id)),
+          winds = WIND_ROT[cfg.windRot];
+        const dealer = Object.keys(winds).find((k) => winds[k] === "東");
+        const seats = {},
+          plates = {};
+        POS.forEach((pos) => {
+          const meldN = (cfg.melds && cfg.melds[pos]) || 0,
+            concealed = 13 - meldN * 3;
+          const hand = makeHand(r, concealed),
+            isWin = cfg.winner === pos;
+          const tsumo = isWin && cfg.winType === "tsumo" ? pickTile(r, 0.05) : null;
+          const melds = [];
+          for (let i = 0; i < meldN; i++) {
+            const t = pickTile(r, 0);
+            melds.push({ tiles: [t, t, t] });
+          }
+          let river = makeRiver(r, 8 + Math.floor(r() * 4));
+          const isRiichi = cfg.riichi && cfg.riichi.includes(pos);
+          if (isRiichi) {
+            const li = 2 + Math.floor(r() * (river.length - 3));
+            river = river.map((t, i) => (i === li ? { lay: true, t } : t));
+          }
+          if (pos === "t") {
+            river = river.map((t, i) =>
+              i % 3 === 0
+                ? typeof t === "string"
+                  ? { t, tsumogiri: true }
+                  : { ...t, tsumogiri: true }
+                : t,
+            );
+          }
+          seats[pos] = { hand, tsumo, melds, river };
+          plates[pos] = {
+            wind: winds[pos],
+            name: NAMES[pos],
+            score: cfg.scores[pos],
+            dealer: pos === dealer,
+            win: isWin,
+            riichi: isRiichi,
+          };
+        });
+        const results = { b: "", r: "", t: "", l: "" };
+        if (cfg.winner) {
+          results[cfg.winner] = cfg.winType === "tsumo" ? "ツモ" : "ロン";
+          if (cfg.dealIn) results[cfg.dealIn] = "放銃";
+        }
+        return {
+          ...cfg,
+          winds,
+          dealer,
+          seats,
+          plates,
+          results,
+          junme: cfg.junme || Math.max(1, ...POS.map((p) => seats[p].river.length)),
+        };
+      }
+      const GAMES = [
+        makeGame({
+          id: "V1",
+          round: "東一局",
+          honba: 0,
+          kyotaku: 0,
+          windRot: 0,
+          dora: "3m",
+          winner: "b",
+          winType: "ron",
+          scores: { b: 32100, r: 23400, t: 26500, l: 18000 },
+          melds: { r: 1 },
+          riichi: ["b"],
+          dealIn: "l",
+        }),
+        makeGame({
+          id: "V2",
+          round: "東二局",
+          honba: 1,
+          kyotaku: 1,
+          windRot: 1,
+          dora: "6p",
+          winner: "r",
+          winType: "tsumo",
+          scores: { b: 28800, r: 31900, t: 24100, l: 15200 },
+          melds: { t: 1, l: 1 },
+          riichi: ["r"],
+        }),
+        makeGame({
+          id: "V3",
+          round: "東三局",
+          honba: 0,
+          kyotaku: 0,
+          windRot: 2,
+          dora: "1z",
+          winner: null,
+          scores: { b: 27300, r: 33400, t: 21800, l: 17500 },
+          melds: { b: 1 },
+        }),
+      ];
+
+      /* ===== render (read-only) ===== */
+      let gi = 0,
+        dealIdx = 0,
+        reveal = -1,
+        hideOpp = false,
+        dealAnim = true,
+        ORDER = [],
+        DSTOPS = [];
+      function chunk(a, s) {
+        const r = [];
+        for (let i = 0; i < a.length; i += s) r.push(a.slice(i, i + s));
+        return r;
+      }
+      function tileEl(code, o = {}) {
+        const el = document.createElement("div");
+        el.className =
+          "tile" +
+          (o.river ? " river-t" : "") +
+          (o.meld ? " meld-t" : "") +
+          (o.lay ? " lay" : "") +
+          (o.tsumo ? " tsumo" : "") +
+          (o.tsumogiri ? " tsumogiri" : "") +
+          (o.back ? " back" : "");
+        if (!o.back) el.innerHTML = glyph(code);
+        el.style.setProperty("--d", (dealIdx * 0.012).toFixed(3) + "s");
+        dealIdx++;
+        if (!dealAnim) {
+          el.style.animation = "none";
+          el.style.opacity = "1";
+          el.style.transform = o.lay ? "rotate(90deg)" : "none";
+        }
+        return el;
+      }
+      function buildSeat(pos, g, rivN) {
+        const s = g.seats[pos],
+          pl = g.plates[pos];
+        const back = hideOpp && pos !== "b";
+        const seat = document.createElement("div");
+        seat.className = "seat seat-" + pos;
+        const river = document.createElement("div");
+        river.className = "river";
+        const rh = pos === "l" || pos === "r" ? 31 : 40;
+        const fullRows = Math.max(1, Math.ceil(s.river.length / 6));
+        river.style.minHeight = fullRows * rh + (fullRows - 1) * 3 + "px";
+        river.style.justifyContent = "flex-start";
+        chunk(s.river.slice(0, rivN), 6).forEach((row) => {
+          const rr = document.createElement("div");
+          rr.className = "rrow";
+          row.forEach((d) => {
+            const code = typeof d === "string" ? d : d.t;
+            const lay = typeof d === "object" && d.lay;
+            const tg = typeof d === "object" && d.tsumogiri;
+            rr.appendChild(tileEl(code, { river: true, lay, tsumogiri: tg }));
+          });
+          river.appendChild(rr);
+        });
+        seat.appendChild(river);
+        const _res = (g.results && g.results[pos]) || "";
+        const np = document.createElement("div");
+        np.className = "nameplate" + (isWinResult(_res) ? " win" : "");
+        np.innerHTML = `<span class="wd">${pl.wind}</span><span class="nm">${NAMES[pos]}</span><span class="sc">${pl.score.toLocaleString()}</span>`;
+        seat.appendChild(np);
+        const hand = document.createElement("div");
+        hand.className = "hand";
+        s.hand.forEach((h) => hand.appendChild(tileEl(h, { back })));
+        if (s.tsumo && rivN >= s.river.length)
+          hand.appendChild(tileEl(s.tsumo, { tsumo: true, back }));
+        if (s.melds.length) {
+          const m = document.createElement("div");
+          m.className = "melds";
+          s.melds.forEach((md) => {
+            const d = document.createElement("div");
+            d.className = "meld";
+            md.tiles.forEach((t, i) => d.appendChild(tileEl(t, { meld: true, lay: i === 0 })));
+            m.appendChild(d);
+          });
+          hand.appendChild(m);
+        }
+        seat.appendChild(hand);
+        document.getElementById("table").appendChild(seat);
+      }
+      function turnOrder(g) {
+        const byWind = {};
+        POS.forEach((p) => (byWind[g.winds[p]] = p));
+        const seq = ["東", "南", "西", "北"].map((w) => byWind[w]);
+        const maxLen = Math.max(...POS.map((p) => g.seats[p].river.length));
+        const order = [];
+        for (let tt = 0; tt < maxLen; tt++)
+          for (const p of seq) {
+            if (tt < g.seats[p].river.length) order.push(p);
+          }
+        return order;
+      }
+      function setCdis(c, dis) {
+        const b = document.querySelector('.controlbar [data-c="' + c + '"]');
+        if (b) b.disabled = dis;
+      }
+      function renderCenter() {
+        const g = GAMES[gi];
+        document.getElementById("center").innerHTML =
+          `<div class="rd">${g.round} <span class="hb">${g.honba}本場</span></div>
+    ${g.kyotaku > 0 ? `<div class="kyotaku">供託 <b>${g.kyotaku}</b>本</div>` : ""}
+    <div class="dora"><span class="doraT">${glyph(g.dora)}</span></div>`;
+      }
+      function buildInfo() {
+        const g = GAMES[gi];
+        document.getElementById("iOya").textContent = NAMES[g.dealer];
+        document.getElementById("iJunme").textContent = (g.junme || 1) + "巡";
+        document.getElementById("iDora").innerHTML = glyph(g.dora);
+        document.getElementById("iHonba").textContent = (g.honba || 0) + "本場";
+        document.getElementById("iKyotaku").textContent = (g.kyotaku || 0) + "本";
+      }
+      function buildAgariView() {
+        const g = GAMES[gi],
+          res = g.results || {};
+        document.getElementById("agariView").innerHTML = POS.map((pos) => {
+          const r = res[pos] || "—";
+          const win = isWinResult(res[pos]);
+          return `<div class="arow"><span class="an">${NAMES[pos]}</span><span class="ar${win ? " win" : ""}">${r}</span></div>`;
+        }).join("");
+      }
+      function buildRank() {
+        const arr = POS.map((p) => ({ name: NAMES[p], pts: POINTS[p] })).sort(
+          (a, b) => b.pts - a.pts,
+        );
+        document.getElementById("rankView").innerHTML = arr
+          .map(
+            (x, i) =>
+              `<div class="rrow2"><span class="rk">${i + 1}</span><span class="rn">${x.name}</span><span class="rp ${x.pts >= 0 ? "pos" : "neg"}">${fmtPts(x.pts)}</span></div>`,
+          )
+          .join("");
+      }
+      function buildRoundMenu() {
+        document.getElementById("roundMenu").innerHTML = GAMES.map(
+          (g, i) =>
+            `<button class="ritem${i === gi ? " on" : ""}" data-gi="${i}">${g.round} <small>${g.honba}本場</small></button>`,
+        ).join("");
+      }
+      const BOARD = 760;
+      function fitBoard() {
+        const main = document.querySelector(".main");
+        const availW = main.clientWidth - (document.body.classList.contains("fs") ? 32 : 48);
+        const cbH = ((document.querySelector(".controlbar") || {}).offsetHeight || 0) + 24;
+        const top = main.getBoundingClientRect().top;
+        const availH = window.innerHeight - top - cbH - 32;
+        let scale = Math.min(1, availW / (BOARD + 8));
+        if (availH > 140) scale = Math.min(scale, availH / (BOARD + 8));
+        const t = document.getElementById("table");
+        t.style.transform = `scale(${scale})`;
+        document.querySelector(".stage").style.height = BOARD * scale + "px";
+      }
+      window.addEventListener("resize", fitBoard);
+
+      function render(animate = true) {
+        dealAnim = animate;
+        const g = GAMES[gi];
+        ORDER = turnOrder(g);
+        DSTOPS = ORDER.map((p, i) => (p === g.dealer ? i + 1 : null)).filter((x) => x != null);
+        if (reveal < 0 || reveal > ORDER.length) reveal = ORDER.length;
+        const revealed = {};
+        POS.forEach((p) => (revealed[p] = 0));
+        for (let i = 0; i < reveal; i++) revealed[ORDER[i]]++;
+        const t = document.getElementById("table");
+        [...t.querySelectorAll(".seat")].forEach((e) => e.remove());
+        dealIdx = 0;
+        POS.forEach((p) => buildSeat(p, g, revealed[p]));
+        renderCenter();
+        buildInfo();
+        buildAgariView();
+        buildRank();
+        buildRoundMenu();
+        document.getElementById("roundLabel").innerHTML =
+          `${g.round} <small>${g.honba}本場</small><svg class="caret" viewBox="0 0 12 12"><path d="M3 5l3 3 3-3"/></svg>`;
+        document.getElementById("cRound").innerHTML = GAMES.map(
+          (g2, i) => `<option value="${i}"${i === gi ? " selected" : ""}>${g2.round}</option>`,
+        ).join("");
+        const maxJ = DSTOPS.length,
+          curJ = revealed[g.dealer];
+        let jo = "";
+        for (let j = 0; j <= maxJ; j++)
+          jo += `<option value="${j}"${j === curJ ? " selected" : ""}>${j}巡目</option>`;
+        document.getElementById("cJunme").innerHTML = jo;
+        document.querySelector('[data-nav="prev"]').disabled = gi === 0;
+        document.querySelector('[data-nav="next"]').disabled = gi === GAMES.length - 1;
+        setCdis("rprev", gi === 0);
+        setCdis("rnext", gi === GAMES.length - 1);
+        setCdis("sprev", reveal <= 0);
+        setCdis("snext", reveal >= ORDER.length);
+        setCdis("jprev", reveal <= 0);
+        setCdis("jnext", !DSTOPS.some((s) => s > reveal));
+        fitBoard();
+      }
+
+      document.querySelector(".snav").addEventListener("click", (e) => {
+        const b = e.target.closest("[data-nav]");
+        if (!b || b.disabled) return;
+        gi += b.dataset.nav === "next" ? 1 : -1;
+        reveal = -1;
+        render(true);
+      });
+      document.getElementById("roundLabel").addEventListener("click", (e) => {
+        e.stopPropagation();
+        document.getElementById("roundMenu").classList.toggle("open");
+      });
+      document.getElementById("roundMenu").addEventListener("click", (e) => {
+        const b = e.target.closest("[data-gi]");
+        if (!b) return;
+        gi = +b.dataset.gi;
+        reveal = -1;
+        document.getElementById("roundMenu").classList.remove("open");
+        render(true);
+      });
+      document.addEventListener("click", () =>
+        document.getElementById("roundMenu").classList.remove("open"),
+      );
+      document.querySelector(".controlbar").addEventListener("click", (e) => {
+        const b = e.target.closest("[data-c]");
+        if (!b || b.disabled) return;
+        const c = b.dataset.c;
+        if (c === "rprev") {
+          gi--;
+          reveal = -1;
+          render(true);
+        } else if (c === "rnext") {
+          gi++;
+          reveal = -1;
+          render(true);
+        } else if (c === "snext") {
+          reveal = Math.min(ORDER.length, reveal + 1);
+          render(false);
+        } else if (c === "sprev") {
+          reveal = Math.max(0, reveal - 1);
+          render(false);
+        } else if (c === "jnext") {
+          const nx = DSTOPS.find((s) => s > reveal);
+          reveal = nx == null ? ORDER.length : nx;
+          render(false);
+        } else if (c === "jprev") {
+          const pv = [...DSTOPS].reverse().find((s) => s < reveal);
+          reveal = pv == null ? 0 : pv;
+          render(false);
+        }
+      });
+      document.getElementById("cRound").addEventListener("change", (e) => {
+        gi = +e.target.value;
+        reveal = -1;
+        render(true);
+      });
+      document.getElementById("cJunme").addEventListener("change", (e) => {
+        const j = +e.target.value;
+        reveal = j <= 0 ? 0 : DSTOPS[j - 1] != null ? DSTOPS[j - 1] : ORDER.length;
+        render(false);
+      });
+      document.getElementById("handToggle").addEventListener("click", (e) => {
+        const b = e.currentTarget;
+        const on = b.classList.toggle("on");
+        b.setAttribute("aria-pressed", String(on));
+        hideOpp = !on;
+        render(false);
+      });
+      document.getElementById("sideToggle").addEventListener("click", (e) => {
+        const hidden = document.querySelector(".wrap").classList.toggle("no-side");
+        e.currentTarget.setAttribute("aria-pressed", String(!hidden));
+        fitBoard();
+      });
+      function toggleFs() {
+        const on = document.body.classList.toggle("fs");
+        document.getElementById("fsBtn").setAttribute("aria-label", on ? "全画面を終了" : "全画面");
+        fitBoard();
+      }
+      document.getElementById("fsBtn").addEventListener("click", toggleFs);
+      document.addEventListener("keydown", (e) => {
+        if (e.key === "Escape" && document.body.classList.contains("fs")) toggleFs();
+      });
+      document.getElementById("favBtn").addEventListener("click", (e) => {
+        const b = e.currentTarget;
+        const on = b.classList.toggle("on");
+        b.setAttribute("aria-pressed", on);
+      });
+      document.getElementById("shareBtn").addEventListener("click", () => {
+        const l = document.getElementById("shareLabel");
+        const o = l.textContent;
+        try {
+          if (navigator.clipboard) navigator.clipboard.writeText("https://rigel.app/k/8F2A");
+        } catch (e) {}
+        l.textContent = "コピーしました";
+        setTimeout(() => (l.textContent = o), 1500);
+      });
+
+      render();
+    </script>
+  </body>
+</html>

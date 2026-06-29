@@ -106,6 +106,13 @@ export function createApp(): Hono<AppEnv> {
     return c.json(cards);
   });
 
+  // 公開半荘の取得（読み取り専用ビューア用。公開局＋所有者表示。閲覧は自由）。
+  app.get("/games/:id/public", async (c) => {
+    const detail = await c.get("container").getPublicGameDetail.execute(c.req.param("id"));
+    if (!detail) return c.json({ error: "not found" }, 404);
+    return c.json(detail);
+  });
+
   // 半荘詳細（半荘 + 局一覧）。所有者のみ。
   app.get("/games/:id", requireAuth, async (c) => {
     const detail = await c.get("container").getGameWithLogs.execute(c.req.param("id"));

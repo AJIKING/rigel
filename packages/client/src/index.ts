@@ -34,6 +34,13 @@ export interface PublicProfile {
   games: PublicGameCard[];
 }
 
+/** 読み取り専用ビューア用の公開半荘（公開局＋所有者表示）。 */
+export interface PublicGameDetail {
+  game: { id: string; title: string; createdAt: string };
+  owner: { id: string; handle: string | null; displayName: string };
+  logs: GameLog[];
+}
+
 export interface AuthResult {
   sessionToken: string;
   user: AuthUser;
@@ -101,6 +108,8 @@ export interface ApiClient {
   getGame(token: string, id: string): Promise<GameDetail | null>;
   /** 牌譜1件の取得（公開は誰でも・非公開は所有者のみ）。見つからなければ null。 */
   getKifu(logId: string, token?: string): Promise<GameLog | null>;
+  /** 公開半荘の取得（読み取り専用ビューア用・認証不要）。見つからなければ null。 */
+  getPublicGameDetail(gameId: string): Promise<PublicGameDetail | null>;
   /**
    * 撮影画像(multipart FormData)を解析し、半荘に局として保存する。
    * FormData は各プラットフォームで組む（web=File / RN={uri,name,type}）。
@@ -202,6 +211,13 @@ export function createApiClient(baseUrl: string, fetchImpl?: typeof fetch): ApiC
       if (res.status === 404) return null;
       if (!res.ok) throw new Error(`kifu failed: ${res.status}`);
       return res.json() as Promise<GameLog>;
+    },
+
+    async getPublicGameDetail(gameId) {
+      const res = await doFetch(`${baseUrl}/games/${gameId}/public`);
+      if (res.status === 404) return null;
+      if (!res.ok) throw new Error(`public game failed: ${res.status}`);
+      return res.json() as Promise<PublicGameDetail>;
     },
 
     async analyze(token, form) {
