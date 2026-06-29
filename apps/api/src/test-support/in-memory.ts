@@ -26,8 +26,20 @@ export class InMemoryUserRepository implements UserRepository {
     return Promise.resolve(null);
   }
 
+  findByHandle(handle: string): Promise<User | null> {
+    for (const u of this.byId.values()) {
+      if (u.handle === handle) return Promise.resolve(u);
+    }
+    return Promise.resolve(null);
+  }
+
   save(user: User): Promise<void> {
     this.byId.set(user.id, user);
+    return Promise.resolve();
+  }
+
+  deleteById(id: string): Promise<void> {
+    this.byId.delete(id);
     return Promise.resolve();
   }
 
@@ -81,6 +93,13 @@ export class InMemoryGameLogRepository implements GameLogRepository {
     if (i >= 0) this.saved.splice(i, 1);
     return Promise.resolve();
   }
+
+  deleteByUser(userId: string): Promise<void> {
+    for (let i = this.saved.length - 1; i >= 0; i--) {
+      if (this.saved[i]!.userId === userId) this.saved.splice(i, 1);
+    }
+    return Promise.resolve();
+  }
 }
 
 export class InMemoryGameRepository implements GameRepository {
@@ -100,6 +119,13 @@ export class InMemoryGameRepository implements GameRepository {
 
   save(game: Game): Promise<void> {
     this.byId.set(game.id, game);
+    return Promise.resolve();
+  }
+
+  deleteByUser(userId: string): Promise<void> {
+    for (const [id, g] of this.byId) {
+      if (g.userId === userId) this.byId.delete(id);
+    }
     return Promise.resolve();
   }
 }

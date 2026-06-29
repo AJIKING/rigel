@@ -163,6 +163,16 @@ describe("HTTP app (Hono)", () => {
     expect(res.status).toBe(401);
   });
 
+  it("PUT /me/profile はトークン無しで 401", async () => {
+    const res = await app.request("/me/profile", { method: "PUT" }, fakeEnv);
+    expect(res.status).toBe(401);
+  });
+
+  it("DELETE /me はトークン無しで 401", async () => {
+    const res = await app.request("/me", { method: "DELETE" }, fakeEnv);
+    expect(res.status).toBe(401);
+  });
+
   it("GET /games/:id はトークン無しで 401", async () => {
     const res = await app.request("/games/g1", {}, fakeEnv);
     expect(res.status).toBe(401);

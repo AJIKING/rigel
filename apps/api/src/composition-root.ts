@@ -16,6 +16,7 @@ import { GetUser } from "./application/get-user.usecase";
 import { HandleBillingWebhook } from "./application/handle-billing-webhook.usecase";
 import { ListGames } from "./application/list-games.usecase";
 import { ListMyGamesWithCounts, ListPublicGames } from "./application/list-game-cards.usecase";
+import { DeleteAccount, GetPublicProfile, UpdateProfile } from "./application/profile.usecase";
 import { ListKifu } from "./application/list-kifu.usecase";
 import { SetKifuVisibility } from "./application/set-kifu-visibility.usecase";
 import { StartCheckout } from "./application/start-checkout.usecase";
@@ -51,6 +52,9 @@ export interface AppContainer {
   getGameWithLogs: GetGameWithLogs;
   authenticateWithGoogle: AuthenticateWithGoogle;
   getUser: GetUser;
+  updateProfile: UpdateProfile;
+  getPublicProfile: GetPublicProfile;
+  deleteAccount: DeleteAccount;
   startCheckout: StartCheckout;
   handleBillingWebhook: HandleBillingWebhook;
   /** Stripe 鍵が揃っているか。未設定なら課金ルートは 501 を返す。 */
@@ -130,6 +134,9 @@ export function buildContainer(env: Env): AppContainer {
       newId,
     }),
     getUser: new GetUser(users),
+    updateProfile: new UpdateProfile(users),
+    getPublicProfile: new GetPublicProfile(users, gamesRepo, gameLogs),
+    deleteAccount: new DeleteAccount(users, gamesRepo, gameLogs),
     startCheckout: new StartCheckout(billing),
     handleBillingWebhook: new HandleBillingWebhook(billing, users),
     billingEnabled,

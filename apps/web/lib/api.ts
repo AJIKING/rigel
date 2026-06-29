@@ -11,6 +11,7 @@ export type {
   GameLog,
   MyGameCard,
   PublicGameCard,
+  PublicProfile,
 } from "@rigel/client";
 
 const client = createApiClient(process.env.NEXT_PUBLIC_API_URL ?? "");
@@ -28,4 +29,7 @@ export const {
   setVisibility,
   deleteKifu,
   createEmptyKifu,
+  updateProfile,
+  getPublicProfile,
+  deleteAccount,
 } = client;

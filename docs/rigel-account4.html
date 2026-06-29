@@ -1,0 +1,1130 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>RIGEL — 設定 / ユーザーページ</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&family=M+PLUS+Rounded+1c:wght@500;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --bg: #0f1115;
+        --chrome: #16181d;
+        --chrome-2: #1d2027;
+        --chrome-3: #23262e;
+        --line: #2a2e37;
+        --line-2: #343943;
+        --white: #f5f6f7;
+        --w85: rgba(245, 246, 247, 0.86);
+        --w70: rgba(245, 246, 247, 0.66);
+        --w45: rgba(245, 246, 247, 0.42);
+        --em: #0c7a57;
+        --em-deep: #0a5f44;
+        --accent: #ff9e45;
+        --accent-2: #ff7d33;
+        --vermilion: #e24b3a;
+        --bone: #f5eee0;
+        --r: 6px;
+        --r-sm: 3px;
+        --round: "M PLUS Rounded 1c", sans-serif;
+        --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        margin: 0;
+      }
+      body {
+        background: var(--bg);
+        color: var(--white);
+        font-family: "Noto Sans JP", sans-serif;
+        -webkit-font-smoothing: antialiased;
+        min-height: 100vh;
+      }
+      body::before {
+        content: "";
+        position: fixed;
+        inset: 0;
+        pointer-events: none;
+        z-index: 0;
+        background: radial-gradient(
+          900px 380px at 80% -8%,
+          rgba(255, 158, 69, 0.12),
+          transparent 70%
+        );
+      }
+      button {
+        font-family: inherit;
+      }
+      input,
+      textarea,
+      select {
+        font-family: inherit;
+      }
+      :focus-visible {
+        outline: 2px solid var(--accent);
+        outline-offset: 2px;
+        border-radius: var(--r-sm);
+      }
+
+      header {
+        position: sticky;
+        top: 0;
+        z-index: 20;
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        padding: 12px 20px;
+        background: rgba(22, 24, 29, 0.86);
+        backdrop-filter: blur(12px);
+        border-bottom: 1px solid var(--line);
+      }
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-family: var(--round);
+        font-weight: 800;
+        letter-spacing: 0.14em;
+        font-size: 16px;
+      }
+      .brand svg {
+        width: 17px;
+        height: 17px;
+      }
+      .topnav {
+        display: flex;
+        gap: 2px;
+        margin-left: 6px;
+      }
+      .topnav button {
+        background: transparent;
+        border: 0;
+        color: var(--w45);
+        font-family: var(--round);
+        font-weight: 700;
+        font-size: 13.5px;
+        padding: 8px 12px;
+        cursor: pointer;
+        position: relative;
+        transition: color 0.15s;
+      }
+      .topnav button:hover {
+        color: var(--w85);
+      }
+      .topnav button.on {
+        color: var(--white);
+      }
+      .topnav button.on::after {
+        content: "";
+        position: absolute;
+        left: 12px;
+        right: 12px;
+        bottom: 2px;
+        height: 2px;
+        background: var(--accent);
+        border-radius: 1px;
+      }
+
+      main {
+        position: relative;
+        z-index: 1;
+        padding: 0 20px 96px;
+      }
+      .view {
+        display: none;
+        animation: fade 0.35s var(--ease);
+      }
+      .view.on {
+        display: block;
+      }
+      @keyframes fade {
+        from {
+          opacity: 0;
+          transform: translateY(8px);
+        }
+        to {
+          opacity: 1;
+          transform: none;
+        }
+      }
+      .narrow {
+        max-width: 680px;
+        margin: 0 auto;
+      }
+      .wide {
+        max-width: 1000px;
+        margin: 0 auto;
+      }
+
+      .page-title {
+        font-family: var(--round);
+        font-weight: 800;
+        font-size: 23px;
+        margin: 26px 2px 16px;
+      }
+
+      /* ---------- settings panels ---------- */
+      .panel {
+        background: var(--chrome);
+        border: 1px solid var(--line);
+        border-radius: var(--r);
+        padding: 18px 18px 18px;
+        margin-bottom: 14px;
+      }
+      .panel h2 {
+        font-family: var(--round);
+        font-weight: 700;
+        font-size: 12.5px;
+        letter-spacing: 0.05em;
+        color: var(--w45);
+        margin: 0 0 14px;
+      }
+      .panel .desc {
+        font-size: 11.5px;
+        color: var(--w45);
+        margin: 0 0 16px;
+      }
+      .field {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 14px;
+        padding: 11px 0;
+        border-top: 1px solid var(--line);
+      }
+      .field:first-of-type {
+        border-top: 0;
+      }
+      .field.col {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 7px;
+      }
+      .flabel {
+        font-size: 13px;
+        color: var(--w85);
+        font-weight: 500;
+        flex: 0 0 auto;
+      }
+      .fhint {
+        font-size: 11px;
+        color: var(--w45);
+        margin-top: 2px;
+      }
+      .txt {
+        background: var(--chrome-2);
+        border: 1px solid var(--line);
+        color: var(--white);
+        font-size: 13px;
+        padding: 9px 11px;
+        border-radius: var(--r-sm);
+        width: 100%;
+      }
+      .txt::placeholder {
+        color: var(--w45);
+      }
+      .field .txt {
+        max-width: 260px;
+      }
+      .field.col .txt {
+        max-width: none;
+      }
+      textarea.txt {
+        resize: vertical;
+        min-height: 70px;
+        line-height: 1.6;
+      }
+      .idwrap {
+        position: relative;
+        width: 100%;
+      }
+      .idwrap .at {
+        position: absolute;
+        left: 11px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: var(--w45);
+        font-size: 13px;
+        pointer-events: none;
+      }
+      .idwrap .idinput {
+        padding-left: 24px;
+      }
+      .selwrap {
+        position: relative;
+        flex: 0 0 auto;
+      }
+      .selwrap select {
+        appearance: none;
+        -webkit-appearance: none;
+        background: var(--chrome-2);
+        border: 1px solid var(--line);
+        color: var(--w85);
+        font-family: var(--round);
+        font-weight: 700;
+        font-size: 12.5px;
+        padding: 8px 28px 8px 11px;
+        border-radius: var(--r-sm);
+        cursor: pointer;
+      }
+      .selwrap::after {
+        content: "";
+        position: absolute;
+        right: 11px;
+        top: 50%;
+        width: 6px;
+        height: 6px;
+        border-right: 1.5px solid var(--w70);
+        border-bottom: 1.5px solid var(--w70);
+        transform: translateY(-70%) rotate(45deg);
+        pointer-events: none;
+      }
+      .ro {
+        font-size: 13px;
+        color: var(--w70);
+      }
+      .link {
+        background: transparent;
+        border: 0;
+        color: var(--accent);
+        font-size: 12.5px;
+        font-weight: 700;
+        cursor: pointer;
+        padding: 4px 2px;
+      }
+      .btn {
+        background: rgba(255, 158, 69, 0.13);
+        color: var(--accent);
+        border: 1px solid rgba(255, 158, 69, 0.38);
+        font-family: var(--round);
+        font-weight: 700;
+        font-size: 12.5px;
+        padding: 7px 14px;
+        border-radius: var(--r-sm);
+        cursor: pointer;
+        transition: 0.15s;
+      }
+      .btn:hover {
+        background: rgba(255, 158, 69, 0.2);
+      }
+      .btn.ghost {
+        background: transparent;
+        border: 1px solid var(--line-2);
+        color: var(--w85);
+      }
+      .btn.ghost:hover {
+        background: var(--chrome-2);
+        color: #fff;
+      }
+      .btn.danger {
+        background: transparent;
+        border: 1px solid rgba(226, 75, 58, 0.35);
+        color: var(--vermilion);
+      }
+      .btn.danger:hover {
+        background: rgba(226, 75, 58, 0.1);
+      }
+      .panel-foot {
+        display: flex;
+        justify-content: flex-end;
+        gap: 8px;
+        margin-top: 14px;
+      }
+      .saved {
+        align-self: center;
+        margin-right: auto;
+        font-size: 12px;
+        color: var(--accent);
+        opacity: 0;
+        transition: 0.2s;
+      }
+      .saved.show {
+        opacity: 1;
+      }
+
+      /* toggle switch */
+      .switch {
+        position: relative;
+        width: 40px;
+        height: 22px;
+        flex: 0 0 auto;
+        display: inline-block;
+      }
+      .switch input {
+        position: absolute;
+        inset: 0;
+        opacity: 0;
+        margin: 0;
+        cursor: pointer;
+        z-index: 1;
+      }
+      .track {
+        position: absolute;
+        inset: 0;
+        background: var(--chrome-3);
+        border: 1px solid var(--line-2);
+        border-radius: 99px;
+        transition: 0.18s;
+      }
+      .knob {
+        position: absolute;
+        top: 3px;
+        left: 3px;
+        width: 14px;
+        height: 14px;
+        border-radius: 50%;
+        background: var(--w70);
+        transition: 0.18s;
+      }
+      .switch input:checked ~ .track {
+        background: var(--accent);
+        border-color: var(--accent);
+      }
+      .switch input:checked ~ .track .knob {
+        left: 21px;
+        background: #0c0e12;
+      }
+
+      /* ---------- plans ---------- */
+      .plans {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 12px;
+        margin-top: 6px;
+      }
+      .plan-card {
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        gap: 13px;
+        padding: 18px 15px;
+        background: var(--chrome-2);
+        border: 1px solid var(--line);
+        border-radius: var(--r);
+        transition: 0.15s;
+      }
+      .plan-card.reco {
+        border-color: var(--accent);
+      }
+      .pl-ribbon {
+        position: absolute;
+        top: 0;
+        right: 13px;
+        transform: translateY(-50%);
+        background: var(--accent);
+        color: #0c0e12;
+        font-size: 10px;
+        font-weight: 700;
+        padding: 2px 8px;
+        border-radius: var(--r-sm);
+      }
+      .pl-name {
+        font-family: var(--round);
+        font-weight: 800;
+        font-size: 15px;
+      }
+      .pl-price {
+        display: flex;
+        align-items: baseline;
+        gap: 3px;
+      }
+      .pl-price b {
+        font-family: var(--round);
+        font-weight: 800;
+        font-size: 25px;
+        line-height: 1;
+      }
+      .pl-price span {
+        font-size: 11.5px;
+        color: var(--w45);
+      }
+      .pl-feat {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        font-size: 12px;
+        color: var(--w70);
+        flex: 1;
+      }
+      .pl-feat li {
+        display: flex;
+        gap: 8px;
+        align-items: flex-start;
+        line-height: 1.4;
+      }
+      .pl-feat li::before {
+        content: "✓";
+        color: var(--accent);
+        font-weight: 800;
+        flex: 0 0 auto;
+      }
+      .pl-cta {
+        background: transparent;
+        color: var(--accent);
+        border: 1px solid var(--accent);
+        font-family: var(--round);
+        font-weight: 700;
+        font-size: 12px;
+        padding: 8px 0;
+        border-radius: var(--r-sm);
+        cursor: pointer;
+        transition: 0.15s;
+        width: 100%;
+      }
+      .pl-cta:hover {
+        background: rgba(255, 158, 69, 0.12);
+      }
+      .plan-card.current .pl-cta {
+        background: var(--chrome-3);
+        border-color: var(--line-2);
+        color: var(--w45);
+        cursor: default;
+      }
+      .plan-card.current .pl-cta:hover {
+        background: var(--chrome-3);
+      }
+      .plan-card.current {
+        box-shadow: inset 0 0 0 1px var(--accent);
+        border-color: var(--accent);
+      }
+      .curplan {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 14px;
+      }
+      .cp-name {
+        font-family: var(--round);
+        font-weight: 800;
+        font-size: 16px;
+      }
+      .cp-price {
+        font-size: 12.5px;
+        color: var(--w45);
+        margin-top: 3px;
+      }
+      .modal-ov {
+        display: none;
+        position: fixed;
+        inset: 0;
+        z-index: 60;
+        background: rgba(0, 0, 0, 0.6);
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+      }
+      .modal-ov.open {
+        display: flex;
+        animation: fade 0.2s var(--ease);
+      }
+      .modal {
+        width: 100%;
+        max-width: 760px;
+        background: var(--chrome);
+        border: 1px solid var(--line);
+        border-radius: var(--r);
+        box-shadow: 0 30px 70px -20px rgba(0, 0, 0, 0.85);
+        overflow: hidden;
+        max-height: 90vh;
+        display: flex;
+        flex-direction: column;
+      }
+      .modal-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 16px 20px;
+        border-bottom: 1px solid var(--line);
+      }
+      .modal-title {
+        font-family: var(--round);
+        font-weight: 800;
+        font-size: 16px;
+      }
+      .modal-x {
+        background: transparent;
+        border: 0;
+        color: var(--w70);
+        cursor: pointer;
+        font-size: 17px;
+        line-height: 1;
+        padding: 2px 4px;
+      }
+      .modal-x:hover {
+        color: #fff;
+      }
+      .modal-body {
+        padding: 18px 20px;
+        overflow: auto;
+      }
+
+      /* ---------- user page ---------- */
+      .uhead {
+        padding: 30px 2px 18px;
+      }
+      .uname {
+        font-family: var(--round);
+        font-weight: 800;
+        font-size: 24px;
+        line-height: 1.1;
+      }
+      .uhandle {
+        font-size: 13px;
+        color: var(--w45);
+        margin-top: 3px;
+      }
+      .urow {
+        display: flex;
+        align-items: center;
+        gap: 22px;
+        margin-top: 16px;
+        flex-wrap: wrap;
+      }
+      .ustats {
+        display: flex;
+        gap: 22px;
+      }
+      .ustat {
+        display: flex;
+        flex-direction: column;
+      }
+      .ustat b {
+        font-family: var(--round);
+        font-weight: 800;
+        font-size: 17px;
+      }
+      .ustat span {
+        font-size: 11px;
+        color: var(--w45);
+      }
+      .followbtn {
+        background: var(--accent);
+        color: #0c0e12;
+        border: 0;
+        font-family: var(--round);
+        font-weight: 800;
+        font-size: 13px;
+        padding: 9px 20px;
+        border-radius: var(--r-sm);
+        cursor: pointer;
+        transition: 0.15s;
+      }
+      .followbtn:hover {
+        filter: brightness(1.05);
+      }
+      .followbtn.following {
+        background: var(--chrome-2);
+        color: var(--w85);
+        border: 1px solid var(--line-2);
+      }
+      .usec {
+        font-family: var(--round);
+        font-weight: 700;
+        font-size: 13px;
+        color: var(--w70);
+        margin: 8px 2px 12px;
+      }
+
+      .feed {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(232px, 1fr));
+        gap: 12px;
+      }
+      .card {
+        display: flex;
+        flex-direction: column;
+        padding: 14px;
+        position: relative;
+        background: var(--chrome);
+        border: 1px solid var(--line);
+        border-radius: var(--r);
+        cursor: pointer;
+        transition:
+          transform 0.18s var(--ease),
+          border-color 0.18s,
+          background 0.18s;
+        opacity: 0;
+        transform: translateY(10px);
+        animation: rise 0.4s var(--ease) forwards;
+      }
+      @keyframes rise {
+        to {
+          opacity: 1;
+          transform: none;
+        }
+      }
+      .card:hover {
+        transform: translateY(-2px);
+        border-color: var(--line-2);
+        background: #181b21;
+      }
+      .fav {
+        position: absolute;
+        top: 9px;
+        right: 9px;
+        z-index: 2;
+        width: 30px;
+        height: 30px;
+        border-radius: var(--r-sm);
+        display: grid;
+        place-items: center;
+        cursor: pointer;
+        border: 0;
+        color: var(--white);
+        background: rgba(15, 17, 21, 0.5);
+        backdrop-filter: blur(4px);
+        transition: 0.15s;
+      }
+      .fav:hover {
+        background: rgba(15, 17, 21, 0.82);
+      }
+      .fav svg {
+        width: 16px;
+        height: 16px;
+        stroke: currentColor;
+        fill: none;
+        stroke-width: 1.8;
+        transition: 0.15s;
+      }
+      .fav.on {
+        color: var(--accent);
+      }
+      .fav.on svg {
+        fill: var(--accent);
+        stroke: var(--accent);
+      }
+      .thumb {
+        width: 100%;
+        height: 82px;
+        border-radius: var(--r);
+        position: relative;
+        margin-bottom: 12px;
+        background: radial-gradient(circle at 50% 46%, var(--em) 0%, var(--em-deep) 100%);
+        box-shadow:
+          inset 0 0 0 1px rgba(255, 255, 255, 0.07),
+          inset 0 -10px 18px rgba(0, 0, 0, 0.28);
+        overflow: hidden;
+      }
+      .thumb i {
+        position: absolute;
+        background: var(--bone);
+        border-radius: 1px;
+        box-shadow: 0 1px 1px rgba(0, 0, 0, 0.35);
+      }
+      .thumb i.h {
+        width: 13px;
+        height: 7px;
+        left: 50%;
+        margin-left: -6.5px;
+      }
+      .thumb i.v {
+        width: 7px;
+        height: 13px;
+        top: 50%;
+        margin-top: -6.5px;
+      }
+      .thumb i.tt {
+        top: 11px;
+      }
+      .thumb i.bb {
+        bottom: 11px;
+      }
+      .thumb i.ll {
+        left: 14px;
+      }
+      .thumb i.rr {
+        right: 14px;
+      }
+      .thumb i.dot {
+        width: 6px;
+        height: 8px;
+        left: 50%;
+        top: 50%;
+        transform: translate(-50%, -50%);
+        background: var(--accent);
+        box-shadow: none;
+      }
+      .ctitle {
+        font-family: var(--round);
+        font-weight: 700;
+        font-size: 14.5px;
+        line-height: 1.35;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+      }
+      .cmeta {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        margin-top: 5px;
+        font-size: 11.5px;
+        color: var(--w45);
+      }
+      .cmeta .sep {
+        opacity: 0.5;
+      }
+      .cfoot {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        margin-top: 11px;
+        font-size: 11px;
+        color: var(--w45);
+      }
+      .cfoot span {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+      }
+      .cfoot svg {
+        width: 13px;
+        height: 13px;
+        stroke: currentColor;
+        fill: none;
+        stroke-width: 1.8;
+      }
+
+      @media (max-width: 600px) {
+        .plans {
+          grid-template-columns: 1fr;
+        }
+        header {
+          gap: 10px;
+          padding: 11px 14px;
+        }
+        main {
+          padding: 0 14px 96px;
+        }
+        .brand span {
+          display: none;
+        }
+        .field {
+          flex-wrap: wrap;
+        }
+        .field .txt {
+          max-width: none;
+          flex: 1;
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        * {
+          animation: none !important;
+          transition: none !important;
+        }
+        .card {
+          opacity: 1;
+          transform: none;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <div class="brand">
+        <svg viewBox="0 0 24 24" fill="none">
+          <path
+            d="M12 1.6l2.7 6.9 7.4.4-5.8 4.6 2 7.1L12 16.9 5.7 20.6l2-7.1L1.9 8.9l7.4-.4z"
+            fill="#ff9e45"
+          /></svg
+        ><span>RIGEL</span>
+      </div>
+      <nav class="topnav">
+        <button data-view="settings" class="on">設定</button>
+        <button data-view="user">ユーザーページ</button>
+      </nav>
+    </header>
+
+    <main>
+      <!-- ===== 設定 ===== -->
+      <section class="view on" id="view-settings">
+        <div class="narrow">
+          <h1 class="page-title">設定</h1>
+
+          <div class="panel">
+            <h2>プロフィール</h2>
+            <div class="field col">
+              <span class="flabel">ユーザーID</span>
+              <div class="idwrap">
+                <span class="at">@</span
+                ><input
+                  class="txt idinput"
+                  id="idInput"
+                  type="text"
+                  value="rin_riichi"
+                  maxlength="20"
+                  aria-label="ユーザーID"
+                />
+              </div>
+              <span class="fhint">英数字とアンダースコアが使えます。共有URLに使われます。</span>
+            </div>
+            <div class="field col">
+              <span class="flabel">ユーザー名</span>
+              <input
+                class="txt"
+                id="nameInput"
+                type="text"
+                value="りんりん"
+                maxlength="20"
+                aria-label="ユーザー名"
+              />
+              <span class="fhint">他のユーザーに表示される名前です。</span>
+            </div>
+            <div class="panel-foot">
+              <span class="saved" id="savedMsg">保存しました</span>
+              <button class="btn" id="saveProfile">変更を保存</button>
+            </div>
+          </div>
+
+          <div class="panel">
+            <h2>料金プラン</h2>
+            <div class="curplan">
+              <div>
+                <div class="cp-name" id="cpName">RIGEL Next</div>
+                <div class="cp-price" id="cpPrice">¥480 / 月</div>
+              </div>
+              <button class="btn ghost" id="changePlan">プラン変更</button>
+            </div>
+          </div>
+
+          <div class="panel">
+            <h2>公開設定</h2>
+            <div class="field">
+              <div>
+                <span class="flabel">プロフィールを公開する</span>
+                <div class="fhint">他のユーザーがあなたの公開牌譜を一覧で見られます。</div>
+              </div>
+              <label class="switch"
+                ><input type="checkbox" checked aria-label="プロフィールを公開する" /><span
+                  class="track"
+                  ><span class="knob"></span></span
+              ></label>
+            </div>
+          </div>
+
+          <div class="panel">
+            <h2>アカウント</h2>
+            <div class="panel-foot" style="justify-content: space-between; margin-top: 4px">
+              <button class="btn ghost">ログアウト</button>
+              <button class="btn danger">アカウントを削除</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===== 他ユーザーのページ ===== -->
+      <section class="view" id="view-user">
+        <div class="wide">
+          <div class="uhead">
+            <div class="uname">kuro</div>
+            <div class="uhandle">@kuro_2p</div>
+          </div>
+          <div class="usec">公開牌譜</div>
+          <div class="feed" id="userFeed"></div>
+        </div>
+      </section>
+    </main>
+
+    <div class="modal-ov" id="planModal">
+      <div class="modal">
+        <div class="modal-head">
+          <div class="modal-title">プラン変更</div>
+          <button class="modal-x" id="planX" aria-label="閉じる">✕</button>
+        </div>
+        <div class="modal-body">
+          <div class="plans" id="plans">
+            <div class="plan-card" data-plan="free">
+              <div class="pl-name">Free</div>
+              <div class="pl-price"><b>¥0</b><span>/月</span></div>
+              <ul class="pl-feat">
+                <li>牌譜の保存 20件まで</li>
+                <li>AI再現 月5回</li>
+                <li>公開・共有リンク</li>
+              </ul>
+              <button class="pl-cta">このプランにする</button>
+            </div>
+            <div class="plan-card reco current" data-plan="next">
+              <div class="pl-ribbon">おすすめ</div>
+              <div class="pl-name">RIGEL Next</div>
+              <div class="pl-price"><b>¥480</b><span>/月</span></div>
+              <ul class="pl-feat">
+                <li>牌譜の保存 無制限</li>
+                <li>AI再現 月50回</li>
+                <li>広告なし</li>
+                <li>お気に入り 無制限</li>
+              </ul>
+              <button class="pl-cta">利用中</button>
+            </div>
+            <div class="plan-card" data-plan="pro">
+              <div class="pl-name">RIGEL Pro</div>
+              <div class="pl-price"><b>¥1,480</b><span>/月</span></div>
+              <ul class="pl-feat">
+                <li>Next の全機能</li>
+                <li>AI再現 無制限</li>
+                <li>成績・着順の統計</li>
+                <li>高精度な盤面再現</li>
+              </ul>
+              <button class="pl-cta">このプランにする</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      const THUMB =
+        '<div class="thumb"><i class="h tt"></i><i class="h bb"></i><i class="v ll"></i><i class="v rr"></i><i class="dot"></i></div>';
+      let favs = new Set(["u2", "u5"]);
+
+      // other user's public kifu (only public records are viewable)
+      const USERK = [
+        {
+          id: "u1",
+          title: "配信卓 #142 逆転の南場",
+          date: "2026-06-28",
+          kyoku: 8,
+          views: "3.1k",
+          likes: 284,
+        },
+        {
+          id: "u2",
+          title: "大三元が出た神回",
+          date: "2026-06-26",
+          kyoku: 1,
+          views: "8.7k",
+          likes: 912,
+        },
+        {
+          id: "u3",
+          title: "競技ルール 練習会まとめ",
+          date: "2026-06-24",
+          kyoku: 9,
+          views: "620",
+          likes: 41,
+        },
+        {
+          id: "u4",
+          title: "四暗刻ツモ、静かな決着",
+          date: "2026-06-21",
+          kyoku: 7,
+          views: "2.0k",
+          likes: 177,
+        },
+        {
+          id: "u5",
+          title: "リーチ即放銃からの立て直し",
+          date: "2026-06-18",
+          kyoku: 8,
+          views: "1.4k",
+          likes: 130,
+        },
+        {
+          id: "u6",
+          title: "東風戦さくっと一局",
+          date: "2026-06-15",
+          kyoku: 4,
+          views: "380",
+          likes: 22,
+        },
+      ];
+
+      function ucard(d) {
+        const faved = favs.has(d.id);
+        const fav = `<button class="fav${faved ? " on" : ""}" data-id="${d.id}" aria-pressed="${faved}" aria-label="お気に入り"><svg viewBox="0 0 24 24"><path d="M12 2.6l2.85 6.02 6.6.62-4.97 4.4 1.46 6.46L12 17.7 6.06 20.7l1.46-6.46-4.97-4.4 6.6-.62z"/></svg></button>`;
+        return `<article class="card" tabindex="0">${fav}${THUMB}
+    <h3 class="ctitle">${d.title}</h3>
+    <div class="cmeta">${d.date}<span class="sep">·</span>${d.kyoku}局</div>
+    <div class="cfoot">
+      <span><svg viewBox="0 0 24 24"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>${d.views}</span>
+      <span><svg viewBox="0 0 24 24"><path d="M20.8 5.6a5 5 0 0 0-7.1 0L12 7.3l-1.7-1.7a5 5 0 1 0-7.1 7.1L12 21.5l8.8-8.8a5 5 0 0 0 0-7.1z"/></svg>${d.likes}</span>
+    </div></article>`;
+      }
+      function renderUser() {
+        const f = document.getElementById("userFeed");
+        f.innerHTML = USERK.map(ucard).join("");
+        [...f.querySelectorAll(".card")].forEach(
+          (c, i) => (c.style.animationDelay = (i * 0.045).toFixed(3) + "s"),
+        );
+      }
+
+      // nav
+      document.querySelector(".topnav").addEventListener("click", (e) => {
+        const b = e.target.closest("[data-view]");
+        if (!b) return;
+        document
+          .querySelectorAll(".topnav button")
+          .forEach((x) => x.classList.toggle("on", x === b));
+        const v = b.dataset.view;
+        document.getElementById("view-settings").classList.toggle("on", v === "settings");
+        document.getElementById("view-user").classList.toggle("on", v === "user");
+        if (v === "user") renderUser();
+        window.scrollTo({ top: 0 });
+      });
+
+      // fav (user page)
+      document.getElementById("userFeed").addEventListener("click", (e) => {
+        const b = e.target.closest(".fav");
+        if (!b) return;
+        e.stopPropagation();
+        const id = b.dataset.id;
+        if (favs.has(id)) favs.delete(id);
+        else favs.add(id);
+        const on = favs.has(id);
+        b.classList.toggle("on", on);
+        b.setAttribute("aria-pressed", on);
+      });
+
+      // plan change dialog
+      const PLAN = {
+        free: { name: "Free", price: "無料" },
+        next: { name: "RIGEL Next", price: "¥480 / 月" },
+        pro: { name: "RIGEL Pro", price: "¥1,480 / 月" },
+      };
+      function openPlanModal() {
+        document.getElementById("planModal").classList.add("open");
+      }
+      function closePlanModal() {
+        document.getElementById("planModal").classList.remove("open");
+      }
+      document.getElementById("changePlan").addEventListener("click", openPlanModal);
+      document.getElementById("planX").addEventListener("click", closePlanModal);
+      document.getElementById("planModal").addEventListener("click", (e) => {
+        if (e.target.id === "planModal") closePlanModal();
+      });
+      document.getElementById("plans").addEventListener("click", (e) => {
+        const btn = e.target.closest(".pl-cta");
+        if (!btn) return;
+        const card = btn.closest(".plan-card");
+        const plan = card.dataset.plan;
+        document.querySelectorAll(".plan-card").forEach((c) => {
+          const isCur = c === card;
+          c.classList.toggle("current", isCur);
+          c.querySelector(".pl-cta").textContent = isCur ? "利用中" : "このプランにする";
+        });
+        document.getElementById("cpName").textContent = PLAN[plan].name;
+        document.getElementById("cpPrice").textContent = PLAN[plan].price;
+        closePlanModal();
+      });
+
+      // save profile
+      document.getElementById("saveProfile").addEventListener("click", () => {
+        const m = document.getElementById("savedMsg");
+        m.classList.add("show");
+        setTimeout(() => m.classList.remove("show"), 1600);
+      });
+
+      renderUser();
+    </script>
+  </body>
+</html>

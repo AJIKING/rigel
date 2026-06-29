@@ -14,6 +14,9 @@ function toDomain(row: UserRow): User {
     plan: row.plan,
     analysisCountThisMonth: row.analysisCountThisMonth,
     countResetAt: row.countResetAt,
+    handle: row.handle,
+    displayName: row.displayName,
+    profilePublic: row.profilePublic,
   });
 }
 
@@ -30,24 +33,40 @@ export class DrizzleUserRepository implements UserRepository {
     return row ? toDomain(row) : null;
   }
 
+  async findByHandle(handle: string): Promise<User | null> {
+    const row = await this.db.select().from(users).where(eq(users.handle, handle)).get();
+    return row ? toDomain(row) : null;
+  }
+
   async save(user: User): Promise<void> {
     const p = user.toProps();
+    const values = {
+      id: p.id,
+      googleSub: p.googleSub,
+      plan: p.plan,
+      handle: p.handle,
+      displayName: p.displayName,
+      profilePublic: p.profilePublic,
+      analysisCountThisMonth: p.analysisCountThisMonth,
+      countResetAt: p.countResetAt,
+    };
     await this.db
       .insert(users)
-      .values({
-        id: p.id,
-        googleSub: p.googleSub,
-        plan: p.plan,
-        analysisCountThisMonth: p.analysisCountThisMonth,
-        countResetAt: p.countResetAt,
-      })
+      .values(values)
       .onConflictDoUpdate({
         target: users.id,
         set: {
           plan: p.plan,
+          handle: p.handle,
+          displayName: p.displayName,
+          profilePublic: p.profilePublic,
           analysisCountThisMonth: p.analysisCountThisMonth,
           countResetAt: p.countResetAt,
         },
       });
+  }
+
+  async deleteById(id: string): Promise<void> {
+    await this.db.delete(users).where(eq(users.id, id));
   }
 }

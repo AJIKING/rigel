@@ -14,10 +14,24 @@ export type Visibility = "public" | "private";
 export interface AuthUser {
   id: string;
   plan: Plan;
+  /** 公開ハンドル(@xxx)。未設定は null。 */
+  handle?: string | null;
+  /** 表示名。 */
+  displayName?: string;
+  /** プロフィール公開フラグ。 */
+  profilePublic?: boolean;
   /** 当月の Gemini 呼び出し上限（/me のみ。auth レスポンスには無い場合あり）。 */
   monthlyCallQuota?: number;
   /** 当月の残り呼び出し回数。 */
   remainingCalls?: number;
+}
+
+/** 別ユーザーの公開プロフィール（+ 公開半荘）。 */
+export interface PublicProfile {
+  id: string;
+  handle: string | null;
+  displayName: string;
+  games: PublicGameCard[];
 }
 
 export interface AuthResult {
@@ -114,6 +128,15 @@ export interface ApiClient {
     gameId: string,
     cameraBottomSeat: Seat,
   ): Promise<{ ok: true; logId: string } | { ok: false; status: number }>;
+  /** プロフィール（handle/表示名/公開）を更新する。handle 重複は status 409。 */
+  updateProfile(
+    token: string,
+    update: { handle?: string; displayName?: string; profilePublic?: boolean },
+  ): Promise<{ ok: boolean; status: number }>;
+  /** 別ユーザーの公開プロフィール（handle か id）。見つからなければ null。認証不要。 */
+  getPublicProfile(idOrHandle: string): Promise<PublicProfile | null>;
+  /** 自分のアカウントを削除する（取り消し不可）。 */
+  deleteAccount(token: string): Promise<{ ok: boolean; status: number }>;
 }
 
 /**
@@ -228,6 +251,27 @@ export function createApiClient(baseUrl: string, fetchImpl?: typeof fetch): ApiC
       if (!res.ok) return { ok: false, status: res.status };
       const d = (await res.json()) as { logId: string };
       return { ok: true, logId: d.logId };
+    },
+
+    async updateProfile(token, update) {
+      const res = await doFetch(`${baseUrl}/me/profile`, {
+        method: "PUT",
+        headers: { ...bearer(token), "content-type": "application/json" },
+        body: JSON.stringify(update),
+      });
+      return { ok: res.ok, status: res.status };
+    },
+
+    async getPublicProfile(idOrHandle) {
+      const res = await doFetch(`${baseUrl}/users/${encodeURIComponent(idOrHandle)}/profile`);
+      if (res.status === 404) return null;
+      if (!res.ok) throw new Error(`profile failed: ${res.status}`);
+      return res.json() as Promise<PublicProfile>;
+    },
+
+    async deleteAccount(token) {
+      const res = await doFetch(`${baseUrl}/me`, { method: "DELETE", headers: bearer(token) });
+      return { ok: res.ok, status: res.status };
     },
   };
 }

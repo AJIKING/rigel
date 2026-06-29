@@ -21,6 +21,12 @@ export const users = sqliteTable("users", {
   plan: text("plan", { enum: ["free", "next", "pro"] })
     .notNull()
     .default("free"),
+  /** 公開ハンドル(@xxx。共有URLに使う)。未設定は null。一意。 */
+  handle: text("handle").unique(),
+  /** 表示名（他ユーザーに見える名前）。 */
+  displayName: text("display_name").notNull().default(""),
+  /** プロフィールを公開するか（公開牌譜の一覧を他ユーザーに見せる）。 */
+  profilePublic: integer("profile_public", { mode: "boolean" }).notNull().default(true),
   /** 当月の Gemini 呼び出し回数（解析成功時のみ、実呼び出し数を加算）。 */
   analysisCountThisMonth: integer("analysis_count_this_month").notNull().default(0),
   /** この時刻を過ぎたら当月カウントをリセットする（次のリセット境界）。 */

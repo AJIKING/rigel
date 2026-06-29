@@ -7,4 +7,6 @@ export interface GameRepository {
   listByUser(userId: string): Promise<Game[]>;
   findById(id: string): Promise<Game | null>;
   save(game: Game): Promise<void>;
+  /** ユーザーの全半荘を削除（アカウント削除のカスケード）。 */
+  deleteByUser(userId: string): Promise<void>;
 }

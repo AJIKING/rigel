@@ -185,4 +185,45 @@ describe("createApiClient", () => {
     const result = await client.createEmptyKifu("tok", "g1", "east");
     expect(result).toEqual({ ok: true, logId: "new-log" });
   });
+
+  it("updateProfile は PUT /me/profile して成否を返す（409=重複）", async () => {
+    let method = "";
+    const client = createApiClient("https://api.test", ((url: string, init?: RequestInit) => {
+      method = init?.method ?? "GET";
+      expect(String(url)).toBe("https://api.test/me/profile");
+      return Promise.resolve(new Response("conflict", { status: 409 }));
+    }) as unknown as typeof fetch);
+    const result = await client.updateProfile("tok", { handle: "rin" });
+    expect(method).toBe("PUT");
+    expect(result).toEqual({ ok: false, status: 409 });
+  });
+
+  it("getPublicProfile は handle で公開プロフィールを返す（404=null）", async () => {
+    const ok = createApiClient(
+      "https://api.test",
+      fakeFetch((url) => {
+        expect(url).toBe("https://api.test/users/kuro_2p/profile");
+        return json({ id: "u1", handle: "kuro_2p", displayName: "kuro", games: [] });
+      }),
+    );
+    expect((await ok.getPublicProfile("kuro_2p"))?.handle).toBe("kuro_2p");
+
+    const nf = createApiClient(
+      "https://api.test",
+      fakeFetch(() => new Response("nf", { status: 404 })),
+    );
+    expect(await nf.getPublicProfile("missing")).toBeNull();
+  });
+
+  it("deleteAccount は DELETE /me する", async () => {
+    let method = "";
+    const client = createApiClient("https://api.test", ((url: string, init?: RequestInit) => {
+      method = init?.method ?? "GET";
+      expect(String(url)).toBe("https://api.test/me");
+      return Promise.resolve(json({ ok: true }));
+    }) as unknown as typeof fetch);
+    const result = await client.deleteAccount("tok");
+    expect(method).toBe("DELETE");
+    expect(result.ok).toBe(true);
+  });
 });

@@ -34,4 +34,8 @@ export class DrizzleGameRepository implements GameRepository {
       .values({ id: game.id, userId: game.userId, title: game.title, createdAt: game.createdAt })
       .onConflictDoUpdate({ target: games.id, set: { title: game.title } });
   }
+
+  async deleteByUser(userId: string): Promise<void> {
+    await this.db.delete(games).where(eq(games.userId, userId));
+  }
 }

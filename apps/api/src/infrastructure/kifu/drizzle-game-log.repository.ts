@@ -92,4 +92,8 @@ export class DrizzleGameLogRepository implements GameLogRepository {
   async deleteById(id: string): Promise<void> {
     await this.db.delete(gameLogs).where(eq(gameLogs.id, id));
   }
+
+  async deleteByUser(userId: string): Promise<void> {
+    await this.db.delete(gameLogs).where(eq(gameLogs.userId, userId));
+  }
 }

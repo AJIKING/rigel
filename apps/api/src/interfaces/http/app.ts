@@ -121,10 +121,48 @@ export function createApp(): Hono<AppEnv> {
     return c.json({
       id: user.id,
       plan: user.plan,
+      handle: user.handle,
+      displayName: user.displayName,
+      profilePublic: user.profilePublic,
       analysisCountThisMonth: user.analysisCountThisMonth,
       monthlyCallQuota: monthlyCallQuota(user.plan),
       remainingCalls: user.remainingCalls(new Date()),
     });
+  });
+
+  // プロフィール更新（ハンドル/表示名/公開）。
+  app.put("/me/profile", requireAuth, async (c) => {
+    const body = (await c.req.json().catch(() => null)) as {
+      handle?: unknown;
+      displayName?: unknown;
+      profilePublic?: unknown;
+    } | null;
+    const result = await c.get("container").updateProfile.execute({
+      userId: c.get("userId")!,
+      handle: typeof body?.handle === "string" ? body.handle : undefined,
+      displayName: typeof body?.displayName === "string" ? body.displayName : undefined,
+      profilePublic: typeof body?.profilePublic === "boolean" ? body.profilePublic : undefined,
+    });
+    if (!result.ok) {
+      const status =
+        result.reason === "handle_taken" ? 409 : result.reason === "not_found" ? 404 : 400;
+      return c.json({ ok: false, reason: result.reason }, status);
+    }
+    return c.json({ ok: true });
+  });
+
+  // アカウント削除（自分の牌譜・半荘・ユーザーをカスケード削除）。
+  app.delete("/me", requireAuth, async (c) => {
+    const result = await c.get("container").deleteAccount.execute(c.get("userId")!);
+    if (!result.ok) return c.json({ error: "not found" }, 404);
+    return c.json({ ok: true });
+  });
+
+  // 別ユーザーの公開プロフィール＋公開半荘（handle か id）。閲覧自由。
+  app.get("/users/:idOrHandle/profile", async (c) => {
+    const profile = await c.get("container").getPublicProfile.execute(c.req.param("idOrHandle"));
+    if (!profile) return c.json({ error: "not found" }, 404);
+    return c.json(profile);
   });
 
   // 牌譜JSONの検証のみ（保存はしない）。背骨スキーマで弾く。

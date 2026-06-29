@@ -35,6 +35,18 @@ export interface UserProps {
   analysisCountThisMonth: number;
   /** この時刻を過ぎたら当月カウントをリセットする（= 次のリセット境界）。 */
   countResetAt: Date;
+  /** 公開ハンドル(@xxx。共有URLに使う)。未設定は null。一意。 */
+  handle?: string | null;
+  /** 表示名（他ユーザーに見える名前）。 */
+  displayName?: string;
+  /** プロフィール(公開牌譜の一覧)を他ユーザーに見せるか。 */
+  profilePublic?: boolean;
+}
+
+export interface ProfileUpdate {
+  handle?: string | null;
+  displayName?: string;
+  profilePublic?: boolean;
 }
 
 /** now を含む月の翌月1日(UTC)を返す。12月は自動的に翌年1月へ繰り上がる。 */
@@ -48,6 +60,9 @@ export class User {
   private _plan: Plan;
   private _count: number;
   private _countResetAt: Date;
+  private _handle: string | null;
+  private _displayName: string;
+  private _profilePublic: boolean;
 
   constructor(props: UserProps) {
     this.id = props.id;
@@ -55,6 +70,9 @@ export class User {
     this._plan = props.plan;
     this._count = props.analysisCountThisMonth;
     this._countResetAt = props.countResetAt;
+    this._handle = props.handle ?? null;
+    this._displayName = props.displayName ?? "";
+    this._profilePublic = props.profilePublic ?? true;
   }
 
   /** 新規ユーザー（Google認証の sub 紐付け）。無料プランで作成する。 */
@@ -70,6 +88,25 @@ export class User {
 
   get plan(): Plan {
     return this._plan;
+  }
+
+  get handle(): string | null {
+    return this._handle;
+  }
+
+  get displayName(): string {
+    return this._displayName;
+  }
+
+  get profilePublic(): boolean {
+    return this._profilePublic;
+  }
+
+  /** プロフィールを更新する（指定された項目だけ反映）。handle の検証はアプリ層。 */
+  updateProfile(update: ProfileUpdate): void {
+    if (update.handle !== undefined) this._handle = update.handle;
+    if (update.displayName !== undefined) this._displayName = update.displayName;
+    if (update.profilePublic !== undefined) this._profilePublic = update.profilePublic;
   }
 
   get analysisCountThisMonth(): number {
@@ -117,13 +154,16 @@ export class User {
   }
 
   /** 永続化用のスナップショット。 */
-  toProps(): UserProps {
+  toProps(): Required<UserProps> {
     return {
       id: this.id,
       googleSub: this.googleSub,
       plan: this._plan,
       analysisCountThisMonth: this._count,
       countResetAt: this._countResetAt,
+      handle: this._handle,
+      displayName: this._displayName,
+      profilePublic: this._profilePublic,
     };
   }
 }
