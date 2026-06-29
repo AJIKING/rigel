@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
 import { analyze } from "../../lib/api";
+import { buildAnalyzeForm } from "../../lib/analyze-form";
 import { useAuth } from "../../lib/auth-context";
 
 const CAMS = ["bottom", "right", "top", "left"] as const;
@@ -37,14 +38,10 @@ export default function CapturePage() {
     setError(null);
     setSubmitting(true);
     try {
-      const form = new FormData();
-      form.append("river", river);
-      form.append("cameraBottomSeat", seat);
-      for (const cam of CAMS) {
-        const f = hands[cam];
-        if (f) form.append(`hand_${cam}`, f);
-      }
-      const result = await analyze(token!, form);
+      const result = await analyze(
+        token!,
+        buildAnalyzeForm({ river, cameraBottomSeat: seat, hands }),
+      );
       if (result.ok) {
         router.push(`/kifu/${result.gameId}`);
         return;

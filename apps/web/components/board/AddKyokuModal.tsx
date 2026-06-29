@@ -4,6 +4,7 @@ import { analyzeErrorMessage, cameraLabel } from "@rigel/ui";
 import type { CameraSeat, Seat } from "@rigel/schema";
 import { useState } from "react";
 import { analyze, createEmptyKifu } from "../../lib/api";
+import { buildAnalyzeForm } from "../../lib/analyze-form";
 import s from "./board-editor.module.css";
 
 const HANDS: { cam: CameraSeat; label: string }[] = [
@@ -41,15 +42,10 @@ export function AddKyokuModal({
     setBusy(true);
     setError(null);
     try {
-      const form = new FormData();
-      form.append("river", river);
-      form.append("cameraBottomSeat", bottomSeat);
-      form.append("gameId", gameId);
-      for (const { cam } of HANDS) {
-        const f = hands[cam];
-        if (f) form.append(`hand_${cam}`, f);
-      }
-      const result = await analyze(token, form);
+      const result = await analyze(
+        token,
+        buildAnalyzeForm({ river, cameraBottomSeat: bottomSeat, hands, gameId }),
+      );
       if (result.ok) {
         await onDone(result.logId);
         return;
