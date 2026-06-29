@@ -96,3 +96,69 @@ workflows:
         auth: integration
         # アップロード後に TestFlight の内部テスターへ自動公開する。
         submit_to_testflight: true
+
+  # ------------------------------------------------------------
+  # Android（Google Play 内部テスト配布）。手動起動のみ。
+  # 事前に Codemagic の UI 側で必要な設定:
+  #   - 環境変数グループ `keystore_credentials`（すべて Secure 登録）:
+  #       CM_KEYSTORE          … アップロード用キーストアを base64 化した文字列
+  #       CM_KEYSTORE_PASSWORD … キーストアのパスワード
+  #       CM_KEY_ALIAS         … 鍵エイリアス
+  #       CM_KEY_PASSWORD      … 鍵のパスワード
+  #   - 環境変数グループ `google_play_credentials`:
+  #       GCLOUD_SERVICE_ACCOUNT_CREDENTIALS … Google Play 用サービスアカウントの JSON
+  #   - Google Play Console にアプリ（co.plaria.rigel）を登録し、内部テストトラックを用意。
+  # 署名は build.gradle を書き換えず AGP の injected signing で行う。
+  # ------------------------------------------------------------
+  android-googleplay:
+    name: Android Google Play (rigel)
+    instance_type: linux_x2
+    max_build_duration: 60
+    environment:
+      groups:
+        - keystore_credentials # CM_KEYSTORE / CM_KEYSTORE_PASSWORD / CM_KEY_ALIAS / CM_KEY_PASSWORD
+        - google_play_credentials # GCLOUD_SERVICE_ACCOUNT_CREDENTIALS
+        - rigel_mobile_env # EXPO_PUBLIC_API_URL / EXPO_PUBLIC_GOOGLE_CLIENT_ID
+      node: 22
+      java: 17
+      vars:
+        PACKAGE_NAME: "co.plaria.rigel" # app.json の android.package と一致
+    scripts:
+      - name: pnpm を有効化
+        script: corepack enable && corepack prepare pnpm@10.13.1 --activate
+
+      - name: 依存をインストール（モノレポ・ルート）
+        script: pnpm install --frozen-lockfile
+
+      - name: 型チェック（mobile）
+        script: pnpm --filter mobile typecheck
+
+      - name: Android ネイティブプロジェクトを生成（expo prebuild）
+        script: |
+          cd apps/mobile
+          CI=1 npx expo prebuild --platform android --no-install --clean
+
+      - name: キーストアを配置
+        script: |
+          echo "$CM_KEYSTORE" | base64 --decode > "$CM_BUILD_DIR/apps/mobile/android/app/release.keystore"
+
+      - name: versionCode を Codemagic 連番に（Play は重複を拒否）
+        script: |
+          sed -i "s/versionCode [0-9]\+/versionCode $BUILD_NUMBER/" \
+            apps/mobile/android/app/build.gradle
+
+      - name: AAB をビルド（injected signing で署名）
+        script: |
+          cd apps/mobile/android
+          ./gradlew bundleRelease \
+            -Pandroid.injected.signing.store.file="$CM_BUILD_DIR/apps/mobile/android/app/release.keystore" \
+            -Pandroid.injected.signing.store.password="$CM_KEYSTORE_PASSWORD" \
+            -Pandroid.injected.signing.key.alias="$CM_KEY_ALIAS" \
+            -Pandroid.injected.signing.key.password="$CM_KEY_PASSWORD"
+    artifacts:
+      - apps/mobile/android/app/build/outputs/**/*.aab
+    publishing:
+      google_play:
+        credentials: $GCLOUD_SERVICE_ACCOUNT_CREDENTIALS
+        # 内部テストトラックへアップロード（公開トラックは Console から手動昇格）。
+        track: internal
