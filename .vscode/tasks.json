@@ -1,0 +1,90 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "gate: typecheck",
+      "type": "shell",
+      "command": "pnpm typecheck",
+      "problemMatcher": ["$tsc"],
+      "group": { "kind": "build", "isDefault": true },
+      "presentation": { "panel": "dedicated", "clear": true }
+    },
+    {
+      "label": "gate: lint",
+      "type": "shell",
+      "command": "pnpm lint",
+      "problemMatcher": ["$eslint-stylish"],
+      "presentation": { "panel": "dedicated", "clear": true }
+    },
+    {
+      "label": "gate: test",
+      "type": "shell",
+      "command": "pnpm test",
+      "problemMatcher": [],
+      "group": { "kind": "test", "isDefault": true },
+      "presentation": { "panel": "dedicated", "clear": true }
+    },
+    {
+      "label": "gate: format (check)",
+      "type": "shell",
+      "command": "pnpm format:check",
+      "problemMatcher": [],
+      "presentation": { "panel": "dedicated", "clear": true }
+    },
+    {
+      "label": "gate: format (write)",
+      "type": "shell",
+      "command": "pnpm format",
+      "problemMatcher": []
+    },
+    {
+      "label": "gate: build",
+      "type": "shell",
+      "command": "pnpm build",
+      "problemMatcher": ["$tsc"],
+      "presentation": { "panel": "dedicated", "clear": true }
+    },
+    {
+      "label": "gate: all (typecheck+lint+test)",
+      "dependsOrder": "sequence",
+      "dependsOn": ["gate: typecheck", "gate: lint", "gate: test"],
+      "problemMatcher": []
+    },
+    {
+      "label": "dev: web (Next.js)",
+      "type": "shell",
+      "command": "pnpm --filter web dev",
+      "isBackground": true,
+      "problemMatcher": [],
+      "presentation": { "panel": "dedicated" }
+    },
+    {
+      "label": "dev: api (wrangler)",
+      "type": "shell",
+      "command": "pnpm --filter api dev",
+      "isBackground": true,
+      "problemMatcher": [],
+      "presentation": { "panel": "dedicated" }
+    },
+    {
+      "label": "dev: mobile (Expo)",
+      "type": "shell",
+      "command": "pnpm --filter mobile start",
+      "isBackground": true,
+      "problemMatcher": [],
+      "presentation": { "panel": "dedicated" }
+    },
+    {
+      "label": "db: generate migration",
+      "type": "shell",
+      "command": "pnpm --filter api db:generate",
+      "problemMatcher": []
+    },
+    {
+      "label": "db: migrate (local D1)",
+      "type": "shell",
+      "command": "pnpm --filter api db:migrate:local",
+      "problemMatcher": []
+    }
+  ]
+}

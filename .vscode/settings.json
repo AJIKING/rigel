@@ -1,0 +1,52 @@
+{
+  // 保存時に Prettier 整形 + ESLint 自動修正（CI ゲートと一致させる）。
+  "editor.formatOnSave": true,
+  "editor.defaultFormatter": "esbenp.prettier-vscode",
+  "editor.codeActionsOnSave": {
+    "source.fixAll.eslint": "explicit"
+  },
+  "[typescript]": { "editor.defaultFormatter": "esbenp.prettier-vscode" },
+  "[typescriptreact]": { "editor.defaultFormatter": "esbenp.prettier-vscode" },
+  "[javascript]": { "editor.defaultFormatter": "esbenp.prettier-vscode" },
+  "[json]": { "editor.defaultFormatter": "esbenp.prettier-vscode" },
+  "[jsonc]": { "editor.defaultFormatter": "esbenp.prettier-vscode" },
+  "[css]": { "editor.defaultFormatter": "esbenp.prettier-vscode" },
+  "[html]": { "editor.defaultFormatter": "esbenp.prettier-vscode" },
+
+  // Prettier は設定ファイルがある所だけ整形（.prettierignore も尊重）。
+  "prettier.requireConfig": true,
+
+  // ESLint 9 フラットコンフィグ（eslint.config.mjs）。モノレポは作業ディレクトリを自動解決。
+  "eslint.useFlatConfig": true,
+  "eslint.workingDirectories": [{ "mode": "auto" }],
+  "eslint.validate": ["javascript", "typescript", "typescriptreact"],
+
+  // ワークスペースの TypeScript を使う（pnpm 管理の単一バージョン）。
+  "typescript.tsdk": "node_modules/typescript/lib",
+  "typescript.enablePromptUseWorkspaceTsdk": true,
+
+  // 生成物・依存はインデックス対象外（検索/監視を軽く）。
+  "search.exclude": {
+    "**/node_modules": true,
+    "**/.next": true,
+    "**/.turbo": true,
+    "**/dist": true,
+    "**/.wrangler": true,
+    "**/coverage": true,
+    "**/.expo": true,
+    "pnpm-lock.yaml": true
+  },
+  "files.watcherExclude": {
+    "**/node_modules/**": true,
+    "**/.next/**": true,
+    "**/.turbo/**": true,
+    "**/dist/**": true,
+    "**/.wrangler/**": true
+  },
+
+  // 秘匿ファイルは dotenv 風に色付け（中身はコミットしない）。
+  "files.associations": {
+    ".dev.vars": "properties",
+    ".env.example": "properties"
+  }
+}
