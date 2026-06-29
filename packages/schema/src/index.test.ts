@@ -51,6 +51,17 @@ describe("AiRiverResponseSchema（河1方向のAI出力検証）", () => {
     });
     expect(result.discards[0]?.riichi).toBe(true);
   });
+
+  it("捨て方は tsumogiri で表す（既定は手出し=false）", () => {
+    const result = AiRiverResponseSchema.parse({
+      discards: [
+        { order: 1, tile: "1m" },
+        { order: 2, tile: "2p", tsumogiri: true },
+      ],
+    });
+    expect(result.discards[0]?.tsumogiri).toBe(false); // 既定=手出し
+    expect(result.discards[1]?.tsumogiri).toBe(true); // 自摸切り
+  });
 });
 
 describe("KifuSchema（牌譜1件の最終検証）", () => {

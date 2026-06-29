@@ -366,6 +366,10 @@
   transform: rotate(90deg);
   align-self: center;
 }
+/* 自摸切りの捨牌は少しグレーにする。 */
+.tile.tsumogiri {
+  filter: grayscale(0.6) brightness(0.93);
+}
 .tile.tsumo {
   margin-left: 8px;
 }

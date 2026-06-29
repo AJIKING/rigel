@@ -83,6 +83,7 @@ function BoardTile({
   code,
   kind,
   lay,
+  tsumogiri,
   review,
   selected,
   flash,
@@ -92,6 +93,7 @@ function BoardTile({
   code: Tile | null;
   kind?: "river" | "meld";
   lay?: boolean;
+  tsumogiri?: boolean;
   review?: boolean;
   selected?: boolean;
   flash?: boolean;
@@ -104,6 +106,7 @@ function BoardTile({
     kind === "river" ? s.riverT : "",
     kind === "meld" ? s.meldT : "",
     lay ? s.lay : "",
+    tsumogiri ? s.tsumogiri : "",
     review ? s.review : "",
     selected ? s.sel : "",
     flash ? s.flash : "",
@@ -344,7 +347,13 @@ function Editor(p: EditorProps) {
       if (sel.area === "hand") draft.seats[sel.seat].hand.push({ tile: code, confidence: 1 });
       else {
         const river = draft.seats[sel.seat].river;
-        river.push({ order: river.length + 1, tile: code, riichi: false, confidence: 1 });
+        river.push({
+          order: river.length + 1,
+          tile: code,
+          riichi: false,
+          tsumogiri: false,
+          confidence: 1,
+        });
       }
       setKifu(KifuSchema.parse(draft));
       closePop();
@@ -386,6 +395,15 @@ function Editor(p: EditorProps) {
   function setDealerSeat(seat: Seat) {
     const draft = clone(kifu);
     draft.meta.dealer = seat;
+    setKifu(KifuSchema.parse(draft));
+  }
+
+  // 捨牌の手出し/自摸切りを切り替える（選択は保持＝ポップアップを開いたまま）。
+  function setDiscardKind(tsumogiri: boolean) {
+    if (sel?.kind !== "edit" || sel.loc.area !== "river") return;
+    const draft = clone(kifu);
+    const d = draft.seats[sel.loc.seat].river[sel.loc.index];
+    if (d) d.tsumogiri = tsumogiri;
     setKifu(KifuSchema.parse(draft));
   }
 
@@ -484,6 +502,7 @@ function Editor(p: EditorProps) {
                                 code={d.tile}
                                 kind="river"
                                 lay={d.riichi}
+                                tsumogiri={d.tsumogiri}
                                 review={needsReview(d)}
                                 selected={sel?.kind === "edit" && fkey(sel.loc) === fkey(loc)}
                                 flash={flashKey === fkey(loc)}
@@ -908,6 +927,31 @@ function Editor(p: EditorProps) {
           </div>
           {sel?.kind === "edit" && sel.loc.area !== "meld" && (
             <div className={s.meldEdit}>
+              {sel.loc.area === "river" && (
+                <div className={s.meRow}>
+                  <span className={s.meLabel}>捨て方</span>
+                  <div className={s.meSeg}>
+                    {(
+                      [
+                        [false, "手出し"],
+                        [true, "自摸切り"],
+                      ] as const
+                    ).map(([tg, lbl]) => (
+                      <button
+                        key={lbl}
+                        className={
+                          (kifu.seats[sel.loc.seat].river[sel.loc.index]?.tsumogiri ?? false) === tg
+                            ? s.on
+                            : ""
+                        }
+                        onClick={() => setDiscardKind(tg)}
+                      >
+                        {lbl}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
               <div className={s.meRow}>
                 <span className={s.meLabel}>鳴き</span>
                 <div className={s.meSeg}>

@@ -108,11 +108,13 @@ export type Meld = z.infer<typeof MeldSchema>;
 // 河の1打
 // ------------------------------------------------------------
 export const DiscardSchema = z.object({
-  /** 1始まり。河の並び順 = 打牌の時系列（手出し/ツモ切りは区別しない方針）。 */
+  /** 1始まり。河の並び順 = 打牌の時系列。 */
   order: z.number().int().positive(),
   tile: MaybeTileSchema,
   /** 横向きの牌 = リーチ宣言牌。 */
   riichi: z.boolean().default(false),
+  /** 自摸切り(ツモった牌をそのまま捨てた)なら true。既定は手出し(false)。UIで少しグレー表示。 */
+  tsumogiri: z.boolean().default(false),
   confidence: ConfidenceSchema.default(1),
 });
 export type Discard = z.infer<typeof DiscardSchema>;

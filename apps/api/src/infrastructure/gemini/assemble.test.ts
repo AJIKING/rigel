@@ -3,7 +3,10 @@ import { describe, expect, it } from "vitest";
 import { assembleKifu } from "./assemble";
 
 function river(tile: Tile): AiRiverResponse {
-  return { discards: [{ order: 1, tile, riichi: false, confidence: 1 }], notes: "" };
+  return {
+    discards: [{ order: 1, tile, riichi: false, tsumogiri: false, confidence: 1 }],
+    notes: "",
+  };
 }
 
 const rivers: Record<CameraSeat, AiRiverResponse> = {
