@@ -4,6 +4,7 @@ import { toAbsoluteSeat, type CameraSeat, type Kifu, type Seat, type Tile } from
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { getPublicGameDetail, type PublicGameDetail } from "../../lib/api";
+import { useAuth } from "../../lib/auth-context";
 import { SEAT_ORDER, chunk, roundName, windOf } from "../../lib/board";
 import { fmtDate } from "../../lib/format";
 import { useFavorites } from "../../lib/use-favorites";
@@ -50,6 +51,7 @@ function ViewTile({
 }
 
 export function KifuViewer({ gameId }: { gameId: string }) {
+  const { user } = useAuth();
   const [detail, setDetail] = useState<PublicGameDetail | null>(null);
   const [state, setState] = useState<"loading" | "ok" | "notfound">("loading");
   const { favs, toggle: toggleFav } = useFavorites();
@@ -191,6 +193,15 @@ export function KifuViewer({ gameId }: { gameId: string }) {
             </div>
           </div>
           <div className={s.khAct}>
+            {user?.id === detail.owner.id && (
+              <Link className={s.iconbtn} href={`/kifu/${detail.game.id}`}>
+                <svg viewBox="0 0 24 24">
+                  <path d="M12 20h9" />
+                  <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z" />
+                </svg>
+                編集
+              </Link>
+            )}
             <button
               className={s.iconbtn}
               aria-pressed={sideOpen}

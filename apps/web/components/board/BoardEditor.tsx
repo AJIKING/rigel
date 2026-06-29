@@ -413,8 +413,8 @@ function Editor(p: EditorProps) {
   }
 
   const round = roundName(idx);
-  const shareUrl =
-    typeof window !== "undefined" ? `${window.location.origin}/kifu/${gameId}/${log.id}` : "";
+  // 共有先は公開ビューア（誰でも閲覧可）。エディタ(/kifu/...)は所有者専用なので使わない。
+  const shareUrl = typeof window !== "undefined" ? `${window.location.origin}/k/${gameId}` : "";
 
   const acc = (id: string) => setOpen((o) => ({ ...o, [id]: !o[id] }));
 
@@ -863,19 +863,26 @@ function Editor(p: EditorProps) {
                   </div>
                 </div>
                 {vis === "public" && (
-                  <div className={s.shareUrl}>
-                    <span className={s.url}>{shareUrl}</span>
-                    <button
-                      className={s.copyurl}
-                      aria-label="URLをコピー"
-                      onClick={() => navigator.clipboard?.writeText(shareUrl).catch(() => {})}
-                    >
-                      <svg viewBox="0 0 24 24">
-                        <rect x="9" y="9" width="11" height="11" rx="2" />
-                        <path d="M5 15V5a2 2 0 0 1 2-2h10" />
-                      </svg>
-                    </button>
-                  </div>
+                  <>
+                    <div className={s.shareUrl}>
+                      <span className={s.url}>{shareUrl}</span>
+                      <button
+                        className={s.copyurl}
+                        aria-label="URLをコピー"
+                        onClick={() => navigator.clipboard?.writeText(shareUrl).catch(() => {})}
+                      >
+                        <svg viewBox="0 0 24 24">
+                          <rect x="9" y="9" width="11" height="11" rx="2" />
+                          <path d="M5 15V5a2 2 0 0 1 2-2h10" />
+                        </svg>
+                      </button>
+                    </div>
+                    <p className={s.visNote}>
+                      <Link href={`/k/${gameId}`} style={{ color: "#fff" }}>
+                        公開ページを見る →
+                      </Link>
+                    </p>
+                  </>
                 )}
                 <p className={s.visNote}>
                   公開すると共有URLで誰でも閲覧できます（{visibilityLabel(vis)}）。

@@ -158,6 +158,7 @@
   border-radius: var(--r);
   cursor: pointer;
   transition: 0.15s;
+  text-decoration: none;
 }
 .iconbtn:hover {
   border-color: var(--w45);
