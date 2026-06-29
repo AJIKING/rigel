@@ -15,7 +15,7 @@ export default function Home() {
       </ul>
       <div style={{ display: "flex", gap: 12, marginTop: 16 }}>
         <Link
-          href="/kifu/sample"
+          href="/kifu"
           style={{
             padding: "10px 16px",
             borderRadius: 8,
@@ -24,7 +24,7 @@ export default function Home() {
             textDecoration: "none",
           }}
         >
-          サンプル牌譜を見る
+          公開牌譜を見る
         </Link>
         <Link
           href="/login"

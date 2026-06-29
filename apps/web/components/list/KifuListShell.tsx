@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { getMyGames, getPublicGames, type MyGameCard, type PublicGameCard } from "../../lib/api";
 import { useAuth } from "../../lib/auth-context";
 import s from "./kifu-list.module.css";
@@ -111,6 +111,14 @@ export function KifuListShell() {
       return next;
     });
   }, []);
+
+  // 未ログインなら「公開牌譜」タブを既定にする（マイページは要ログインのため）。
+  const autoTab = useRef(false);
+  useEffect(() => {
+    if (authLoading || autoTab.current) return;
+    autoTab.current = true;
+    if (!token) setTab("public");
+  }, [authLoading, token]);
 
   useEffect(() => {
     getPublicGames()
@@ -339,7 +347,18 @@ export function KifuListShell() {
                     title={c.title || "（無題の半荘）"}
                     meta={
                       <>
-                        <span className={s.au}>@{c.ownerId.slice(0, 6)}</span>
+                        <span
+                          className={s.au}
+                          role="link"
+                          tabIndex={0}
+                          style={{ cursor: "pointer" }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            router.push(`/u/${c.ownerId}`);
+                          }}
+                        >
+                          @{c.ownerId.slice(0, 6)}
+                        </span>
                         <span className={s.sep}>·</span>
                         {fmtDate(c.createdAt)}
                         <span className={s.sep}>·</span>
@@ -348,7 +367,7 @@ export function KifuListShell() {
                     }
                     faved={favs.has(c.id)}
                     onToggleFav={() => toggleFav(c.id)}
-                    onOpen={() => router.push(`/kifu/${c.id}`)}
+                    onOpen={() => router.push(`/k/${c.firstLogId}`)}
                   />
                 ))
               )}

@@ -23,6 +23,8 @@ export interface PublicGameCard {
   createdAt: Date;
   /** 公開している局数。 */
   kyokuCount: number;
+  /** 最新の公開局ID（カードを開いたときの読み取り表示先）。 */
+  firstLogId: string;
 }
 
 export class ListMyGamesWithCounts {
@@ -57,13 +59,17 @@ export class ListPublicGames {
 
   async execute(limit = 60): Promise<PublicGameCard[]> {
     const pub = await this.gameLogs.listPublic(200);
-    // gameId ごとに公開局数を数える（出現順＝新着順を保つ）。
+    // gameId ごとに公開局数を数える（出現順＝新着順を保つ）。最初の出現＝最新の公開局。
     const order: string[] = [];
     const counts = new Map<string, number>();
+    const firstLog = new Map<string, string>();
     for (const log of pub) {
       const gid = log.gameId;
       if (!gid) continue;
-      if (!counts.has(gid)) order.push(gid);
+      if (!counts.has(gid)) {
+        order.push(gid);
+        firstLog.set(gid, log.id);
+      }
       counts.set(gid, (counts.get(gid) ?? 0) + 1);
     }
     const cards: PublicGameCard[] = [];
@@ -76,6 +82,7 @@ export class ListPublicGames {
         title: game.title,
         createdAt: game.createdAt,
         kyokuCount: counts.get(gid) ?? 0,
+        firstLogId: firstLog.get(gid)!,
       });
     }
     return cards;

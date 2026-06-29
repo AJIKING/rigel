@@ -23,6 +23,7 @@ export const {
   getMyGames,
   getPublicGames,
   getGame,
+  getKifu,
   analyze,
   updateKifu,
   createCheckout,

@@ -43,7 +43,7 @@ export default function CapturePage() {
         buildAnalyzeForm({ river, cameraBottomSeat: seat, hands }),
       );
       if (result.ok) {
-        router.push(`/kifu/${result.gameId}`);
+        router.push(`/kifu/${result.gameId}/${result.logId}`);
         return;
       }
       setError(analyzeErrorMessage(result.status, result.reason));

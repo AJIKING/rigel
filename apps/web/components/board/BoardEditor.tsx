@@ -448,7 +448,7 @@ function Editor(p: EditorProps) {
   return (
     <div className={s.app} onClick={() => pop && closePop()}>
       <header className={s.bar}>
-        <span className={s.brand}>
+        <Link href="/kifu" className={s.brand} aria-label="牌譜一覧へ">
           <svg className={s.star} viewBox="0 0 24 24">
             <path
               d="M12 1.5l1.7 7.1 7.1 1.7-7.1 1.7L12 19.1l-1.7-7.1L3.2 10.3l7.1-1.7L12 1.5z"
@@ -456,7 +456,7 @@ function Editor(p: EditorProps) {
             />
           </svg>
           <span className={s.wm}>RIGEL</span>
-        </span>
+        </Link>
         <nav className={s.crumb}>
           <span>{hanchanName || "無題の半荘"}</span>
           <span>·</span>

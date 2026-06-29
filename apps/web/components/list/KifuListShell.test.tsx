@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { AuthProvider } from "../../lib/auth-context";
 import { KifuListShell } from "./KifuListShell";
@@ -7,22 +7,23 @@ import { KifuListShell } from "./KifuListShell";
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
 
 describe("KifuListShell", () => {
-  it("マイページ/公開牌譜 のタブを表示する", async () => {
+  it("マイページ/公開牌譜 のタブがある", async () => {
     render(
       <AuthProvider>
         <KifuListShell />
       </AuthProvider>,
     );
-    expect(await screen.findByText("マイページ")).toBeTruthy();
-    expect(screen.getByText("公開牌譜")).toBeTruthy();
+    expect(await screen.findByRole("button", { name: "マイページ" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "公開牌譜" })).toBeTruthy();
   });
 
-  it("未ログインのマイページはログイン導線を出す", async () => {
+  it("未ログインでマイページタブを開くとログイン導線が出る", async () => {
     render(
       <AuthProvider>
         <KifuListShell />
       </AuthProvider>,
     );
+    fireEvent.click(await screen.findByRole("button", { name: "マイページ" }));
     expect(await screen.findByText(/ログイン/)).toBeTruthy();
   });
 });

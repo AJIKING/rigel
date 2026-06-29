@@ -71,14 +71,17 @@ export class GetPublicProfile {
     const cards: PublicGameCard[] = [];
     for (const g of userGames) {
       const logs = await this.gameLogs.listByGame(g.id);
-      const pubCount = logs.filter((l) => l.visibility === "public").length;
-      if (pubCount > 0) {
+      const publicLogs = logs
+        .filter((l) => l.visibility === "public")
+        .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+      if (publicLogs.length > 0) {
         cards.push({
           id: g.id,
           ownerId: user.id,
           title: g.title,
           createdAt: g.createdAt,
-          kyokuCount: pubCount,
+          kyokuCount: publicLogs.length,
+          firstLogId: publicLogs[0]!.id,
         });
       }
     }

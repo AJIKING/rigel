@@ -77,6 +77,8 @@ export interface PublicGameCard {
   title: string;
   createdAt: string;
   kyokuCount: number;
+  /** 最新の公開局ID（読み取り表示先 /k/[logId]）。 */
+  firstLogId: string;
 }
 
 export type AnalyzeResult =
@@ -97,6 +99,8 @@ export interface ApiClient {
   getPublicGames(): Promise<PublicGameCard[]>;
   /** 半荘詳細（半荘 + 局一覧）。見つからなければ null。 */
   getGame(token: string, id: string): Promise<GameDetail | null>;
+  /** 牌譜1件の取得（公開は誰でも・非公開は所有者のみ）。見つからなければ null。 */
+  getKifu(logId: string, token?: string): Promise<GameLog | null>;
   /**
    * 撮影画像(multipart FormData)を解析し、半荘に局として保存する。
    * FormData は各プラットフォームで組む（web=File / RN={uri,name,type}）。
@@ -188,6 +192,16 @@ export function createApiClient(baseUrl: string, fetchImpl?: typeof fetch): ApiC
       if (res.status === 404) return null;
       if (!res.ok) throw new Error(`game failed: ${res.status}`);
       return res.json() as Promise<GameDetail>;
+    },
+
+    async getKifu(logId, token) {
+      const res = await doFetch(
+        `${baseUrl}/kifu/${logId}`,
+        token ? { headers: bearer(token) } : undefined,
+      );
+      if (res.status === 404) return null;
+      if (!res.ok) throw new Error(`kifu failed: ${res.status}`);
+      return res.json() as Promise<GameLog>;
     },
 
     async analyze(token, form) {
