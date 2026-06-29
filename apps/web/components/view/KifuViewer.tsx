@@ -6,9 +6,11 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { getPublicGameDetail, type PublicGameDetail } from "../../lib/api";
 import { useAuth } from "../../lib/auth-context";
 import { SEAT_ORDER, chunk, roundName, windOf } from "../../lib/board";
+import { useBoardScale } from "../../lib/use-board-scale";
 import { fmtDate } from "../../lib/format";
 import { useFavorites } from "../../lib/use-favorites";
 import { OssTileFace } from "../OssTileFace";
+import { StarMark } from "../StarMark";
 import s from "./kifu-view.module.css";
 
 const SLOTS: { cam: CameraSeat; cls: string }[] = [
@@ -110,16 +112,7 @@ export function KifuViewer({ gameId }: { gameId: string }) {
 
   // board fit
   const mainRef = useRef<HTMLDivElement>(null);
-  const [scale, setScale] = useState(1);
-  useEffect(() => {
-    const fit = () => {
-      const avail = (mainRef.current?.clientWidth ?? 808) - (fs ? 32 : 48);
-      setScale(Math.min(1, avail / 768));
-    };
-    fit();
-    window.addEventListener("resize", fit);
-    return () => window.removeEventListener("resize", fit);
-  }, [fs, sideOpen]);
+  const scale = useBoardScale(mainRef, fs ? 32 : 48, [sideOpen]);
 
   function switchLog(i: number) {
     setGi(i);
@@ -161,12 +154,7 @@ export function KifuViewer({ gameId }: { gameId: string }) {
       {!fs && (
         <div className={s.bar}>
           <Link href="/kifu" className={s.brand}>
-            <svg className={s.star} viewBox="0 0 24 24" fill="none">
-              <path
-                d="M12 1.6l2.7 6.9 7.4.4-5.8 4.6 2 7.1L12 16.9 5.7 20.6l2-7.1L1.9 8.9l7.4-.4z"
-                fill="#ff9e45"
-              />
-            </svg>
+            <StarMark className={s.star} />
             <span className={s.wm}>RIGEL</span>
           </Link>
           <div className={s.crumb}>

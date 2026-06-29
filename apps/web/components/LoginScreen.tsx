@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { useAuth } from "../lib/auth-context";
 import { GoogleSignInButton } from "./GoogleSignInButton";
+import { StarMark } from "./StarMark";
 import s from "./login.module.css";
 
 export function LoginScreen() {
@@ -27,12 +28,7 @@ export function LoginScreen() {
             <i className={s.dot} />
           </div>
           <div className={s.brand}>
-            <svg viewBox="0 0 24 24" fill="none">
-              <path
-                d="M12 1.6l2.7 6.9 7.4.4-5.8 4.6 2 7.1L12 16.9 5.7 20.6l2-7.1L1.9 8.9l7.4-.4z"
-                fill="#ff9e45"
-              />
-            </svg>
+            <StarMark />
             <span className={s.wm}>RIGEL</span>
           </div>
 

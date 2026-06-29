@@ -21,6 +21,7 @@ import {
 } from "../../lib/api";
 import { SEAT_ORDER, chunk, roundName, windOf } from "../../lib/board";
 import { useAuth } from "../../lib/auth-context";
+import { useBoardScale } from "../../lib/use-board-scale";
 import { OssTileFace } from "../OssTileFace";
 import { AddKyokuModal } from "./AddKyokuModal";
 import s from "./board-editor.module.css";
@@ -253,16 +254,7 @@ function Editor(p: EditorProps) {
   });
 
   const mainRef = useRef<HTMLDivElement>(null);
-  const [scale, setScale] = useState(1);
-  useEffect(() => {
-    const fit = () => {
-      const avail = (mainRef.current?.clientWidth ?? 808) - 48;
-      setScale(Math.min(1, avail / 768));
-    };
-    fit();
-    window.addEventListener("resize", fit);
-    return () => window.removeEventListener("resize", fit);
-  }, []);
+  const scale = useBoardScale(mainRef);
 
   const closePop = useCallback(() => {
     setSel(null);
