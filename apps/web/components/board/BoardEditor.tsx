@@ -411,7 +411,7 @@ function Editor(p: EditorProps) {
   const acc = (id: string) => setOpen((o) => ({ ...o, [id]: !o[id] }));
 
   return (
-    <div className={s.app} onClick={() => pop && closePop()}>
+    <div className={`${s.app} themeBoard`} onClick={() => pop && closePop()}>
       <header className={s.bar}>
         <Link href="/kifu" className={s.brand} aria-label="牌譜一覧へ">
           <svg className={s.star} viewBox="0 0 24 24">

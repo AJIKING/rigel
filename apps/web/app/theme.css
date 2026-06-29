@@ -1,0 +1,67 @@
+/* ============================================================
+   ダーク画面のテーマ変数（グローバル）
+   ------------------------------------------------------------
+   2系統あり、値が異なるためクラスで分ける。各ダークシェルのルート要素に
+   .themeApp か .themeBoard を付与して使う（ライトな画面には付けない）。
+     - themeApp  : 一覧 / 設定 / ユーザー / ログイン（M PLUS Rounded・角丸大）
+     - themeBoard : 盤面エディタ / 閲覧ビューア（Noto Sans・角丸小・牌寸法）
+   ============================================================ */
+
+.themeApp {
+  --bg: #0f1115;
+  --chrome: #16181d;
+  --chrome-2: #1d2027;
+  --chrome-3: #23262e;
+  --line: #2a2e37;
+  --line-2: #343943;
+  --white: #f5f6f7;
+  --w85: rgba(245, 246, 247, 0.86);
+  --w70: rgba(245, 246, 247, 0.66);
+  --w45: rgba(245, 246, 247, 0.42);
+  --em: #0c7a57;
+  --em-deep: #0a5f44;
+  --em-light: #3ec487;
+  --accent: #ff9e45;
+  --accent-2: #ff7d33;
+  --orange: #ff9e45;
+  --vermilion: #e24b3a;
+  --bone: #f5eee0;
+  --round: "M PLUS Rounded 1c", "Noto Sans JP", sans-serif;
+  --r: 6px;
+  --r-sm: 3px;
+  --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+.themeBoard {
+  --em: #0c7a57;
+  --em-deep: #0a5f44;
+  --chrome: #16181d;
+  --chrome-2: #1e2128;
+  --chrome-3: #272b34;
+  --line: rgba(255, 255, 255, 0.13);
+  --line-2: rgba(255, 255, 255, 0.08);
+  --white: #fff;
+  --w85: rgba(255, 255, 255, 0.9);
+  --w70: rgba(255, 255, 255, 0.74);
+  --w45: rgba(255, 255, 255, 0.45);
+  --bone: #f5eee0;
+  --bone-edge: #dccdab;
+  --bone-shadow: #b7a880;
+  --man: #2a2a26;
+  --pin: #2f6fb0;
+  --sou: #2f7d4f;
+  --vermilion: #e24b3a;
+  --accent: #ff9e45;
+  --orange: #ff9e45;
+  --round: "Noto Sans JP", system-ui, sans-serif;
+  --r: 3px;
+  --r-sm: 2px;
+  --ease: cubic-bezier(0.22, 0.61, 0.36, 1);
+  --tile-w: 32px;
+  --tile-h: 46px;
+  --river-w: 28px;
+  --river-h: 40px;
+  --meld-w: 26px;
+  --meld-h: 37px;
+  --board: 760px;
+}

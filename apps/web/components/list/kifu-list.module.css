@@ -3,28 +3,7 @@
    ============================================================ */
 
 .shell {
-  --bg: #0f1115;
-  --chrome: #16181d;
-  --chrome-2: #1d2027;
-  --chrome-3: #23262e;
-  --line: #2a2e37;
-  --line-2: #343943;
-  --white: #f5f6f7;
-  --w85: rgba(245, 246, 247, 0.86);
-  --w70: rgba(245, 246, 247, 0.66);
-  --w45: rgba(245, 246, 247, 0.42);
-  --em: #0c7a57;
-  --em-deep: #0a5f44;
-  --em-light: #3ec487;
-  --orange: #ff9e45;
-  --vermilion: #e24b3a;
-  --bone: #f5eee0;
-  --accent: #ff9e45;
-  --accent-2: #ff7d33;
-  --r: 6px;
-  --r-sm: 3px;
-  --round: "M PLUS Rounded 1c", "Noto Sans JP", sans-serif;
-  --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+  /* テーマ変数は app/theme.css の .themeApp が供給する。 */
   background: var(--bg);
   color: var(--white);
   font-family: "Noto Sans JP", sans-serif;

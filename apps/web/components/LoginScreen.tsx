@@ -17,7 +17,7 @@ export function LoginScreen() {
   }, [user, router]);
 
   return (
-    <div className={s.shell}>
+    <div className={`${s.shell} themeApp`}>
       <main className={s.login}>
         <div className={s.inner}>
           <div className={s.chip} aria-hidden="true">

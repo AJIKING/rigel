@@ -136,7 +136,7 @@ export function KifuListShell() {
   const avatarInitial = (user?.id ?? "私")[0]?.toUpperCase() ?? "私";
 
   return (
-    <div className={s.shell}>
+    <div className={`${s.shell} themeApp`}>
       <header className={s.header}>
         <span className={s.brand}>
           <StarMark />

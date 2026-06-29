@@ -5,35 +5,7 @@
    ============================================================ */
 
 .app {
-  --em: #0c7a57;
-  --chrome: #16181d;
-  --chrome-2: #1e2128;
-  --chrome-3: #272b34;
-  --line: rgba(255, 255, 255, 0.13);
-  --line-2: rgba(255, 255, 255, 0.08);
-  --white: #fff;
-  --w85: rgba(255, 255, 255, 0.9);
-  --w70: rgba(255, 255, 255, 0.74);
-  --w45: rgba(255, 255, 255, 0.45);
-  --bone: #f5eee0;
-  --bone-edge: #dccdab;
-  --bone-shadow: #b7a880;
-  --man: #2a2a26;
-  --pin: #2f6fb0;
-  --sou: #2f7d4f;
-  --vermilion: #e24b3a;
-  --orange: #ff9e45;
-  --round: "Noto Sans JP", system-ui, sans-serif;
-  --r: 3px;
-  --r-sm: 2px;
-  --tile-w: 32px;
-  --tile-h: 46px;
-  --river-w: 28px;
-  --river-h: 40px;
-  --meld-w: 26px;
-  --meld-h: 37px;
-  --board: 760px;
-  --ease: cubic-bezier(0.22, 0.61, 0.36, 1);
+  /* テーマ変数は app/theme.css の .themeBoard が供給する。 */
   background: var(--em);
   color: var(--white);
   font-family: var(--round);

@@ -282,7 +282,7 @@ export function SettingsShell() {
 
 function Shell({ children }: { children: React.ReactNode }) {
   return (
-    <div className={s.shell}>
+    <div className={`${s.shell} themeApp`}>
       <main className={s.main}>
         <Link href="/kifu" className={s.backlink}>
           ← 牌譜一覧へ

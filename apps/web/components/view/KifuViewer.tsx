@@ -150,7 +150,7 @@ export function KifuViewer({ gameId }: { gameId: string }) {
   }
 
   return (
-    <div className={s.app}>
+    <div className={`${s.app} themeBoard`}>
       {!fs && (
         <div className={s.bar}>
           <Link href="/kifu" className={s.brand}>
@@ -481,5 +481,5 @@ export function KifuViewer({ gameId }: { gameId: string }) {
 }
 
 function Shell({ children }: { children: React.ReactNode }) {
-  return <div className={s.app}>{children}</div>;
+  return <div className={`${s.app} themeBoard`}>{children}</div>;
 }

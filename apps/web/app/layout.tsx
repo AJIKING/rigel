@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { AuthStatus } from "../components/AuthStatus";
 import { AuthProvider } from "../lib/auth-context";
+import "./theme.css";
 
 export const metadata = {
   title: "rigel — 麻雀牌譜",

@@ -3,18 +3,7 @@
    ============================================================ */
 
 .shell {
-  --bg: #0f1115;
-  --chrome-2: #1d2027;
-  --line: #2a2e37;
-  --white: #f5f6f7;
-  --w70: rgba(245, 246, 247, 0.66);
-  --w45: rgba(245, 246, 247, 0.42);
-  --em: #0c7a57;
-  --em-deep: #0a5f44;
-  --bone: #f5eee0;
-  --accent: #ff9e45;
-  --round: "M PLUS Rounded 1c", "Noto Sans JP", sans-serif;
-  --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+  /* テーマ変数は app/theme.css の .themeApp が供給する。 */
   position: fixed;
   inset: 0;
   z-index: 40;
