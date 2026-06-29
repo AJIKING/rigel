@@ -11,6 +11,8 @@ export interface GameLogRepository {
   listByGame(gameId: string): Promise<GameLog[]>;
   /** ユーザーの、指定した公開範囲の牌譜数（保存上限の判定に使う）。 */
   countByUserAndVisibility(userId: string, visibility: Visibility): Promise<number>;
+  /** 公開(public)の牌譜を新しい順に返す（公開フィード用。limit で上限）。 */
+  listPublic(limit: number): Promise<GameLog[]>;
   /** 1件削除。 */
   deleteById(id: string): Promise<void>;
 }

@@ -15,6 +15,7 @@ import { GetKifu } from "./application/get-kifu.usecase";
 import { GetUser } from "./application/get-user.usecase";
 import { HandleBillingWebhook } from "./application/handle-billing-webhook.usecase";
 import { ListGames } from "./application/list-games.usecase";
+import { ListMyGamesWithCounts, ListPublicGames } from "./application/list-game-cards.usecase";
 import { ListKifu } from "./application/list-kifu.usecase";
 import { SetKifuVisibility } from "./application/set-kifu-visibility.usecase";
 import { StartCheckout } from "./application/start-checkout.usecase";
@@ -45,6 +46,8 @@ export interface AppContainer {
   deleteKifu: DeleteKifu;
   createEmptyKifu: CreateEmptyKifu;
   listGames: ListGames;
+  listMyGamesWithCounts: ListMyGamesWithCounts;
+  listPublicGames: ListPublicGames;
   getGameWithLogs: GetGameWithLogs;
   authenticateWithGoogle: AuthenticateWithGoogle;
   getUser: GetUser;
@@ -116,6 +119,8 @@ export function buildContainer(env: Env): AppContainer {
     deleteKifu: new DeleteKifu(gameLogs),
     createEmptyKifu: new CreateEmptyKifu({ games: gamesRepo, gameLogs, users, now, newId }),
     listGames: new ListGames(gamesRepo),
+    listMyGamesWithCounts: new ListMyGamesWithCounts(gamesRepo, gameLogs),
+    listPublicGames: new ListPublicGames(gamesRepo, gameLogs),
     getGameWithLogs: new GetGameWithLogs(gamesRepo, gameLogs),
     authenticateWithGoogle: new AuthenticateWithGoogle({
       users,

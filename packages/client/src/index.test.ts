@@ -28,6 +28,34 @@ describe("createApiClient", () => {
     expect(games[0]?.id).toBe("g1");
   });
 
+  it("getMyGames は件数つきカードを返す", async () => {
+    const client = createApiClient(
+      "https://api.test",
+      fakeFetch((url) => {
+        expect(url).toBe("https://api.test/me/games");
+        return json([
+          { id: "g1", title: "卓1", createdAt: "2026-06-28", kyokuCount: 8, publicCount: 2 },
+        ]);
+      }),
+    );
+    const cards = await client.getMyGames("tok");
+    expect(cards[0]?.kyokuCount).toBe(8);
+  });
+
+  it("getPublicGames は認証なしで公開カードを返す", async () => {
+    const client = createApiClient(
+      "https://api.test",
+      fakeFetch((url) => {
+        expect(url).toBe("https://api.test/games/public");
+        return json([
+          { id: "g1", ownerId: "u9", title: "公開卓", createdAt: "2026-06-28", kyokuCount: 5 },
+        ]);
+      }),
+    );
+    const cards = await client.getPublicGames();
+    expect(cards[0]?.ownerId).toBe("u9");
+  });
+
   it("getGame は 404 で null", async () => {
     const client = createApiClient(
       "https://api.test",

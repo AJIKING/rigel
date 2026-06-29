@@ -47,6 +47,24 @@ export interface GameDetail {
   logs: GameLog[];
 }
 
+/** マイページの半荘カード（局数・公開数つき）。 */
+export interface MyGameCard {
+  id: string;
+  title: string;
+  createdAt: string;
+  kyokuCount: number;
+  publicCount: number;
+}
+
+/** 公開牌譜フィードの半荘カード。 */
+export interface PublicGameCard {
+  id: string;
+  ownerId: string;
+  title: string;
+  createdAt: string;
+  kyokuCount: number;
+}
+
 export type AnalyzeResult =
   { ok: true; gameId: string; logId: string } | { ok: false; status: number; reason?: string };
 
@@ -59,6 +77,10 @@ export interface ApiClient {
   fetchMe(token: string): Promise<AuthUser | null>;
   /** ログインユーザーの半荘一覧。 */
   getGames(token: string): Promise<Game[]>;
+  /** マイページ用: 自分の半荘＋局数/公開数。 */
+  getMyGames(token: string): Promise<MyGameCard[]>;
+  /** 公開牌譜フィード（全ユーザーの公開半荘・新着順）。認証不要。 */
+  getPublicGames(): Promise<PublicGameCard[]>;
   /** 半荘詳細（半荘 + 局一覧）。見つからなければ null。 */
   getGame(token: string, id: string): Promise<GameDetail | null>;
   /**
@@ -124,6 +146,18 @@ export function createApiClient(baseUrl: string, fetchImpl?: typeof fetch): ApiC
       const res = await doFetch(`${baseUrl}/games`, { headers: bearer(token) });
       if (!res.ok) throw new Error(`games failed: ${res.status}`);
       return res.json() as Promise<Game[]>;
+    },
+
+    async getMyGames(token) {
+      const res = await doFetch(`${baseUrl}/me/games`, { headers: bearer(token) });
+      if (!res.ok) throw new Error(`my games failed: ${res.status}`);
+      return res.json() as Promise<MyGameCard[]>;
+    },
+
+    async getPublicGames() {
+      const res = await doFetch(`${baseUrl}/games/public`);
+      if (!res.ok) throw new Error(`public games failed: ${res.status}`);
+      return res.json() as Promise<PublicGameCard[]>;
     },
 
     async getGame(token, id) {

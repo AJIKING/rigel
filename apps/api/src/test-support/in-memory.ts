@@ -67,6 +67,15 @@ export class InMemoryGameLogRepository implements GameLogRepository {
     );
   }
 
+  listPublic(limit: number): Promise<GameLog[]> {
+    return Promise.resolve(
+      this.saved
+        .filter((g) => g.visibility === "public")
+        .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+        .slice(0, limit),
+    );
+  }
+
   deleteById(id: string): Promise<void> {
     const i = this.saved.findIndex((g) => g.id === id);
     if (i >= 0) this.saved.splice(i, 1);

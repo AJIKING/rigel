@@ -79,6 +79,18 @@ export function createApp(): Hono<AppEnv> {
     return c.json(games);
   });
 
+  // マイページ用: 自分の半荘＋局数/公開数。
+  app.get("/me/games", requireAuth, async (c) => {
+    const cards = await c.get("container").listMyGamesWithCounts.execute(c.get("userId")!);
+    return c.json(cards);
+  });
+
+  // 公開牌譜フィード: 公開局を含む半荘を新着順に（全ユーザー・閲覧は自由）。
+  app.get("/games/public", async (c) => {
+    const cards = await c.get("container").listPublicGames.execute();
+    return c.json(cards);
+  });
+
   // 半荘詳細（半荘 + 局一覧）。所有者のみ。
   app.get("/games/:id", requireAuth, async (c) => {
     const detail = await c.get("container").getGameWithLogs.execute(c.req.param("id"));

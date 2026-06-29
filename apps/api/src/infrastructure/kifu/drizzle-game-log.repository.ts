@@ -78,6 +78,17 @@ export class DrizzleGameLogRepository implements GameLogRepository {
     return row?.n ?? 0;
   }
 
+  async listPublic(limit: number): Promise<GameLog[]> {
+    const rows = await this.db
+      .select()
+      .from(gameLogs)
+      .where(eq(gameLogs.visibility, "public"))
+      .orderBy(desc(gameLogs.createdAt))
+      .limit(limit)
+      .all();
+    return rows.map(toDomain);
+  }
+
   async deleteById(id: string): Promise<void> {
     await this.db.delete(gameLogs).where(eq(gameLogs.id, id));
   }
