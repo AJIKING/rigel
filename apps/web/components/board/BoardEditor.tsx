@@ -8,14 +8,7 @@ import {
   type Seat,
   type Tile,
 } from "@rigel/schema";
-import {
-  applyTileEdit,
-  needsReview,
-  tileAssetName,
-  tileLabel,
-  visibilityLabel,
-  type TileLocation,
-} from "@rigel/ui";
+import { applyTileEdit, needsReview, visibilityLabel, type TileLocation } from "@rigel/ui";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
@@ -26,7 +19,9 @@ import {
   type GameDetail,
   type GameLog,
 } from "../../lib/api";
+import { SEAT_ORDER, chunk, roundName, windOf } from "../../lib/board";
 import { useAuth } from "../../lib/auth-context";
+import { OssTileFace } from "../OssTileFace";
 import { AddKyokuModal } from "./AddKyokuModal";
 import s from "./board-editor.module.css";
 
@@ -36,9 +31,6 @@ const SLOTS: { cam: CameraSeat; cls: string }[] = [
   { cam: "top", cls: s.seatT },
   { cam: "left", cls: s.seatL },
 ];
-const SEAT_ORDER: Seat[] = ["east", "south", "west", "north"];
-const WINDS = ["東", "南", "西", "北"];
-const KANJI = ["一", "二", "三", "四"];
 const SUITS = [
   { suit: "m", label: "萬" },
   { suit: "p", label: "筒" },
@@ -53,14 +45,6 @@ const NUMS: Record<Suit, Tile[]> = {
   z: ["1z", "2z", "3z", "4z", "5z", "6z", "7z"],
 };
 
-function chunk<T>(a: T[], n: number): T[][] {
-  const r: T[][] = [];
-  for (let i = 0; i < a.length; i += n) r.push(a.slice(i, i + n));
-  return r;
-}
-function windOf(seat: Seat, dealer: Seat): string {
-  return WINDS[(SEAT_ORDER.indexOf(seat) - SEAT_ORDER.indexOf(dealer) + 4) % 4];
-}
 function fkey(loc: TileLocation): string {
   return `${loc.seat}:${loc.area}:${loc.meldIndex ?? "-"}:${loc.index}`;
 }
@@ -78,17 +62,6 @@ type Selection =
   | { kind: "add"; seat: Seat; area: "hand" | "river" }
   | { kind: "dora" }
   | null;
-
-/** OSS 牌の面（Front + シンボルの2枚重ね）。code が null なら Front のみ。 */
-function TileFace({ code }: { code: Tile | null }) {
-  const asset = code ? tileAssetName(code) : null;
-  return (
-    <>
-      <img src="/tiles/Front.svg" alt="" />
-      {asset ? <img src={`/tiles/${asset}.svg`} alt={tileLabel(code)} /> : null}
-    </>
-  );
-}
 
 function BoardTile({
   code,
@@ -133,7 +106,7 @@ function BoardTile({
         onClick(e);
       }}
     >
-      <TileFace code={code} />
+      <OssTileFace code={code} />
     </button>
   );
 }
@@ -141,7 +114,7 @@ function BoardTile({
 function DoraGlyph({ code }: { code: Tile }) {
   return (
     <span className={s.doraT}>
-      <TileFace code={code} />
+      <OssTileFace code={code} />
     </span>
   );
 }
@@ -439,7 +412,7 @@ function Editor(p: EditorProps) {
     }
   }
 
-  const round = `${WINDS[Math.min(Math.floor(idx / 4), 3)]}${KANJI[idx % 4]}局`;
+  const round = roundName(idx);
   const shareUrl =
     typeof window !== "undefined" ? `${window.location.origin}/kifu/${gameId}/${log.id}` : "";
 
@@ -692,7 +665,7 @@ function Editor(p: EditorProps) {
                             setRoundMenu(false);
                           }}
                         >
-                          {`${WINDS[Math.min(Math.floor(i / 4), 3)]}${KANJI[i % 4]}局`}
+                          {roundName(i)}
                           <small>第{l.seq}局</small>
                         </button>
                       ))}
@@ -936,7 +909,7 @@ function Editor(p: EditorProps) {
             {NUMS[suit].map((code) => (
               <button key={code} className={s.pk} onClick={() => applyTile(code)}>
                 <span className={s.tile}>
-                  <TileFace code={code} />
+                  <OssTileFace code={code} />
                 </span>
               </button>
             ))}

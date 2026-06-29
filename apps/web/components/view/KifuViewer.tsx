@@ -1,12 +1,13 @@
 "use client";
 
 import { toAbsoluteSeat, type CameraSeat, type Kifu, type Seat, type Tile } from "@rigel/schema";
-import { tileAssetName, tileLabel } from "@rigel/ui";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { getPublicGameDetail, type PublicGameDetail } from "../../lib/api";
+import { SEAT_ORDER, chunk, roundName, windOf } from "../../lib/board";
 import { fmtDate } from "../../lib/format";
 import { useFavorites } from "../../lib/use-favorites";
+import { OssTileFace } from "../OssTileFace";
 import s from "./kifu-view.module.css";
 
 const SLOTS: { cam: CameraSeat; cls: string }[] = [
@@ -15,18 +16,6 @@ const SLOTS: { cam: CameraSeat; cls: string }[] = [
   { cam: "top", cls: s.seatT },
   { cam: "left", cls: s.seatL },
 ];
-const SEAT_ORDER: Seat[] = ["east", "south", "west", "north"];
-const WINDS = ["東", "南", "西", "北"];
-const KANJI = ["一", "二", "三", "四"];
-
-function windOf(seat: Seat, dealer: Seat): string {
-  return WINDS[(SEAT_ORDER.indexOf(seat) - SEAT_ORDER.indexOf(dealer) + 4) % 4];
-}
-function chunk<T>(a: T[], n: number): T[][] {
-  const r: T[][] = [];
-  for (let i = 0; i < a.length; i += n) r.push(a.slice(i, i + n));
-  return r;
-}
 
 /** 1牌（OSS 画像 / 裏向き）。 */
 function ViewTile({
@@ -53,11 +42,9 @@ function ViewTile({
     .filter(Boolean)
     .join(" ");
   if (back) return <span className={cls} />;
-  const asset = code ? tileAssetName(code) : null;
   return (
     <span className={cls}>
-      <img src="/tiles/Front.svg" alt="" />
-      {asset ? <img src={`/tiles/${asset}.svg`} alt={tileLabel(code ?? null)} /> : null}
+      <OssTileFace code={code ?? null} />
     </span>
   );
 }
@@ -148,7 +135,7 @@ export function KifuViewer({ gameId }: { gameId: string }) {
       </Shell>
     );
 
-  const round = `${WINDS[Math.min(Math.floor(gi / 4), 3)]}${KANJI[gi % 4]}局`;
+  const round = roundName(gi);
   const authorName = detail.owner.handle ?? detail.owner.id.slice(0, 6);
   const curJunme = revealed[dealer];
   const resultLabel =
@@ -323,7 +310,7 @@ export function KifuViewer({ gameId }: { gameId: string }) {
                 >
                   {detail.logs.map((l, i) => (
                     <option key={l.id} value={i}>
-                      {`${WINDS[Math.min(Math.floor(i / 4), 3)]}${KANJI[i % 4]}局`}
+                      {roundName(i)}
                     </option>
                   ))}
                 </select>
@@ -442,8 +429,7 @@ export function KifuViewer({ gameId }: { gameId: string }) {
                           className={`${s.ritem} ${i === gi ? s.on : ""}`}
                           onClick={() => switchLog(i)}
                         >
-                          {`${WINDS[Math.min(Math.floor(i / 4), 3)]}${KANJI[i % 4]}局`}{" "}
-                          <small>第{l.seq}局</small>
+                          {roundName(i)} <small>第{l.seq}局</small>
                         </button>
                       ))}
                     </div>
