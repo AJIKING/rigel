@@ -174,9 +174,14 @@ export function KifuListShell() {
           </button>
         </nav>
         <div className={s.spacer} />
-        <div className={s.avatar} aria-hidden>
+        <button
+          type="button"
+          className={s.avatar}
+          aria-label="設定"
+          onClick={() => router.push("/settings")}
+        >
           {avatarInitial}
-        </div>
+        </button>
       </header>
 
       <main className={s.main}>

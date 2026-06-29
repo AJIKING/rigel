@@ -120,6 +120,8 @@
   font-size: 13px;
   color: #0c0e12;
   background: linear-gradient(135deg, #ffb35c, #ff7d33);
+  border: 0;
+  cursor: pointer;
 }
 
 /* shell main */

@@ -101,7 +101,7 @@ rigel/
     │   ├── src/interfaces/http/   #   Hono アプリ（/auth/google /me /games /kifu /analyze …）
     │   ├── src/eval/              #   AI精度の指標（accuracy.ts）
     │   └── drizzle.config.ts / migrations/  #   D1 マイグレーション
-    ├── web/     web               # Next.js (App Router)。/capture /kifu(一覧→半荘→牌譜) /login
+    ├── web/     web               # Next.js (App Router)。/capture /kifu(一覧マイページ/公開) /kifu/[gameId]/[logId](盤面エディタ) /settings /u/[handle] /login
     └── mobile/  mobile            # Expo + react-navigation。Capture/GamesList/GameDetail/Board/Login
 ```
 
