@@ -2,16 +2,12 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { getMyGames, getPublicGames, type MyGameCard, type PublicGameCard } from "../../lib/api";
 import { useAuth } from "../../lib/auth-context";
+import { fmtDateSlash } from "../../lib/format";
+import { useFavorites } from "../../lib/use-favorites";
 import s from "./kifu-list.module.css";
-
-const FAV_KEY = "rigel.favs";
-
-function fmtDate(iso: string): string {
-  return iso.slice(0, 10).replace(/-/g, "/");
-}
 
 /** 卓チップのサムネ（純CSS）。 */
 function Thumb() {
@@ -82,35 +78,12 @@ export function KifuListShell() {
   const [mine, setMine] = useState<MyGameCard[] | null>(null);
   const [pub, setPub] = useState<PublicGameCard[] | null>(null);
 
-  const [favs, setFavs] = useState<Set<string>>(new Set());
+  const { favs, toggle: toggleFav } = useFavorites();
   const [mineStatus, setMineStatus] = useState<"all" | "pub" | "priv" | "fav">("all");
   const [mineSort, setMineSort] = useState<"new" | "old" | "kyoku">("new");
   const [mineQ, setMineQ] = useState("");
   const [pubSort, setPubSort] = useState<"new" | "kyoku">("new");
   const [pubQ, setPubQ] = useState("");
-
-  // お気に入りは localStorage（端末ローカル）。
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem(FAV_KEY);
-      if (raw) setFavs(new Set(JSON.parse(raw) as string[]));
-    } catch {
-      /* noop */
-    }
-  }, []);
-  const toggleFav = useCallback((id: string) => {
-    setFavs((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      try {
-        localStorage.setItem(FAV_KEY, JSON.stringify([...next]));
-      } catch {
-        /* noop */
-      }
-      return next;
-    });
-  }, []);
 
   // 未ログインなら「公開牌譜」タブを既定にする（マイページは要ログインのため）。
   const autoTab = useRef(false);
@@ -291,7 +264,7 @@ export function KifuListShell() {
                     }
                     meta={
                       <>
-                        {fmtDate(c.createdAt)}
+                        {fmtDateSlash(c.createdAt)}
                         <span className={s.sep}>·</span>
                         {c.kyokuCount}局
                       </>
@@ -360,7 +333,7 @@ export function KifuListShell() {
                           @{c.ownerId.slice(0, 6)}
                         </span>
                         <span className={s.sep}>·</span>
-                        {fmtDate(c.createdAt)}
+                        {fmtDateSlash(c.createdAt)}
                         <span className={s.sep}>·</span>
                         {c.kyokuCount}局
                       </>

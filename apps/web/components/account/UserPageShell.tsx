@@ -2,15 +2,11 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { getPublicProfile, type PublicProfile } from "../../lib/api";
+import { fmtDateSlash } from "../../lib/format";
+import { useFavorites } from "../../lib/use-favorites";
 import s from "./account.module.css";
-
-const FAV_KEY = "rigel.favs";
-
-function fmtDate(iso: string): string {
-  return iso.slice(0, 10).replace(/-/g, "/");
-}
 
 function Thumb() {
   return (
@@ -29,29 +25,7 @@ export function UserPageShell({ idOrHandle }: { idOrHandle: string }) {
   const router = useRouter();
   const [profile, setProfile] = useState<PublicProfile | null>(null);
   const [state, setState] = useState<"loading" | "ok" | "notfound">("loading");
-  const [favs, setFavs] = useState<Set<string>>(new Set());
-
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem(FAV_KEY);
-      if (raw) setFavs(new Set(JSON.parse(raw) as string[]));
-    } catch {
-      /* noop */
-    }
-  }, []);
-  const toggleFav = useCallback((id: string) => {
-    setFavs((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      try {
-        localStorage.setItem(FAV_KEY, JSON.stringify([...next]));
-      } catch {
-        /* noop */
-      }
-      return next;
-    });
-  }, []);
+  const { favs, toggle: toggleFav } = useFavorites();
 
   useEffect(() => {
     getPublicProfile(idOrHandle)
@@ -110,7 +84,7 @@ export function UserPageShell({ idOrHandle }: { idOrHandle: string }) {
                       <Thumb />
                       <h3 className={s.ctitle}>{g.title || "（無題の半荘）"}</h3>
                       <div className={s.cmeta}>
-                        {fmtDate(g.createdAt)}
+                        {fmtDateSlash(g.createdAt)}
                         <span className={s.sep}>·</span>
                         {g.kyokuCount}局
                       </div>
