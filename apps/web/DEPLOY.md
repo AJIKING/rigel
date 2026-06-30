@@ -33,8 +33,8 @@ GitHub → Actions → **Deploy rigel-web** → Run workflow → `ref` に検証
 `main`（または特定 SHA）を指定。順に:
 
 1. **preflight**: `pnpm typecheck` / `pnpm test`
-2. **deploy**: `pnpm --filter web cf:deploy`（内部で next build → OpenNext 変換 →
-   `wrangler deploy`。`NEXT_PUBLIC_*` はこの build 時にバンドルへ焼かれる）
+2. **deploy**: `cf:build`（next build → OpenNext 変換。`NEXT_PUBLIC_*` をここで
+   バンドルへ焼く）→ `cf:deploy`（生成済み `.open-next/` を `wrangler deploy`）
 
 ## ローカル確認の注意（Windows）
 

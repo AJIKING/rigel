@@ -88,14 +88,20 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      # cf:deploy は内部で next build → OpenNext 変換 → wrangler deploy を実行する。
+      # cf:build = next build → OpenNext 変換（.open-next/ を生成）。
       # NEXT_PUBLIC_* はこの build 時にバンドルへ焼かれるため env で渡す。
-      # CLOUDFLARE_API_TOKEN / _ACCOUNT_ID は wrangler が自動で参照する。
-      - name: Build & Deploy (opennextjs-cloudflare)
+      - name: Build (OpenNext)
         working-directory: apps/web
-        run: pnpm cf:deploy
+        run: pnpm cf:build
         env:
           NEXT_PUBLIC_API_URL: ${{ vars.NEXT_PUBLIC_API_URL || 'https://rigel-api.plaria.workers.dev' }}
           NEXT_PUBLIC_GOOGLE_CLIENT_ID: ${{ vars.NEXT_PUBLIC_GOOGLE_CLIENT_ID }}
+
+      # cf:deploy = 生成済み .open-next/ を wrangler deploy で配信する（ビルドはしない）。
+      # CLOUDFLARE_API_TOKEN / _ACCOUNT_ID は wrangler が自動で参照する。
+      - name: Deploy (wrangler)
+        working-directory: apps/web
+        run: pnpm cf:deploy
+        env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
