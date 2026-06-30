@@ -42,8 +42,11 @@ GitHub → Actions → **Deploy rigel-api** → Run workflow → `ref` に検証
 ## 確認
 
 ```bash
-curl https://<デプロイ先>/health   # {"ok":true}
+curl https://rigel-api.plaria.workers.dev/health   # {"ok":true}
 ```
+
+本番デプロイ先（= web/mobile の `EXPO_PUBLIC_API_URL` / `NEXT_PUBLIC_API_URL`）:
+**https://rigel-api.plaria.workers.dev**
 
 ローカルでの手元確認・個別の `wrangler secret put` 等は
 リポジトリ直下の運用メモ（CLAUDE.md / 過去手順）も参照。
