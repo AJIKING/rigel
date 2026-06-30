@@ -6,7 +6,7 @@
 // ============================================================
 
 import { CameraSeatSchema, SeatSchema } from "@rigel/schema";
-import { Hono, type MiddlewareHandler } from "hono";
+import { Hono, type Context, type MiddlewareHandler } from "hono";
 import { cors } from "hono/cors";
 import type { AppContainer } from "../../composition-root";
 import { buildContainer } from "../../composition-root";
@@ -42,6 +42,21 @@ type AppEnv = {
   Bindings: Env;
   Variables: { container: AppContainer; userId?: string };
 };
+
+/** 空の局を作る POST 共通処理。gameId 無し=新半荘、有り=既存半荘に追加。body: { cameraBottomSeat }。 */
+async function createEmptyKifuRoute(c: Context<AppEnv>, gameId?: string) {
+  const body = (await c.req.json().catch(() => null)) as { cameraBottomSeat?: unknown } | null;
+  const seat = SeatSchema.safeParse(body?.cameraBottomSeat);
+  const result = await c.get("container").createEmptyKifu.execute({
+    userId: c.get("userId")!,
+    gameId,
+    cameraBottomSeat: seat.success ? seat.data : "east",
+  });
+  if (!result.ok) {
+    return c.json({ ok: false, reason: result.reason }, reasonStatus(result.reason));
+  }
+  return c.json({ ok: true, gameId: result.gameId, logId: result.logId }, 201);
+}
 
 /** 認証必須ルートのガード。userId（認証ミドルウェアが載せる）が無ければ 401。 */
 const requireAuth: MiddlewareHandler<AppEnv> = async (c, next) => {
@@ -243,34 +258,11 @@ export function createApp(): Hono<AppEnv> {
     return c.json({ ok: true });
   });
 
-  // 半荘に空の局を追加（手動入力の起点。所有者のみ）。body: { cameraBottomSeat }。
   // 新しい半荘を「空の初局」つきで作る（手動入力の起点。/capture を廃しエディタから開始する導線）。
-  app.post("/games", requireAuth, async (c) => {
-    const body = (await c.req.json().catch(() => null)) as { cameraBottomSeat?: unknown } | null;
-    const seat = SeatSchema.safeParse(body?.cameraBottomSeat);
-    const result = await c.get("container").createEmptyKifu.execute({
-      userId: c.get("userId")!,
-      cameraBottomSeat: seat.success ? seat.data : "east",
-    });
-    if (!result.ok) {
-      return c.json({ ok: false, reason: result.reason }, reasonStatus(result.reason));
-    }
-    return c.json({ ok: true, gameId: result.gameId, logId: result.logId }, 201);
-  });
+  app.post("/games", requireAuth, (c) => createEmptyKifuRoute(c));
 
-  app.post("/games/:id/kifu", requireAuth, async (c) => {
-    const body = (await c.req.json().catch(() => null)) as { cameraBottomSeat?: unknown } | null;
-    const seat = SeatSchema.safeParse(body?.cameraBottomSeat);
-    const result = await c.get("container").createEmptyKifu.execute({
-      userId: c.get("userId")!,
-      gameId: c.req.param("id"),
-      cameraBottomSeat: seat.success ? seat.data : "east",
-    });
-    if (!result.ok) {
-      return c.json({ ok: false, reason: result.reason }, reasonStatus(result.reason));
-    }
-    return c.json({ ok: true, gameId: result.gameId, logId: result.logId }, 201);
-  });
+  // 既存の半荘に空の局を追加（手動入力の起点。所有者のみ）。body: { cameraBottomSeat }。
+  app.post("/games/:id/kifu", requireAuth, (c) => createEmptyKifuRoute(c, c.req.param("id")));
 
   // 牌譜の修正を保存（所有者のみ）。body は Kifu JSON。
   app.put("/kifu/:id", requireAuth, async (c) => {

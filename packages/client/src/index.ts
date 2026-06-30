@@ -166,6 +166,22 @@ export function createApiClient(baseUrl: string, fetchImpl?: typeof fetch): ApiC
   const bearer = (token: string): HeadersInit => ({ authorization: `Bearer ${token}` });
   const doFetch: typeof fetch = (input, init) => (fetchImpl ?? fetch)(input, init);
 
+  /** 空の局を作る POST 共通処理（新半荘=POST /games / 既存=POST /games/:id/kifu）。 */
+  async function postCreateEmpty(
+    url: string,
+    token: string,
+    cameraBottomSeat: Seat,
+  ): Promise<{ ok: true; gameId: string; logId: string } | { ok: false; status: number }> {
+    const res = await doFetch(url, {
+      method: "POST",
+      headers: { ...bearer(token), "content-type": "application/json" },
+      body: JSON.stringify({ cameraBottomSeat }),
+    });
+    if (!res.ok) return { ok: false, status: res.status };
+    const d = (await res.json()) as { gameId: string; logId: string };
+    return { ok: true, gameId: d.gameId, logId: d.logId };
+  }
+
   return {
     async authWithGoogle(idToken) {
       const res = await doFetch(`${baseUrl}/auth/google`, {
@@ -278,25 +294,11 @@ export function createApiClient(baseUrl: string, fetchImpl?: typeof fetch): ApiC
     },
 
     async createGame(token, cameraBottomSeat) {
-      const res = await doFetch(`${baseUrl}/games`, {
-        method: "POST",
-        headers: { ...bearer(token), "content-type": "application/json" },
-        body: JSON.stringify({ cameraBottomSeat }),
-      });
-      if (!res.ok) return { ok: false, status: res.status };
-      const d = (await res.json()) as { gameId: string; logId: string };
-      return { ok: true, gameId: d.gameId, logId: d.logId };
+      return postCreateEmpty(`${baseUrl}/games`, token, cameraBottomSeat);
     },
 
     async createEmptyKifu(token, gameId, cameraBottomSeat) {
-      const res = await doFetch(`${baseUrl}/games/${gameId}/kifu`, {
-        method: "POST",
-        headers: { ...bearer(token), "content-type": "application/json" },
-        body: JSON.stringify({ cameraBottomSeat }),
-      });
-      if (!res.ok) return { ok: false, status: res.status };
-      const d = (await res.json()) as { gameId: string; logId: string };
-      return { ok: true, gameId: d.gameId, logId: d.logId };
+      return postCreateEmpty(`${baseUrl}/games/${gameId}/kifu`, token, cameraBottomSeat);
     },
 
     async updateProfile(token, update) {
