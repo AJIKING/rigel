@@ -29,6 +29,8 @@ GEMINI_RIVER_MODEL = "gemini-2.5-flash"       # 河=難所
 GEMINI_HAND_MODEL = "gemini-2.5-flash-lite"   # 手牌=素直なタスク
 # Google OAuth クライアントID（公開値。IDトークンの aud 検証に使う。client secret は不要）。
 GOOGLE_CLIENT_ID = "561655423126-1r9luc1tveq2ruhkc6a23dp7ems868cq.apps.googleusercontent.com"
+# CORS 許可オリジン（カンマ区切り。web の本番ドメイン。localhost は既定で許可）。
+ALLOWED_ORIGINS = "https://rigel.plaria.co.jp"
 # サブスクの価格ID（公開値・秘密ではない）。RIGEL Next=¥480 / RIGEL Pro=¥1480。
 STRIPE_PRICE_NEXT = "price_1TnGLeLYWvIdYJVUk7f9jGUk"
 STRIPE_PRICE_PRO = "price_1TnGN3LYWvIdYJVUvg6fCymx"

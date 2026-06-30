@@ -34,6 +34,35 @@ describe("HTTP app (Hono)", () => {
     expect(await res.json()).toEqual({ ok: true });
   });
 
+  it("CORS: 許可オリジンのプリフライトに ACAO を返す", async () => {
+    const env = { ...fakeEnv, ALLOWED_ORIGINS: "https://rigel.plaria.co.jp" } satisfies Env;
+    const res = await app.request(
+      "/auth/google",
+      {
+        method: "OPTIONS",
+        headers: {
+          origin: "https://rigel.plaria.co.jp",
+          "access-control-request-method": "POST",
+        },
+      },
+      env,
+    );
+    expect(res.headers.get("access-control-allow-origin")).toBe("https://rigel.plaria.co.jp");
+  });
+
+  it("CORS: 許可外オリジンには ACAO を返さない", async () => {
+    const env = { ...fakeEnv, ALLOWED_ORIGINS: "https://rigel.plaria.co.jp" } satisfies Env;
+    const res = await app.request(
+      "/auth/google",
+      {
+        method: "OPTIONS",
+        headers: { origin: "https://evil.example", "access-control-request-method": "POST" },
+      },
+      env,
+    );
+    expect(res.headers.get("access-control-allow-origin")).toBeNull();
+  });
+
   it("POST /kifu/validate は正しい牌譜を 200 で受理する", async () => {
     const res = await app.request("/kifu/validate", jsonInit(minimalKifuInput), fakeEnv);
     expect(res.status).toBe(200);

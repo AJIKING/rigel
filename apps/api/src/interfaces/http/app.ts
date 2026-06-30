@@ -7,6 +7,7 @@
 
 import { CameraSeatSchema, SeatSchema } from "@rigel/schema";
 import { Hono, type MiddlewareHandler } from "hono";
+import { cors } from "hono/cors";
 import type { AppContainer } from "../../composition-root";
 import { buildContainer } from "../../composition-root";
 import type { Env } from "../../env";
@@ -48,8 +49,33 @@ const requireAuth: MiddlewareHandler<AppEnv> = async (c, next) => {
   await next();
 };
 
+/** localhost 開発オリジンは常に許可する（本番ドメインは ALLOWED_ORIGINS で渡す）。 */
+const DEV_ORIGINS = ["http://localhost:3000"];
+
 export function createApp(): Hono<AppEnv> {
   const app = new Hono<AppEnv>();
+
+  // CORS。web は別オリジン（rigel.plaria.co.jp）から API を叩くため、
+  // 許可オリジンのプリフライト/レスポンスに ACAO を返す。認証は Bearer
+  // トークン方式（Cookie 不使用）なので credentials は不要。最初に置いて
+  // OPTIONS プリフライトを DB 無しで処理する。
+  app.use("*", (c, next) =>
+    cors({
+      origin: (origin) => {
+        const allow = [
+          ...(c.env.ALLOWED_ORIGINS ?? "")
+            .split(",")
+            .map((s) => s.trim())
+            .filter(Boolean),
+          ...DEV_ORIGINS,
+        ];
+        return allow.includes(origin) ? origin : null;
+      },
+      allowHeaders: ["Content-Type", "Authorization"],
+      allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+      maxAge: 86400,
+    })(c, next),
+  );
 
   // リクエストごとに DI コンテナを組み立ててコンテキストに載せる。
   app.use("*", async (c, next) => {

@@ -14,6 +14,9 @@ export interface Env {
   GEMINI_HAND_MODEL?: string;
   /** Google OAuth クライアントID（ID トークンの aud 検証に使う）。 */
   GOOGLE_CLIENT_ID: string;
+  /** CORS 許可オリジン（カンマ区切り。例: "https://rigel.plaria.co.jp"）。
+   *  localhost 開発オリジンは既定で常に許可するので本番ドメインだけ列挙すればよい。 */
+  ALLOWED_ORIGINS?: string;
   /** セッショントークンの署名鍵（Secret）。 */
   SESSION_SECRET: string;
   /** Stripe シークレットキー（Secret。未設定なら課金機能は無効）。 */
