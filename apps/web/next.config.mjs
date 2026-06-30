@@ -1,3 +1,5 @@
+import { initOpenNextCloudflareForDev } from "@opennextjs/cloudflare";
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
@@ -8,5 +10,9 @@ const nextConfig = {
     ignoreDuringBuilds: true,
   },
 };
+
+// `next dev` で Cloudflare バインディング（getCloudflareContext）を使えるようにする。
+// dev 以外では no-op。本番ビルド（next build / opennextjs-cloudflare build）には影響しない。
+initOpenNextCloudflareForDev();
 
 export default nextConfig;

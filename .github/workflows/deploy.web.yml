@@ -1,0 +1,101 @@
+name: Deploy rigel-web
+
+# 手動 promote のみ。検証済みの main の特定 SHA を ref で指定する。
+# preflight（検証ゲート）→ deploy（OpenNext で Cloudflare Workers へ）の順。
+# Next.js(App Router/動的ルート) を @opennextjs/cloudflare で Workers 上に SSR 配信する。
+# ビルド（next build → OpenNext 変換）は Linux ランナーで実行する
+# （Windows ローカルは standalone のシンボリックリンク権限で失敗するため CI 専用）。
+#
+# 前提（GitHub 側に用意するもの）:
+#   - environment "production"（api と共用。CLOUDFLARE_API_TOKEN / _ACCOUNT_ID を使う）
+#   - Variables（公開ビルド値。Secrets ではなく Variables でよい＝バンドルに焼かれる公開値）:
+#       NEXT_PUBLIC_API_URL          … 本番 API のベースURL（既定: rigel-api のデプロイ先）
+#       NEXT_PUBLIC_GOOGLE_CLIENT_ID … Google OAuth Web クライアントID（id_token フロー用）
+#   - Secrets（Workers デプロイ権限。api と同じものを流用）:
+#       CLOUDFLARE_API_TOKEN / CLOUDFLARE_ACCOUNT_ID
+#   - apps/web/wrangler.jsonc の name（rigel-web）で Worker を作成（初回 deploy で自動作成可）
+#
+# 注: web に実行時 Worker Secrets は無い（NEXT_PUBLIC_* はビルド時にバンドルへ焼かれる公開値）。
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "Git ref（検証済みの main ブランチ / 特定 SHA）"
+        required: true
+        default: "main"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-web
+  cancel-in-progress: false
+
+jobs:
+  preflight:
+    name: 検証ゲート（typecheck / test）
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.ref }}
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 10.13.1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Test
+        run: pnpm test
+
+  deploy:
+    name: Workers デプロイ（OpenNext）
+    needs: preflight
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.ref }}
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 10.13.1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # cf:deploy は内部で next build → OpenNext 変換 → wrangler deploy を実行する。
+      # NEXT_PUBLIC_* はこの build 時にバンドルへ焼かれるため env で渡す。
+      # CLOUDFLARE_API_TOKEN / _ACCOUNT_ID は wrangler が自動で参照する。
+      - name: Build & Deploy (opennextjs-cloudflare)
+        working-directory: apps/web
+        run: pnpm cf:deploy
+        env:
+          NEXT_PUBLIC_API_URL: ${{ vars.NEXT_PUBLIC_API_URL || 'https://rigel-api.plaria.workers.dev' }}
+          NEXT_PUBLIC_GOOGLE_CLIENT_ID: ${{ vars.NEXT_PUBLIC_GOOGLE_CLIENT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}

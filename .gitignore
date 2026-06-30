@@ -13,6 +13,8 @@ next-env.d.ts
 # cloudflare / wrangler
 .wrangler/
 .dev.vars
+# opennextjs/cloudflare build output (web)
+.open-next/
 
 # expo / react native
 .expo/

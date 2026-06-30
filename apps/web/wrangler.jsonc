@@ -1,0 +1,15 @@
+{
+  // Next.js(web) を Cloudflare Workers で動かすための設定（@opennextjs/cloudflare）。
+  // ビルド成果物 .open-next/ は opennextjs-cloudflare build が生成する（コミットしない）。
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "rigel-web",
+  "main": ".open-next/worker.js",
+  "compatibility_date": "2025-03-25",
+  // OpenNext ランタイムは Node 互換 API を要求する。
+  "compatibility_flags": ["nodejs_compat"],
+  // 静的アセット（_next/static や public/）は Workers Assets で配信する。
+  "assets": {
+    "binding": "ASSETS",
+    "directory": ".open-next/assets",
+  },
+}
