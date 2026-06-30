@@ -12,4 +12,8 @@
     "binding": "ASSETS",
     "directory": ".open-next/assets",
   },
+  // カスタムドメイン。custom_domain=true で deploy 時に DNS レコードと証明書を
+  // 自動発行する（plaria.co.jp が同一 Cloudflare アカウントのゾーンで、
+  // API トークンに Zone DNS 編集権限がある前提）。
+  "routes": [{ "pattern": "rigel.plaria.co.jp", "custom_domain": true }],
 }
