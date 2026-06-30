@@ -892,7 +892,8 @@
   background: var(--chrome-3);
 }
 .pk .tile {
-  position: static;
+  /* relative を保つ（static にすると .tile img の absolute が .tilepop 基準で巨大化する）。 */
+  position: relative;
   width: 27px;
   height: 38px;
   cursor: pointer;
