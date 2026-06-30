@@ -41,28 +41,27 @@
   color: #fff;
   border-color: var(--w45);
 }
+.doc {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 28px 22px 96px;
+}
 .titles {
-  display: flex;
-  align-items: baseline;
-  gap: 10px;
+  margin: 0 0 24px;
 }
 .h1 {
   margin: 0;
   font-family: var(--round);
   font-weight: 800;
-  font-size: 18px;
+  font-size: 26px;
   letter-spacing: 0.04em;
 }
 .en {
-  font-size: 11px;
+  display: block;
+  margin-top: 4px;
+  font-size: 12px;
   color: var(--w45);
   letter-spacing: 0.08em;
-}
-
-.doc {
-  max-width: 760px;
-  margin: 0 auto;
-  padding: 28px 22px 96px;
 }
 .intro {
   margin: 0 0 28px;

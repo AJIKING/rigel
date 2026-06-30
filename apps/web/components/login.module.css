@@ -136,6 +136,31 @@
   min-height: 44px;
 }
 
+/* ログインせず公開牌譜を見る導線（Google ボタンの下） */
+.browse {
+  margin-top: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  max-width: 320px;
+  padding: 11px 18px;
+  font-family: var(--round);
+  font-weight: 700;
+  font-size: 14px;
+  color: var(--w70);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  text-decoration: none;
+  transition:
+    color 0.15s,
+    border-color 0.15s;
+}
+.browse:hover {
+  color: #fff;
+  border-color: var(--w45);
+}
+
 .status {
   font-size: 14px;
   color: var(--w70);

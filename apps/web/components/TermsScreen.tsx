@@ -170,13 +170,13 @@ export function TermsScreen() {
         <button type="button" className={s.back} onClick={onBack} aria-label="戻る">
           ‹
         </button>
+      </header>
+
+      <main className={s.doc}>
         <div className={s.titles}>
           <h1 className={s.h1}>利用規約</h1>
           <span className={s.en}>Terms of Service</span>
         </div>
-      </header>
-
-      <main className={s.doc}>
         <p className={s.intro}>{INTRO}</p>
 
         {ARTICLES.map((a) => (

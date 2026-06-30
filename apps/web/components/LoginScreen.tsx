@@ -41,9 +41,12 @@ export function LoginScreen() {
               <p className={s.tagline}>
                 牌譜の保存・共有には Google ログインが必要です。
                 <br />
-                保存済み牌譜の閲覧はログイン不要です。
+                公開牌譜の閲覧はどなたでも可能です。
               </p>
               <GoogleSignInButton />
+              <Link href="/explore" className={s.browse}>
+                牌譜をみてみる
+              </Link>
               <p className={s.legal}>
                 続行すると、<Link href="/terms">利用規約</Link> と{" "}
                 <a
