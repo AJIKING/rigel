@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { useAuth } from "../lib/auth-context";
@@ -44,7 +45,14 @@ export function LoginScreen() {
               </p>
               <GoogleSignInButton />
               <p className={s.legal}>
-                続行すると、<a href="#">利用規約</a> と <a href="#">プライバシーポリシー</a>{" "}
+                続行すると、<Link href="/terms">利用規約</Link> と{" "}
+                <a
+                  href="https://plaria.co.jp/privacypolicy"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  プライバシーポリシー
+                </a>{" "}
                 に同意したものとみなされます。
               </p>
             </>

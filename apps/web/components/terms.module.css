@@ -1,0 +1,134 @@
+/* ============================================================
+   利用規約ページ。テーマ変数は app/theme.css の .themeApp が供給する。
+   ============================================================ */
+
+.shell {
+  background: var(--bg);
+  color: var(--white);
+  font-family: "Noto Sans JP", sans-serif;
+}
+
+.bar {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 20px;
+  background: rgba(22, 24, 29, 0.86);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--line);
+}
+.back {
+  flex: 0 0 auto;
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  font-size: 26px;
+  line-height: 1;
+  color: var(--w70);
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  cursor: pointer;
+  transition:
+    color 0.15s,
+    border-color 0.15s;
+}
+.back:hover {
+  color: #fff;
+  border-color: var(--w45);
+}
+.titles {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+.h1 {
+  margin: 0;
+  font-family: var(--round);
+  font-weight: 800;
+  font-size: 18px;
+  letter-spacing: 0.04em;
+}
+.en {
+  font-size: 11px;
+  color: var(--w45);
+  letter-spacing: 0.08em;
+}
+
+.doc {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 28px 22px 96px;
+}
+.intro {
+  margin: 0 0 28px;
+  font-size: 13.5px;
+  line-height: 2;
+  color: var(--w70);
+}
+
+.art {
+  margin: 0 0 26px;
+}
+.artHead {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin: 0 0 10px;
+  font-family: var(--round);
+  font-weight: 800;
+  font-size: 15.5px;
+}
+.artNo {
+  flex: 0 0 auto;
+  font-size: 12.5px;
+  color: var(--accent);
+  letter-spacing: 0.04em;
+}
+.para {
+  margin: 0 0 10px;
+  font-size: 13.5px;
+  line-height: 2;
+  color: var(--w85);
+}
+.para:last-child {
+  margin-bottom: 0;
+}
+.list {
+  margin: 0;
+  padding-left: 1.5em;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.list li {
+  font-size: 13.5px;
+  line-height: 1.9;
+  color: var(--w85);
+}
+
+.meta {
+  margin-top: 40px;
+  padding-top: 20px;
+  border-top: 1px solid var(--line);
+  font-size: 12.5px;
+  line-height: 1.9;
+  color: var(--w45);
+}
+.meta p {
+  margin: 0;
+}
+.copy {
+  margin-top: 8px;
+  letter-spacing: 0.04em;
+}
+
+@media (max-width: 520px) {
+  .doc {
+    padding: 22px 16px 96px;
+  }
+}
