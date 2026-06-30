@@ -19,11 +19,10 @@
 #
 # トリガーは設定しない = 手動起動のみ（Start new build → ios-testflight）。
 #
-# ⚠️ pnpm モノレポ × Expo prebuild の注意:
-#   ネイティブ依存の解決（CocoaPods / autolinking）が pnpm のシンボリックリンクで
-#   失敗する場合は、リポジトリ直下に `.npmrc` を作り `node-linker=hoisted` を指定して
-#   フラットな node_modules にすると解決する（その場合は他ワークスペースの
-#   ビルドも一度確認すること）。
+# pnpm モノレポ × Expo prebuild の注意:
+#   ネイティブ依存の解決（CocoaPods / autolinking）が pnpm の分離 node_modules では
+#   失敗するため、各ワークフローの install 前に `.npmrc` へ node-linker=hoisted を
+#   書いてフラット配置にしている（CI 本体=ci.yml/deploy には影響させない）。
 
 workflows:
   ios-testflight:
@@ -46,6 +45,11 @@ workflows:
     scripts:
       - name: pnpm を有効化
         script: corepack enable && corepack prepare pnpm@10.13.1 --activate
+
+      - name: ネイティブビルド向けに hoisted linker を指定
+        # RN/Gradle/CocoaPods の autolinking が分離 node_modules で require.resolve に
+        # 失敗するのを避ける。CI 本体（ci.yml / deploy）には影響させず Codemagic ビルドのみ。
+        script: echo "node-linker=hoisted" > .npmrc
 
       - name: 依存をインストール（モノレポ・ルート）
         script: pnpm install --frozen-lockfile
@@ -126,6 +130,11 @@ workflows:
     scripts:
       - name: pnpm を有効化
         script: corepack enable && corepack prepare pnpm@10.13.1 --activate
+
+      - name: ネイティブビルド向けに hoisted linker を指定
+        # RN/Gradle/CocoaPods の autolinking が分離 node_modules で require.resolve に
+        # 失敗するのを避ける。CI 本体（ci.yml / deploy）には影響させず Codemagic ビルドのみ。
+        script: echo "node-linker=hoisted" > .npmrc
 
       - name: 依存をインストール（モノレポ・ルート）
         script: pnpm install --frozen-lockfile
