@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { useAuth } from "../lib/auth-context";
 import { GoogleSignInButton } from "./GoogleSignInButton";
-import { StarMark } from "./StarMark";
+import { BrandMark } from "./BrandMark";
 import s from "./login.module.css";
 
 export function LoginScreen() {
@@ -28,8 +28,7 @@ export function LoginScreen() {
             <i className={s.dot} />
           </div>
           <div className={s.brand}>
-            <StarMark />
-            <span className={s.wm}>RIGEL</span>
+            <BrandMark wordmarkClassName={s.wm} />
           </div>
 
           {loading ? (

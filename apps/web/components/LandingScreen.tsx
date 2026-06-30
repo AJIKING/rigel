@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { StarMark } from "./StarMark";
+import { BrandMark } from "./BrandMark";
 import s from "./landing.module.css";
 
 /** トップ（ランディング）— docs/rigel-lp4.html の再現。
@@ -9,8 +9,7 @@ export function LandingScreen() {
     <div className={`${s.shell} themeApp`}>
       <nav className={s.nav}>
         <Link className={s.brand} href="/">
-          <StarMark className={s.star} />
-          <span className={s.wm}>RIGEL</span>
+          <BrandMark starClassName={s.star} wordmarkClassName={s.wm} />
         </Link>
         <div className={s.spacer} />
         <Link className={s.navLogin} href="/login">
@@ -19,7 +18,7 @@ export function LandingScreen() {
       </nav>
 
       <main className={s.main}>
-        <div className={s.copy}>
+        <div>
           <h1 className={`${s.h1} ${s.enter} ${s.d1}`}>
             牌譜を<span className={s.em}>AI</span>で再現
           </h1>

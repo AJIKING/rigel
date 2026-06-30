@@ -65,3 +65,23 @@
   --meld-h: 37px;
   --board: 760px;
 }
+
+/* ============================================================
+   ダーク全画面シェルの共通スキャフォールド
+   ------------------------------------------------------------
+   .themeApp / .themeBoard はダークシェルのルート要素のみに付くため、
+   全画面化（グローバルの中央寄せ main を抜ける）の構造規則をここへ集約する。
+   背景色・文字色・フォントは画面ごとに異なるので各 module の .shell/.app に残す。
+   ============================================================ */
+.themeApp,
+.themeBoard {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  overflow-y: auto;
+  -webkit-font-smoothing: antialiased;
+}
+.themeApp *,
+.themeBoard * {
+  box-sizing: border-box;
+}

@@ -6,19 +6,11 @@
 
 .shell {
   --rb: 4px; /* 写真・盤面の角丸（LP 固有） */
-  position: fixed;
-  inset: 0;
-  z-index: 40;
-  overflow-y: auto;
   background: var(--bg);
   color: var(--white);
   font-family: "Noto Sans JP", sans-serif;
-  -webkit-font-smoothing: antialiased;
   display: flex;
   flex-direction: column;
-}
-.shell * {
-  box-sizing: border-box;
 }
 .shell a {
   color: inherit;

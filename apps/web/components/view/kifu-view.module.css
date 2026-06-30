@@ -4,18 +4,10 @@
    ============================================================ */
 
 .app {
-  /* テーマ変数は app/theme.css の .themeBoard が供給する。 */
+  /* 全画面スキャフォールドとテーマ変数は app/theme.css の .themeBoard が供給する。 */
   background: var(--chrome);
   color: var(--white);
   font-family: var(--round);
-  -webkit-font-smoothing: antialiased;
-  position: fixed;
-  inset: 0;
-  z-index: 40;
-  overflow-y: auto;
-}
-.app * {
-  box-sizing: border-box;
 }
 
 /* top bar */

@@ -3,18 +3,10 @@
    ============================================================ */
 
 .shell {
-  /* テーマ変数は app/theme.css の .themeApp が供給する。 */
+  /* 全画面スキャフォールドとテーマ変数は app/theme.css の .themeApp が供給する。 */
   background: var(--bg);
   color: var(--white);
   font-family: "Noto Sans JP", sans-serif;
-  -webkit-font-smoothing: antialiased;
-  position: fixed;
-  inset: 0;
-  z-index: 40;
-  overflow-y: auto;
-}
-.shell * {
-  box-sizing: border-box;
 }
 .shell::before {
   content: "";

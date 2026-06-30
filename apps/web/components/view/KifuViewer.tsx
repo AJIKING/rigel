@@ -9,8 +9,8 @@ import { SEAT_ORDER, chunk, roundName, windOf } from "../../lib/board";
 import { useBoardScale } from "../../lib/use-board-scale";
 import { fmtDate } from "../../lib/format";
 import { useFavorites } from "../../lib/use-favorites";
+import { BrandMark } from "../BrandMark";
 import { OssTileFace } from "../OssTileFace";
-import { StarMark } from "../StarMark";
 import s from "./kifu-view.module.css";
 
 const SLOTS: { cam: CameraSeat; cls: string }[] = [
@@ -154,8 +154,7 @@ export function KifuViewer({ gameId }: { gameId: string }) {
       {!fs && (
         <div className={s.bar}>
           <Link href="/kifu" className={s.brand}>
-            <StarMark className={s.star} />
-            <span className={s.wm}>RIGEL</span>
+            <BrandMark starClassName={s.star} wordmarkClassName={s.wm} />
           </Link>
           <div className={s.crumb}>
             <Link href="/kifu">公開牌譜</Link>

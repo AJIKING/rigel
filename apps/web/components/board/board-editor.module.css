@@ -5,19 +5,10 @@
    ============================================================ */
 
 .app {
-  /* テーマ変数は app/theme.css の .themeBoard が供給する。 */
+  /* 全画面スキャフォールドとテーマ変数は app/theme.css の .themeBoard が供給する。 */
   background: var(--em);
   color: var(--white);
   font-family: var(--round);
-  -webkit-font-smoothing: antialiased;
-  /* グローバルの中央寄せ main を抜けて全画面で再現する。 */
-  position: fixed;
-  inset: 0;
-  z-index: 40;
-  overflow-y: auto;
-}
-.app * {
-  box-sizing: border-box;
 }
 
 /* top bar */

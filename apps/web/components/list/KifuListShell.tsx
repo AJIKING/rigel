@@ -7,7 +7,7 @@ import { getMyGames, getPublicGames, type MyGameCard, type PublicGameCard } from
 import { useAuth } from "../../lib/auth-context";
 import { fmtDateSlash } from "../../lib/format";
 import { useFavorites } from "../../lib/use-favorites";
-import { StarMark } from "../StarMark";
+import { BrandMark } from "../BrandMark";
 import s from "./kifu-list.module.css";
 
 /** 卓チップのサムネ（純CSS）。 */
@@ -139,8 +139,7 @@ export function KifuListShell() {
     <div className={`${s.shell} themeApp`}>
       <header className={s.header}>
         <span className={s.brand}>
-          <StarMark />
-          <span className={s.brandName}>RIGEL</span>
+          <BrandMark wordmarkClassName={s.brandName} />
         </span>
         <nav className={s.topnav}>
           <button className={tab === "mine" ? s.on : ""} onClick={() => setTab("mine")}>
