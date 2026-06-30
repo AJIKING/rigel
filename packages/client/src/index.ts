@@ -7,6 +7,9 @@
 
 import type { Kifu, Seat } from "@rigel/schema";
 
+/** 作成時に渡せる局メタ（本場/供託/ドラ/最終巡目）。記録のみ・点数計算はしない。 */
+export type KifuMetaInput = Partial<Pick<Kifu["meta"], "honba" | "kyotaku" | "dora" | "junme">>;
+
 export type Plan = "free" | "next" | "pro";
 export type PaidPlan = "next" | "pro";
 export type Visibility = "public" | "private";
@@ -139,12 +142,14 @@ export interface ApiClient {
   createGame(
     token: string,
     cameraBottomSeat: Seat,
+    meta?: KifuMetaInput,
   ): Promise<{ ok: true; gameId: string; logId: string } | { ok: false; status: number }>;
   /** 半荘に空の局を追加する（手動入力の起点）。成功で gameId/新しい logId を返す。 */
   createEmptyKifu(
     token: string,
     gameId: string,
     cameraBottomSeat: Seat,
+    meta?: KifuMetaInput,
   ): Promise<{ ok: true; gameId: string; logId: string } | { ok: false; status: number }>;
   /** プロフィール（handle/表示名/公開）を更新する。handle 重複は status 409。 */
   updateProfile(
@@ -171,11 +176,12 @@ export function createApiClient(baseUrl: string, fetchImpl?: typeof fetch): ApiC
     url: string,
     token: string,
     cameraBottomSeat: Seat,
+    meta?: KifuMetaInput,
   ): Promise<{ ok: true; gameId: string; logId: string } | { ok: false; status: number }> {
     const res = await doFetch(url, {
       method: "POST",
       headers: { ...bearer(token), "content-type": "application/json" },
-      body: JSON.stringify({ cameraBottomSeat }),
+      body: JSON.stringify({ cameraBottomSeat, meta }),
     });
     if (!res.ok) return { ok: false, status: res.status };
     const d = (await res.json()) as { gameId: string; logId: string };
@@ -293,12 +299,12 @@ export function createApiClient(baseUrl: string, fetchImpl?: typeof fetch): ApiC
       return { ok: res.ok, status: res.status };
     },
 
-    async createGame(token, cameraBottomSeat) {
-      return postCreateEmpty(`${baseUrl}/games`, token, cameraBottomSeat);
+    async createGame(token, cameraBottomSeat, meta) {
+      return postCreateEmpty(`${baseUrl}/games`, token, cameraBottomSeat, meta);
     },
 
-    async createEmptyKifu(token, gameId, cameraBottomSeat) {
-      return postCreateEmpty(`${baseUrl}/games/${gameId}/kifu`, token, cameraBottomSeat);
+    async createEmptyKifu(token, gameId, cameraBottomSeat, meta) {
+      return postCreateEmpty(`${baseUrl}/games/${gameId}/kifu`, token, cameraBottomSeat, meta);
     },
 
     async updateProfile(token, update) {

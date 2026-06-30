@@ -62,6 +62,31 @@ describe("CreateEmptyKifu", () => {
     }
   });
 
+  it("局メタ(本場/供託/ドラ/最終巡目)を渡すと Kifu に焼き込む（記録のみ）", async () => {
+    const { uc, gameLogs } = make({ games: [game("g1", "u1")] });
+    const result = await uc.execute({
+      userId: "u1",
+      gameId: "g1",
+      cameraBottomSeat: "east",
+      meta: { honba: 2, kyotaku: 1, dora: "3p", junme: 9 },
+    });
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      const log = await gameLogs.findById(result.logId);
+      expect(log?.kifu.meta).toMatchObject({ honba: 2, kyotaku: 1, dora: "3p", junme: 9 });
+    }
+  });
+
+  it("局メタ省略時は既定(0/0/null/1)で作る", async () => {
+    const { uc, gameLogs } = make({ games: [game("g1", "u1")] });
+    const result = await uc.execute({ userId: "u1", gameId: "g1", cameraBottomSeat: "east" });
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      const log = await gameLogs.findById(result.logId);
+      expect(log?.kifu.meta).toMatchObject({ honba: 0, kyotaku: 0, dora: null, junme: 1 });
+    }
+  });
+
   it("他人の半荘には追加できない（game_not_found）", async () => {
     const { uc } = make({ games: [game("g1", "someone")] });
     const result = await uc.execute({ userId: "u1", gameId: "g1", cameraBottomSeat: "east" });

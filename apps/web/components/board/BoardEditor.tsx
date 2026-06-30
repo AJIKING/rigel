@@ -19,11 +19,21 @@ import {
   type GameDetail,
   type GameLog,
 } from "../../lib/api";
-import { SEAT_ORDER, chunk, roundName, windOf } from "../../lib/board";
+import {
+  NUMS,
+  SEAT_ORDER,
+  SUITS,
+  chunk,
+  popAnchor,
+  roundName,
+  windOf,
+  type Suit,
+} from "../../lib/board";
 import { useAuth } from "../../lib/auth-context";
 import { useBoardScale } from "../../lib/use-board-scale";
 import { OssTileFace } from "../OssTileFace";
 import { AddKyokuModal } from "./AddKyokuModal";
+import { Stepper } from "./Stepper";
 import s from "./board-editor.module.css";
 
 const SLOTS: { cam: CameraSeat; cls: string }[] = [
@@ -32,20 +42,6 @@ const SLOTS: { cam: CameraSeat; cls: string }[] = [
   { cam: "top", cls: s.seatT },
   { cam: "left", cls: s.seatL },
 ];
-const SUITS = [
-  { suit: "m", label: "萬" },
-  { suit: "p", label: "筒" },
-  { suit: "s", label: "索" },
-  { suit: "z", label: "字" },
-] as const;
-type Suit = "m" | "p" | "s" | "z";
-const NUMS: Record<Suit, Tile[]> = {
-  m: ["1m", "2m", "3m", "4m", "5m", "6m", "7m", "8m", "9m", "0m"],
-  p: ["1p", "2p", "3p", "4p", "5p", "6p", "7p", "8p", "9p", "0p"],
-  s: ["1s", "2s", "3s", "4s", "5s", "6s", "7s", "8s", "9s", "0s"],
-  z: ["1z", "2z", "3z", "4z", "5z", "6z", "7z"],
-};
-
 function fkey(loc: TileLocation): string {
   return `${loc.seat}:${loc.area}:${loc.meldIndex ?? "-"}:${loc.index}`;
 }
@@ -112,12 +108,8 @@ function BoardTile({
   );
 }
 
-function DoraGlyph({ code }: { code: Tile }) {
-  return (
-    <span className={s.doraT}>
-      <OssTileFace code={code} />
-    </span>
-  );
+function DoraGlyph({ code }: { code: Tile | null }) {
+  return <span className={s.doraT}>{code && <OssTileFace code={code} />}</span>;
 }
 
 const RESULTS = ["", "ツモ", "ロン", "放銃", "聴牌", "不聴", "流し満貫"];
@@ -202,11 +194,27 @@ function Editor(p: EditorProps) {
   const bottomSeat: Seat = kifu.cameraBottomSeat ?? "east";
   const dealer: Seat = kifu.meta.dealer ?? bottomSeat;
 
-  // UI のみ（スキーマ外）の局メタ。デザイン再現用にローカル保持。
-  const [honba, setHonba] = useState(0);
-  const [kyotaku, setKyotaku] = useState(0);
-  const [junme, setJunme] = useState(1);
-  const [dora, setDora] = useState<Tile>("1z");
+  // 局メタ（本場/供託/最終巡目/ドラ）は kifu.meta から読み、変更は mutate で書き戻して保存に乗せる。
+  const honba = kifu.meta.honba;
+  const kyotaku = kifu.meta.kyotaku;
+  const junme = kifu.meta.junme;
+  const dora = kifu.meta.dora;
+  const setHonba = (v: number) =>
+    mutate((d) => {
+      d.meta.honba = v;
+    });
+  const setKyotaku = (v: number) =>
+    mutate((d) => {
+      d.meta.kyotaku = v;
+    });
+  const setJunme = (v: number) =>
+    mutate((d) => {
+      d.meta.junme = v;
+    });
+  const setDora = (code: Tile) =>
+    mutate((d) => {
+      d.meta.dora = code;
+    });
   const [results, setResults] = useState<Record<Seat, string>>({
     east: "",
     south: "",
@@ -262,34 +270,25 @@ function Editor(p: EditorProps) {
     setMeldType("none");
   }, []);
 
-  function anchor(r: DOMRect): { x: number; y: number } {
-    const pw = 236,
-      ph = 320;
-    let x = r.right + 8;
-    if (x + pw > window.innerWidth - 8) x = r.left - pw - 8;
-    x = Math.max(8, Math.min(x, window.innerWidth - pw - 8));
-    const y = Math.max(8, Math.min(r.top + r.height / 2 - ph / 2, window.innerHeight - ph - 8));
-    return { x, y };
-  }
   function openEdit(e: React.MouseEvent, loc: TileLocation, code: Tile | null) {
     setSel({ kind: "edit", loc });
     setSuit((code?.[1] as Suit) ?? "m");
     setMeldType("none");
-    setPop(anchor((e.currentTarget as HTMLElement).getBoundingClientRect()));
+    setPop(popAnchor((e.currentTarget as HTMLElement).getBoundingClientRect()));
   }
   function openAdd(e: React.MouseEvent, seat: Seat, area: "hand" | "river") {
     e.stopPropagation();
     setSel({ kind: "add", seat, area });
     setSuit("m");
     setMeldType("none");
-    setPop(anchor((e.currentTarget as HTMLElement).getBoundingClientRect()));
+    setPop(popAnchor((e.currentTarget as HTMLElement).getBoundingClientRect()));
   }
   function openDora(e: React.MouseEvent) {
     e.stopPropagation();
     setSel({ kind: "dora" });
-    setSuit((dora[1] as Suit) ?? "z");
+    setSuit((dora?.[1] as Suit) ?? "z");
     setMeldType("none");
-    setPop(anchor((e.currentTarget as HTMLElement).getBoundingClientRect()));
+    setPop(popAnchor((e.currentTarget as HTMLElement).getBoundingClientRect()));
   }
 
   function flash(loc: TileLocation) {
@@ -1019,40 +1018,6 @@ function Editor(p: EditorProps) {
           }}
         />
       )}
-    </div>
-  );
-}
-
-function Stepper({
-  label,
-  unit,
-  value,
-  min,
-  max,
-  set,
-}: {
-  label: string;
-  unit: string;
-  value: number;
-  min: number;
-  max: number;
-  set: (v: number) => void;
-}) {
-  return (
-    <div className={s.steprow}>
-      <span className={s.stlabel}>{label}</span>
-      <div className={s.stepper}>
-        <button aria-label={`${label}を減らす`} onClick={() => set(Math.max(min, value - 1))}>
-          −
-        </button>
-        <span className={s.val}>
-          {value}
-          <span className={s.u}>{unit}</span>
-        </span>
-        <button aria-label={`${label}を増やす`} onClick={() => set(Math.min(max, value + 1))}>
-          ＋
-        </button>
-      </div>
     </div>
   );
 }

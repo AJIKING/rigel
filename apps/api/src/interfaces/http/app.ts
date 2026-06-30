@@ -5,7 +5,7 @@
 // AppContainer 経由でユースケースに委譲する。Hono を使う。
 // ============================================================
 
-import { CameraSeatSchema, SeatSchema } from "@rigel/schema";
+import { CameraSeatSchema, KifuSchema, SeatSchema } from "@rigel/schema";
 import { Hono, type Context, type MiddlewareHandler } from "hono";
 import { cors } from "hono/cors";
 import type { AppContainer } from "../../composition-root";
@@ -43,14 +43,20 @@ type AppEnv = {
   Variables: { container: AppContainer; userId?: string };
 };
 
-/** 空の局を作る POST 共通処理。gameId 無し=新半荘、有り=既存半荘に追加。body: { cameraBottomSeat }。 */
+/** 空の局を作る POST 共通処理。gameId 無し=新半荘、有り=既存半荘に追加。
+ *  body: { cameraBottomSeat, meta?: { honba, kyotaku, dora, junme } }。meta は記録のみ。 */
 async function createEmptyKifuRoute(c: Context<AppEnv>, gameId?: string) {
-  const body = (await c.req.json().catch(() => null)) as { cameraBottomSeat?: unknown } | null;
+  const body = (await c.req.json().catch(() => null)) as {
+    cameraBottomSeat?: unknown;
+    meta?: unknown;
+  } | null;
   const seat = SeatSchema.safeParse(body?.cameraBottomSeat);
+  const meta = KifuSchema.shape.meta.safeParse(body?.meta);
   const result = await c.get("container").createEmptyKifu.execute({
     userId: c.get("userId")!,
     gameId,
     cameraBottomSeat: seat.success ? seat.data : "east",
+    meta: meta.success ? meta.data : undefined,
   });
   if (!result.ok) {
     return c.json({ ok: false, reason: result.reason }, reasonStatus(result.reason));

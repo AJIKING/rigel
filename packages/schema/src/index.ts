@@ -150,11 +150,19 @@ export const KifuSchema = z.object({
     north: SeatBoardSchema,
   }),
 
-  /** 写真に写らない情報。点数計算しない方針なので任意。後から手入力で足せる。 */
+  /** 写真に写らない情報。点数計算しない方針なので任意。後から手入力で足せる（記録のみ）。 */
   meta: z
     .object({
       dealer: SeatSchema.nullable().default(null),
       roundWind: SeatSchema.nullable().default(null),
+      /** 本場（積み棒の数）。 */
+      honba: z.number().int().min(0).default(0),
+      /** 供託（場に残るリーチ棒の本数）。 */
+      kyotaku: z.number().int().min(0).default(0),
+      /** ドラ表示牌。未設定は null。点数計算はしないので表示・記録用。 */
+      dora: TileSchema.nullable().default(null),
+      /** 最終巡目（スナップショット時点）。 */
+      junme: z.number().int().min(1).default(1),
       note: z.string().default(""),
     })
     .default({}),

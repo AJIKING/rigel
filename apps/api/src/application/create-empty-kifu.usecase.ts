@@ -2,6 +2,9 @@
 // 解析を伴わないので Gemini 枠は消費しない。既定 private なので無料の非公開上限は守る。
 
 import { KifuSchema, type Kifu, type Seat } from "@rigel/schema";
+
+/** 作成時に焼き込める局メタ（写真に写らない情報。記録のみ・点数計算はしない）。 */
+export type EmptyKifuMeta = Partial<Kifu["meta"]>;
 import type { GameRepository } from "../domain/game/game.repository";
 import type { GameLog } from "../domain/kifu/game-log";
 import type { GameLogRepository } from "../domain/kifu/game-log.repository";
@@ -12,13 +15,14 @@ export type CreateEmptyResult =
   | { ok: true; gameId: string; logId: string }
   | { ok: false; reason: "game_not_found" | "private_limit" };
 
-/** 全席空の Kifu を作る。 */
-export function emptyKifu(capturedAt: string, cameraBottomSeat: Seat): Kifu {
+/** 全席空の Kifu を作る。meta（本場/供託/ドラ/最終巡目など）は省略時に既定が入る。 */
+export function emptyKifu(capturedAt: string, cameraBottomSeat: Seat, meta?: EmptyKifuMeta): Kifu {
   return KifuSchema.parse({
     schemaVersion: "1.0.0",
     capturedAt,
     cameraBottomSeat,
     seats: { east: {}, south: {}, west: {}, north: {} },
+    meta: meta ?? {},
   });
 }
 
@@ -38,6 +42,8 @@ export class CreateEmptyKifu {
     /** 既存半荘に追加する場合は指定。無指定なら新しい半荘を作る（手動入力の起点）。 */
     gameId?: string;
     cameraBottomSeat: Seat;
+    /** 作成時に焼き込む局メタ（本場/供託/ドラ/最終巡目）。省略時は既定。 */
+    meta?: EmptyKifuMeta;
   }): Promise<CreateEmptyResult> {
     const { games, gameLogs, users, now, newId } = this.deps;
 
@@ -66,7 +72,7 @@ export class CreateEmptyKifu {
       userId: params.userId,
       gameId: game.id,
       seq: existing.length + 1,
-      kifu: emptyKifu(now().toISOString(), params.cameraBottomSeat),
+      kifu: emptyKifu(now().toISOString(), params.cameraBottomSeat, params.meta),
       visibility: "private",
       createdAt: now(),
     };
