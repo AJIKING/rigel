@@ -12,6 +12,7 @@ import {
   type AuthUser,
 } from "../../lib/api";
 import { useAuth } from "../../lib/auth-context";
+import { AppHeader } from "../AppHeader";
 import s from "./account.module.css";
 
 type Plan = "free" | "next" | "pro";
@@ -283,12 +284,8 @@ export function SettingsShell() {
 function Shell({ children }: { children: React.ReactNode }) {
   return (
     <div className={`${s.shell} themeApp`}>
-      <main className={s.main}>
-        <Link href="/kifu" className={s.backlink}>
-          ← 牌譜一覧へ
-        </Link>
-        {children}
-      </main>
+      <AppHeader active="settings" />
+      <main className={s.main}>{children}</main>
     </div>
   );
 }

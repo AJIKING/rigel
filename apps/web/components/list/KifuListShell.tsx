@@ -2,12 +2,12 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { getMyGames, getPublicGames, type MyGameCard, type PublicGameCard } from "../../lib/api";
 import { useAuth } from "../../lib/auth-context";
 import { fmtDateSlash } from "../../lib/format";
 import { useFavorites } from "../../lib/use-favorites";
-import { BrandMark } from "../BrandMark";
+import { AppHeader } from "../AppHeader";
 import s from "./kifu-list.module.css";
 
 /** 卓チップのサムネ（純CSS）。 */
@@ -71,10 +71,10 @@ function GameCard({
   );
 }
 
-export function KifuListShell() {
-  const { user, token, loading: authLoading } = useAuth();
+/** 牌譜一覧。view=mine はマイページ(/kifu・要ログイン)、view=public は公開牌譜(/explore)。 */
+export function KifuListShell({ view }: { view: "mine" | "public" }) {
+  const { token, loading: authLoading } = useAuth();
   const router = useRouter();
-  const [tab, setTab] = useState<"mine" | "public">("mine");
 
   const [mine, setMine] = useState<MyGameCard[] | null>(null);
   const [pub, setPub] = useState<PublicGameCard[] | null>(null);
@@ -86,21 +86,14 @@ export function KifuListShell() {
   const [pubSort, setPubSort] = useState<"new" | "kyoku">("new");
   const [pubQ, setPubQ] = useState("");
 
-  // 未ログインなら「公開牌譜」タブを既定にする（マイページは要ログインのため）。
-  const autoTab = useRef(false);
   useEffect(() => {
-    if (authLoading || autoTab.current) return;
-    autoTab.current = true;
-    if (!token) setTab("public");
-  }, [authLoading, token]);
-
-  useEffect(() => {
+    if (view !== "public") return;
     getPublicGames()
       .then(setPub)
       .catch(() => setPub([]));
-  }, []);
+  }, [view]);
   useEffect(() => {
-    if (authLoading) return;
+    if (view !== "mine" || authLoading) return;
     if (!token) {
       setMine([]);
       return;
@@ -108,7 +101,7 @@ export function KifuListShell() {
     getMyGames(token)
       .then(setMine)
       .catch(() => setMine([]));
-  }, [authLoading, token]);
+  }, [view, authLoading, token]);
 
   const mineView = useMemo(() => {
     let arr = (mine ?? []).slice();
@@ -133,35 +126,12 @@ export function KifuListShell() {
     return arr;
   }, [pub, pubSort, pubQ]);
 
-  const avatarInitial = (user?.id ?? "私")[0]?.toUpperCase() ?? "私";
-
   return (
     <div className={`${s.shell} themeApp`}>
-      <header className={s.header}>
-        <span className={s.brand}>
-          <BrandMark wordmarkClassName={s.brandName} />
-        </span>
-        <nav className={s.topnav}>
-          <button className={tab === "mine" ? s.on : ""} onClick={() => setTab("mine")}>
-            マイページ
-          </button>
-          <button className={tab === "public" ? s.on : ""} onClick={() => setTab("public")}>
-            公開牌譜
-          </button>
-        </nav>
-        <div className={s.spacer} />
-        <button
-          type="button"
-          className={s.avatar}
-          aria-label="設定"
-          onClick={() => router.push("/settings")}
-        >
-          {avatarInitial}
-        </button>
-      </header>
+      <AppHeader active={view} />
 
       <main className={s.main}>
-        {tab === "mine" ? (
+        {view === "mine" ? (
           <section>
             <div className={s.profile}>
               <div className={s.stats}>

@@ -12,7 +12,10 @@
   display: flex;
   flex-direction: column;
 }
-.shell a {
+/* リンク初期化。:where() で詳細度0に保ち、ボタン類（.gbtn/.ghost/.navLogin）の
+   色指定を上書きしないようにする（.shell a だと .gbtn より詳細度が高く、白ボタンの
+   文字色が inherit=白 になって背景と同化してしまう）。 */
+.shell :where(a) {
   color: inherit;
   text-decoration: none;
 }

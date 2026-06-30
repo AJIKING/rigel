@@ -13,7 +13,8 @@ describe("SettingsShell", () => {
         <SettingsShell />
       </AuthProvider>,
     );
-    expect(await screen.findByText(/ログイン/)).toBeTruthy();
+    // 本文の案内（ヘッダーのログインボタンと区別するため固有の文言で確認）。
+    expect(await screen.findByText(/設定を開くには/)).toBeTruthy();
   });
 });
 
