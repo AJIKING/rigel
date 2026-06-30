@@ -2,74 +2,15 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { getMyGames, getPublicGames, type MyGameCard, type PublicGameCard } from "../../lib/api";
 import { useAuth } from "../../lib/auth-context";
 import { fmtDateSlash } from "../../lib/format";
 import { useFavorites } from "../../lib/use-favorites";
 import { AppHeader } from "../AppHeader";
+import { GameCard } from "../GameCard";
+import gc from "../game-card.module.css";
 import s from "./kifu-list.module.css";
-
-/** 卓チップのサムネ（純CSS）。 */
-function Thumb() {
-  return (
-    <div className={s.thumb}>
-      <i className={`${s.h} ${s.tt}`} />
-      <i className={`${s.h} ${s.bb}`} />
-      <i className={`${s.v} ${s.ll}`} />
-      <i className={`${s.v} ${s.rr}`} />
-      <i className={s.dot} />
-    </div>
-  );
-}
-
-function FavButton({ on, onToggle }: { on: boolean; onToggle: () => void }) {
-  return (
-    <button
-      type="button"
-      className={`${s.fav} ${on ? s.on : ""}`}
-      aria-pressed={on}
-      aria-label="お気に入り"
-      onClick={(e) => {
-        e.stopPropagation();
-        onToggle();
-      }}
-    >
-      <svg viewBox="0 0 24 24">
-        <path d="M12 2.6l2.85 6.02 6.6.62-4.97 4.4 1.46 6.46L12 17.7 6.06 20.7l1.46-6.46-4.97-4.4 6.6-.62z" />
-      </svg>
-    </button>
-  );
-}
-
-/** 一覧カード（マイページ・公開で共通）。meta は行内の説明、badge は任意。 */
-function GameCard({
-  title,
-  badge,
-  meta,
-  faved,
-  onToggleFav,
-  onOpen,
-}: {
-  title: string;
-  badge?: ReactNode;
-  meta: ReactNode;
-  faved: boolean;
-  onToggleFav: () => void;
-  onOpen: () => void;
-}) {
-  return (
-    <button type="button" className={s.card} onClick={onOpen}>
-      <FavButton on={faved} onToggle={onToggleFav} />
-      <Thumb />
-      <div className={s.ctop}>
-        <h3 className={s.ctitle}>{title}</h3>
-        {badge}
-      </div>
-      <div className={s.cmeta}>{meta}</div>
-    </button>
-  );
-}
 
 /** 牌譜一覧。view=mine はマイページ(/kifu・要ログイン)、view=public は公開牌譜(/explore)。 */
 export function KifuListShell({ view }: { view: "mine" | "public" }) {
@@ -202,15 +143,15 @@ export function KifuListShell({ view }: { view: "mine" | "public" }) {
               </button>
             </div>
 
-            <div className={s.feed}>
+            <div className={gc.feed}>
               {!token ? (
                 <p className={s.loginNote}>
                   自分の牌譜を見るには <Link href="/login">ログイン</Link> してください。
                 </p>
               ) : mine === null ? (
-                <div className={s.empty}>読み込み中…</div>
+                <div className={gc.empty}>読み込み中…</div>
               ) : mineView.length === 0 ? (
-                <div className={s.empty}>
+                <div className={gc.empty}>
                   {mineStatus === "fav"
                     ? "お気に入りした牌譜はまだありません"
                     : "該当する牌譜がありません"}
@@ -222,15 +163,15 @@ export function KifuListShell({ view }: { view: "mine" | "public" }) {
                     title={c.title || "（無題の半荘）"}
                     badge={
                       c.publicCount > 0 ? (
-                        <span className={`${s.badge} ${s.pub}`}>公開</span>
+                        <span className={`${gc.badge} ${gc.pub}`}>公開</span>
                       ) : (
-                        <span className={`${s.badge} ${s.priv}`}>非公開</span>
+                        <span className={`${gc.badge} ${gc.priv}`}>非公開</span>
                       )
                     }
                     meta={
                       <>
                         {fmtDateSlash(c.createdAt)}
-                        <span className={s.sep}>·</span>
+                        <span className={gc.sep}>·</span>
                         {c.kyokuCount}局
                       </>
                     }
@@ -273,11 +214,11 @@ export function KifuListShell({ view }: { view: "mine" | "public" }) {
                 </select>
               </div>
             </div>
-            <div className={s.feed}>
+            <div className={gc.feed}>
               {pub === null ? (
-                <div className={s.empty}>読み込み中…</div>
+                <div className={gc.empty}>読み込み中…</div>
               ) : pubView.length === 0 ? (
-                <div className={s.empty}>公開されている牌譜がまだありません</div>
+                <div className={gc.empty}>公開されている牌譜がまだありません</div>
               ) : (
                 pubView.map((c) => (
                   <GameCard
@@ -286,7 +227,7 @@ export function KifuListShell({ view }: { view: "mine" | "public" }) {
                     meta={
                       <>
                         <span
-                          className={s.au}
+                          className={gc.au}
                           role="link"
                           tabIndex={0}
                           style={{ cursor: "pointer" }}
@@ -297,9 +238,9 @@ export function KifuListShell({ view }: { view: "mine" | "public" }) {
                         >
                           @{c.ownerId.slice(0, 6)}
                         </span>
-                        <span className={s.sep}>·</span>
+                        <span className={gc.sep}>·</span>
                         {fmtDateSlash(c.createdAt)}
-                        <span className={s.sep}>·</span>
+                        <span className={gc.sep}>·</span>
                         {c.kyokuCount}局
                       </>
                     }
