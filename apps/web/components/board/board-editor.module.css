@@ -1,5 +1,6 @@
 /* ============================================================
-   board editor — docs/rigel-edit22.html のデザイン再現（CSS Module）
+   board editor — docs/rigel-edit23.html のデザイン再現（CSS Module）
+   （edit23 = edit22 + 河の「捨て方」手出し/自摸切り。.tile.tsumogiri を含む）
    牌の面は OSS 画像（FluffyStuff）で描くので、bone グラデーションは
    画像の下地フォールバックとしてのみ残す。
    ============================================================ */
