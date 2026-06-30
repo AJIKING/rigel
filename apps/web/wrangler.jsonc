@@ -12,8 +12,9 @@
     "binding": "ASSETS",
     "directory": ".open-next/assets",
   },
-  // カスタムドメイン。custom_domain=true で deploy 時に DNS レコードと証明書を
-  // 自動発行する（plaria.co.jp が同一 Cloudflare アカウントのゾーンで、
-  // API トークンに Zone DNS 編集権限がある前提）。
-  "routes": [{ "pattern": "rigel.plaria.co.jp", "custom_domain": true }],
+  // カスタムドメイン rigel.plaria.co.jp は初回 deploy で発行済み（Worker に紐付く）。
+  // ここで routes を宣言し続けると毎回 /zones/.../workers/routes を照合しに行き、
+  // API トークンに Zone Workers Routes 権限が無いと Auth エラーで deploy が落ちる。
+  // ドメインは発行済みで再宣言不要のため routes は持たせない（コード更新のみ反映）。
+  // ドメイン構成を変える時だけ、Zone 権限付きトークンで一時的に routes を復活させる。
 }
