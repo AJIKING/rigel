@@ -112,3 +112,18 @@
   color: #fff;
   border-color: var(--w45);
 }
+
+/* 狭幅では詰めて、ワードマーク文字は隠して星のみにする。 */
+@media (max-width: 520px) {
+  .header {
+    gap: 10px;
+    padding: 11px 14px;
+  }
+  .navItem {
+    padding: 8px 8px;
+    font-size: 12.5px;
+  }
+  .brandName {
+    display: none;
+  }
+}

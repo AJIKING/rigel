@@ -36,17 +36,6 @@
   font-size: 23px;
   margin: 26px 2px 16px;
 }
-.backlink {
-  display: inline-block;
-  margin: 18px 2px 0;
-  color: var(--w70);
-  font-size: 13px;
-  text-decoration: none;
-}
-.backlink:hover {
-  color: #fff;
-}
-
 /* panels */
 .panel {
   background: var(--chrome);

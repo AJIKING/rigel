@@ -17,83 +17,7 @@
   background: radial-gradient(900px 380px at 78% -8%, rgba(12, 122, 87, 0.2), transparent 70%);
 }
 
-/* header */
-.header {
-  position: sticky;
-  top: 0;
-  z-index: 20;
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  padding: 12px 20px;
-  background: rgba(22, 24, 29, 0.86);
-  backdrop-filter: blur(12px);
-  border-bottom: 1px solid var(--line);
-}
-.brand {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-family: var(--round);
-  font-weight: 800;
-  letter-spacing: 0.14em;
-  font-size: 16px;
-}
-.brand svg {
-  width: 17px;
-  height: 17px;
-}
-.topnav {
-  display: flex;
-  gap: 2px;
-  margin-left: 6px;
-}
-.topnav button {
-  background: transparent;
-  border: 0;
-  color: var(--w45);
-  font-family: var(--round);
-  font-weight: 700;
-  font-size: 13.5px;
-  padding: 8px 12px;
-  cursor: pointer;
-  position: relative;
-  transition: color 0.15s;
-}
-.topnav button:hover {
-  color: var(--w85);
-}
-.topnav button.on {
-  color: var(--white);
-}
-.topnav button.on::after {
-  content: "";
-  position: absolute;
-  left: 12px;
-  right: 12px;
-  bottom: 2px;
-  height: 2px;
-  background: var(--accent);
-  border-radius: 1px;
-}
-.spacer {
-  flex: 1;
-}
-.avatar {
-  flex: 0 0 auto;
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  display: grid;
-  place-items: center;
-  font-family: var(--round);
-  font-weight: 800;
-  font-size: 13px;
-  color: #0c0e12;
-  background: linear-gradient(135deg, #ffb35c, #ff7d33);
-  border: 0;
-  cursor: pointer;
-}
+/* ヘッダーは components/AppHeader（app-header.module.css）に共通化済み。 */
 
 /* shell main */
 .main {
@@ -414,18 +338,7 @@
 }
 
 @media (max-width: 520px) {
-  .header {
-    gap: 10px;
-    padding: 11px 14px;
-  }
   .main {
     padding: 0 14px 96px;
-  }
-  .topnav button {
-    padding: 8px 8px;
-    font-size: 12.5px;
-  }
-  .brandName {
-    display: none;
   }
 }

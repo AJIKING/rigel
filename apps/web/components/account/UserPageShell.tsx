@@ -1,11 +1,11 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { getPublicProfile, type PublicProfile } from "../../lib/api";
 import { fmtDateSlash } from "../../lib/format";
 import { useFavorites } from "../../lib/use-favorites";
+import { AppHeader } from "../AppHeader";
 import s from "./account.module.css";
 
 function Thumb() {
@@ -38,10 +38,8 @@ export function UserPageShell({ idOrHandle }: { idOrHandle: string }) {
 
   return (
     <div className={`${s.shell} themeApp`}>
+      <AppHeader active="public" />
       <main className={s.main}>
-        <Link href="/kifu" className={s.backlink}>
-          ← 牌譜一覧へ
-        </Link>
         <div className={s.wide}>
           {state === "loading" ? (
             <p style={{ color: "#888", padding: "40px 4px" }}>読み込み中…</p>

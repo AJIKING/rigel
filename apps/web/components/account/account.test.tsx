@@ -20,7 +20,11 @@ describe("SettingsShell", () => {
 
 describe("UserPageShell", () => {
   it("取得できないユーザーは非公開/不在の案内を出す", async () => {
-    render(<UserPageShell idOrHandle="nobody" />);
+    render(
+      <AuthProvider>
+        <UserPageShell idOrHandle="nobody" />
+      </AuthProvider>,
+    );
     expect(await screen.findByText(/非公開/)).toBeTruthy();
   });
 });
