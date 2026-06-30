@@ -135,12 +135,17 @@ export interface ApiClient {
   ): Promise<{ ok: boolean; status: number }>;
   /** 牌譜（局）を削除する（所有者のみ）。成否を返す。 */
   deleteKifu(token: string, logId: string): Promise<{ ok: boolean; status: number }>;
-  /** 半荘に空の局を追加する（手動入力の起点）。成功で新しい logId を返す。 */
+  /** 新しい半荘を「空の初局」つきで作る（手動入力の起点）。成功で gameId/logId を返す。 */
+  createGame(
+    token: string,
+    cameraBottomSeat: Seat,
+  ): Promise<{ ok: true; gameId: string; logId: string } | { ok: false; status: number }>;
+  /** 半荘に空の局を追加する（手動入力の起点）。成功で gameId/新しい logId を返す。 */
   createEmptyKifu(
     token: string,
     gameId: string,
     cameraBottomSeat: Seat,
-  ): Promise<{ ok: true; logId: string } | { ok: false; status: number }>;
+  ): Promise<{ ok: true; gameId: string; logId: string } | { ok: false; status: number }>;
   /** プロフィール（handle/表示名/公開）を更新する。handle 重複は status 409。 */
   updateProfile(
     token: string,
@@ -272,6 +277,17 @@ export function createApiClient(baseUrl: string, fetchImpl?: typeof fetch): ApiC
       return { ok: res.ok, status: res.status };
     },
 
+    async createGame(token, cameraBottomSeat) {
+      const res = await doFetch(`${baseUrl}/games`, {
+        method: "POST",
+        headers: { ...bearer(token), "content-type": "application/json" },
+        body: JSON.stringify({ cameraBottomSeat }),
+      });
+      if (!res.ok) return { ok: false, status: res.status };
+      const d = (await res.json()) as { gameId: string; logId: string };
+      return { ok: true, gameId: d.gameId, logId: d.logId };
+    },
+
     async createEmptyKifu(token, gameId, cameraBottomSeat) {
       const res = await doFetch(`${baseUrl}/games/${gameId}/kifu`, {
         method: "POST",
@@ -279,8 +295,8 @@ export function createApiClient(baseUrl: string, fetchImpl?: typeof fetch): ApiC
         body: JSON.stringify({ cameraBottomSeat }),
       });
       if (!res.ok) return { ok: false, status: res.status };
-      const d = (await res.json()) as { logId: string };
-      return { ok: true, logId: d.logId };
+      const d = (await res.json()) as { gameId: string; logId: string };
+      return { ok: true, gameId: d.gameId, logId: d.logId };
     },
 
     async updateProfile(token, update) {

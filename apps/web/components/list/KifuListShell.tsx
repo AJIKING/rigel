@@ -128,7 +128,7 @@ export function KifuListShell({ view }: { view: "mine" | "public" }) {
                   <option value="kyoku">局数が多い順</option>
                 </select>
               </div>
-              <button className={s.newbtn} onClick={() => router.push("/capture")}>
+              <button className={s.newbtn} onClick={() => router.push("/kifu/new")}>
                 <svg
                   viewBox="0 0 24 24"
                   width="14"

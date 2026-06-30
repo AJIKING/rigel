@@ -1,9 +1,9 @@
 "use client";
 
-import { analyzeErrorMessage, cameraLabel } from "@rigel/ui";
-import type { CameraSeat, Seat } from "@rigel/schema";
+import { analyzeErrorMessage, cameraLabel, seatLabel } from "@rigel/ui";
+import { SeatSchema, type CameraSeat, type Seat } from "@rigel/schema";
 import { useState } from "react";
-import { analyze, createEmptyKifu } from "../../lib/api";
+import { analyze, createEmptyKifu, createGame } from "../../lib/api";
 import { buildAnalyzeForm } from "../../lib/analyze-form";
 import s from "./board-editor.module.css";
 
@@ -14,7 +14,8 @@ const HANDS: { cam: CameraSeat; label: string }[] = [
   { cam: "left", label: "上家の手牌" },
 ];
 
-/** 局の追加モーダル。AI再現=撮影画像を /analyze、手動=空の局を作成（牌は盤面で手入力）。 */
+/** 局の追加モーダル。AI再現=撮影画像を /analyze、手動=空の局を作成（牌は盤面で手入力）。
+ *  gameId 無し=新しい半荘の最初の局（手前席を選ばせ、成功で gameId/logId を返す）。 */
 export function AddKyokuModal({
   token,
   gameId,
@@ -23,12 +24,15 @@ export function AddKyokuModal({
   onDone,
 }: {
   token: string;
-  gameId: string;
+  /** 既存半荘に追加するなら指定。無指定なら新しい半荘を作る（手前席を選ばせる）。 */
+  gameId?: string;
   bottomSeat?: Seat;
   onClose: () => void;
-  onDone: (newLogId: string) => void | Promise<void>;
+  onDone: (newLogId: string, gameId: string) => void | Promise<void>;
 }) {
+  const isNew = !gameId;
   const [mode, setMode] = useState<"ai" | "manual">("ai");
+  const [seat, setSeat] = useState<Seat>(bottomSeat);
   const [river, setRiver] = useState<File | null>(null);
   const [hands, setHands] = useState<Partial<Record<CameraSeat, File>>>({});
   const [busy, setBusy] = useState(false);
@@ -44,10 +48,10 @@ export function AddKyokuModal({
     try {
       const result = await analyze(
         token,
-        buildAnalyzeForm({ river, cameraBottomSeat: bottomSeat, hands, gameId }),
+        buildAnalyzeForm({ river, cameraBottomSeat: seat, hands, gameId }),
       );
       if (result.ok) {
-        await onDone(result.logId);
+        await onDone(result.logId, result.gameId);
         return;
       }
       setError(analyzeErrorMessage(result.status, result.reason));
@@ -62,9 +66,11 @@ export function AddKyokuModal({
     setBusy(true);
     setError(null);
     try {
-      const result = await createEmptyKifu(token, gameId, bottomSeat);
+      const result = gameId
+        ? await createEmptyKifu(token, gameId, seat)
+        : await createGame(token, seat);
       if (result.ok) {
-        await onDone(result.logId);
+        await onDone(result.logId, result.gameId);
         return;
       }
       setError(
@@ -105,6 +111,24 @@ export function AddKyokuModal({
             手動入力
           </button>
         </div>
+
+        {isNew && (
+          <div className={s.modalSeat}>
+            <span className={s.meLabel}>手前の席</span>
+            <div className={s.meSeg}>
+              {SeatSchema.options.map((sv) => (
+                <button
+                  key={sv}
+                  className={seat === sv ? s.on : ""}
+                  onClick={() => setSeat(sv)}
+                  type="button"
+                >
+                  {seatLabel(sv)}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
         {mode === "ai" ? (
           <div className={s.modalBody}>

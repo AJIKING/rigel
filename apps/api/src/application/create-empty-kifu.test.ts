@@ -32,10 +32,24 @@ function make(opts: { games: Game[]; plan?: "free" | "next" | "pro" }) {
     now: () => NOW,
     newId: () => `id-${++n}`,
   });
-  return { uc, gameLogs };
+  return { uc, gameLogs, games };
 }
 
 describe("CreateEmptyKifu", () => {
+  it("gameId 無しなら新しい半荘を作って初局(seq=1)を入れ、gameId を返す", async () => {
+    const { uc, gameLogs, games } = make({ games: [] });
+    const result = await uc.execute({ userId: "u1", cameraBottomSeat: "south" });
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.gameId).toBeTruthy();
+      expect(await games.findById(result.gameId)).toBeTruthy();
+      const log = await gameLogs.findById(result.logId);
+      expect(log?.gameId).toBe(result.gameId);
+      expect(log?.seq).toBe(1);
+      expect(log?.kifu.cameraBottomSeat).toBe("south");
+    }
+  });
+
   it("空の局を追加して logId を返す", async () => {
     const { uc, gameLogs } = make({ games: [game("g1", "u1")] });
     const result = await uc.execute({ userId: "u1", gameId: "g1", cameraBottomSeat: "east" });

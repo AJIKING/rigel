@@ -31,6 +31,7 @@ export const {
   createCheckout,
   setVisibility,
   deleteKifu,
+  createGame,
   createEmptyKifu,
   updateProfile,
   getPublicProfile,

@@ -9,7 +9,8 @@ import { privateKifuLimit } from "../domain/user/user";
 import type { UserRepository } from "../domain/user/user.repository";
 
 export type CreateEmptyResult =
-  { ok: true; logId: string } | { ok: false; reason: "game_not_found" | "private_limit" };
+  | { ok: true; gameId: string; logId: string }
+  | { ok: false; reason: "game_not_found" | "private_limit" };
 
 /** 全席空の Kifu を作る。 */
 export function emptyKifu(capturedAt: string, cameraBottomSeat: Seat): Kifu {
@@ -34,13 +35,17 @@ export class CreateEmptyKifu {
 
   async execute(params: {
     userId: string;
-    gameId: string;
+    /** 既存半荘に追加する場合は指定。無指定なら新しい半荘を作る（手動入力の起点）。 */
+    gameId?: string;
     cameraBottomSeat: Seat;
   }): Promise<CreateEmptyResult> {
     const { games, gameLogs, users, now, newId } = this.deps;
 
-    const game = await games.findById(params.gameId);
-    if (!game || game.userId !== params.userId) return { ok: false, reason: "game_not_found" };
+    // 既存半荘なら所有者確認。新規なら後で作る。
+    let game = params.gameId ? await games.findById(params.gameId) : null;
+    if (params.gameId && (!game || game.userId !== params.userId)) {
+      return { ok: false, reason: "game_not_found" };
+    }
 
     const user = await users.findById(params.userId);
     const limit = user ? privateKifuLimit(user.plan) : 0;
@@ -49,17 +54,23 @@ export class CreateEmptyKifu {
       if (current >= limit) return { ok: false, reason: "private_limit" };
     }
 
-    const existing = await gameLogs.listByGame(params.gameId);
+    // 上限を通過してから半荘を作る（弾かれた時に空半荘を残さない）。
+    if (!game) {
+      game = { id: newId(), userId: params.userId, title: "", createdAt: now() };
+      await games.save(game);
+    }
+
+    const existing = await gameLogs.listByGame(game.id);
     const log: GameLog = {
       id: newId(),
       userId: params.userId,
-      gameId: params.gameId,
+      gameId: game.id,
       seq: existing.length + 1,
       kifu: emptyKifu(now().toISOString(), params.cameraBottomSeat),
       visibility: "private",
       createdAt: now(),
     };
     await gameLogs.save(log);
-    return { ok: true, logId: log.id };
+    return { ok: true, gameId: game.id, logId: log.id };
   }
 }

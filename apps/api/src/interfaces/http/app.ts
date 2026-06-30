@@ -244,6 +244,20 @@ export function createApp(): Hono<AppEnv> {
   });
 
   // 半荘に空の局を追加（手動入力の起点。所有者のみ）。body: { cameraBottomSeat }。
+  // 新しい半荘を「空の初局」つきで作る（手動入力の起点。/capture を廃しエディタから開始する導線）。
+  app.post("/games", requireAuth, async (c) => {
+    const body = (await c.req.json().catch(() => null)) as { cameraBottomSeat?: unknown } | null;
+    const seat = SeatSchema.safeParse(body?.cameraBottomSeat);
+    const result = await c.get("container").createEmptyKifu.execute({
+      userId: c.get("userId")!,
+      cameraBottomSeat: seat.success ? seat.data : "east",
+    });
+    if (!result.ok) {
+      return c.json({ ok: false, reason: result.reason }, reasonStatus(result.reason));
+    }
+    return c.json({ ok: true, gameId: result.gameId, logId: result.logId }, 201);
+  });
+
   app.post("/games/:id/kifu", requireAuth, async (c) => {
     const body = (await c.req.json().catch(() => null)) as { cameraBottomSeat?: unknown } | null;
     const seat = SeatSchema.safeParse(body?.cameraBottomSeat);
@@ -255,7 +269,7 @@ export function createApp(): Hono<AppEnv> {
     if (!result.ok) {
       return c.json({ ok: false, reason: result.reason }, reasonStatus(result.reason));
     }
-    return c.json({ ok: true, logId: result.logId }, 201);
+    return c.json({ ok: true, gameId: result.gameId, logId: result.logId }, 201);
   });
 
   // 牌譜の修正を保存（所有者のみ）。body は Kifu JSON。

@@ -1022,6 +1022,13 @@
   border-color: #fff;
   color: #16181d;
 }
+/* 新規半荘の手前席ピッカー（モードタブの直下） */
+.modalSeat {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 20px 0;
+}
 .modalBody {
   padding: 18px 20px;
   display: flex;
