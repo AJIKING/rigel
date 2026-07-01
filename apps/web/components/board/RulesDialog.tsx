@@ -13,7 +13,9 @@ type ToggleKey =
   | "compYakuman"
   | "noten"
   | "ryukyoku"
-  | "tobi";
+  | "tobi"
+  | "doubleRon"
+  | "tripleRon";
 type SegKey = "aka" | "renchan" | "start" | "uma";
 
 type Row =
@@ -46,6 +48,18 @@ const GROUPS: { title: string; rows: Row[] }[] = [
       { kind: "toggle", k: "kazoe", t: "数え役満", d: "13飜以上を役満扱い" },
       { kind: "toggle", k: "multiYakuman", t: "ダブル役満", d: "複数役満の倍加（2倍・3倍…）" },
       { kind: "toggle", k: "compYakuman", t: "役満の複合", d: "国士＋四暗刻など役満同士の複合" },
+    ],
+  },
+  {
+    title: "同時和了",
+    rows: [
+      { kind: "toggle", k: "doubleRon", t: "ダブロン", d: "1つの捨て牌で2人が同時和了" },
+      {
+        kind: "toggle",
+        k: "tripleRon",
+        t: "トリプルロン",
+        d: "3人同時和了（無効なら三家和で流局）",
+      },
     ],
   },
   {

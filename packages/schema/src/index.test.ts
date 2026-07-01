@@ -195,6 +195,12 @@ describe("RULE_PRESETS（ルールプリセット）", () => {
     expect(RULE_PRESETS.tenhou).toMatchObject({ ryukyoku: true, tobi: true });
     expect(RULE_PRESETS.mleague).toMatchObject({ ryukyoku: false, tobi: false });
   });
+
+  it("Mリーグはダブロン無し(頭ハネ)、天鳳/フリーはダブロンあり", () => {
+    expect(RULE_PRESETS.mleague.doubleRon).toBe(false);
+    expect(RULE_PRESETS.tenhou.doubleRon).toBe(true);
+    expect(RULE_PRESETS.free.doubleRon).toBe(true);
+  });
 });
 
 describe("toAbsoluteSeat（カメラ相対→絶対席）", () => {

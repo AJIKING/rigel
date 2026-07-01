@@ -165,19 +165,30 @@ export const RulesSchema = z.object({
   uma: UmaSchema.default("10-30"),
   /** トビ終了（持ち点0未満で終局）。 */
   tobi: z.boolean().default(false),
+  /** ダブロン（1つの捨て牌で2人が同時和了）を認める。既定は Mリーグ相当の頭ハネ=無効。 */
+  doubleRon: z.boolean().default(false),
+  /** トリプルロン（3人同時和了）を認める（無効なら三家和で流局）。 */
+  tripleRon: z.boolean().default(false),
 });
 export type Rules = z.infer<typeof RulesSchema>;
 
 /** ルールプリセット（ダイアログの初期選択に使う）。既定は mleague。 */
 export const RULE_PRESETS = {
   mleague: RulesSchema.parse({ renchan: "tenpai", ryukyoku: false, uma: "10-30", tobi: false }),
-  tenhou: RulesSchema.parse({ renchan: "agari", ryukyoku: true, uma: "10-20", tobi: true }),
+  tenhou: RulesSchema.parse({
+    renchan: "agari",
+    ryukyoku: true,
+    uma: "10-20",
+    tobi: true,
+    doubleRon: true,
+  }),
   free: RulesSchema.parse({
     kiriage: true,
     renchan: "tenpai",
     ryukyoku: true,
     uma: "10-20",
     tobi: true,
+    doubleRon: true,
   }),
 } as const satisfies Record<string, Rules>;
 
