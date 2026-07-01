@@ -1,8 +1,18 @@
 import { describe, expect, it } from "vitest";
-import { RULE_PRESETS } from "@rigel/schema";
-import { handScore } from "./score";
+import { KifuSchema, RULE_PRESETS, type Agari, type Seat } from "@rigel/schema";
+import { handScore, kifuScore } from "./score";
 
 const R = RULE_PRESETS.mleague; // kiriage:false, kazoe:true
+
+function kifuWith(agari: Partial<Agari> | null, dealer: Seat | null) {
+  return KifuSchema.parse({
+    schemaVersion: "1.0.0",
+    capturedAt: "2026-06-28T00:00:00.000Z",
+    seats: { east: {}, south: {}, west: {}, north: {} },
+    meta: { dealer },
+    agari,
+  });
+}
 
 describe("handScore（打点計算）", () => {
   it("子3飜40符ロン = 5200", () => {
@@ -60,5 +70,21 @@ describe("handScore（打点計算）", () => {
 
   it("base>=2000 は満貫に切り詰める（子4飜40符ロン = 8000）", () => {
     expect(handScore({ han: 4, fu: 40, dealer: false, tsumo: false }, R).total).toBe(8000);
+  });
+});
+
+describe("kifuScore（Kifu から打点を計算）", () => {
+  it("和了(agari)が無ければ null", () => {
+    expect(kifuScore(kifuWith(null, null))).toBeNull();
+  });
+
+  it("和了者が親なら親レートで計算する（東家ロン5飜 = 12000）", () => {
+    const k = kifuWith({ winner: "east", from: "south", han: 5, fu: 30 }, "east");
+    expect(kifuScore(k)?.total).toBe(12000);
+  });
+
+  it("子のツモは親/子で支払いを分ける（南家ツモ3飜30符）", () => {
+    const k = kifuWith({ winner: "south", from: null, han: 3, fu: 30 }, "east");
+    expect(kifuScore(k)?.payment).toEqual({ fromDealer: 2000, fromNonDealer: 1000 });
   });
 });

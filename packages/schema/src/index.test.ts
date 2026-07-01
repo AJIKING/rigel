@@ -129,6 +129,29 @@ describe("KifuSchema（牌譜1件の最終検証）", () => {
     expect(KifuSchema.safeParse({ ...minimalKifu, rules: { uma: "99-99" } }).success).toBe(false);
     expect(KifuSchema.safeParse({ ...minimalKifu, rules: { aka: "3" } }).success).toBe(false);
   });
+
+  it("和了情報(agari)は省略時 null（後方互換）", () => {
+    expect(KifuSchema.parse(minimalKifu).agari).toBeNull();
+  });
+
+  it("和了情報を保持する（放銃者=ロン、null=ツモ）", () => {
+    const kifu = KifuSchema.parse({
+      ...minimalKifu,
+      agari: { winner: "east", from: "south", han: 4, fu: 30, yaku: [{ name: "立直", han: 1 }] },
+    });
+    expect(kifu.agari).toMatchObject({
+      winner: "east",
+      from: "south",
+      han: 4,
+      fu: 30,
+      riichi: [],
+    });
+    expect(kifu.agari?.yaku).toEqual([{ name: "立直", han: 1 }]);
+  });
+
+  it("和了者(winner)が無いと拒否する", () => {
+    expect(KifuSchema.safeParse({ ...minimalKifu, agari: { han: 3, fu: 30 } }).success).toBe(false);
+  });
 });
 
 describe("RULE_PRESETS（ルールプリセット）", () => {

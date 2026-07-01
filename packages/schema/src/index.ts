@@ -182,6 +182,31 @@ export const RULE_PRESETS = {
 } as const satisfies Record<string, Rules>;
 
 // ------------------------------------------------------------
+// 和了情報（点数計算の入力。役は人が入力・自動判定はしない）
+// ------------------------------------------------------------
+export const YakuSchema = z.object({
+  name: z.string(),
+  han: z.number().int(),
+});
+export type Yaku = z.infer<typeof YakuSchema>;
+
+export const AgariSchema = z.object({
+  /** 和了者。 */
+  winner: SeatSchema,
+  /** 放銃者。ツモなら null。 */
+  from: SeatSchema.nullable().default(null),
+  /** 飜（ドラ・赤ドラ込みの合計）。 */
+  han: z.number().int().min(0).default(0),
+  /** 符。 */
+  fu: z.number().int().min(0).default(0),
+  /** 役の内訳（名前＋飜）。表示用。 */
+  yaku: z.array(YakuSchema).default([]),
+  /** リーチ宣言した席。 */
+  riichi: z.array(SeatSchema).default([]),
+});
+export type Agari = z.infer<typeof AgariSchema>;
+
+// ------------------------------------------------------------
 // 牌譜 1件（= 課金単位 / D1 の 1 レコード / 共有URLの単位）
 // ------------------------------------------------------------
 export const ResultSchema = z.enum(["ron", "tsumo", "draw"]);
@@ -223,6 +248,9 @@ export const KifuSchema = z.object({
 
   /** 半荘ルール（点数計算の前提）。省略時は Mリーグ相当の既定。 */
   rules: RulesSchema.default({}),
+
+  /** 和了情報（点数計算の入力）。流局・未入力は null。 */
+  agari: AgariSchema.nullable().default(null),
 
   /** 解析時の読み取り困難メモ（グレア・ブレ・見切れ等）。AIのnotesを引き継ぐ。 */
   readingNotes: z.string().default(""),
