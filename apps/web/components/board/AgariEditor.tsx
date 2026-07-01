@@ -1,5 +1,12 @@
 import { AgariSchema, totalHan, type Agari, type Kifu, type Seat, type Tile } from "@rigel/schema";
-import { agariDeltas, kifuScore, scoreAgari, yakuByGroup, yakuHan, YAKU_CATALOG } from "@rigel/ui";
+import {
+  agariDeltas,
+  scoreAgari,
+  yakuByGroup,
+  yakuHan,
+  YAKU_CATALOG,
+  type HandScore,
+} from "@rigel/ui";
 import { useState } from "react";
 import { SEAT_ORDER, windOf } from "../../lib/board";
 import { DoraPicker } from "./DoraPicker";
@@ -39,7 +46,7 @@ function SeatSeg({
 }
 
 /** payment を人が読める文字列に。 */
-function payText(score: NonNullable<ReturnType<typeof kifuScore>>): string {
+function payText(score: HandScore): string {
   const p = score.payment;
   if ("ron" in p) return `${p.ron}点`;
   if ("each" in p) return `${p.each}点オール`;

@@ -1,5 +1,5 @@
 // 局跨ぎの点棒集計。各局の和了(agari)から点棒移動を出し、開始点に積んで持ち点を求める。
-// 和了の打点は kifuScore（＝各局の kifu.rules）に従う。本場は 300/局(ロン)・100×3(ツモ)、
+// 和了の打点は scoreAgari（＝各局の kifu.rules）に従う。本場は 300/局(ロン)・100×3(ツモ)、
 // 供託は和了者が総取り。流局の細かい精算（テンパイ料）は未対応。
 
 import type { Agari, Kifu, Rules, Seat } from "@rigel/schema";

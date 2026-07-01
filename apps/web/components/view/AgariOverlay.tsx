@@ -64,7 +64,7 @@ function WinBlock({ agari, kifu, dealer }: { agari: Agari; kifu: Kifu; dealer: S
 }
 
 /** 上がりオーバーレイ。再生が和了に達したとき、kifu.agari（ダブロン等は複数）と
- *  kifuScore から和了牌ポップ・裏ドラめくり・役/打点・点数移動を表示する。 */
+ *  scoreAgari から和了牌ポップ・裏ドラめくり・役/打点・点数移動を表示する。 */
 export function AgariOverlay({
   kifu,
   dealer,
