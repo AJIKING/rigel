@@ -179,6 +179,8 @@
   flex-direction: column;
   align-items: center;
   width: 100%;
+  /* 上がりオーバーレイ（position:absolute）の基準。 */
+  position: relative;
 }
 .stage {
   display: flex;

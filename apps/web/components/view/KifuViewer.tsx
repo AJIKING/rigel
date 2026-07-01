@@ -11,6 +11,7 @@ import { fmtDate } from "../../lib/format";
 import { useFavorites } from "../../lib/use-favorites";
 import { BrandMark } from "../BrandMark";
 import { OssTileFace } from "../OssTileFace";
+import { AgariOverlay } from "./AgariOverlay";
 import s from "./kifu-view.module.css";
 
 const SLOTS: { cam: CameraSeat; cls: string }[] = [
@@ -83,6 +84,7 @@ export function KifuViewer({ gameId }: { gameId: string }) {
   const [fs, setFs] = useState(false);
   const [roundMenu, setRoundMenu] = useState(false);
   const [shareLabel, setShareLabel] = useState("共有");
+  const [agariClosed, setAgariClosed] = useState(false); // 上がりオーバーレイを閉じたか。
 
   useEffect(() => {
     getPublicGameDetail(gameId)
@@ -128,6 +130,12 @@ export function KifuViewer({ gameId }: { gameId: string }) {
     return c;
   }, [order, shown]);
 
+  // 再生が末尾（ロンの放銃牌／ツモの最終手）に達したら上がりを出す。手前に戻すと再表示可。
+  const atEnd = order.length > 0 && shown >= order.length;
+  useEffect(() => {
+    if (!atEnd) setAgariClosed(false);
+  }, [atEnd]);
+
   // board fit
   const mainRef = useRef<HTMLDivElement>(null);
   const scale = useBoardScale(mainRef, fs ? 32 : 48, [sideOpen]);
@@ -136,6 +144,7 @@ export function KifuViewer({ gameId }: { gameId: string }) {
     setGi(i);
     setReveal(-1);
     setRoundMenu(false);
+    setAgariClosed(false);
   }
 
   if (state === "loading") return <Shell>{<p className={s.notice}>読み込み中…</p>}</Shell>;
@@ -421,6 +430,10 @@ export function KifuViewer({ gameId }: { gameId: string }) {
               </div>
             </div>
           </div>
+
+          {atEnd && kifu.agari && !agariClosed && (
+            <AgariOverlay kifu={kifu} dealer={dealer} onClose={() => setAgariClosed(true)} />
+          )}
         </div>
 
         {sideOpen && !fs && (
