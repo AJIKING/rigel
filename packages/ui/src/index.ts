@@ -19,6 +19,8 @@ import {
 export * from "./score";
 // 役カタログ（点数計算の入力補助）。
 export * from "./yaku";
+// 局跨ぎの点棒集計（持ち点・成績）。
+export * from "./standings";
 
 const SEAT_ORDER: Seat[] = ["east", "south", "west", "north"];
 
