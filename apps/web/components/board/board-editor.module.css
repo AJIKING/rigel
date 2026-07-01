@@ -144,12 +144,13 @@
   display: flex;
   flex-direction: column;
   gap: 3px;
-  align-items: center;
+  /* 河は各段を左寄せにそろえる（最終段が中央寄りにならないように）。 */
+  align-items: flex-start;
 }
 .rrow {
   display: flex;
   gap: 3px;
-  justify-content: center;
+  justify-content: flex-start;
 }
 .hand {
   display: flex;
@@ -188,12 +189,7 @@
 }
 .seatL,
 .seatR {
-  --tile-w: 24px;
-  --tile-h: 34px;
-  --river-w: 22px;
-  --river-h: 31px;
-  --meld-w: 21px;
-  --meld-h: 30px;
+  /* 左右席も手前/対面と同じ牌サイズにそろえる（基準値=themeBoard を継承）。 */
   gap: 14px;
 }
 
@@ -330,9 +326,10 @@
   transform: rotate(90deg);
   align-self: center;
 }
-/* 自摸切りの捨牌は少しグレーにする。 */
+/* 自摸切りの捨牌ははっきりグレーアウトさせる（手出しと一目で区別）。 */
 .tile.tsumogiri {
-  filter: grayscale(0.6) brightness(0.93);
+  filter: grayscale(1) brightness(0.8);
+  opacity: 0.7;
 }
 .tile.tsumo {
   margin-left: 8px;
