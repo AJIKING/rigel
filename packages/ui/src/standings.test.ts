@@ -5,7 +5,7 @@ import { agariDeltas, standings } from "./standings";
 const R: Rules = RULE_PRESETS.mleague;
 
 function kifu(opts: {
-  agari?: Partial<Agari> | null;
+  agari?: Partial<Agari> | Partial<Agari>[] | null;
   dealer?: Seat;
   honba?: number;
   kyotaku?: number;
@@ -58,6 +58,21 @@ describe("agariDeltas（1局の点棒移動）", () => {
     expect(d.south).toBe(-4000);
     expect(d.west).toBe(-4000);
     expect(d.north).toBe(-4000);
+  });
+
+  it("ダブロン：2人が同じ放銃者から受ける（親3飜40符7700＋子2飜30符2000）", () => {
+    const d = agariDeltas(
+      kifu({
+        dealer: "east",
+        agari: [
+          { winner: "east", from: "south", fu: 40, yaku: [{ name: "x", han: 3 }] },
+          { winner: "west", from: "south", fu: 30, yaku: [{ name: "y", han: 2 }] },
+        ],
+      }),
+    );
+    expect(d.east).toBe(7700);
+    expect(d.west).toBe(2000);
+    expect(d.south).toBe(-(7700 + 2000));
   });
 
   it("供託は和了者が総取りする（親満貫ロン＋供託2）", () => {

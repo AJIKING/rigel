@@ -130,44 +130,34 @@ describe("KifuSchema（牌譜1件の最終検証）", () => {
     expect(KifuSchema.safeParse({ ...minimalKifu, rules: { aka: "3" } }).success).toBe(false);
   });
 
-  it("和了情報(agari)は省略時 null（後方互換）", () => {
-    expect(KifuSchema.parse(minimalKifu).agari).toBeNull();
+  it("和了情報(agari)は省略時 空配列（後方互換）", () => {
+    expect(KifuSchema.parse(minimalKifu).agari).toEqual([]);
   });
 
-  it("和了情報を保持する（和了牌・役・表/赤/裏ドラ枚数、放銃者=ロン）", () => {
+  it("旧データの単一 agari オブジェクトは配列へ移行する（後方互換）", () => {
     const kifu = KifuSchema.parse({
       ...minimalKifu,
-      agari: {
-        winner: "east",
-        from: "south",
-        winTile: "3m",
-        fu: 40,
-        dora: 2,
-        aka: 1,
-        ura: 0,
-        yaku: [{ name: "立直", han: 1 }],
-      },
+      agari: { winner: "east", from: "south", winTile: "3m", fu: 40, dora: 2 },
     });
-    expect(kifu.agari).toMatchObject({
-      winner: "east",
-      from: "south",
-      winTile: "3m",
-      fu: 40,
-      dora: 2,
-      aka: 1,
-      ura: 0,
-      riichi: [],
-    });
-    expect(kifu.agari?.yaku).toEqual([{ name: "立直", han: 1 }]);
+    expect(kifu.agari).toHaveLength(1);
+    expect(kifu.agari[0]).toMatchObject({ winner: "east", from: "south", winTile: "3m", fu: 40 });
   });
 
-  it("和了情報の各枚数は省略時 0・和了牌は null", () => {
-    const kifu = KifuSchema.parse({ ...minimalKifu, agari: { winner: "east" } });
-    expect(kifu.agari).toMatchObject({ winTile: null, dora: 0, aka: 0, ura: 0, yaku: [] });
+  it("ダブロン（和了2件）を保持する", () => {
+    const kifu = KifuSchema.parse({
+      ...minimalKifu,
+      agari: [
+        { winner: "east", from: "south", yaku: [{ name: "立直", han: 1 }] },
+        { winner: "west", from: "south", fu: 30 },
+      ],
+    });
+    expect(kifu.agari).toHaveLength(2);
+    expect(kifu.agari[0]?.winner).toBe("east");
+    expect(kifu.agari[1]?.winner).toBe("west");
   });
 
   it("和了者(winner)が無いと拒否する", () => {
-    expect(KifuSchema.safeParse({ ...minimalKifu, agari: { fu: 30 } }).success).toBe(false);
+    expect(KifuSchema.safeParse({ ...minimalKifu, agari: [{ fu: 30 }] }).success).toBe(false);
   });
 
   it("旧牌譜（rules/agari/裏ドラ 無し）を parse すると新フィールドに既定が入る（後方互換）", () => {
@@ -181,7 +171,7 @@ describe("KifuSchema（牌譜1件の最終検証）", () => {
     };
     const kifu = KifuSchema.parse(legacy);
     expect(kifu.rules).toEqual(RULE_PRESETS.mleague);
-    expect(kifu.agari).toBeNull();
+    expect(kifu.agari).toEqual([]);
     expect(kifu.meta).toMatchObject({ uraDora: null, kyotaku: 0, dora: null, junme: 1, honba: 1 });
   });
 });

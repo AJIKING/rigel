@@ -442,7 +442,7 @@ export function KifuViewer({ gameId }: { gameId: string }) {
             </div>
           </div>
 
-          {atEnd && kifu.agari && !agariClosed && (
+          {atEnd && kifu.agari.length > 0 && !agariClosed && (
             <AgariOverlay kifu={kifu} dealer={dealer} onClose={() => setAgariClosed(true)} />
           )}
         </div>

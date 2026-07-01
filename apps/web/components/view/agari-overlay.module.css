@@ -96,7 +96,28 @@
   color: var(--w45);
   font-weight: 700;
 }
+/* 和了ブロック（ダブロン等は縦に並ぶ）。 */
 .win {
+  padding-bottom: 4px;
+}
+.win + .win {
+  border-top: 1px solid var(--line-2);
+  padding-top: 12px;
+  margin-top: 4px;
+}
+.winner {
+  font-family: var(--round);
+  font-weight: 800;
+  font-size: 14px;
+  color: #fff;
+  margin-bottom: 8px;
+}
+.winner .kind {
+  color: var(--accent);
+  font-size: 12px;
+  margin-left: 6px;
+}
+.winTile {
   position: relative;
   width: 46px;
   height: 64px;

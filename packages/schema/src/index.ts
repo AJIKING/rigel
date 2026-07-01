@@ -271,8 +271,11 @@ export const KifuSchema = z.object({
   /** 半荘ルール（点数計算の前提）。省略時は Mリーグ相当の既定。 */
   rules: RulesSchema.default({}),
 
-  /** 和了情報（点数計算の入力）。流局・未入力は null。 */
-  agari: AgariSchema.nullable().default(null),
+  /** 和了情報（点数計算の入力）。ダブロン/トリプルロンは複数件。流局・未入力は空配列。
+   *  旧データの単一オブジェクト/null は配列へ移行する。 */
+  agari: z
+    .preprocess((v) => (Array.isArray(v) ? v : v == null ? [] : [v]), z.array(AgariSchema))
+    .default([]),
 
   /** 解析時の読み取り困難メモ（グレア・ブレ・見切れ等）。AIのnotesを引き継ぐ。 */
   readingNotes: z.string().default(""),

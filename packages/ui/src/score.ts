@@ -2,7 +2,7 @@
 // アプリが計算する範囲は「基本点→支払い」まで。役の判定は人が入力する（自動判定はしない）。
 // 参照: 一般的な麻雀の点数計算（基本点 = 符 × 2^(2+飜)、満貫以上は固定、100点単位で切り上げ）。
 
-import { totalHan, type Kifu, type Rules } from "@rigel/schema";
+import { totalHan, type Agari, type Kifu, type Rules, type Seat } from "@rigel/schema";
 
 export interface HandScoreInput {
   /** 飜数（赤ドラ・ドラ込みの合計。役の判定はしない）。 */
@@ -99,18 +99,24 @@ export function handScore(input: HandScoreInput, rules: Rules): HandScore {
   };
 }
 
-/**
- * Kifu の和了情報(agari)・親(meta.dealer)・半荘ルールから打点を計算する。
- * 和了が無い（流局・未入力）なら null。和了種別は from の有無で判定（null=ツモ）。
- */
-export function kifuScore(kifu: Kifu): HandScore | null {
-  const a = kifu.agari;
-  if (!a) return null;
-  const dealer = kifu.meta.dealer !== null && a.winner === kifu.meta.dealer;
+/** 和了1件の打点。dealer=親の席（不明は null）。和了種別は from の有無（null=ツモ）。 */
+export function scoreAgari(agari: Agari, dealer: Seat | null, rules: Rules): HandScore {
+  const isDealer = dealer !== null && agari.winner === dealer;
   // 役満役（han>=13）の個数。ダブル役満以上の倍加に使う（数え役満は0個＝han で判定）。
-  const yakuman = a.yaku.filter((y) => y.han >= 13).length;
+  const yakuman = agari.yaku.filter((y) => y.han >= 13).length;
   return handScore(
-    { han: totalHan(a), fu: a.fu, dealer, tsumo: a.from === null, yakuman },
-    kifu.rules,
+    { han: totalHan(agari), fu: agari.fu, dealer: isDealer, tsumo: agari.from === null, yakuman },
+    rules,
   );
+}
+
+/** Kifu の全和了（ダブロン等は複数）の打点。 */
+export function kifuScores(kifu: Kifu): HandScore[] {
+  return kifu.agari.map((a) => scoreAgari(a, kifu.meta.dealer, kifu.rules));
+}
+
+/** 先頭の和了の打点（単一和了の便宜。和了が無ければ null）。 */
+export function kifuScore(kifu: Kifu): HandScore | null {
+  const a = kifu.agari[0];
+  return a ? scoreAgari(a, kifu.meta.dealer, kifu.rules) : null;
 }

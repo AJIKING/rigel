@@ -124,6 +124,54 @@
   color: var(--accent);
 }
 
+/* 和了エントリ（ダブロン等は複数） */
+.entry {
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  padding: 12px;
+  margin-bottom: 10px;
+}
+.entryHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+.entryTitle {
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--w70);
+}
+.removeBtn {
+  background: transparent;
+  border: 0;
+  color: var(--w45);
+  font-family: var(--round);
+  font-size: 11.5px;
+  cursor: pointer;
+}
+.removeBtn:hover {
+  color: var(--vermilion);
+}
+.addAgari {
+  width: 100%;
+  background: transparent;
+  border: 1px dashed var(--line);
+  border-radius: var(--r);
+  color: var(--w70);
+  font-family: var(--round);
+  font-weight: 700;
+  font-size: 12px;
+  padding: 9px;
+  cursor: pointer;
+  transition: 0.13s;
+  margin-bottom: 10px;
+}
+.addAgari:hover {
+  color: #fff;
+  border-color: var(--w45);
+}
+
 /* 打点パネル */
 .result {
   margin-top: 12px;

@@ -235,15 +235,13 @@ function Editor(p: EditorProps) {
   const setDora = setMeta("dora");
   const setUraDora = setMeta("uraDora");
 
-  // 席の結果表示（和了はネームプレートに出す）。agari が単一の真実源。
-  const seatResult = (seat: Seat): string =>
-    kifu.agari?.winner === seat
-      ? kifu.agari.from
-        ? "ロン"
-        : "ツモ"
-      : kifu.agari?.from === seat
-        ? "放銃"
-        : "";
+  // 席の結果表示（和了はネームプレートに出す）。agari（配列）が単一の真実源。
+  const seatResult = (seat: Seat): string => {
+    const won = kifu.agari.find((a) => a.winner === seat);
+    if (won) return won.from ? "ロン" : "ツモ";
+    if (kifu.agari.some((a) => a.from === seat)) return "放銃";
+    return "";
+  };
 
   const [sel, setSel] = useState<Selection>(null);
   const [pop, setPop] = useState<{ x: number; y: number } | null>(null);
@@ -507,7 +505,7 @@ function Editor(p: EditorProps) {
                 const seat = toAbsoluteSeat(cam, bottomSeat);
                 const board = kifu.seats[seat];
                 const wind = windOf(seat, dealer);
-                const win = kifu.agari?.winner === seat;
+                const win = kifu.agari.some((a) => a.winner === seat);
                 const rows = chunk(board.river, 6);
                 return (
                   <div key={cam} className={`${s.seat} ${cls}`}>
@@ -783,9 +781,9 @@ function Editor(p: EditorProps) {
                 <AgariEditor
                   kifu={kifu}
                   dealer={dealer}
-                  onAgari={(a) =>
+                  onChange={(agaris) =>
                     mutate((d) => {
-                      d.agari = a;
+                      d.agari = agaris;
                     })
                   }
                 />
