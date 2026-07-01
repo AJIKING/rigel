@@ -8,13 +8,7 @@ import {
   type Seat,
   type Tile,
 } from "@rigel/schema";
-import {
-  applyTileEdit,
-  needsReview,
-  standings,
-  visibilityLabel,
-  type TileLocation,
-} from "@rigel/ui";
+import { applyTileEdit, needsReview, visibilityLabel, type TileLocation } from "@rigel/ui";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
@@ -241,12 +235,6 @@ function Editor(p: EditorProps) {
   const setDora = setMeta("dora");
   const setUraDora = setMeta("uraDora");
 
-  // 半荘の持ち点（開始点＋各局の和了 deltas の累積）。最終成績もこれで見る。
-  const standing = standings(
-    detail.logs.map((l) => l.kifu),
-    kifu.rules,
-  );
-
   // 席の結果表示（和了はネームプレートに出す）。agari が単一の真実源。
   const seatResult = (seat: Seat): string =>
     kifu.agari?.winner === seat
@@ -427,6 +415,16 @@ function Editor(p: EditorProps) {
     mutate((d) => {
       const discard = d.seats[loc.seat].river[loc.index];
       if (discard) discard.tsumogiri = tsumogiri;
+    });
+  }
+
+  // リーチ宣言牌（横向き）を切り替える。
+  function setDiscardRiichi(riichi: boolean) {
+    if (sel?.kind !== "edit" || sel.loc.area !== "river") return;
+    const loc = sel.loc;
+    mutate((d) => {
+      const discard = d.seats[loc.seat].river[loc.index];
+      if (discard) discard.riichi = riichi;
     });
   }
 
@@ -809,24 +807,6 @@ function Editor(p: EditorProps) {
             </button>
             {showPoints && (
               <div className={s.accBody}>
-                {/* 全局の和了から自動集計した持ち点（＝最終成績）。 */}
-                <div style={{ marginBottom: 10 }}>
-                  {SEAT_ORDER.map((seat) => (
-                    <div key={seat} className={s.agrow}>
-                      <span className={s.agname}>{windOf(seat, dealer)}家</span>
-                      <span
-                        style={{
-                          marginLeft: "auto",
-                          fontWeight: 700,
-                          fontFamily: "var(--round)",
-                          fontVariantNumeric: "tabular-nums",
-                        }}
-                      >
-                        {standing[seat].toLocaleString()}点
-                      </span>
-                    </div>
-                  ))}
-                </div>
                 {SEAT_ORDER.map((seat) => (
                   <div key={seat} className={s.agrow}>
                     <input
@@ -992,6 +972,31 @@ function Editor(p: EditorProps) {
                   </div>
                 </div>
               )}
+              {sel.loc.area === "river" && (
+                <div className={s.meRow}>
+                  <span className={s.meLabel}>リーチ宣言牌</span>
+                  <div className={s.meSeg}>
+                    {(
+                      [
+                        [false, "通常"],
+                        [true, "リーチ（横向き）"],
+                      ] as const
+                    ).map(([rc, lbl]) => (
+                      <button
+                        key={lbl}
+                        className={
+                          (kifu.seats[sel.loc.seat].river[sel.loc.index]?.riichi ?? false) === rc
+                            ? s.on
+                            : ""
+                        }
+                        onClick={() => setDiscardRiichi(rc)}
+                      >
+                        {lbl}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
               <div className={s.meRow}>
                 <span className={s.meLabel}>鳴き</span>
                 <div className={s.meSeg}>
@@ -1011,22 +1016,18 @@ function Editor(p: EditorProps) {
                   <div className={s.meRow}>
                     <span className={s.meLabel}>鳴いた人</span>
                     <div className={s.meSeg}>
-                      {(
-                        [
-                          ["bottom", "あなた"],
-                          ["right", "下家"],
-                          ["top", "対面"],
-                          ["left", "上家"],
-                        ] as const
-                      ).map(([w, lbl]) => (
-                        <button
-                          key={w}
-                          className={meldWho === w ? s.on : ""}
-                          onClick={() => setMeldWho(w)}
-                        >
-                          {lbl}
-                        </button>
-                      ))}
+                      {(["bottom", "right", "top", "left"] as const).map((cam) => {
+                        const abs = toAbsoluteSeat(cam, bottomSeat);
+                        return (
+                          <button
+                            key={cam}
+                            className={meldWho === cam ? s.on : ""}
+                            onClick={() => setMeldWho(cam)}
+                          >
+                            {names[abs] || `${windOf(abs, dealer)}家`}
+                          </button>
+                        );
+                      })}
                     </div>
                   </div>
                   {meldType === "kan" && (

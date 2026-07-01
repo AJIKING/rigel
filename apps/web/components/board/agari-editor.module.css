@@ -65,6 +65,26 @@
   color: var(--w45);
   letter-spacing: 0.04em;
   margin: 8px 0 6px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  padding: 4px 0;
+  transition: 0.12s;
+}
+.yakuHead:hover {
+  color: var(--w85);
+}
+.pickedCount {
+  background: rgba(255, 158, 69, 0.16);
+  color: var(--accent);
+  border-radius: 99px;
+  font-size: 10px;
+  font-weight: 800;
+  padding: 1px 7px;
 }
 .yakuGrid {
   display: flex;

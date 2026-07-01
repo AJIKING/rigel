@@ -201,7 +201,8 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 16px;
+  /* 河 → 名前 → 手牌 の間隔。名前(手牌)と捨て牌の間に少し余白を持たせる。 */
+  gap: 22px;
 }
 .river {
   display: flex;

@@ -1,5 +1,6 @@
 import { AgariSchema, totalHan, type Agari, type Kifu, type Seat, type Tile } from "@rigel/schema";
 import { agariDeltas, kifuScore, yakuByGroup, yakuHan, YAKU_CATALOG } from "@rigel/ui";
+import { useState } from "react";
 import { SEAT_ORDER, windOf } from "../../lib/board";
 import { DoraPicker } from "./DoraPicker";
 import { Stepper } from "./Stepper";
@@ -61,6 +62,9 @@ export function AgariEditor({
   const agari = kifu.agari;
   const winnerOpen = agari ? kifu.seats[agari.winner].melds.length > 0 : false;
   const selectedYaku = new Set(agari?.yaku.map((y) => y.name));
+  // 役グループの折りたたみ（既定は役満のみ閉じる）。
+  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({ 役満: true });
+  const toggleGroup = (g: string) => setCollapsed((c) => ({ ...c, [g]: !c[g] }));
 
   // agari を部分更新（存在しなければ winner 必須なので何もしない）。
   const patch = (p: Partial<Agari>) => {
@@ -199,28 +203,42 @@ export function AgariEditor({
           />
 
           {/* 役マルチセレクト */}
-          {(["門前", "鳴き可", "役満"] as const).map((group) => (
-            <div className={s.yakuGrp} key={group}>
-              <div className={s.yakuHead}>{group}</div>
-              <div className={s.yakuGrid}>
-                {YAKU_GROUPS[group].map((y) => {
-                  const h = yakuHan(y, winnerOpen);
-                  const disabled = h === 0; // 門前限定を鳴きで選べない。
-                  return (
-                    <button
-                      key={y.name}
-                      className={`${s.chip} ${selectedYaku.has(y.name) ? s.on : ""}`}
-                      disabled={disabled}
-                      onClick={() => toggleYaku(y.name)}
-                    >
-                      {y.name}
-                      <span className={s.han}>{disabled ? "—" : `${h}飜`}</span>
-                    </button>
-                  );
-                })}
+          {(["門前", "鳴き可", "役満"] as const).map((group) => {
+            const picked = YAKU_GROUPS[group].filter((y) => selectedYaku.has(y.name)).length;
+            const isOpen = !collapsed[group];
+            return (
+              <div className={s.yakuGrp} key={group}>
+                <button
+                  type="button"
+                  className={s.yakuHead}
+                  aria-expanded={isOpen}
+                  onClick={() => toggleGroup(group)}
+                >
+                  {isOpen ? "▾" : "▸"} {group}
+                  {picked > 0 && <span className={s.pickedCount}>{picked}</span>}
+                </button>
+                {isOpen && (
+                  <div className={s.yakuGrid}>
+                    {YAKU_GROUPS[group].map((y) => {
+                      const h = yakuHan(y, winnerOpen);
+                      const disabled = h === 0; // 門前限定を鳴きで選べない。
+                      return (
+                        <button
+                          key={y.name}
+                          className={`${s.chip} ${selectedYaku.has(y.name) ? s.on : ""}`}
+                          disabled={disabled}
+                          onClick={() => toggleYaku(y.name)}
+                        >
+                          {y.name}
+                          <span className={s.han}>{disabled ? "—" : `${h}飜`}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
-            </div>
-          ))}
+            );
+          })}
 
           {/* 打点・支払い・各家増減 */}
           <div className={s.result}>
