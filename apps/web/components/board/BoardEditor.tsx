@@ -8,7 +8,7 @@ import {
   type Seat,
   type Tile,
 } from "@rigel/schema";
-import { applyTileEdit, needsReview, visibilityLabel, type TileLocation } from "@rigel/ui";
+import { applyTileEdit, visibilityLabel, type TileLocation } from "@rigel/ui";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
@@ -20,10 +20,8 @@ import {
   type GameLog,
 } from "../../lib/api";
 import {
-  NUMS,
   SEAT_ORDER,
-  SUITS,
-  chunk,
+  meldTiles,
   popAnchor,
   roundName,
   windOf,
@@ -31,89 +29,15 @@ import {
 } from "../../lib/board";
 import { useAuth } from "../../lib/auth-context";
 import { useBoardScale } from "../../lib/use-board-scale";
-import { OssTileFace } from "../OssTileFace";
 import { AddKyokuModal } from "./AddKyokuModal";
 import { AgariEditor } from "./AgariEditor";
+import { BoardTable } from "./BoardTable";
 import { RulesDialog } from "./RulesDialog";
 import { Stepper } from "./Stepper";
+import { TilePickerPopup, type KanType, type MeldType } from "./TilePickerPopup";
+import { clone, fkey, type Selection } from "./shared";
+import { DoraGlyph } from "./tiles";
 import s from "./board-editor.module.css";
-
-const SLOTS: { cam: CameraSeat; cls: string }[] = [
-  { cam: "bottom", cls: s.seatB },
-  { cam: "right", cls: s.seatR },
-  { cam: "top", cls: s.seatT },
-  { cam: "left", cls: s.seatL },
-];
-function fkey(loc: TileLocation): string {
-  return `${loc.seat}:${loc.area}:${loc.meldIndex ?? "-"}:${loc.index}`;
-}
-function clone(k: Kifu): Kifu {
-  return JSON.parse(JSON.stringify(k)) as Kifu;
-}
-function fmtPts(v: string): string {
-  const n = parseFloat(v);
-  if (isNaN(n)) return "0.0";
-  return (n >= 0 ? "+" : "") + n.toFixed(1);
-}
-
-type Selection =
-  | { kind: "edit"; loc: TileLocation }
-  | { kind: "add"; seat: Seat; area: "hand" | "river" }
-  | { kind: "dora" }
-  | { kind: "uradora" }
-  | null;
-
-function BoardTile({
-  code,
-  kind,
-  lay,
-  tsumogiri,
-  review,
-  selected,
-  flash,
-  label,
-  onClick,
-}: {
-  code: Tile | null;
-  kind?: "river" | "meld";
-  lay?: boolean;
-  tsumogiri?: boolean;
-  review?: boolean;
-  selected?: boolean;
-  flash?: boolean;
-  label: string;
-  onClick: (e: React.MouseEvent) => void;
-}) {
-  const cls = [
-    s.tile,
-    kind === "river" ? s.riverT : "",
-    kind === "meld" ? s.meldT : "",
-    lay ? s.lay : "",
-    tsumogiri ? s.tsumogiri : "",
-    review ? s.review : "",
-    selected ? s.sel : "",
-    flash ? s.flash : "",
-  ]
-    .filter(Boolean)
-    .join(" ");
-  return (
-    <button
-      type="button"
-      className={cls}
-      aria-label={`${label} を編集`}
-      onClick={(e) => {
-        e.stopPropagation();
-        onClick(e);
-      }}
-    >
-      <OssTileFace code={code} />
-    </button>
-  );
-}
-
-function DoraGlyph({ code }: { code: Tile | null }) {
-  return <span className={s.doraT}>{code && <OssTileFace code={code} />}</span>;
-}
 
 /** 局情報のドラ/裏ドラ1行（ラベル＋牌ピッカーを開くボタン）。 */
 function DoraNavRow({
@@ -235,21 +159,13 @@ function Editor(p: EditorProps) {
   const setDora = setMeta("dora");
   const setUraDora = setMeta("uraDora");
 
-  // 席の結果表示（和了はネームプレートに出す）。agari（配列）が単一の真実源。
-  const seatResult = (seat: Seat): string => {
-    const won = kifu.agari.find((a) => a.winner === seat);
-    if (won) return won.from ? "ロン" : "ツモ";
-    if (kifu.agari.some((a) => a.from === seat)) return "放銃";
-    return "";
-  };
-
   const [sel, setSel] = useState<Selection>(null);
   const [pop, setPop] = useState<{ x: number; y: number } | null>(null);
   const [suit, setSuit] = useState<Suit>("m");
   const [flashKey, setFlashKey] = useState<string | null>(null);
-  const [meldType, setMeldType] = useState<"none" | "chi" | "pon" | "kan">("none");
+  const [meldType, setMeldType] = useState<MeldType>("none");
   const [meldWho, setMeldWho] = useState<CameraSeat>("bottom");
-  const [kanType, setKanType] = useState<"minkan" | "ankan" | "kakan">("minkan");
+  const [kanType, setKanType] = useState<KanType>("minkan");
 
   const [save, setSave] = useState<"idle" | "saving" | "done">("idle");
   const [vis, setVis] = useState(log.visibility);
@@ -325,16 +241,6 @@ function Editor(p: EditorProps) {
     const draft = clone(kifu);
     fn(draft);
     setKifu(KifuSchema.parse(draft));
-  }
-
-  function meldTiles(type: "chi" | "pon" | "kan", code: Tile): Tile[] {
-    if (type === "pon") return [code, code, code];
-    if (type === "kan") return [code, code, code, code];
-    const su = code[1];
-    if (su !== "m" && su !== "p" && su !== "s") return [code, code, code];
-    const n = code[0] === "0" ? 5 : Number(code[0]);
-    const st = Math.max(1, Math.min(n - 1, 7));
-    return [`${st}${su}` as Tile, `${st + 1}${su}` as Tile, `${st + 2}${su}` as Tile];
   }
 
   function applyTile(code: Tile) {
@@ -480,160 +386,24 @@ function Editor(p: EditorProps) {
       </header>
 
       <div className={s.wrap}>
-        <div className={s.main} ref={mainRef}>
-          <div className={s.stage} style={{ height: 768 * scale }}>
-            <div
-              className={s.table}
-              style={{ transform: `scale(${scale})` }}
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className={s.center}>
-                <div className={s.rd}>
-                  {round} <span className={s.hb}>{honba}本場</span>
-                </div>
-                {kyotaku > 0 && (
-                  <div className={s.kyotaku}>
-                    供託 <b>{kyotaku}</b>本
-                  </div>
-                )}
-                <div className={s.dora}>
-                  <DoraGlyph code={dora} />
-                </div>
-              </div>
-
-              {SLOTS.map(({ cam, cls }) => {
-                const seat = toAbsoluteSeat(cam, bottomSeat);
-                const board = kifu.seats[seat];
-                const wind = windOf(seat, dealer);
-                const win = kifu.agari.some((a) => a.winner === seat);
-                const rows = chunk(board.river, 6);
-                return (
-                  <div key={cam} className={`${s.seat} ${cls}`}>
-                    <div className={s.river}>
-                      {rows.map((row, ri) => (
-                        <div key={ri} className={s.rrow}>
-                          {row.map((d, ci) => {
-                            const index = ri * 6 + ci;
-                            const loc: TileLocation = { seat, area: "river", index };
-                            return (
-                              <BoardTile
-                                key={ci}
-                                code={d.tile}
-                                kind="river"
-                                lay={d.riichi}
-                                tsumogiri={d.tsumogiri}
-                                review={needsReview(d)}
-                                selected={sel?.kind === "edit" && fkey(sel.loc) === fkey(loc)}
-                                flash={flashKey === fkey(loc)}
-                                label={`${wind}家の河 ${index + 1}枚目`}
-                                onClick={(e) => openEdit(e, loc, d.tile)}
-                              />
-                            );
-                          })}
-                          {ri === rows.length - 1 && (
-                            <button
-                              type="button"
-                              className={`${s.tile} ${s.riverT} ${s.addslot}`}
-                              aria-label={`${wind}家に捨て牌を追加`}
-                              onClick={(e) => openAdd(e, seat, "river")}
-                            >
-                              +
-                            </button>
-                          )}
-                        </div>
-                      ))}
-                      {rows.length === 0 && (
-                        <div className={s.rrow}>
-                          <button
-                            type="button"
-                            className={`${s.tile} ${s.riverT} ${s.addslot}`}
-                            aria-label={`${wind}家に捨て牌を追加`}
-                            onClick={(e) => openAdd(e, seat, "river")}
-                          >
-                            +
-                          </button>
-                        </div>
-                      )}
-                    </div>
-
-                    <div className={`${s.nameplate} ${win ? s.win : ""}`}>
-                      <span className={s.wd}>{wind}</span>
-                      <span className={s.nm}>{names[seat] || `${wind}家`}</span>
-                      {seatResult(seat) && <span className={s.sc}>{seatResult(seat)}</span>}
-                      {showPoints && (
-                        <span
-                          style={{
-                            color: "var(--orange)",
-                            fontWeight: 700,
-                            fontVariantNumeric: "tabular-nums",
-                            fontSize: 12,
-                          }}
-                        >
-                          {fmtPts(points[seat])}
-                        </span>
-                      )}
-                    </div>
-
-                    <div className={s.hand}>
-                      {board.hand.map((h, hi) => {
-                        const loc: TileLocation = { seat, area: "hand", index: hi };
-                        return (
-                          <BoardTile
-                            key={hi}
-                            code={h.tile}
-                            review={needsReview(h)}
-                            selected={sel?.kind === "edit" && fkey(sel.loc) === fkey(loc)}
-                            flash={flashKey === fkey(loc)}
-                            label={`${wind}家の手牌`}
-                            onClick={(e) => openEdit(e, loc, h.tile)}
-                          />
-                        );
-                      })}
-                      {board.hand.length < 14 && (
-                        <button
-                          type="button"
-                          className={`${s.tile} ${s.addslot}`}
-                          aria-label={`${wind}家の手牌に追加`}
-                          onClick={(e) => openAdd(e, seat, "hand")}
-                        >
-                          +
-                        </button>
-                      )}
-                      {board.melds.length > 0 && (
-                        <div className={s.melds}>
-                          {board.melds.map((md, mi) => (
-                            <div key={mi} className={s.meld}>
-                              {md.tiles.map((t, ti) => {
-                                const loc: TileLocation = {
-                                  seat,
-                                  area: "meld",
-                                  meldIndex: mi,
-                                  index: ti,
-                                };
-                                return (
-                                  <BoardTile
-                                    key={ti}
-                                    code={t.tile}
-                                    kind="meld"
-                                    lay={ti === 0}
-                                    review={needsReview(t)}
-                                    selected={sel?.kind === "edit" && fkey(sel.loc) === fkey(loc)}
-                                    label={`${wind}家の鳴き`}
-                                    onClick={(e) => openEdit(e, loc, t.tile)}
-                                  />
-                                );
-                              })}
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </div>
+        <BoardTable
+          kifu={kifu}
+          bottomSeat={bottomSeat}
+          dealer={dealer}
+          scale={scale}
+          mainRef={mainRef}
+          sel={sel}
+          flashKey={flashKey}
+          names={names}
+          showPoints={showPoints}
+          points={points}
+          honba={honba}
+          kyotaku={kyotaku}
+          round={round}
+          dora={dora}
+          onOpenEdit={openEdit}
+          onOpenAdd={openAdd}
+        />
 
         <aside className={s.rail} onClick={(e) => e.stopPropagation()}>
           {/* 半荘 */}
@@ -916,155 +686,26 @@ function Editor(p: EditorProps) {
       </div>
 
       {pop && (
-        <div
-          style={{ position: "fixed", inset: 0, zIndex: 199 }}
-          onClick={(e) => {
-            e.stopPropagation();
-            closePop();
-          }}
+        <TilePickerPopup
+          pos={pop}
+          suit={suit}
+          setSuit={setSuit}
+          sel={sel}
+          kifu={kifu}
+          meldType={meldType}
+          setMeldType={setMeldType}
+          meldWho={meldWho}
+          setMeldWho={setMeldWho}
+          kanType={kanType}
+          setKanType={setKanType}
+          bottomSeat={bottomSeat}
+          dealer={dealer}
+          names={names}
+          onApplyTile={applyTile}
+          onSetDiscardKind={setDiscardKind}
+          onSetDiscardRiichi={setDiscardRiichi}
+          onClose={closePop}
         />
-      )}
-      {pop && (
-        <div
-          className={s.tilepop}
-          style={{ left: pop.x, top: pop.y }}
-          role="dialog"
-          aria-label="牌を選ぶ"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <div className={s.tabs}>
-            {SUITS.map((su) => (
-              <button
-                key={su.suit}
-                className={suit === su.suit ? s.on : ""}
-                onClick={() => setSuit(su.suit)}
-              >
-                {su.label}
-              </button>
-            ))}
-          </div>
-          <div className={s.pgrid}>
-            {NUMS[suit].map((code) => (
-              <button key={code} className={s.pk} onClick={() => applyTile(code)}>
-                <span className={s.tile}>
-                  <OssTileFace code={code} />
-                </span>
-              </button>
-            ))}
-          </div>
-          {sel?.kind === "edit" && sel.loc.area !== "meld" && (
-            <div className={s.meldEdit}>
-              {sel.loc.area === "river" && (
-                <div className={s.meRow}>
-                  <span className={s.meLabel}>捨て方</span>
-                  <div className={s.meSeg}>
-                    {(
-                      [
-                        [false, "手出し"],
-                        [true, "自摸切り"],
-                      ] as const
-                    ).map(([tg, lbl]) => (
-                      <button
-                        key={lbl}
-                        className={
-                          (kifu.seats[sel.loc.seat].river[sel.loc.index]?.tsumogiri ?? false) === tg
-                            ? s.on
-                            : ""
-                        }
-                        onClick={() => setDiscardKind(tg)}
-                      >
-                        {lbl}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-              {sel.loc.area === "river" && (
-                <div className={s.meRow}>
-                  <span className={s.meLabel}>リーチ宣言牌</span>
-                  <div className={s.meSeg}>
-                    {(
-                      [
-                        [false, "通常"],
-                        [true, "リーチ（横向き）"],
-                      ] as const
-                    ).map(([rc, lbl]) => (
-                      <button
-                        key={lbl}
-                        className={
-                          (kifu.seats[sel.loc.seat].river[sel.loc.index]?.riichi ?? false) === rc
-                            ? s.on
-                            : ""
-                        }
-                        onClick={() => setDiscardRiichi(rc)}
-                      >
-                        {lbl}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-              <div className={s.meRow}>
-                <span className={s.meLabel}>鳴き</span>
-                <div className={s.meSeg}>
-                  {(["none", "chi", "pon", "kan"] as const).map((mt) => (
-                    <button
-                      key={mt}
-                      className={meldType === mt ? s.on : ""}
-                      onClick={() => setMeldType(mt)}
-                    >
-                      {{ none: "なし", chi: "チー", pon: "ポン", kan: "カン" }[mt]}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              {meldType !== "none" && (
-                <>
-                  <div className={s.meRow}>
-                    <span className={s.meLabel}>鳴いた人</span>
-                    <div className={s.meSeg}>
-                      {(["bottom", "right", "top", "left"] as const).map((cam) => {
-                        const abs = toAbsoluteSeat(cam, bottomSeat);
-                        return (
-                          <button
-                            key={cam}
-                            className={meldWho === cam ? s.on : ""}
-                            onClick={() => setMeldWho(cam)}
-                          >
-                            {names[abs] || `${windOf(abs, dealer)}家`}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                  {meldType === "kan" && (
-                    <div className={s.meRow}>
-                      <span className={s.meLabel}>種類</span>
-                      <div className={s.meSeg}>
-                        {(
-                          [
-                            ["minkan", "大明槓"],
-                            ["ankan", "暗槓"],
-                            ["kakan", "加槓"],
-                          ] as const
-                        ).map(([k, lbl]) => (
-                          <button
-                            key={k}
-                            className={kanType === k ? s.on : ""}
-                            onClick={() => setKanType(k)}
-                          >
-                            {lbl}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                  <p className={s.meHint}>牌を選ぶと鳴きを作成します</p>
-                </>
-              )}
-            </div>
-          )}
-        </div>
       )}
 
       {addOpen && (

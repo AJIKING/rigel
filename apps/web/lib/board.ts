@@ -52,3 +52,15 @@ export function chunk<T>(a: T[], n: number): T[][] {
 export function roundName(index: number): string {
   return `${WINDS[Math.min(Math.floor(index / 4), 3)]}${KANJI[index % 4]}局`;
 }
+
+/** 鳴き牌の並びを作る。ポン=同牌3枚、カン=同牌4枚、チー=選択牌を含む3連続（両端は1-9に収める）。
+ *  字牌など連続を作れない牌でチーが指定された場合は同種3枚にフォールバックする。 */
+export function meldTiles(type: "chi" | "pon" | "kan", code: Tile): Tile[] {
+  if (type === "pon") return [code, code, code];
+  if (type === "kan") return [code, code, code, code];
+  const su = code[1];
+  if (su !== "m" && su !== "p" && su !== "s") return [code, code, code];
+  const n = code[0] === "0" ? 5 : Number(code[0]);
+  const st = Math.max(1, Math.min(n - 1, 7));
+  return [`${st}${su}` as Tile, `${st + 1}${su}` as Tile, `${st + 2}${su}` as Tile];
+}
