@@ -919,6 +919,15 @@ function Editor(p: EditorProps) {
 
       {pop && (
         <div
+          style={{ position: "fixed", inset: 0, zIndex: 199 }}
+          onClick={(e) => {
+            e.stopPropagation();
+            closePop();
+          }}
+        />
+      )}
+      {pop && (
+        <div
           className={s.tilepop}
           style={{ left: pop.x, top: pop.y }}
           role="dialog"
