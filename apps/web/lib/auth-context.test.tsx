@@ -1,5 +1,5 @@
 import { render, screen, waitFor } from "@testing-library/react";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { AuthProvider, useAuth } from "./auth-context";
 
 function Probe() {
@@ -8,15 +8,18 @@ function Probe() {
   return <div>{user ? `user:${user.id}` : "anon"}</div>;
 }
 
-describe("AuthProvider", () => {
-  beforeEach(() => {
-    localStorage.clear();
-  });
-  afterEach(() => {
-    vi.unstubAllGlobals();
-  });
+function stubMe(body: unknown, status = 200) {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(() => Promise.resolve(new Response(JSON.stringify(body), { status }))),
+  );
+}
 
-  it("保存済みトークンが無ければ未ログイン", async () => {
+describe("AuthProvider", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("セッションが無ければ未ログイン", async () => {
+    stubMe({ user: null });
     render(
       <AuthProvider>
         <Probe />
@@ -25,38 +28,26 @@ describe("AuthProvider", () => {
     await waitFor(() => expect(screen.getByText("anon")).toBeDefined());
   });
 
-  it("保存済みトークンがあれば /me で復元する", async () => {
-    localStorage.setItem("rigel.session", "tok");
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(() =>
-        Promise.resolve(new Response(JSON.stringify({ id: "u1", plan: "free" }), { status: 200 })),
-      ),
-    );
-
+  it("Cookie セッションがあれば /api/me でユーザーを復元する", async () => {
+    stubMe({ user: { id: "u1", plan: "free" } });
     render(
       <AuthProvider>
         <Probe />
       </AuthProvider>,
     );
-
     await waitFor(() => expect(screen.getByText("user:u1")).toBeDefined());
   });
 
-  it("/me が失敗したらトークンを捨てて未ログインにする", async () => {
-    localStorage.setItem("rigel.session", "bad");
+  it("/api/me が失敗しても未ログインで確定する", async () => {
     vi.stubGlobal(
       "fetch",
-      vi.fn(() => Promise.resolve(new Response("no", { status: 401 }))),
+      vi.fn(() => Promise.reject(new Error("network"))),
     );
-
     render(
       <AuthProvider>
         <Probe />
       </AuthProvider>,
     );
-
     await waitFor(() => expect(screen.getByText("anon")).toBeDefined());
-    expect(localStorage.getItem("rigel.session")).toBeNull();
   });
 });

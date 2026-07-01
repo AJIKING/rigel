@@ -3,7 +3,7 @@
 import { analyzeErrorMessage, cameraLabel, seatLabel } from "@rigel/ui";
 import { SeatSchema, type CameraSeat, type Seat, type Tile } from "@rigel/schema";
 import { useState } from "react";
-import { analyze, createEmptyKifu, createGame } from "../../lib/api";
+import { analyzeAction, createEmptyKifuAction, createGameAction } from "../../app/actions";
 import { buildAnalyzeForm } from "../../lib/analyze-form";
 import { DoraPicker } from "./DoraPicker";
 import { Stepper } from "./Stepper";
@@ -19,13 +19,11 @@ const HANDS: { cam: CameraSeat; label: string }[] = [
 /** 局の追加モーダル。AI再現=撮影画像を /analyze、手動=空の局を作成（牌は盤面で手入力）。
  *  gameId 無し=新しい半荘の最初の局（手前席を選ばせ、成功で gameId/logId を返す）。 */
 export function AddKyokuModal({
-  token,
   gameId,
   bottomSeat = "east",
   onClose,
   onDone,
 }: {
-  token: string;
   /** 既存半荘に追加するなら指定。無指定なら新しい半荘を作る（手前席を選ばせる）。 */
   gameId?: string;
   bottomSeat?: Seat;
@@ -53,8 +51,7 @@ export function AddKyokuModal({
     setBusy(true);
     setError(null);
     try {
-      const result = await analyze(
-        token,
+      const result = await analyzeAction(
         buildAnalyzeForm({ river, cameraBottomSeat: seat, hands, gameId }),
       );
       if (result.ok) {
@@ -75,8 +72,8 @@ export function AddKyokuModal({
     try {
       const meta = { honba, kyotaku, junme, dora };
       const result = gameId
-        ? await createEmptyKifu(token, gameId, seat, meta)
-        : await createGame(token, seat, meta);
+        ? await createEmptyKifuAction(gameId, seat, meta)
+        : await createGameAction(seat, meta);
       if (result.ok) {
         await onDone(result.logId, result.gameId);
         return;

@@ -10,24 +10,15 @@ import {
 } from "@rigel/schema";
 import { applyTileEdit, visibilityLabel, type TileLocation } from "@rigel/ui";
 import Link from "next/link";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import {
-  deleteKifu,
-  getGame,
-  setVisibility,
-  updateKifu,
-  type GameDetail,
-  type GameLog,
-} from "../../lib/api";
-import {
-  SEAT_ORDER,
-  meldTiles,
-  popAnchor,
-  roundName,
-  windOf,
-  type Suit,
-} from "../../lib/board";
-import { useAuth } from "../../lib/auth-context";
+  deleteKifuAction,
+  getGameAction,
+  setVisibilityAction,
+  updateKifuAction,
+} from "../../app/actions";
+import { type GameDetail, type GameLog } from "../../lib/api";
+import { SEAT_ORDER, meldTiles, popAnchor, roundName, windOf, type Suit } from "../../lib/board";
 import { useBoardScale } from "../../lib/use-board-scale";
 import { AddKyokuModal } from "./AddKyokuModal";
 import { AgariEditor } from "./AgariEditor";
@@ -38,6 +29,19 @@ import { TilePickerPopup, type KanType, type MeldType } from "./TilePickerPopup"
 import { clone, fkey, type Selection } from "./shared";
 import { DoraGlyph } from "./tiles";
 import s from "./board-editor.module.css";
+
+/** ゲート（認証確認中・未ログイン・エラー・データ取得中）用のダーク全画面シェル。
+ *  盤面と同じ地色（themeBoard の .app）で、白画面フラッシュを出さない。 */
+function GateShell({ children }: { children?: React.ReactNode }) {
+  return (
+    <div
+      className={`${s.app} themeBoard`}
+      style={{ display: "grid", placeItems: "center", padding: 24 }}
+    >
+      {children}
+    </div>
+  );
+}
 
 /** 局情報のドラ/裏ドラ1行（ラベル＋牌ピッカーを開くボタン）。 */
 function DoraNavRow({
@@ -59,23 +63,33 @@ function DoraNavRow({
   );
 }
 
-export function BoardEditor({ gameId, logId }: { gameId: string; logId: string }) {
-  const { user, token, loading: authLoading } = useAuth();
-  const [detail, setDetail] = useState<GameDetail | null>(null);
-  const [idx, setIdx] = useState(0);
-  const [kifu, setKifu] = useState<Kifu | null>(null);
-  const [err, setErr] = useState<string | null>(null);
+/**
+ * 盤面エディタ（クライアント）。認証・初期データ取得は Server Component
+ * （app/kifu/[gameId]/[logId]/page.tsx）が Cookie セッションで済ませ、正規化済みの
+ * `initialDetail` を props で渡す。ここは対話・編集・保存だけを担う（トークンは持たない）。
+ */
+export function BoardEditor({
+  initialDetail,
+  gameId,
+  logId,
+}: {
+  initialDetail: GameDetail;
+  gameId: string;
+  logId: string;
+}) {
+  const [detail, setDetail] = useState<GameDetail>(initialDetail);
+  const startIdx = Math.max(
+    0,
+    initialDetail.logs.findIndex((l) => l.id === logId),
+  );
+  const [idx, setIdx] = useState(startIdx);
+  const [kifu, setKifu] = useState<Kifu | null>(initialDetail.logs[startIdx]?.kifu ?? null);
 
+  // 局の追加/削除後の再取得。Server Action が Cookie を読んで取り直す（正規化済み）。
   const reload = useCallback(
     async (focus?: string) => {
-      if (!token) return;
-      const d = await getGame(token, gameId).catch(() => null);
-      if (!d) {
-        setErr("取得に失敗しました");
-        return;
-      }
-      // 旧牌譜（rules/agari/meta の新フィールドが無い）に既定を埋めて正規化する。
-      const nd = { ...d, logs: d.logs.map((l) => ({ ...l, kifu: KifuSchema.parse(l.kifu) })) };
+      const nd = await getGameAction(gameId).catch(() => null);
+      if (!nd) return;
       setDetail(nd);
       const want = focus ?? logId;
       const i = Math.max(
@@ -85,23 +99,18 @@ export function BoardEditor({ gameId, logId }: { gameId: string; logId: string }
       setIdx(i);
       setKifu(nd.logs[i]?.kifu ?? null);
     },
-    [token, gameId, logId],
+    [gameId, logId],
   );
 
-  useEffect(() => {
-    if (!authLoading) void reload();
-  }, [authLoading, reload]);
-
-  if (authLoading) return <p style={{ color: "#aaa", padding: 24 }}>…</p>;
-  if (!token)
+  const log = detail.logs[idx];
+  if (!log || !kifu)
     return (
-      <p style={{ color: "#555", padding: 24 }}>
-        編集には <Link href="/login">ログイン</Link> が必要です。
-      </p>
+      <GateShell>
+        <p style={{ color: "var(--w70)" }}>
+          この半荘には局がありません。<Link href="/kifu">牌譜一覧へ</Link>
+        </p>
+      </GateShell>
     );
-  if (err) return <p style={{ color: "crimson", padding: 24 }}>{err}</p>;
-  const log = detail?.logs[idx];
-  if (!detail || !log || !kifu) return <p style={{ color: "#aaa", padding: 24 }}>読み込み中…</p>;
 
   return (
     <Editor
@@ -111,8 +120,6 @@ export function BoardEditor({ gameId, logId }: { gameId: string; logId: string }
       log={log}
       kifu={kifu}
       setKifu={setKifu}
-      token={token}
-      userPlan={user?.plan ?? "free"}
       gameId={gameId}
       onSwitch={(i) => {
         setIdx(i);
@@ -129,15 +136,13 @@ interface EditorProps {
   log: GameLog;
   kifu: Kifu;
   setKifu: (k: Kifu) => void;
-  token: string;
-  userPlan: "free" | "next" | "pro";
   gameId: string;
   onSwitch: (i: number) => void;
   reload: (focus?: string) => Promise<void>;
 }
 
 function Editor(p: EditorProps) {
-  const { detail, idx, log, kifu, setKifu, token, gameId } = p;
+  const { detail, idx, log, kifu, setKifu, gameId } = p;
   const bottomSeat: Seat = kifu.cameraBottomSeat ?? "east";
   const dealer: Seat = kifu.meta.dealer ?? bottomSeat;
 
@@ -294,14 +299,14 @@ function Editor(p: EditorProps) {
 
   async function onSave() {
     setSave("saving");
-    const res = await updateKifu(token, log.id, kifu).catch(() => ({ ok: false, status: 0 }));
+    const res = await updateKifuAction(log.id, kifu).catch(() => ({ ok: false, status: 0 }));
     setSave(res.ok ? "done" : "idle");
     if (res.ok) setTimeout(() => setSave("idle"), 1500);
   }
   async function toggleVis(next: "public" | "private") {
     if (next === vis || visBusy) return;
     setVisBusy(true);
-    const res = await setVisibility(token, log.id, next).catch(() => ({ ok: false, status: 0 }));
+    const res = await setVisibilityAction(log.id, next).catch(() => ({ ok: false, status: 0 }));
     if (res.ok) setVis(next);
     setVisBusy(false);
   }
@@ -340,7 +345,7 @@ function Editor(p: EditorProps) {
       return;
     }
     setDelArm(false);
-    const res = await deleteKifu(token, log.id).catch(() => ({ ok: false, status: 0 }));
+    const res = await deleteKifuAction(log.id).catch(() => ({ ok: false, status: 0 }));
     if (res.ok) {
       const focus = detail.logs[idx + 1]?.id ?? detail.logs[idx - 1]?.id;
       await p.reload(focus);
@@ -710,7 +715,6 @@ function Editor(p: EditorProps) {
 
       {addOpen && (
         <AddKyokuModal
-          token={token}
           gameId={gameId}
           bottomSeat={bottomSeat}
           onClose={() => setAddOpen(false)}

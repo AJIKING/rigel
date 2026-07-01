@@ -5,6 +5,12 @@ import { SettingsShell } from "./SettingsShell";
 import { UserPageShell } from "./UserPageShell";
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
+// Server Action は server-only を辿るためモック（未ログインなので呼ばれない）。
+vi.mock("../../app/actions", () => ({
+  createCheckoutAction: vi.fn(),
+  deleteAccountAction: vi.fn(),
+  updateProfileAction: vi.fn(),
+}));
 
 describe("SettingsShell", () => {
   it("未ログインではログイン導線を出す", async () => {

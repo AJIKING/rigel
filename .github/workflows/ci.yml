@@ -45,3 +45,29 @@ jobs:
 
       - name: Build
         run: pnpm build
+
+  e2e:
+    name: e2e / 盤面レイアウト（Playwright）
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 10.13.1
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Playwright browser
+        run: pnpm --filter web exec playwright install --with-deps chromium
+
+      - name: Board layout e2e
+        run: pnpm --filter web test:e2e

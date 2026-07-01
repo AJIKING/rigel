@@ -1,12 +1,6 @@
 "use client";
 
-import {
-  toAbsoluteSeat,
-  type CameraSeat,
-  type Kifu,
-  type Seat,
-  type Tile,
-} from "@rigel/schema";
+import { toAbsoluteSeat, type CameraSeat, type Kifu, type Seat, type Tile } from "@rigel/schema";
 import { needsReview, type TileLocation } from "@rigel/ui";
 import { chunk, windOf } from "../../lib/board";
 import { fkey, fmtPts, type Selection } from "./shared";

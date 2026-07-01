@@ -1,16 +1,9 @@
 "use client";
 
-import {
-  KifuSchema,
-  toAbsoluteSeat,
-  type CameraSeat,
-  type Kifu,
-  type Seat,
-  type Tile,
-} from "@rigel/schema";
+import { toAbsoluteSeat, type CameraSeat, type Kifu, type Seat, type Tile } from "@rigel/schema";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { getPublicGameDetail, type PublicGameDetail } from "../../lib/api";
+import { type PublicGameDetail } from "../../lib/api";
 import { useAuth } from "../../lib/auth-context";
 import { SEAT_ORDER, chunk, roundName, windOf } from "../../lib/board";
 import { useBoardScale } from "../../lib/use-board-scale";
@@ -52,9 +45,11 @@ function ViewTile({
   ]
     .filter(Boolean)
     .join(" ");
-  if (back) return <span className={cls} />;
+  // data-tile はレイアウト検証（Playwright）用の安定セレクタ。CSS Module クラスは
+  // ハッシュ化されるため、牌の矩形を測るためのフックとして付ける。
+  if (back) return <span className={cls} data-tile={kind ?? "hand"} />;
   return (
-    <span className={cls}>
+    <span className={cls} data-tile={kind ?? "hand"}>
       <OssTileFace code={code ?? null} />
     </span>
   );
@@ -78,10 +73,13 @@ function DoraRow({ label, code }: { label: string; code: Tile | null }) {
   );
 }
 
-export function KifuViewer({ gameId }: { gameId: string }) {
+/**
+ * 公開牌譜ビューア（クライアント）。データ取得・正規化・not-found 判定は
+ * 親の Server Component（app/k/[gameId]/page.tsx）が済ませ、正規化済みの
+ * `detail` を props で受け取る。ここは再生・全画面・共有などの対話だけを担う。
+ */
+export function KifuViewer({ detail, gameId }: { detail: PublicGameDetail; gameId: string }) {
   const { user } = useAuth();
-  const [detail, setDetail] = useState<PublicGameDetail | null>(null);
-  const [state, setState] = useState<"loading" | "ok" | "notfound">("loading");
   const { favs, toggle: toggleFav } = useFavorites();
 
   const [gi, setGi] = useState(0);
@@ -94,19 +92,6 @@ export function KifuViewer({ gameId }: { gameId: string }) {
   const [agariClosed, setAgariClosed] = useState(false); // 上がりオーバーレイを閉じたか。
 
   useEffect(() => {
-    getPublicGameDetail(gameId)
-      .then((d) => {
-        // 旧牌譜（rules/agari/meta の新フィールドが無い）に既定を埋めて正規化する。
-        const nd = d
-          ? { ...d, logs: d.logs.map((l) => ({ ...l, kifu: KifuSchema.parse(l.kifu) })) }
-          : d;
-        setDetail(nd);
-        setState(nd ? "ok" : "notfound");
-      })
-      .catch(() => setState("notfound"));
-  }, [gameId]);
-
-  useEffect(() => {
     const onEsc = (e: KeyboardEvent) => {
       if (e.key === "Escape") setFs(false);
     };
@@ -114,7 +99,7 @@ export function KifuViewer({ gameId }: { gameId: string }) {
     return () => window.removeEventListener("keydown", onEsc);
   }, []);
 
-  const log = detail?.logs[gi];
+  const log = detail.logs[gi];
   const kifu: Kifu | undefined = log?.kifu;
   const bottomSeat: Seat = kifu?.cameraBottomSeat ?? "east";
   const dealer: Seat = kifu?.meta.dealer ?? bottomSeat;
@@ -159,12 +144,12 @@ export function KifuViewer({ gameId }: { gameId: string }) {
     setAgariClosed(false);
   }
 
-  if (state === "loading") return <Shell>{<p className={s.notice}>読み込み中…</p>}</Shell>;
-  if (state === "notfound" || !detail || !log || !kifu)
+  // 取得・not-found は Server Component 側で処理済み。ここは局が空のときだけ守る。
+  if (!log || !kifu)
     return (
       <Shell>
         <p className={s.notice}>
-          この牌譜は見つからないか、非公開です。<Link href="/kifu">牌譜一覧へ</Link>
+          この半荘には局がありません。<Link href="/kifu">牌譜一覧へ</Link>
         </p>
       </Shell>
     );
@@ -270,7 +255,7 @@ export function KifuViewer({ gameId }: { gameId: string }) {
           <div className={s.boardcol}>
             <div className={s.stage} style={{ height: 768 * scale }}>
               <div className={s.table} style={{ transform: `scale(${scale})` }}>
-                <div className={s.center}>
+                <div className={s.center} data-center>
                   <div className={s.rd}>
                     {round} <span className={s.hb}>0本場</span>
                   </div>
@@ -286,7 +271,7 @@ export function KifuViewer({ gameId }: { gameId: string }) {
                       ? detail.owner.displayName || detail.owner.handle || `${wind}家`
                       : `${wind}家`;
                   return (
-                    <div key={cam} className={`${s.seat} ${cls}`}>
+                    <div key={cam} className={`${s.seat} ${cls}`} data-seat={cam}>
                       <div className={s.river}>
                         {chunk(riverShown, 6).map((row, ri) => (
                           <div key={ri} className={s.rrow}>

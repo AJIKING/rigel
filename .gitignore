@@ -21,6 +21,10 @@ next-env.d.ts
 
 # test
 coverage/
+# playwright（実ブラウザ検証の生成物）
+test-results/
+playwright-report/
+.playwright/
 
 # local overrides (machine-managed, do not commit)
 .claude/settings.local.json

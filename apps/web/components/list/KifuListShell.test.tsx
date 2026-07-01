@@ -5,6 +5,8 @@ import { KifuListShell } from "./KifuListShell";
 
 // next/navigation の useRouter をスタブ。
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
+// Server Action は server-only を辿るためモック（未ログインなので呼ばれない）。
+vi.mock("../../app/actions", () => ({ getMyGamesAction: vi.fn(() => Promise.resolve([])) }));
 
 describe("KifuListShell", () => {
   it("公開牌譜ビューは見出しを表示する", async () => {

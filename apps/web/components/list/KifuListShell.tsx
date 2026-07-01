@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
-import { getMyGames, getPublicGames, type MyGameCard, type PublicGameCard } from "../../lib/api";
+import { getMyGamesAction } from "../../app/actions";
+import { getPublicGames, type MyGameCard, type PublicGameCard } from "../../lib/api";
 import { useAuth } from "../../lib/auth-context";
 import { fmtDateSlash } from "../../lib/format";
 import { useFavorites } from "../../lib/use-favorites";
@@ -14,7 +15,7 @@ import s from "./kifu-list.module.css";
 
 /** 牌譜一覧。view=mine はマイページ(/kifu・要ログイン)、view=public は公開牌譜(/explore)。 */
 export function KifuListShell({ view }: { view: "mine" | "public" }) {
-  const { token, loading: authLoading } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const router = useRouter();
 
   const [mine, setMine] = useState<MyGameCard[] | null>(null);
@@ -35,14 +36,14 @@ export function KifuListShell({ view }: { view: "mine" | "public" }) {
   }, [view]);
   useEffect(() => {
     if (view !== "mine" || authLoading) return;
-    if (!token) {
+    if (!user) {
       setMine([]);
       return;
     }
-    getMyGames(token)
+    getMyGamesAction()
       .then(setMine)
       .catch(() => setMine([]));
-  }, [view, authLoading, token]);
+  }, [view, authLoading, user]);
 
   const mineView = useMemo(() => {
     let arr = (mine ?? []).slice();
@@ -144,7 +145,7 @@ export function KifuListShell({ view }: { view: "mine" | "public" }) {
             </div>
 
             <div className={gc.feed}>
-              {!token ? (
+              {!user ? (
                 <p className={s.loginNote}>
                   自分の牌譜を見るには <Link href="/login">ログイン</Link> してください。
                 </p>

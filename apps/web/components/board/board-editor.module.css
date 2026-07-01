@@ -133,8 +133,12 @@
 }
 .seat {
   position: absolute;
+  left: 50%;
+  top: 50%;
   transform-origin: center;
-  transform: translate(-50%, -50%) rotate(var(--rot, 0deg));
+  /* 席は「河の内側エッジ」を中心から --seat-inner の位置に固定し、河→名前→手牌は
+     すべて外側（盤面の縁方向）へ伸ばす。中央寄せ(translate -50%,-50%)をやめたことで、
+     河が長くなっても中央・対面・側面へ食い込まない。各席の向きは seatB/T/L/R で定義。 */
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -169,24 +173,18 @@
   gap: 1px;
   align-items: flex-end;
 }
+/* 各席は内側（河）エッジを中心から --seat-inner に固定し、外側へ伸ばす。 */
 .seatB {
-  left: 50%;
-  top: 75%;
+  transform: translate(-50%, var(--seat-inner));
 }
 .seatT {
-  left: 50%;
-  top: 25%;
-  --rot: 180deg;
+  transform: translate(-50%, calc(-100% - var(--seat-inner))) rotate(180deg);
 }
 .seatL {
-  left: 25%;
-  top: 50%;
-  --rot: 90deg;
+  transform: translate(calc(-100% - var(--seat-inner)), -50%) rotate(90deg);
 }
 .seatR {
-  left: 75%;
-  top: 50%;
-  --rot: -90deg;
+  transform: translate(var(--seat-inner), -50%) rotate(-90deg);
 }
 .seatL,
 .seatR {

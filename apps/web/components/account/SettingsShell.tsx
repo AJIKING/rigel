@@ -4,13 +4,7 @@ import { checkoutErrorMessage, planLabel, planMonthlyPrice, type PaidPlan } from
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import {
-  createCheckout,
-  deleteAccount,
-  fetchMe,
-  updateProfile,
-  type AuthUser,
-} from "../../lib/api";
+import { createCheckoutAction, deleteAccountAction, updateProfileAction } from "../../app/actions";
 import { useAuth } from "../../lib/auth-context";
 import { AppHeader } from "../AppHeader";
 import s from "./account.module.css";
@@ -36,10 +30,9 @@ const PLAN_CARDS: {
 ];
 
 export function SettingsShell() {
-  const { token, loading: authLoading, signOut } = useAuth();
+  const { user, loading: authLoading, signOut } = useAuth();
   const router = useRouter();
 
-  const [me, setMe] = useState<AuthUser | null>(null);
   const [handle, setHandle] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [profilePublic, setProfilePublic] = useState(true);
@@ -47,21 +40,16 @@ export function SettingsShell() {
   const [planOpen, setPlanOpen] = useState(false);
   const [delArm, setDelArm] = useState(false);
 
+  // ユーザー情報は Cookie セッション由来（auth-context）。フォーム初期値をそこから埋める。
   useEffect(() => {
-    if (authLoading || !token) return;
-    fetchMe(token)
-      .then((u) => {
-        if (!u) return;
-        setMe(u);
-        setHandle(u.handle ?? "");
-        setDisplayName(u.displayName ?? "");
-        setProfilePublic(u.profilePublic ?? true);
-      })
-      .catch(() => {});
-  }, [authLoading, token]);
+    if (!user) return;
+    setHandle(user.handle ?? "");
+    setDisplayName(user.displayName ?? "");
+    setProfilePublic(user.profilePublic ?? true);
+  }, [user]);
 
   if (authLoading) return <Shell>{<p style={{ color: "#888", padding: 24 }}>…</p>}</Shell>;
-  if (!token)
+  if (!user)
     return (
       <Shell>
         <p className={s.loginNote}>
@@ -70,12 +58,11 @@ export function SettingsShell() {
       </Shell>
     );
 
-  const plan: Plan = me?.plan ?? "free";
+  const plan: Plan = user.plan ?? "free";
 
   async function onSaveProfile() {
-    if (!token) return;
     setSave("saving");
-    const res = await updateProfile(token, { handle, displayName, profilePublic });
+    const res = await updateProfileAction({ handle, displayName, profilePublic });
     if (res.ok) {
       setSave("saved");
       setTimeout(() => setSave("idle"), 1600);
@@ -85,13 +72,12 @@ export function SettingsShell() {
   }
 
   async function onTogglePublic(next: boolean) {
-    if (!token) return;
     setProfilePublic(next);
-    await updateProfile(token, { profilePublic: next }).catch(() => {});
+    await updateProfileAction({ profilePublic: next }).catch(() => {});
   }
 
   async function onPickPlan(target: Plan) {
-    if (!token || target === plan) return;
+    if (target === plan) return;
     if (target === "free") {
       setSave("プランの解約は決済ポータルから行えます（準備中）");
       setTimeout(() => setSave("idle"), 2400);
@@ -99,7 +85,7 @@ export function SettingsShell() {
       return;
     }
     const origin = window.location.origin;
-    const res = await createCheckout(token, {
+    const res = await createCheckoutAction({
       plan: target as PaidPlan,
       successUrl: `${origin}/settings`,
       cancelUrl: `${origin}/settings`,
@@ -112,15 +98,14 @@ export function SettingsShell() {
   }
 
   async function onDelete() {
-    if (!token) return;
     if (!delArm) {
       setDelArm(true);
       setTimeout(() => setDelArm(false), 3000);
       return;
     }
-    const res = await deleteAccount(token);
+    const res = await deleteAccountAction();
     if (res.ok) {
-      signOut();
+      await signOut();
       router.push("/");
     }
   }
@@ -217,10 +202,7 @@ export function SettingsShell() {
           <div className={s.panelFoot} style={{ justifyContent: "space-between" }}>
             <button
               className={`${s.btn} ${s.ghost}`}
-              onClick={() => {
-                signOut();
-                router.push("/login");
-              }}
+              onClick={() => void signOut().then(() => router.push("/login"))}
             >
               ログアウト
             </button>
