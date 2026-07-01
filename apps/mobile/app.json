@@ -7,12 +7,20 @@
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "platforms": ["ios", "android"],
+    "icon": "./assets/icon.png",
     "ios": {
       "bundleIdentifier": "co.plaria.rigel",
       "supportsTablet": true
     },
     "android": {
-      "package": "co.plaria.rigel"
+      "package": "co.plaria.rigel",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#0b6249"
+      }
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
     },
     "plugins": ["expo-secure-store"]
   }
