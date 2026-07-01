@@ -58,6 +58,7 @@ type Selection =
   | { kind: "edit"; loc: TileLocation }
   | { kind: "add"; seat: Seat; area: "hand" | "river" }
   | { kind: "dora" }
+  | { kind: "uradora" }
   | null;
 
 function BoardTile({
@@ -194,11 +195,12 @@ function Editor(p: EditorProps) {
   const bottomSeat: Seat = kifu.cameraBottomSeat ?? "east";
   const dealer: Seat = kifu.meta.dealer ?? bottomSeat;
 
-  // 局メタ（本場/供託/最終巡目/ドラ）は kifu.meta から読み、変更は mutate で書き戻して保存に乗せる。
+  // 局メタ（本場/供託/最終巡目/ドラ/裏ドラ）は kifu.meta から読み、変更は mutate で書き戻して保存に乗せる。
   const honba = kifu.meta.honba;
   const kyotaku = kifu.meta.kyotaku;
   const junme = kifu.meta.junme;
   const dora = kifu.meta.dora;
+  const uraDora = kifu.meta.uraDora;
   const setHonba = (v: number) =>
     mutate((d) => {
       d.meta.honba = v;
@@ -214,6 +216,10 @@ function Editor(p: EditorProps) {
   const setDora = (code: Tile) =>
     mutate((d) => {
       d.meta.dora = code;
+    });
+  const setUraDora = (code: Tile) =>
+    mutate((d) => {
+      d.meta.uraDora = code;
     });
   const [results, setResults] = useState<Record<Seat, string>>({
     east: "",
@@ -283,10 +289,11 @@ function Editor(p: EditorProps) {
     setMeldType("none");
     setPop(popAnchor((e.currentTarget as HTMLElement).getBoundingClientRect()));
   }
-  function openDora(e: React.MouseEvent) {
+  function openDoraPicker(e: React.MouseEvent, kind: "dora" | "uradora") {
     e.stopPropagation();
-    setSel({ kind: "dora" });
-    setSuit((dora?.[1] as Suit) ?? "z");
+    const cur = kind === "dora" ? dora : uraDora;
+    setSel({ kind });
+    setSuit((cur?.[1] as Suit) ?? "z");
     setMeldType("none");
     setPop(popAnchor((e.currentTarget as HTMLElement).getBoundingClientRect()));
   }
@@ -318,6 +325,11 @@ function Editor(p: EditorProps) {
     if (!sel) return;
     if (sel.kind === "dora") {
       setDora(code);
+      closePop();
+      return;
+    }
+    if (sel.kind === "uradora") {
+      setUraDora(code);
       closePop();
       return;
     }
@@ -710,13 +722,27 @@ function Editor(p: EditorProps) {
                     </select>
                   </div>
                 </div>
-                <Stepper label="巡目" unit="巡" value={junme} min={1} max={30} set={setJunme} />
+                <Stepper label="最終巡目" unit="巡" value={junme} min={1} max={30} set={setJunme} />
                 <Stepper label="本場" unit="本場" value={honba} min={0} max={19} set={setHonba} />
                 <Stepper label="供託" unit="本" value={kyotaku} min={0} max={9} set={setKyotaku} />
                 <div className={s.steprow}>
                   <span className={s.stlabel}>ドラ</span>
-                  <button className={s.doraPick} aria-label="ドラを選ぶ" onClick={openDora}>
+                  <button
+                    className={s.doraPick}
+                    aria-label="ドラを選ぶ"
+                    onClick={(e) => openDoraPicker(e, "dora")}
+                  >
                     <DoraGlyph code={dora} />
+                  </button>
+                </div>
+                <div className={s.steprow}>
+                  <span className={s.stlabel}>裏ドラ</span>
+                  <button
+                    className={s.doraPick}
+                    aria-label="裏ドラを選ぶ"
+                    onClick={(e) => openDoraPicker(e, "uradora")}
+                  >
+                    <DoraGlyph code={uraDora} />
                   </button>
                 </div>
               </div>

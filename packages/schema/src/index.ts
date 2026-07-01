@@ -161,6 +161,8 @@ export const KifuSchema = z.object({
       kyotaku: z.number().int().min(0).default(0),
       /** ドラ表示牌。未設定は null。点数計算はしないので表示・記録用。 */
       dora: TileSchema.nullable().default(null),
+      /** 裏ドラ表示牌。リーチ和了時のみ意味を持つ。未設定は null。表示・記録用。 */
+      uraDora: TileSchema.nullable().default(null),
       /** 最終巡目（スナップショット時点）。 */
       junme: z.number().int().min(1).default(1),
       note: z.string().default(""),

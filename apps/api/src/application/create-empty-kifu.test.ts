@@ -50,15 +50,24 @@ describe("CreateEmptyKifu", () => {
     }
   });
 
-  it("空の局を追加して logId を返す", async () => {
+  it("手動作成は最終巡目ぶんの河と13枚の手牌をプレースホルダで並べる", async () => {
     const { uc, gameLogs } = make({ games: [game("g1", "u1")] });
-    const result = await uc.execute({ userId: "u1", gameId: "g1", cameraBottomSeat: "east" });
+    const result = await uc.execute({
+      userId: "u1",
+      gameId: "g1",
+      cameraBottomSeat: "east",
+      meta: { junme: 3 },
+    });
     expect(result.ok).toBe(true);
     if (result.ok) {
       const log = await gameLogs.findById(result.logId);
       expect(log?.visibility).toBe("private");
-      expect(log?.kifu.seats.east.hand).toEqual([]);
       expect(log?.seq).toBe(1);
+      // 各席の手牌は 1m から13枚。
+      expect(log?.kifu.seats.east.hand).toHaveLength(13);
+      expect(log?.kifu.seats.east.hand[0]?.tile).toBe("1m");
+      // 各席の河は最終巡目ぶん（3枚）を 1m,2m,3m の順で並べる。
+      expect(log?.kifu.seats.north.river.map((d) => d.tile)).toEqual(["1m", "2m", "3m"]);
     }
   });
 

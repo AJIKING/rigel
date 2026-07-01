@@ -82,17 +82,23 @@ describe("KifuSchema（牌譜1件の最終検証）", () => {
     expect(result.success).toBe(false);
   });
 
-  it("局メタ(本場/供託/ドラ/最終巡目)は省略時に既定が入る（後方互換）", () => {
+  it("局メタ(本場/供託/ドラ/裏ドラ/最終巡目)は省略時に既定が入る（後方互換）", () => {
     const kifu = KifuSchema.parse(minimalKifu);
-    expect(kifu.meta).toMatchObject({ honba: 0, kyotaku: 0, dora: null, junme: 1 });
+    expect(kifu.meta).toMatchObject({
+      honba: 0,
+      kyotaku: 0,
+      dora: null,
+      uraDora: null,
+      junme: 1,
+    });
   });
 
   it("局メタを指定すると保持する（記録のみ・点数計算はしない）", () => {
     const kifu = KifuSchema.parse({
       ...minimalKifu,
-      meta: { honba: 2, kyotaku: 1, dora: "3p", junme: 9 },
+      meta: { honba: 2, kyotaku: 1, dora: "3p", uraDora: "5m", junme: 9 },
     });
-    expect(kifu.meta).toMatchObject({ honba: 2, kyotaku: 1, dora: "3p", junme: 9 });
+    expect(kifu.meta).toMatchObject({ honba: 2, kyotaku: 1, dora: "3p", uraDora: "5m", junme: 9 });
   });
 
   it("本場・供託は負値を、最終巡目は0以下を拒否する", () => {

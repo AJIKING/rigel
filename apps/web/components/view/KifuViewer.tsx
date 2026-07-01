@@ -141,6 +141,8 @@ export function KifuViewer({ gameId }: { gameId: string }) {
         : kifu.result === "draw"
           ? "流局"
           : "—";
+  // 和了（ロン/ツモ）のときだけ裏ドラを出す（リーチ和了で意味を持つため）。
+  const isWin = kifu.result === "ron" || kifu.result === "tsumo";
 
   function onShare() {
     const url = typeof window !== "undefined" ? window.location.href : "";
@@ -455,10 +457,44 @@ export function KifuViewer({ gameId }: { gameId: string }) {
                 <b>{maxLen}巡</b>
               </div>
               <div className={s.irow}>
+                <span>本場</span>
+                <b>{kifu.meta.honba}本場</b>
+              </div>
+              <div className={s.irow}>
+                <span>供託</span>
+                <b>{kifu.meta.kyotaku}本</b>
+              </div>
+              <div className={s.irow}>
+                <span>ドラ</span>
+                <b>
+                  {kifu.meta.dora ? (
+                    <span className={s.metaTile}>
+                      <OssTileFace code={kifu.meta.dora} />
+                    </span>
+                  ) : (
+                    "—"
+                  )}
+                </b>
+              </div>
+              <div className={s.irow}>
                 <span>結果</span>
                 <b>{resultLabel}</b>
               </div>
-              <p className={s.muted}>本場・供託・ドラ・点数は未記録です。</p>
+              {isWin && (
+                <div className={s.irow}>
+                  <span>裏ドラ</span>
+                  <b>
+                    {kifu.meta.uraDora ? (
+                      <span className={s.metaTile}>
+                        <OssTileFace code={kifu.meta.uraDora} />
+                      </span>
+                    ) : (
+                      "—"
+                    )}
+                  </b>
+                </div>
+              )}
+              <p className={s.muted}>点数は記録しません。</p>
             </div>
 
             <div className={s.ssec}>
