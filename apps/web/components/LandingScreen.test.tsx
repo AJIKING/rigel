@@ -6,7 +6,7 @@ describe("LandingScreen", () => {
   it("見出しとブランド名を表示する", () => {
     render(<LandingScreen />);
     const h1 = screen.getByRole("heading", { level: 1 });
-    expect(h1.textContent?.replace(/\s/g, "")).toContain("牌譜をAIで再現");
+    expect(h1.textContent?.replace(/\s/g, "")).toContain("牌譜の体験を変える");
     expect(screen.getByText("RIGEL")).toBeTruthy();
   });
 

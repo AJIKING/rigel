@@ -125,7 +125,7 @@
   font-family: var(--round);
   font-weight: 700;
   font-size: 14.5px;
-  padding: 13px 20px;
+  padding: 13px 22px;
   border: 0;
   border-radius: var(--r);
   transition: 0.15s;
@@ -145,7 +145,8 @@
   font-family: var(--round);
   color: var(--w70);
   border: 1px solid var(--line);
-  padding: 13px 18px;
+  /* 枠線1pxぶん縦を詰めて .gbtn と外形の高さをそろえる。横は 22px で統一。 */
+  padding: 12px 22px;
   border-radius: var(--r);
   transition: 0.15s;
 }

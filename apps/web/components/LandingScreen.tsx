@@ -20,9 +20,9 @@ export function LandingScreen() {
       <main className={s.main}>
         <div>
           <h1 className={`${s.h1} ${s.enter} ${s.d1}`}>
-            牌譜を<span className={s.em}>AI</span>で再現
+            牌譜の<span className={s.em}>体験</span>を変える
           </h1>
-          <p className={`${s.lead} ${s.enter} ${s.d2}`}>いつでもふりかえる</p>
+          <p className={`${s.lead} ${s.enter} ${s.d2}`}>いつでも残せる、いつでもみれる</p>
           <div className={`${s.cta} ${s.enter} ${s.d3}`}>
             <Link className={s.gbtn} href="/login">
               <svg className={s.g} viewBox="0 0 48 48" aria-hidden="true">
