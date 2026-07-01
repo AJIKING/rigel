@@ -114,6 +114,26 @@ function DoraGlyph({ code }: { code: Tile | null }) {
   return <span className={s.doraT}>{code && <OssTileFace code={code} />}</span>;
 }
 
+/** 局情報のドラ/裏ドラ1行（ラベル＋牌ピッカーを開くボタン）。 */
+function DoraNavRow({
+  label,
+  code,
+  onOpen,
+}: {
+  label: string;
+  code: Tile | null;
+  onOpen: (e: React.MouseEvent) => void;
+}) {
+  return (
+    <div className={s.steprow}>
+      <span className={s.stlabel}>{label}</span>
+      <button className={s.doraPick} aria-label={`${label}を選ぶ`} onClick={onOpen}>
+        <DoraGlyph code={code} />
+      </button>
+    </div>
+  );
+}
+
 const RESULTS = ["", "ツモ", "ロン", "放銃", "聴牌", "不聴", "流し満貫"];
 
 export function BoardEditor({ gameId, logId }: { gameId: string; logId: string }) {
@@ -202,26 +222,17 @@ function Editor(p: EditorProps) {
   const junme = kifu.meta.junme;
   const dora = kifu.meta.dora;
   const uraDora = kifu.meta.uraDora;
-  const setHonba = (v: number) =>
-    mutate((d) => {
-      d.meta.honba = v;
-    });
-  const setKyotaku = (v: number) =>
-    mutate((d) => {
-      d.meta.kyotaku = v;
-    });
-  const setJunme = (v: number) =>
-    mutate((d) => {
-      d.meta.junme = v;
-    });
-  const setDora = (code: Tile) =>
-    mutate((d) => {
-      d.meta.dora = code;
-    });
-  const setUraDora = (code: Tile) =>
-    mutate((d) => {
-      d.meta.uraDora = code;
-    });
+  const setMeta =
+    <K extends keyof Kifu["meta"]>(key: K) =>
+    (v: Kifu["meta"][K]) =>
+      mutate((d) => {
+        d.meta[key] = v;
+      });
+  const setHonba = setMeta("honba");
+  const setKyotaku = setMeta("kyotaku");
+  const setJunme = setMeta("junme");
+  const setDora = setMeta("dora");
+  const setUraDora = setMeta("uraDora");
   const [results, setResults] = useState<Record<Seat, string>>({
     east: "",
     south: "",
@@ -730,26 +741,12 @@ function Editor(p: EditorProps) {
                 <Stepper label="最終巡目" unit="巡" value={junme} min={1} max={30} set={setJunme} />
                 <Stepper label="本場" unit="本場" value={honba} min={0} max={19} set={setHonba} />
                 <Stepper label="供託" unit="本" value={kyotaku} min={0} max={9} set={setKyotaku} />
-                <div className={s.steprow}>
-                  <span className={s.stlabel}>ドラ</span>
-                  <button
-                    className={s.doraPick}
-                    aria-label="ドラを選ぶ"
-                    onClick={(e) => openDoraPicker(e, "dora")}
-                  >
-                    <DoraGlyph code={dora} />
-                  </button>
-                </div>
-                <div className={s.steprow}>
-                  <span className={s.stlabel}>裏ドラ</span>
-                  <button
-                    className={s.doraPick}
-                    aria-label="裏ドラを選ぶ"
-                    onClick={(e) => openDoraPicker(e, "uradora")}
-                  >
-                    <DoraGlyph code={uraDora} />
-                  </button>
-                </div>
+                <DoraNavRow label="ドラ" code={dora} onOpen={(e) => openDoraPicker(e, "dora")} />
+                <DoraNavRow
+                  label="裏ドラ"
+                  code={uraDora}
+                  onOpen={(e) => openDoraPicker(e, "uradora")}
+                />
               </div>
             )}
           </section>
