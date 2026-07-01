@@ -8,7 +8,13 @@ import {
   type Seat,
   type Tile,
 } from "@rigel/schema";
-import { applyTileEdit, needsReview, visibilityLabel, type TileLocation } from "@rigel/ui";
+import {
+  applyTileEdit,
+  needsReview,
+  standings,
+  visibilityLabel,
+  type TileLocation,
+} from "@rigel/ui";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
@@ -232,6 +238,12 @@ function Editor(p: EditorProps) {
   const setJunme = setMeta("junme");
   const setDora = setMeta("dora");
   const setUraDora = setMeta("uraDora");
+
+  // 半荘の持ち点（開始点＋各局の和了 deltas の累積）。最終成績もこれで見る。
+  const standing = standings(
+    detail.logs.map((l) => l.kifu),
+    kifu.rules,
+  );
 
   // 席の結果表示（和了はネームプレートに出す）。agari が単一の真実源。
   const seatResult = (seat: Seat): string =>
@@ -795,6 +807,24 @@ function Editor(p: EditorProps) {
             </button>
             {showPoints && (
               <div className={s.accBody}>
+                {/* 全局の和了から自動集計した持ち点（＝最終成績）。 */}
+                <div style={{ marginBottom: 10 }}>
+                  {SEAT_ORDER.map((seat) => (
+                    <div key={seat} className={s.agrow}>
+                      <span className={s.agname}>{windOf(seat, dealer)}家</span>
+                      <span
+                        style={{
+                          marginLeft: "auto",
+                          fontWeight: 700,
+                          fontFamily: "var(--round)",
+                          fontVariantNumeric: "tabular-nums",
+                        }}
+                      >
+                        {standing[seat].toLocaleString()}点
+                      </span>
+                    </div>
+                  ))}
+                </div>
                 {SEAT_ORDER.map((seat) => (
                   <div key={seat} className={s.agrow}>
                     <input
