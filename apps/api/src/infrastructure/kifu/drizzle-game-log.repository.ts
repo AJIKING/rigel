@@ -1,5 +1,6 @@
 // infrastructure/kifu — GameLogRepository の Drizzle/D1 実装。
 
+import { KifuSchema } from "@rigel/schema";
 import { and, asc, count, desc, eq } from "drizzle-orm";
 import type { GameLog, Visibility } from "../../domain/kifu/game-log";
 import type { GameLogRepository } from "../../domain/kifu/game-log.repository";
@@ -12,7 +13,9 @@ function toDomain(row: GameLogRow): GameLog {
     userId: row.userId,
     gameId: row.gameId,
     seq: row.seq,
-    kifu: row.kifu,
+    // 保存済み牌譜をスキーマで正規化し、後から増えたフィールド（rules/agari 等）に
+    // 既定を埋める（旧データの後方互換）。
+    kifu: KifuSchema.parse(row.kifu),
     visibility: row.visibility,
     createdAt: row.createdAt,
   };

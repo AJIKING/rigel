@@ -1,6 +1,13 @@
 "use client";
 
-import { toAbsoluteSeat, type CameraSeat, type Kifu, type Seat, type Tile } from "@rigel/schema";
+import {
+  KifuSchema,
+  toAbsoluteSeat,
+  type CameraSeat,
+  type Kifu,
+  type Seat,
+  type Tile,
+} from "@rigel/schema";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { getPublicGameDetail, type PublicGameDetail } from "../../lib/api";
@@ -89,8 +96,12 @@ export function KifuViewer({ gameId }: { gameId: string }) {
   useEffect(() => {
     getPublicGameDetail(gameId)
       .then((d) => {
-        setDetail(d);
-        setState(d ? "ok" : "notfound");
+        // 旧牌譜（rules/agari/meta の新フィールドが無い）に既定を埋めて正規化する。
+        const nd = d
+          ? { ...d, logs: d.logs.map((l) => ({ ...l, kifu: KifuSchema.parse(l.kifu) })) }
+          : d;
+        setDetail(nd);
+        setState(nd ? "ok" : "notfound");
       })
       .catch(() => setState("notfound"));
   }, [gameId]);

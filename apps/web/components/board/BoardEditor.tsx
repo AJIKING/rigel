@@ -156,14 +156,16 @@ export function BoardEditor({ gameId, logId }: { gameId: string; logId: string }
         setErr("取得に失敗しました");
         return;
       }
-      setDetail(d);
+      // 旧牌譜（rules/agari/meta の新フィールドが無い）に既定を埋めて正規化する。
+      const nd = { ...d, logs: d.logs.map((l) => ({ ...l, kifu: KifuSchema.parse(l.kifu) })) };
+      setDetail(nd);
       const want = focus ?? logId;
       const i = Math.max(
         0,
-        d.logs.findIndex((l) => l.id === want),
+        nd.logs.findIndex((l) => l.id === want),
       );
       setIdx(i);
-      setKifu(d.logs[i]?.kifu ?? null);
+      setKifu(nd.logs[i]?.kifu ?? null);
     },
     [token, gameId, logId],
   );
