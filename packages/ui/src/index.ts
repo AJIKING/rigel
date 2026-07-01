@@ -15,6 +15,9 @@ import {
   type Tile,
 } from "@rigel/schema";
 
+// 打点計算（han/fu + ルール → 支払い）。
+export * from "./score";
+
 const SEAT_ORDER: Seat[] = ["east", "south", "west", "north"];
 
 /** confidence がこの値未満なら UI で「要確認」ハイライトにする閾値（暫定。eval で調整する）。 */
