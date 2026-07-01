@@ -1,0 +1,157 @@
+/* 和了入力UI（編集画面の「和了」セクション）。色・寸法は .themeBoard のテーマ変数。 */
+
+.field {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+.label {
+  font-size: 12.5px;
+  color: var(--w85);
+  font-weight: 500;
+  flex: 0 0 auto;
+}
+.seg {
+  display: inline-flex;
+  background: var(--chrome-2);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  padding: 2px;
+  flex-wrap: wrap;
+}
+.seg button {
+  background: transparent;
+  border: 0;
+  color: var(--w70);
+  font-family: var(--round);
+  font-weight: 700;
+  font-size: 12px;
+  padding: 5px 9px;
+  border-radius: 2px;
+  transition: 0.13s;
+  cursor: pointer;
+}
+.seg button:hover {
+  color: #fff;
+}
+.seg button.on {
+  background: rgba(255, 158, 69, 0.16);
+  color: var(--accent);
+}
+.seg button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.sel {
+  background: var(--chrome-2);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  color: var(--w85);
+  font-family: var(--round);
+  font-size: 12.5px;
+  padding: 6px 8px;
+}
+
+/* 役グループ */
+.yakuGrp {
+  margin-top: 8px;
+}
+.yakuHead {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--w45);
+  letter-spacing: 0.04em;
+  margin: 8px 0 6px;
+}
+.yakuGrid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+.chip {
+  background: var(--chrome-2);
+  border: 1px solid var(--line);
+  color: var(--w70);
+  font-family: var(--round);
+  font-weight: 700;
+  font-size: 11.5px;
+  padding: 5px 8px;
+  border-radius: var(--r);
+  cursor: pointer;
+  transition: 0.12s;
+}
+.chip:hover {
+  color: #fff;
+}
+.chip.on {
+  background: rgba(255, 158, 69, 0.16);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.chip:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+.chip .han {
+  color: var(--w45);
+  margin-left: 4px;
+  font-weight: 500;
+}
+.chip.on .han {
+  color: var(--accent);
+}
+
+/* 打点パネル */
+.result {
+  margin-top: 12px;
+  padding: 12px;
+  background: var(--chrome-2);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+}
+.big {
+  font-family: var(--round);
+  font-weight: 800;
+  font-size: 20px;
+  color: #fff;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+.big .lim {
+  font-size: 13px;
+  color: var(--accent);
+  font-weight: 800;
+}
+.pay {
+  font-size: 12.5px;
+  color: var(--w70);
+  margin-top: 4px;
+}
+.deltas {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin-top: 10px;
+}
+.drow {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+}
+.drow .plus {
+  color: #52c07a;
+  font-weight: 700;
+}
+.drow .minus {
+  color: var(--vermilion);
+  font-weight: 700;
+}
+.warn {
+  color: var(--vermilion);
+  font-size: 11.5px;
+  margin-top: 8px;
+}

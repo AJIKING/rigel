@@ -33,6 +33,7 @@ import { useAuth } from "../../lib/auth-context";
 import { useBoardScale } from "../../lib/use-board-scale";
 import { OssTileFace } from "../OssTileFace";
 import { AddKyokuModal } from "./AddKyokuModal";
+import { AgariEditor } from "./AgariEditor";
 import { RulesDialog } from "./RulesDialog";
 import { Stepper } from "./Stepper";
 import s from "./board-editor.module.css";
@@ -134,8 +135,6 @@ function DoraNavRow({
   );
 }
 
-const RESULTS = ["", "ツモ", "ロン", "放銃", "聴牌", "不聴", "流し満貫"];
-
 export function BoardEditor({ gameId, logId }: { gameId: string; logId: string }) {
   const { user, token, loading: authLoading } = useAuth();
   const [detail, setDetail] = useState<GameDetail | null>(null);
@@ -233,12 +232,16 @@ function Editor(p: EditorProps) {
   const setJunme = setMeta("junme");
   const setDora = setMeta("dora");
   const setUraDora = setMeta("uraDora");
-  const [results, setResults] = useState<Record<Seat, string>>({
-    east: "",
-    south: "",
-    west: "",
-    north: "",
-  });
+
+  // 席の結果表示（和了はネームプレートに出す）。agari が単一の真実源。
+  const seatResult = (seat: Seat): string =>
+    kifu.agari?.winner === seat
+      ? kifu.agari.from
+        ? "ロン"
+        : "ツモ"
+      : kifu.agari?.from === seat
+        ? "放銃"
+        : "";
 
   const [sel, setSel] = useState<Selection>(null);
   const [pop, setPop] = useState<{ x: number; y: number } | null>(null);
@@ -492,7 +495,7 @@ function Editor(p: EditorProps) {
                 const seat = toAbsoluteSeat(cam, bottomSeat);
                 const board = kifu.seats[seat];
                 const wind = windOf(seat, dealer);
-                const win = results[seat] === "ツモ" || results[seat] === "ロン";
+                const win = kifu.agari?.winner === seat;
                 const rows = chunk(board.river, 6);
                 return (
                   <div key={cam} className={`${s.seat} ${cls}`}>
@@ -546,7 +549,7 @@ function Editor(p: EditorProps) {
                     <div className={`${s.nameplate} ${win ? s.win : ""}`}>
                       <span className={s.wd}>{wind}</span>
                       <span className={s.nm}>{names[seat] || `${wind}家`}</span>
-                      {results[seat] && <span className={s.sc}>{results[seat]}</span>}
+                      {seatResult(seat) && <span className={s.sc}>{seatResult(seat)}</span>}
                       {showPoints && (
                         <span
                           style={{
@@ -765,25 +768,15 @@ function Editor(p: EditorProps) {
             </button>
             {open.agari && (
               <div className={s.accBody}>
-                {SEAT_ORDER.map((seat) => (
-                  <div key={seat} className={s.agrow}>
-                    <span className={s.agname}>{windOf(seat, dealer)}家</span>
-                    <div className={s.agsel}>
-                      <select
-                        className={s.sel2}
-                        value={results[seat]}
-                        onChange={(e) => setResults((r) => ({ ...r, [seat]: e.target.value }))}
-                        aria-label={`${windOf(seat, dealer)}家の結果`}
-                      >
-                        {RESULTS.map((r) => (
-                          <option key={r} value={r}>
-                            {r || "—"}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  </div>
-                ))}
+                <AgariEditor
+                  kifu={kifu}
+                  dealer={dealer}
+                  onAgari={(a) =>
+                    mutate((d) => {
+                      d.agari = a;
+                    })
+                  }
+                />
               </div>
             )}
           </section>
