@@ -173,6 +173,7 @@ export function RulesDialog({
                     <label className={s.sw}>
                       <input
                         type="checkbox"
+                        aria-label={row.t}
                         checked={draft[row.k]}
                         onChange={(e) => setToggle(row.k, e.target.checked)}
                       />

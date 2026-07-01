@@ -59,6 +59,17 @@ describe("agariDeltas（1局の点棒移動）", () => {
     expect(d.west).toBe(-4000);
     expect(d.north).toBe(-4000);
   });
+
+  it("供託は和了者が総取りする（親満貫ロン＋供託2）", () => {
+    const k = kifu({
+      dealer: "east",
+      kyotaku: 2,
+      agari: { winner: "east", from: "south", fu: 30, yaku: [{ name: "満貫", han: 5 }] },
+    });
+    const d = agariDeltas(k);
+    expect(d.south).toBe(-12000);
+    expect(d.east).toBe(12000 + 2000);
+  });
 });
 
 describe("standings（持ち点の累積）", () => {

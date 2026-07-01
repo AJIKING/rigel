@@ -169,6 +169,21 @@ describe("KifuSchema（牌譜1件の最終検証）", () => {
   it("和了者(winner)が無いと拒否する", () => {
     expect(KifuSchema.safeParse({ ...minimalKifu, agari: { fu: 30 } }).success).toBe(false);
   });
+
+  it("旧牌譜（rules/agari/裏ドラ 無し）を parse すると新フィールドに既定が入る（後方互換）", () => {
+    const legacy = {
+      schemaVersion: "1.0.0",
+      capturedAt: "2026-06-28T00:00:00.000Z",
+      result: "ron",
+      cameraBottomSeat: "east",
+      seats: { east: { hand: [], melds: [], river: [] }, south: {}, west: {}, north: {} },
+      meta: { dealer: "east", honba: 1 },
+    };
+    const kifu = KifuSchema.parse(legacy);
+    expect(kifu.rules).toEqual(RULE_PRESETS.mleague);
+    expect(kifu.agari).toBeNull();
+    expect(kifu.meta).toMatchObject({ uraDora: null, kyotaku: 0, dora: null, junme: 1, honba: 1 });
+  });
 });
 
 describe("RULE_PRESETS（ルールプリセット）", () => {

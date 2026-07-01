@@ -71,6 +71,33 @@ describe("handScore（打点計算）", () => {
   it("base>=2000 は満貫に切り詰める（子4飜40符ロン = 8000）", () => {
     expect(handScore({ han: 4, fu: 40, dealer: false, tsumo: false }, R).total).toBe(8000);
   });
+
+  it("親の跳満/倍満/三倍満/役満ロン", () => {
+    expect(handScore({ han: 6, fu: 30, dealer: true, tsumo: false }, R).total).toBe(18000);
+    expect(handScore({ han: 8, fu: 30, dealer: true, tsumo: false }, R).total).toBe(24000);
+    expect(handScore({ han: 11, fu: 30, dealer: true, tsumo: false }, R).total).toBe(36000);
+    expect(handScore({ han: 13, fu: 30, dealer: true, tsumo: false }, R)).toMatchObject({
+      total: 48000,
+      limit: "役満",
+    });
+  });
+
+  it("子ツモ満貫 = 2000/4000（合計8000）", () => {
+    const s = handScore({ han: 5, fu: 30, dealer: false, tsumo: true }, R);
+    expect(s.payment).toEqual({ fromDealer: 4000, fromNonDealer: 2000 });
+    expect(s.total).toBe(8000);
+  });
+
+  it("親ツモ跳満 = 6000オール（合計18000）", () => {
+    const s = handScore({ han: 6, fu: 30, dealer: true, tsumo: true }, R);
+    expect(s.payment).toEqual({ each: 6000 });
+    expect(s.total).toBe(18000);
+  });
+
+  it("1飜30符の下限（子ロン1000 / 親ロン1500）", () => {
+    expect(handScore({ han: 1, fu: 30, dealer: false, tsumo: false }, R).total).toBe(1000);
+    expect(handScore({ han: 1, fu: 30, dealer: true, tsumo: false }, R).total).toBe(1500);
+  });
 });
 
 describe("kifuScore（Kifu から打点を計算）", () => {
