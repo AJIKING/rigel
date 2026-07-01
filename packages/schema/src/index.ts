@@ -130,6 +130,58 @@ export const SeatBoardSchema = z.object({
 export type SeatBoard = z.infer<typeof SeatBoardSchema>;
 
 // ------------------------------------------------------------
+// 半荘ルール（点数計算の前提。docs/rigel-rules-dialog.html を再現）
+//   写真から復元できないので手入力。既定は Mリーグ相当。
+// ------------------------------------------------------------
+export const AkaCountSchema = z.enum(["none", "1", "2"]); // 各色の赤5の枚数
+export const RenchanSchema = z.enum(["agari", "tenpai"]); // 親の連荘条件
+export const StartPointsSchema = z.enum(["25000", "30000"]); // 持ち点/返し
+export const UmaSchema = z.enum(["5-10", "10-20", "10-30"]); // ウマ（順位点・千点）
+
+export const RulesSchema = z.object({
+  /** 喰いタン（鳴きタンヤオ）を認める。 */
+  kuitan: z.boolean().default(true),
+  /** 後付け（片和了）を認める。 */
+  atozuke: z.boolean().default(true),
+  /** 赤ドラ（各色の赤5）の枚数。 */
+  aka: AkaCountSchema.default("1"),
+  /** 切り上げ満貫（4飜30符・3飜60符を満貫に）。 */
+  kiriage: z.boolean().default(false),
+  /** 数え役満（13飜以上を役満扱い）。 */
+  kazoe: z.boolean().default(true),
+  /** ダブル役満（複数役満の倍加）。 */
+  multiYakuman: z.boolean().default(true),
+  /** 役満同士の複合を認める。 */
+  compYakuman: z.boolean().default(true),
+  /** 親の連荘条件（和了連荘 / 聴牌連荘）。 */
+  renchan: RenchanSchema.default("tenpai"),
+  /** ノーテン罰符（流局時の不聴払い・計3000点）。 */
+  noten: z.boolean().default(true),
+  /** 途中流局（九種九牌・四風連打・四家立直・四槓散了・三家和）。 */
+  ryukyoku: z.boolean().default(false),
+  /** 持ち点/返し点（オカの基準）。 */
+  start: StartPointsSchema.default("25000"),
+  /** ウマ（順位点・千点）。 */
+  uma: UmaSchema.default("10-30"),
+  /** トビ終了（持ち点0未満で終局）。 */
+  tobi: z.boolean().default(false),
+});
+export type Rules = z.infer<typeof RulesSchema>;
+
+/** ルールプリセット（ダイアログの初期選択に使う）。既定は mleague。 */
+export const RULE_PRESETS = {
+  mleague: RulesSchema.parse({ renchan: "tenpai", ryukyoku: false, uma: "10-30", tobi: false }),
+  tenhou: RulesSchema.parse({ renchan: "agari", ryukyoku: true, uma: "10-20", tobi: true }),
+  free: RulesSchema.parse({
+    kiriage: true,
+    renchan: "tenpai",
+    ryukyoku: true,
+    uma: "10-20",
+    tobi: true,
+  }),
+} as const satisfies Record<string, Rules>;
+
+// ------------------------------------------------------------
 // 牌譜 1件（= 課金単位 / D1 の 1 レコード / 共有URLの単位）
 // ------------------------------------------------------------
 export const ResultSchema = z.enum(["ron", "tsumo", "draw"]);
@@ -168,6 +220,9 @@ export const KifuSchema = z.object({
       note: z.string().default(""),
     })
     .default({}),
+
+  /** 半荘ルール（点数計算の前提）。省略時は Mリーグ相当の既定。 */
+  rules: RulesSchema.default({}),
 
   /** 解析時の読み取り困難メモ（グレア・ブレ・見切れ等）。AIのnotesを引き継ぐ。 */
   readingNotes: z.string().default(""),

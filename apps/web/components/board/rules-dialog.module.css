@@ -1,0 +1,233 @@
+/* ルール設定ダイアログ — docs/rigel-rules-dialog.html の再現（CSS Module）。
+   色・寸法は .themeBoard のテーマ変数を使う。 */
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(8, 10, 13, 0.66);
+}
+
+.dialog {
+  position: relative;
+  width: min(100%, 462px);
+  max-height: 88vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--chrome);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  box-shadow: 0 40px 90px -30px rgba(0, 0, 0, 0.85);
+  overflow: hidden;
+}
+
+.dhead {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 16px 18px;
+  border-bottom: 1px solid var(--line-2);
+}
+.dhead h1 {
+  font-family: var(--round);
+  font-weight: 800;
+  font-size: 16px;
+  margin: 0;
+}
+.x {
+  margin-left: auto;
+  width: 30px;
+  height: 30px;
+  border-radius: var(--r);
+  border: 1px solid var(--line);
+  background: var(--chrome-2);
+  color: var(--w70);
+  display: grid;
+  place-items: center;
+  font-size: 15px;
+}
+.x:hover {
+  color: #fff;
+  border-color: var(--w45);
+}
+
+.dpre {
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--line-2);
+}
+.lbl {
+  font-size: 10.5px;
+  font-weight: 700;
+  color: var(--w45);
+  letter-spacing: 0.06em;
+  margin-bottom: 9px;
+}
+.presets {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+}
+.presets button {
+  background: var(--chrome-2);
+  border: 1px solid var(--line);
+  color: var(--w70);
+  font-family: var(--round);
+  font-weight: 800;
+  font-size: 12.5px;
+  padding: 10px 4px;
+  border-radius: var(--r);
+  transition: 0.13s;
+}
+.presets button:hover {
+  color: #fff;
+}
+.presets button.on {
+  background: rgba(255, 158, 69, 0.15);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.dbody {
+  overflow: auto;
+  flex: 1;
+}
+.grp > h2 {
+  font-family: var(--round);
+  font-weight: 800;
+  font-size: 12px;
+  letter-spacing: 0.05em;
+  color: var(--w45);
+  margin: 0;
+  padding: 15px 18px 9px;
+}
+.row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 11px 18px;
+  border-bottom: 1px solid var(--line-2);
+}
+.rl {
+  flex: 1;
+  min-width: 0;
+}
+.rt {
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--w85);
+}
+.rd {
+  font-size: 11px;
+  color: var(--w45);
+  margin-top: 3px;
+  line-height: 1.5;
+}
+
+.sw {
+  position: relative;
+  width: 42px;
+  height: 23px;
+  flex: 0 0 auto;
+  display: inline-block;
+}
+.sw input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  margin: 0;
+  cursor: pointer;
+  z-index: 1;
+}
+.tr {
+  position: absolute;
+  inset: 0;
+  background: var(--chrome-3);
+  border: 1px solid var(--line);
+  border-radius: 99px;
+  transition: 0.16s;
+}
+.kb {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  background: var(--w70);
+  transition: 0.16s;
+}
+.sw input:checked ~ .tr {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+.sw input:checked ~ .tr .kb {
+  left: 22px;
+  background: #0c0e12;
+}
+
+.segm {
+  display: inline-flex;
+  background: var(--chrome-2);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  padding: 2px;
+  flex: 0 0 auto;
+}
+.segm button {
+  background: transparent;
+  border: 0;
+  color: var(--w70);
+  font-family: var(--round);
+  font-weight: 800;
+  font-size: 12px;
+  padding: 6px 10px;
+  border-radius: 2px;
+  transition: 0.13s;
+  white-space: nowrap;
+}
+.segm button:hover {
+  color: #fff;
+}
+.segm button.on {
+  background: rgba(255, 158, 69, 0.16);
+  color: var(--accent);
+}
+
+.dfoot {
+  display: flex;
+  gap: 10px;
+  padding: 14px 18px;
+  border-top: 1px solid var(--line-2);
+}
+.btn {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--round);
+  font-weight: 800;
+  font-size: 14px;
+  border-radius: var(--r);
+  border: 1px solid transparent;
+  padding: 11px 16px;
+  transition: 0.15s;
+}
+.primary {
+  background: var(--accent);
+  color: #16181d;
+}
+.primary:hover {
+  background: var(--accent-2);
+}
+.ghost {
+  background: var(--chrome-2);
+  border-color: var(--line);
+  color: var(--w85);
+}
+.ghost:hover {
+  border-color: var(--w45);
+  color: #fff;
+}

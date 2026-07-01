@@ -33,6 +33,7 @@ import { useAuth } from "../../lib/auth-context";
 import { useBoardScale } from "../../lib/use-board-scale";
 import { OssTileFace } from "../OssTileFace";
 import { AddKyokuModal } from "./AddKyokuModal";
+import { RulesDialog } from "./RulesDialog";
 import { Stepper } from "./Stepper";
 import s from "./board-editor.module.css";
 
@@ -245,6 +246,7 @@ function Editor(p: EditorProps) {
   );
   const [roundMenu, setRoundMenu] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
+  const [rulesOpen, setRulesOpen] = useState(false);
   const [delArm, setDelArm] = useState(false);
   // 点数（UI のみ。スキーマ外）。
   const [showPoints, setShowPoints] = useState(false);
@@ -676,6 +678,9 @@ function Editor(p: EditorProps) {
                   )}
                 </div>
                 <div className={s.kyakuAct}>
+                  <button className={s.addkyoku} onClick={() => setRulesOpen(true)}>
+                    ⚙ ルール設定
+                  </button>
                   <button className={s.addkyoku} onClick={() => setAddOpen(true)}>
                     ＋ 局の追加
                   </button>
@@ -1041,6 +1046,19 @@ function Editor(p: EditorProps) {
           onDone={async (newLogId) => {
             setAddOpen(false);
             await p.reload(newLogId);
+          }}
+        />
+      )}
+
+      {rulesOpen && (
+        <RulesDialog
+          rules={kifu.rules}
+          onClose={() => setRulesOpen(false)}
+          onSave={(r) => {
+            mutate((d) => {
+              d.rules = r;
+            });
+            setRulesOpen(false);
           }}
         />
       )}

@@ -3,6 +3,7 @@ import {
   AiRiverResponseSchema,
   KifuSchema,
   ReadTileSchema,
+  RULE_PRESETS,
   SeatSchema,
   toAbsoluteSeat,
   type CameraSeat,
@@ -109,6 +110,35 @@ describe("KifuSchema（牌譜1件の最終検証）", () => {
 
   it("ドラ表示牌は不正な牌コードを拒否する", () => {
     expect(KifuSchema.safeParse({ ...minimalKifu, meta: { dora: "10m" } }).success).toBe(false);
+  });
+
+  it("半荘ルールは省略時に既定（Mリーグ相当）が入る（後方互換）", () => {
+    const kifu = KifuSchema.parse(minimalKifu);
+    expect(kifu.rules).toEqual(RULE_PRESETS.mleague);
+  });
+
+  it("半荘ルールを指定すると保持する", () => {
+    const kifu = KifuSchema.parse({
+      ...minimalKifu,
+      rules: { kuitan: false, aka: "2", uma: "10-20", tobi: true },
+    });
+    expect(kifu.rules).toMatchObject({ kuitan: false, aka: "2", uma: "10-20", tobi: true });
+  });
+
+  it("不正なルール値（ウマ/赤ドラ）を拒否する", () => {
+    expect(KifuSchema.safeParse({ ...minimalKifu, rules: { uma: "99-99" } }).success).toBe(false);
+    expect(KifuSchema.safeParse({ ...minimalKifu, rules: { aka: "3" } }).success).toBe(false);
+  });
+});
+
+describe("RULE_PRESETS（ルールプリセット）", () => {
+  it("mleague / tenhou / free の3種を提供する", () => {
+    expect(Object.keys(RULE_PRESETS)).toEqual(["mleague", "tenhou", "free"]);
+  });
+
+  it("天鳳は途中流局あり・トビ終了あり、Mリーグはどちらも無し", () => {
+    expect(RULE_PRESETS.tenhou).toMatchObject({ ryukyoku: true, tobi: true });
+    expect(RULE_PRESETS.mleague).toMatchObject({ ryukyoku: false, tobi: false });
   });
 });
 
