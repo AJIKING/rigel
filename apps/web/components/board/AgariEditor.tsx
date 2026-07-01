@@ -9,6 +9,34 @@ const FU_OPTIONS = [20, 25, 30, 40, 50, 60, 70, 80, 90, 100, 110];
 const YAKU_GROUPS = yakuByGroup();
 const CATALOG_BY_NAME = new Map(YAKU_CATALOG.map((y) => [y.name, y]));
 
+/** 席を選ぶセグメント（和了者/放銃者/リーチで共用）。 */
+function SeatSeg({
+  label,
+  seats,
+  isOn,
+  onPick,
+  dealer,
+}: {
+  label: string;
+  seats: Seat[];
+  isOn: (seat: Seat) => boolean;
+  onPick: (seat: Seat) => void;
+  dealer: Seat;
+}) {
+  return (
+    <div className={s.field}>
+      <span className={s.label}>{label}</span>
+      <div className={s.seg}>
+        {seats.map((seat) => (
+          <button key={seat} className={isOn(seat) ? s.on : ""} onClick={() => onPick(seat)}>
+            {windOf(seat, dealer)}家
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 /** payment を人が読める文字列に。 */
 function payText(score: NonNullable<ReturnType<typeof kifuScore>>): string {
   const p = score.payment;
@@ -70,20 +98,13 @@ export function AgariEditor({
   return (
     <div>
       {/* 和了者 */}
-      <div className={s.field}>
-        <span className={s.label}>和了者</span>
-        <div className={s.seg}>
-          {SEAT_ORDER.map((seat) => (
-            <button
-              key={seat}
-              className={agari?.winner === seat ? s.on : ""}
-              onClick={() => setWinner(seat)}
-            >
-              {windOf(seat, dealer)}家
-            </button>
-          ))}
-        </div>
-      </div>
+      <SeatSeg
+        label="和了者"
+        seats={SEAT_ORDER}
+        isOn={(seat) => agari?.winner === seat}
+        onPick={setWinner}
+        dealer={dealer}
+      />
 
       {agari && (
         <>
@@ -110,37 +131,23 @@ export function AgariEditor({
 
           {/* 放銃者（ロンのみ） */}
           {agari.from !== null && (
-            <div className={s.field}>
-              <span className={s.label}>放銃者</span>
-              <div className={s.seg}>
-                {SEAT_ORDER.filter((seat) => seat !== agari.winner).map((seat) => (
-                  <button
-                    key={seat}
-                    className={agari.from === seat ? s.on : ""}
-                    onClick={() => patch({ from: seat })}
-                  >
-                    {windOf(seat, dealer)}家
-                  </button>
-                ))}
-              </div>
-            </div>
+            <SeatSeg
+              label="放銃者"
+              seats={SEAT_ORDER.filter((seat) => seat !== agari.winner)}
+              isOn={(seat) => agari.from === seat}
+              onPick={(seat) => patch({ from: seat })}
+              dealer={dealer}
+            />
           )}
 
           {/* リーチ */}
-          <div className={s.field}>
-            <span className={s.label}>リーチ</span>
-            <div className={s.seg}>
-              {SEAT_ORDER.map((seat) => (
-                <button
-                  key={seat}
-                  className={riichiSet.has(seat) ? s.on : ""}
-                  onClick={() => toggleRiichi(seat)}
-                >
-                  {windOf(seat, dealer)}家
-                </button>
-              ))}
-            </div>
-          </div>
+          <SeatSeg
+            label="リーチ"
+            seats={SEAT_ORDER}
+            isOn={(seat) => riichiSet.has(seat)}
+            onPick={toggleRiichi}
+            dealer={dealer}
+          />
 
           {/* 和了牌 */}
           <div className={s.field}>
