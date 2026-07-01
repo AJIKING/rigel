@@ -195,16 +195,27 @@ export const AgariSchema = z.object({
   winner: SeatSchema,
   /** 放銃者。ツモなら null。 */
   from: SeatSchema.nullable().default(null),
-  /** 飜（ドラ・赤ドラ込みの合計）。 */
-  han: z.number().int().min(0).default(0),
+  /** 和了牌。 */
+  winTile: TileSchema.nullable().default(null),
+  /** 役の内訳（名前＋飜）。合計飜はこれ＋ドラ枚数で決まる。 */
+  yaku: z.array(YakuSchema).default([]),
   /** 符。 */
   fu: z.number().int().min(0).default(0),
-  /** 役の内訳（名前＋飜）。表示用。 */
-  yaku: z.array(YakuSchema).default([]),
+  /** 表ドラの枚数（1枚1飜）。 */
+  dora: z.number().int().min(0).default(0),
+  /** 赤ドラの枚数（1枚1飜）。 */
+  aka: z.number().int().min(0).default(0),
+  /** 裏ドラの枚数（リーチ和了のみ・1枚1飜）。 */
+  ura: z.number().int().min(0).default(0),
   /** リーチ宣言した席。 */
   riichi: z.array(SeatSchema).default([]),
 });
 export type Agari = z.infer<typeof AgariSchema>;
+
+/** 和了の合計飜（役の飜 ＋ 表/赤/裏ドラ枚数）。 */
+export function totalHan(agari: Agari): number {
+  return agari.yaku.reduce((n, y) => n + y.han, 0) + agari.dora + agari.aka + agari.ura;
+}
 
 // ------------------------------------------------------------
 // 牌譜 1件（= 課金単位 / D1 の 1 レコード / 共有URLの単位）

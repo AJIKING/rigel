@@ -134,23 +134,40 @@ describe("KifuSchema（牌譜1件の最終検証）", () => {
     expect(KifuSchema.parse(minimalKifu).agari).toBeNull();
   });
 
-  it("和了情報を保持する（放銃者=ロン、null=ツモ）", () => {
+  it("和了情報を保持する（和了牌・役・表/赤/裏ドラ枚数、放銃者=ロン）", () => {
     const kifu = KifuSchema.parse({
       ...minimalKifu,
-      agari: { winner: "east", from: "south", han: 4, fu: 30, yaku: [{ name: "立直", han: 1 }] },
+      agari: {
+        winner: "east",
+        from: "south",
+        winTile: "3m",
+        fu: 40,
+        dora: 2,
+        aka: 1,
+        ura: 0,
+        yaku: [{ name: "立直", han: 1 }],
+      },
     });
     expect(kifu.agari).toMatchObject({
       winner: "east",
       from: "south",
-      han: 4,
-      fu: 30,
+      winTile: "3m",
+      fu: 40,
+      dora: 2,
+      aka: 1,
+      ura: 0,
       riichi: [],
     });
     expect(kifu.agari?.yaku).toEqual([{ name: "立直", han: 1 }]);
   });
 
+  it("和了情報の各枚数は省略時 0・和了牌は null", () => {
+    const kifu = KifuSchema.parse({ ...minimalKifu, agari: { winner: "east" } });
+    expect(kifu.agari).toMatchObject({ winTile: null, dora: 0, aka: 0, ura: 0, yaku: [] });
+  });
+
   it("和了者(winner)が無いと拒否する", () => {
-    expect(KifuSchema.safeParse({ ...minimalKifu, agari: { han: 3, fu: 30 } }).success).toBe(false);
+    expect(KifuSchema.safeParse({ ...minimalKifu, agari: { fu: 30 } }).success).toBe(false);
   });
 });
 

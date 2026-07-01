@@ -79,12 +79,28 @@ describe("kifuScore（Kifu から打点を計算）", () => {
   });
 
   it("和了者が親なら親レートで計算する（東家ロン5飜 = 12000）", () => {
-    const k = kifuWith({ winner: "east", from: "south", han: 5, fu: 30 }, "east");
+    const k = kifuWith(
+      { winner: "east", from: "south", fu: 30, yaku: [{ name: "満貫役", han: 5 }] },
+      "east",
+    );
     expect(kifuScore(k)?.total).toBe(12000);
   });
 
   it("子のツモは親/子で支払いを分ける（南家ツモ3飜30符）", () => {
-    const k = kifuWith({ winner: "south", from: null, han: 3, fu: 30 }, "east");
+    const k = kifuWith(
+      { winner: "south", from: null, fu: 30, yaku: [{ name: "役", han: 1 }], dora: 2 },
+      "east",
+    );
+    // 役1 + ドラ2 = 3飜30符
     expect(kifuScore(k)?.payment).toEqual({ fromDealer: 2000, fromNonDealer: 1000 });
+  });
+
+  it("役の飜＋表/赤/裏ドラ枚数を合算して飜にする", () => {
+    const k = kifuWith(
+      { winner: "east", from: "south", fu: 40, yaku: [{ name: "立直", han: 1 }], dora: 1, aka: 1 },
+      "west",
+    );
+    // 立直1 + ドラ1 + 赤1 = 3飜40符（子ロン） = 5200
+    expect(kifuScore(k)?.total).toBe(5200);
   });
 });

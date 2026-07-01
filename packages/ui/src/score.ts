@@ -2,7 +2,7 @@
 // アプリが計算する範囲は「基本点→支払い」まで。役の判定は人が入力する（自動判定はしない）。
 // 参照: 一般的な麻雀の点数計算（基本点 = 符 × 2^(2+飜)、満貫以上は固定、100点単位で切り上げ）。
 
-import type { Kifu, Rules } from "@rigel/schema";
+import { totalHan, type Kifu, type Rules } from "@rigel/schema";
 
 export interface HandScoreInput {
   /** 飜数（赤ドラ・ドラ込みの合計。役の判定はしない）。 */
@@ -85,5 +85,5 @@ export function kifuScore(kifu: Kifu): HandScore | null {
   const a = kifu.agari;
   if (!a) return null;
   const dealer = kifu.meta.dealer !== null && a.winner === kifu.meta.dealer;
-  return handScore({ han: a.han, fu: a.fu, dealer, tsumo: a.from === null }, kifu.rules);
+  return handScore({ han: totalHan(a), fu: a.fu, dealer, tsumo: a.from === null }, kifu.rules);
 }
