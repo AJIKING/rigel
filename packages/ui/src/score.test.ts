@@ -98,6 +98,28 @@ describe("handScore（打点計算）", () => {
     expect(handScore({ han: 1, fu: 30, dealer: false, tsumo: false }, R).total).toBe(1000);
     expect(handScore({ han: 1, fu: 30, dealer: true, tsumo: false }, R).total).toBe(1500);
   });
+
+  it("役満（子ロン32000 / 親ロン48000）", () => {
+    expect(handScore({ han: 0, fu: 0, dealer: false, tsumo: false, yakuman: 1 }, R).total).toBe(
+      32000,
+    );
+    expect(handScore({ han: 0, fu: 0, dealer: true, tsumo: false, yakuman: 1 }, R).total).toBe(
+      48000,
+    );
+  });
+
+  it("ダブル役満は倍加する（子ロン64000）／multiYakuman OFF なら単倍(32000)", () => {
+    expect(handScore({ han: 0, fu: 0, dealer: false, tsumo: false, yakuman: 2 }, R)).toMatchObject({
+      total: 64000,
+      limit: "ダブル役満",
+    });
+    expect(
+      handScore(
+        { han: 0, fu: 0, dealer: false, tsumo: false, yakuman: 2 },
+        { ...R, multiYakuman: false },
+      ),
+    ).toMatchObject({ total: 32000, limit: "役満" });
+  });
 });
 
 describe("kifuScore（Kifu から打点を計算）", () => {
@@ -120,6 +142,22 @@ describe("kifuScore（Kifu から打点を計算）", () => {
     );
     // 役1 + ドラ2 = 3飜30符
     expect(kifuScore(k)?.payment).toEqual({ fromDealer: 2000, fromNonDealer: 1000 });
+  });
+
+  it("役満役を2つ選ぶとダブル役満になる（子ロン64000）", () => {
+    const k = kifuWith(
+      {
+        winner: "south",
+        from: "north",
+        fu: 0,
+        yaku: [
+          { name: "大三元", han: 13 },
+          { name: "字一色", han: 13 },
+        ],
+      },
+      "east",
+    );
+    expect(kifuScore(k)).toMatchObject({ total: 64000, limit: "ダブル役満" });
   });
 
   it("役の飜＋表/赤/裏ドラ枚数を合算して飜にする", () => {

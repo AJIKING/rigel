@@ -13,7 +13,19 @@ export interface HandScoreInput {
   dealer: boolean;
   /** ツモ和了か（false=ロン）。 */
   tsumo: boolean;
+  /** 役満の数（真の役満役の個数。0=役満なし＝han で判定）。ダブル役満以上の倍加に使う。 */
+  yakuman?: number;
 }
+
+const YAKUMAN_NAMES = [
+  "",
+  "役満",
+  "ダブル役満",
+  "トリプル役満",
+  "四倍役満",
+  "五倍役満",
+  "六倍役満",
+];
 
 /** 支払い内訳。ロン=放銃者1人、親ツモ=全員同額、子ツモ=親/子で異なる。 */
 export type Payment =
@@ -31,8 +43,18 @@ export interface HandScore {
 
 const roundUp100 = (n: number): number => Math.ceil(n / 100) * 100;
 
-/** 飜（と符・ルール）から基本点と満貫以上のランク名を求める。 */
-function basePoints(han: number, fu: number, rules: Rules): { base: number; limit: string | null } {
+/** 飜（と符・ルール・役満数）から基本点と満貫以上のランク名を求める。 */
+function basePoints(
+  han: number,
+  fu: number,
+  rules: Rules,
+  yakuman: number,
+): { base: number; limit: string | null } {
+  // 真の役満（役満役）: multiYakuman ON なら個数ぶん倍加、OFF なら1倍。飜・符は無視。
+  if (yakuman > 0) {
+    const mult = rules.multiYakuman ? yakuman : 1;
+    return { base: 8000 * mult, limit: YAKUMAN_NAMES[Math.min(mult, 6)]! };
+  }
   if (han >= 13)
     return rules.kazoe ? { base: 8000, limit: "役満" } : { base: 6000, limit: "三倍満" };
   if (han >= 11) return { base: 6000, limit: "三倍満" };
@@ -52,7 +74,7 @@ function basePoints(han: number, fu: number, rules: Rules): { base: number; limi
 /** 和了1件の打点を計算する。 */
 export function handScore(input: HandScoreInput, rules: Rules): HandScore {
   const { han, fu, dealer, tsumo } = input;
-  const { base, limit } = basePoints(han, fu, rules);
+  const { base, limit } = basePoints(han, fu, rules, input.yakuman ?? 0);
 
   if (!tsumo) {
     // ロン: 親=基本点×6、子=×4。
@@ -85,5 +107,10 @@ export function kifuScore(kifu: Kifu): HandScore | null {
   const a = kifu.agari;
   if (!a) return null;
   const dealer = kifu.meta.dealer !== null && a.winner === kifu.meta.dealer;
-  return handScore({ han: totalHan(a), fu: a.fu, dealer, tsumo: a.from === null }, kifu.rules);
+  // 役満役（han>=13）の個数。ダブル役満以上の倍加に使う（数え役満は0個＝han で判定）。
+  const yakuman = a.yaku.filter((y) => y.han >= 13).length;
+  return handScore(
+    { han: totalHan(a), fu: a.fu, dealer, tsumo: a.from === null, yakuman },
+    kifu.rules,
+  );
 }
