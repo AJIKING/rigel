@@ -141,8 +141,9 @@ export function KifuViewer({ gameId }: { gameId: string }) {
     return c;
   }, [order, shown]);
 
-  // 再生が末尾（ロンの放銃牌／ツモの最終手）に達したら上がりを出す。手前に戻すと再表示可。
-  const atEnd = order.length > 0 && shown >= order.length;
+  // 上がりは「再生して末尾に達したとき」だけ出す。初期の全表示(reveal=-1)では出さない
+  // （リロード時に一瞬ポップするのを防ぐ）。reveal が実インデックスで末尾以上のときのみ。
+  const atEnd = order.length > 0 && reveal >= order.length;
   useEffect(() => {
     if (!atEnd) setAgariClosed(false);
   }, [atEnd]);
