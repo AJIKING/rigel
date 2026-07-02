@@ -362,6 +362,9 @@
 .tile.lay {
   transform: rotate(90deg);
   align-self: center;
+  /* 横向き(リーチ宣言牌)は rotate で視覚幅が river-h になるが、レイアウト箱は
+     river-w のまま＝隣の牌にかぶる。差分を左右マージンで確保して重なりを防ぐ。 */
+  margin-inline: calc((var(--river-h) - var(--river-w)) / 2);
 }
 /* 自摸切りの捨牌ははっきりグレーアウトさせる（手出しと一目で区別）。 */
 .tile.tsumogiri {
