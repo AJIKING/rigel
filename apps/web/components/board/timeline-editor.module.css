@@ -147,11 +147,18 @@
   flex: 0 0 auto;
 }
 .tbox {
+  position: relative;
   width: 26px;
   height: 35px;
-  display: grid;
-  place-items: center;
   flex: 0 0 auto;
+}
+/* OssTileFace は Front + シンボルの2枚重ね。親を基準に絶対配置で収める
+   （サイズ制約が無いと SVG が原寸で巨大化する）。 */
+.tbox img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
 }
 .tboxSm {
   width: 20px;
@@ -284,13 +291,18 @@
   padding: 14px;
 }
 .pcell {
+  position: relative;
   aspect-ratio: 3/4;
   border: 1px solid var(--line);
   border-radius: var(--r-sm);
   background: var(--chrome-2);
-  display: grid;
-  place-items: center;
   cursor: pointer;
+}
+.pcell img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
 }
 .pcell:hover {
   border-color: var(--accent);
