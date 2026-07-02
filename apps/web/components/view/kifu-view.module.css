@@ -244,10 +244,13 @@
   transform: translate(-50%, calc(-100% - var(--seat-inner))) rotate(180deg);
 }
 .seatL {
-  transform: translate(calc(-100% - var(--seat-inner)), -50%) rotate(90deg);
+  /* 先頭の translateX は親フレーム（回転前）での水平シフト＝手牌を中心方向へ引き戻す。 */
+  transform: translateX(var(--seat-lr-pull)) translate(calc(-100% - var(--seat-inner)), -50%)
+    rotate(90deg);
 }
 .seatR {
-  transform: translate(var(--seat-inner), -50%) rotate(-90deg);
+  transform: translateX(calc(-1 * var(--seat-lr-pull))) translate(var(--seat-inner), -50%)
+    rotate(-90deg);
 }
 .seatL,
 .seatR {
