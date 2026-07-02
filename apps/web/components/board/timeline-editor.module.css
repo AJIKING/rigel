@@ -1,13 +1,13 @@
-/* 手順（タイムライン）エディタ。盤面エディタの右レール位置に入る。 */
+/* 手順（タイムライン）エディタ。盤面エディタの右レール位置（.wrap の grid 2列目=340px）に入る。 */
 .panel {
-  width: 388px;
-  flex: 0 0 388px;
+  min-width: 0;
   border-left: 1px solid var(--line);
   background: var(--chrome);
   display: flex;
   flex-direction: column;
-  min-height: 0;
-  max-height: calc(100vh - 54px);
+  height: calc(100vh - 54px);
+  position: sticky;
+  top: 54px;
 }
 .head {
   display: flex;
@@ -285,6 +285,24 @@
   grid-template-columns: repeat(5, 1fr);
   gap: 7px;
   padding: 14px;
+}
+/* 選んだ牌を取り消して未設定(なし)に戻す。 */
+.pclear {
+  display: block;
+  width: calc(100% - 28px);
+  margin: 0 14px 14px;
+  padding: 8px 0;
+  border-radius: var(--r-sm);
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--w70);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.pclear:hover {
+  border-color: var(--vermilion);
+  color: var(--vermilion);
 }
 .pcell {
   position: relative;

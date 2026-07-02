@@ -1,4 +1,4 @@
-import { AgariSchema, totalHan, type Agari, type Kifu, type Seat, type Tile } from "@rigel/schema";
+import { AgariSchema, totalHan, type Agari, type Kifu, type Seat } from "@rigel/schema";
 import {
   agariDeltas,
   scoreAgari,
@@ -146,7 +146,7 @@ function AgariEntry({
 
       <div className={s.field}>
         <span className={s.label}>和了牌</span>
-        <DoraPicker value={agari.winTile} onPick={(t: Tile) => patch({ winTile: t })} />
+        <DoraPicker value={agari.winTile} onPick={(t) => patch({ winTile: t })} />
       </div>
 
       <div className={s.field}>

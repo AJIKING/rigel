@@ -94,7 +94,7 @@ export function TimelineEditor({
     commit(next);
   }
 
-  function onPick(code: Tile) {
+  function onPick(code: Tile | null) {
     if (!pick) return;
     const t = pick;
     update(t.index, (e) => {
@@ -301,6 +301,9 @@ export function TimelineEditor({
                 </button>
               ))}
             </div>
+            <button className={s.pclear} onClick={() => onPick(null)}>
+              クリア（なし）
+            </button>
           </div>
         </div>
       )}

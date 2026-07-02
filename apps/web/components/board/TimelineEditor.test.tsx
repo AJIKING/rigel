@@ -55,6 +55,22 @@ describe("TimelineEditor", () => {
     expect(next.timeline[0]).toMatchObject({ seat: "south", tile: "2p" });
   });
 
+  it("打牌の牌を開いて「クリア（なし）」で tile が null になる（取り消し）", () => {
+    const onChange = vi.fn();
+    render(
+      <TimelineEditor
+        kifu={kifu([disc("east", "1m")])}
+        dealer="east"
+        names={NAMES}
+        onChange={onChange}
+      />,
+    );
+    fireEvent.click(screen.getByText("打")); // 打の牌ボックスを開く
+    fireEvent.click(screen.getByText("クリア（なし）"));
+    const next = onChange.mock.calls[0]![0] as Kifu;
+    expect(next.timeline[0]).toMatchObject({ kind: "discard", tile: null });
+  });
+
   it("手出し/ツモ切りトグルで tsumogiri が反転する", () => {
     const onChange = vi.fn();
     render(

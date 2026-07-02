@@ -917,6 +917,23 @@
   grid-template-columns: repeat(5, 1fr);
   gap: 6px;
 }
+/* ピッカーの「クリア（なし）」= 選択を取り消して未設定に戻す。 */
+.pickClear {
+  margin-top: 8px;
+  width: 100%;
+  padding: 7px 0;
+  border-radius: var(--r-sm);
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--w70);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.pickClear:hover {
+  border-color: var(--vermilion);
+  color: var(--vermilion);
+}
 .pk {
   cursor: pointer;
   border: 0;

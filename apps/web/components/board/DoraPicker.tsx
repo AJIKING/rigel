@@ -7,13 +7,21 @@ import s from "./board-editor.module.css";
 /** ドラ表示牌を選ぶボタン＋ポップアップ（牌種タブ＋牌グリッド）。
  *  ポップアップは position:fixed でビューポートに出す（モーダルの overflow:hidden に切られない）。
  *  value=null は未設定（空の牌面）。点数計算はしないので表示・記録のみ。 */
-export function DoraPicker({ value, onPick }: { value: Tile | null; onPick: (t: Tile) => void }) {
+export function DoraPicker({
+  value,
+  onPick,
+}: {
+  value: Tile | null;
+  onPick: (t: Tile | null) => void;
+}) {
   const [pos, setPos] = useState<{ x: number; y: number } | null>(null);
   const [suit, setSuit] = useState<Suit>((value?.[1] as Suit) ?? "m");
 
   function toggle(e: React.MouseEvent) {
     e.stopPropagation();
-    setPos((p) => (p ? null : popAnchor(e.currentTarget.getBoundingClientRect(), 236, 150)));
+    // rect は setPos の更新関数内では e.currentTarget が null 化されるため、先に取得する。
+    const rect = e.currentTarget.getBoundingClientRect();
+    setPos((p) => (p ? null : popAnchor(rect, 236, 150)));
   }
 
   return (
@@ -67,6 +75,18 @@ export function DoraPicker({ value, onPick }: { value: Tile | null; onPick: (t: 
                 </button>
               ))}
             </div>
+            {value && (
+              <button
+                type="button"
+                className={s.pickClear}
+                onClick={() => {
+                  onPick(null);
+                  setPos(null);
+                }}
+              >
+                クリア（なし）
+              </button>
+            )}
           </div>
         </>
       )}
