@@ -10,7 +10,10 @@
     "icon": "./assets/icon.png",
     "ios": {
       "bundleIdentifier": "co.plaria.rigel",
-      "supportsTablet": true
+      "supportsTablet": true,
+      "config": {
+        "usesNonExemptEncryption": false
+      }
     },
     "android": {
       "package": "co.plaria.rigel",
