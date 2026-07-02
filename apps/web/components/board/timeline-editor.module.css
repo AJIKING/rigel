@@ -83,8 +83,8 @@
 .ev {
   display: flex;
   align-items: center;
-  gap: 7px;
-  padding: 7px 8px;
+  gap: 5px;
+  padding: 6px 7px;
   border: 1px solid var(--line-2, rgba(255, 255, 255, 0.07));
   border-radius: var(--r);
   background: var(--chrome-2);
@@ -113,10 +113,10 @@
   background: transparent;
   border: 1px solid var(--line);
   border-radius: var(--r-sm);
-  padding: 5px 9px;
+  padding: 4px 7px;
   font-family: var(--round);
   font-weight: 800;
-  font-size: 13px;
+  font-size: 12px;
   color: var(--w85);
   cursor: pointer;
   flex: 0 0 auto;
@@ -141,15 +141,10 @@
   font-weight: 700;
   color: var(--w45);
 }
-.arr {
-  color: var(--w45);
-  font-size: 12px;
-  flex: 0 0 auto;
-}
 .tbox {
   position: relative;
-  width: 26px;
-  height: 35px;
+  width: 22px;
+  height: 30px;
   flex: 0 0 auto;
 }
 /* OssTileFace は Front + シンボルの2枚重ね。親を基準に絶対配置で収める
@@ -161,8 +156,8 @@
   height: 100%;
 }
 .tboxSm {
-  width: 20px;
-  height: 27px;
+  width: 18px;
+  height: 24px;
 }
 .none {
   width: 100%;
@@ -176,15 +171,16 @@
 }
 .mode,
 .riichi {
-  font-size: 11px;
+  font-size: 10.5px;
   font-weight: 700;
-  padding: 4px 8px;
+  padding: 4px 6px;
   border-radius: var(--r-sm);
   border: 1px solid var(--line);
   background: transparent;
   color: var(--w70);
   cursor: pointer;
   flex: 0 0 auto;
+  white-space: nowrap;
 }
 .mode.tegiri {
   color: var(--accent);
@@ -232,8 +228,8 @@
   color: var(--w70);
 }
 .del {
-  width: 24px;
-  height: 24px;
+  width: 22px;
+  height: 22px;
   border-radius: var(--r-sm);
   border: 1px solid var(--line);
   background: transparent;

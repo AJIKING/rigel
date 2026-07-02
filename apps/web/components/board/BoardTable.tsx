@@ -76,40 +76,11 @@ export function BoardTable(p: BoardTableProps) {
             return (
               <div key={cam} className={`${s.seat} ${cls}`}>
                 <div className={s.river}>
-                  {rows.map((row, ri) => (
-                    <div key={ri} className={s.rrow}>
-                      {row.map((d, ci) => {
-                        const index = ri * 6 + ci;
-                        const loc: TileLocation = { seat, area: "river", index };
-                        return (
-                          <BoardTile
-                            key={ci}
-                            code={d.tile}
-                            kind="river"
-                            lay={d.riichi}
-                            tsumogiri={d.tsumogiri}
-                            review={needsReview(d)}
-                            selected={sel?.kind === "edit" && fkey(sel.loc) === fkey(loc)}
-                            flash={flashKey === fkey(loc)}
-                            label={`${wind}家の河 ${index + 1}枚目`}
-                            onClick={(e) => p.onOpenEdit(e, loc, d.tile)}
-                          />
-                        );
-                      })}
-                      {ri === rows.length - 1 && (
-                        <button
-                          type="button"
-                          className={`${s.tile} ${s.riverT} ${s.addslot}`}
-                          aria-label={`${wind}家に捨て牌を追加`}
-                          onClick={(e) => p.onOpenAdd(e, seat, "river")}
-                        >
-                          +
-                        </button>
-                      )}
-                    </div>
-                  ))}
-                  {rows.length === 0 && (
-                    <div className={s.rrow}>
+                  {(() => {
+                    // 河は6枚/段。最終段が満杯(6枚)なら追加(+)は次段の先頭に置く
+                    //（=7枚目から2段目）。埋まっていない段には末尾に + を付ける。
+                    const lastFull = rows.length > 0 && rows[rows.length - 1]!.length >= 6;
+                    const addBtn = (
                       <button
                         type="button"
                         className={`${s.tile} ${s.riverT} ${s.addslot}`}
@@ -118,8 +89,36 @@ export function BoardTable(p: BoardTableProps) {
                       >
                         +
                       </button>
-                    </div>
-                  )}
+                    );
+                    return (
+                      <>
+                        {rows.map((row, ri) => (
+                          <div key={ri} className={s.rrow}>
+                            {row.map((d, ci) => {
+                              const index = ri * 6 + ci;
+                              const loc: TileLocation = { seat, area: "river", index };
+                              return (
+                                <BoardTile
+                                  key={ci}
+                                  code={d.tile}
+                                  kind="river"
+                                  lay={d.riichi}
+                                  tsumogiri={d.tsumogiri}
+                                  review={needsReview(d)}
+                                  selected={sel?.kind === "edit" && fkey(sel.loc) === fkey(loc)}
+                                  flash={flashKey === fkey(loc)}
+                                  label={`${wind}家の河 ${index + 1}枚目`}
+                                  onClick={(e) => p.onOpenEdit(e, loc, d.tile)}
+                                />
+                              );
+                            })}
+                            {ri === rows.length - 1 && !lastFull && addBtn}
+                          </div>
+                        ))}
+                        {(rows.length === 0 || lastFull) && <div className={s.rrow}>{addBtn}</div>}
+                      </>
+                    );
+                  })()}
                 </div>
 
                 <div className={`${s.nameplate} ${win ? s.win : ""}`}>

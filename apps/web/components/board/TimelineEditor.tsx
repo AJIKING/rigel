@@ -194,7 +194,6 @@ export function TimelineEditor({
                       <span className={s.lab}>ツモ</span>
                       <TileBox code={e.draw} />
                     </button>
-                    <span className={s.arr}>→</span>
                     <button
                       className={s.tp}
                       disabled={e.tsumogiri}
