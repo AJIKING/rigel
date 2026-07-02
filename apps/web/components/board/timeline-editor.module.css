@@ -1,0 +1,297 @@
+/* 手順（タイムライン）エディタ。盤面エディタの右レール位置に入る。 */
+.panel {
+  width: 388px;
+  flex: 0 0 388px;
+  border-left: 1px solid var(--line);
+  background: var(--chrome);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  max-height: calc(100vh - 54px);
+}
+.head {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 13px 15px;
+  border-bottom: 1px solid var(--line-2, rgba(255, 255, 255, 0.07));
+}
+.head h2 {
+  font-family: var(--round);
+  font-weight: 800;
+  font-size: 14px;
+  margin: 0;
+}
+.sp {
+  flex: 1;
+}
+.addbtn {
+  font-family: var(--round);
+  font-weight: 800;
+  font-size: 12px;
+  padding: 7px 11px;
+  border-radius: var(--r);
+  border: 1px solid var(--line);
+  background: var(--chrome-2);
+  color: var(--w85);
+  cursor: pointer;
+}
+.addbtn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.hint {
+  font-size: 11px;
+  color: var(--w45);
+  padding: 9px 15px 5px;
+  line-height: 1.6;
+  margin: 0;
+}
+.empty {
+  color: var(--w45);
+  font-size: 12px;
+  padding: 20px 6px;
+  text-align: center;
+}
+
+.list {
+  flex: 1;
+  overflow: auto;
+  padding: 4px 12px 16px;
+}
+.turn {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin: 12px 2px 7px;
+  font-size: 11px;
+  color: var(--w45);
+}
+.turn::before,
+.turn::after {
+  content: "";
+  height: 1px;
+  background: var(--line-2, rgba(255, 255, 255, 0.07));
+  flex: 1;
+}
+.turn b {
+  font-family: var(--round);
+  font-weight: 800;
+  color: var(--w70);
+}
+
+.ev {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 8px;
+  border: 1px solid var(--line-2, rgba(255, 255, 255, 0.07));
+  border-radius: var(--r);
+  background: var(--chrome-2);
+  margin-bottom: 6px;
+}
+.ev:hover {
+  border-color: var(--line);
+}
+.meldEv {
+  background: rgba(91, 155, 213, 0.06);
+}
+.dragging {
+  opacity: 0.4;
+}
+.grip {
+  cursor: grab;
+  color: var(--w45);
+  font-size: 13px;
+  letter-spacing: -2px;
+  user-select: none;
+  flex: 0 0 auto;
+}
+.seat {
+  display: inline-flex;
+  align-items: center;
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  padding: 5px 9px;
+  font-family: var(--round);
+  font-weight: 800;
+  font-size: 13px;
+  color: var(--w85);
+  cursor: pointer;
+  flex: 0 0 auto;
+}
+.tp {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  background: transparent;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  flex: 0 0 auto;
+}
+.tp[disabled] {
+  opacity: 0.5;
+  cursor: default;
+}
+.tp .lab {
+  font-size: 9px;
+  font-weight: 700;
+  color: var(--w45);
+}
+.arr {
+  color: var(--w45);
+  font-size: 12px;
+  flex: 0 0 auto;
+}
+.tbox {
+  width: 26px;
+  height: 35px;
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+}
+.tboxSm {
+  width: 20px;
+  height: 27px;
+}
+.none {
+  width: 100%;
+  height: 100%;
+  border: 1px dashed var(--line);
+  border-radius: 2px;
+  display: grid;
+  place-items: center;
+  color: var(--w45);
+  font-size: 13px;
+}
+.mode,
+.riichi {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 4px 8px;
+  border-radius: var(--r-sm);
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--w70);
+  cursor: pointer;
+  flex: 0 0 auto;
+}
+.mode.tegiri {
+  color: var(--accent);
+  border-color: rgba(255, 158, 69, 0.5);
+}
+.mode.tsumogiri {
+  color: var(--w45);
+}
+.riichi.on {
+  color: var(--vermilion);
+  border-color: var(--vermilion);
+}
+.kind {
+  font-family: var(--round);
+  font-weight: 800;
+  font-size: 12px;
+  padding: 5px 9px;
+  border-radius: var(--r-sm);
+  background: rgba(91, 155, 213, 0.16);
+  color: #7cb2e0;
+  border: 1px solid rgba(91, 155, 213, 0.5);
+  cursor: pointer;
+  flex: 0 0 auto;
+}
+.mtiles {
+  display: flex;
+  gap: 2px;
+  flex: 0 0 auto;
+}
+.mtileBtn {
+  background: transparent;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+}
+.from {
+  font-size: 11px;
+  color: var(--w45);
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  flex: 0 0 auto;
+}
+.from b {
+  color: var(--w70);
+}
+.del {
+  width: 24px;
+  height: 24px;
+  border-radius: var(--r-sm);
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--w45);
+  font-size: 12px;
+  cursor: pointer;
+  flex: 0 0 auto;
+}
+.del:hover {
+  color: var(--vermilion);
+  border-color: var(--vermilion);
+}
+
+/* picker overlay */
+.pov {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(8, 10, 13, 0.6);
+}
+.pcard {
+  width: min(92%, 320px);
+  background: var(--chrome);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  box-shadow: 0 30px 70px -24px rgba(0, 0, 0, 0.85);
+  overflow: hidden;
+}
+.ptabs {
+  display: flex;
+  border-bottom: 1px solid var(--line-2, rgba(255, 255, 255, 0.07));
+}
+.ptabs button {
+  flex: 1;
+  background: transparent;
+  border: 0;
+  padding: 11px 0;
+  font-family: var(--round);
+  font-weight: 800;
+  font-size: 14px;
+  color: var(--w45);
+  cursor: pointer;
+}
+.ptabs button.on {
+  color: var(--accent);
+  box-shadow: inset 0 -2px 0 var(--accent);
+}
+.pgrid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 7px;
+  padding: 14px;
+}
+.pcell {
+  aspect-ratio: 3/4;
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  background: var(--chrome-2);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+}
+.pcell:hover {
+  border-color: var(--accent);
+}

@@ -25,6 +25,7 @@ import { AgariEditor } from "./AgariEditor";
 import { BoardTable } from "./BoardTable";
 import { RulesDialog } from "./RulesDialog";
 import { Stepper } from "./Stepper";
+import { TimelineEditor } from "./TimelineEditor";
 import { TilePickerPopup, type KanType, type MeldType } from "./TilePickerPopup";
 import { clone, fkey, type Selection } from "./shared";
 import { DoraGlyph } from "./tiles";
@@ -174,6 +175,8 @@ function Editor(p: EditorProps) {
 
   const [save, setSave] = useState<"idle" | "saving" | "done">("idle");
   const [saveErr, setSaveErr] = useState<string | null>(null);
+  // 編集モード：盤面（席ごと直接編集）/ 手順（タイムライン）。
+  const [tab, setTab] = useState<"board" | "timeline">("board");
   // 編集状態（下書き/編集済）。保存ボタン左のトグルで切り替え、保存時に送る。
   const [status, setStatus] = useState(log.status);
   const [vis, setVis] = useState(log.visibility);
@@ -395,6 +398,27 @@ function Editor(p: EditorProps) {
           <b>{round}</b>
         </nav>
         <div className={s.sp} />
+        {/* 盤面 / 手順 タブ切替。 */}
+        <div className={s.statusSeg} role="group" aria-label="編集モード">
+          {(
+            [
+              ["board", "盤面"],
+              ["timeline", "手順"],
+            ] as const
+          ).map(([v, label]) => (
+            <button
+              key={v}
+              className={tab === v ? s.on : ""}
+              aria-pressed={tab === v}
+              onClick={(e) => {
+                e.stopPropagation();
+                setTab(v);
+              }}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
         {saveErr && <span className={s.saveErr}>{saveErr}</span>}
         {/* 保存ボタンの左：下書き / 編集済み トグル。 */}
         <div className={s.statusSeg} role="group" aria-label="編集状態">
@@ -449,284 +473,304 @@ function Editor(p: EditorProps) {
           onOpenAdd={openAdd}
         />
 
-        <aside className={s.rail} onClick={(e) => e.stopPropagation()}>
-          {/* 半荘 */}
-          <section className={s.navsec}>
-            <button
-              className={`${s.accHead} ${open.han ? s.accHeadOpen : ""}`}
-              aria-expanded={open.han}
-              onClick={() => acc("han")}
-            >
-              <svg className={s.arr} viewBox="0 0 12 12">
-                <path d="M4 2l5 4-5 4" />
-              </svg>
-              半荘
-            </button>
-            {open.han && (
-              <div className={s.accBody}>
-                <div className={s.roundwrap}>
-                  <div className={s.roundnav}>
-                    <button
-                      className={s.arrow}
-                      disabled={idx === 0}
-                      aria-label="前の局"
-                      onClick={() => p.onSwitch(idx - 1)}
-                    >
-                      <svg viewBox="0 0 16 16">
-                        <path d="M10 3L6 8l4 5" />
-                      </svg>
-                    </button>
-                    <button
-                      className={s.roundlbl}
-                      onClick={() => setRoundMenu((v) => !v)}
-                      aria-expanded={roundMenu}
-                    >
-                      {round} <small>{honba}本場</small>
-                      <svg className={s.caret} viewBox="0 0 12 12">
-                        <path d="M3 5l3 3 3-3" />
-                      </svg>
-                    </button>
-                    <button
-                      className={s.arrow}
-                      disabled={idx >= detail.logs.length - 1}
-                      aria-label="次の局"
-                      onClick={() => p.onSwitch(idx + 1)}
-                    >
-                      <svg viewBox="0 0 16 16">
-                        <path d="M6 3l4 5-4 5" />
-                      </svg>
-                    </button>
-                  </div>
-                  {roundMenu && (
-                    <div className={s.roundMenu}>
-                      {detail.logs.map((l, i) => (
-                        <button
-                          key={l.id}
-                          className={`${s.roundItem} ${i === idx ? s.on : ""}`}
-                          onClick={() => {
-                            p.onSwitch(i);
-                            setRoundMenu(false);
-                          }}
-                        >
-                          {roundName(i)}
-                          <small>第{l.seq}局</small>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-                <div className={s.kyakuAct}>
-                  <button className={s.addkyoku} onClick={() => setRulesOpen(true)}>
-                    ⚙ ルール設定
-                  </button>
-                  <button className={s.addkyoku} onClick={() => setAddOpen(true)}>
-                    ＋ 局の追加
-                  </button>
-                  <button
-                    className={`${s.delkyoku} ${delArm ? s.arm : ""}`}
-                    disabled={detail.logs.length <= 1}
-                    onClick={() => void onDelete()}
-                  >
-                    {delArm ? "もう一度押して削除" : "この局を削除"}
-                  </button>
-                </div>
-              </div>
-            )}
-          </section>
+        {tab === "timeline" && (
+          <TimelineEditor kifu={kifu} dealer={dealer} names={names} onChange={(k) => setKifu(k)} />
+        )}
 
-          {/* 局情報 */}
-          <section className={s.navsec}>
-            <button
-              className={`${s.accHead} ${open.info ? s.accHeadOpen : ""}`}
-              aria-expanded={open.info}
-              onClick={() => acc("info")}
-            >
-              <svg className={s.arr} viewBox="0 0 12 12">
-                <path d="M4 2l5 4-5 4" />
-              </svg>
-              局情報
-            </button>
-            {open.info && (
-              <div className={s.accBody}>
-                <div className={s.steprow}>
-                  <span className={s.stlabel}>親</span>
-                  <div className={s.agsel}>
-                    <select
-                      className={s.sel2}
-                      value={dealer}
-                      onChange={(e) => setDealerSeat(e.target.value as Seat)}
-                      aria-label="親"
-                    >
-                      {SEAT_ORDER.map((seat) => (
-                        <option key={seat} value={seat}>
-                          {windOf(seat, dealer)}家
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-                <Stepper label="最終巡目" unit="巡" value={junme} min={1} max={30} set={setJunme} />
-                <Stepper label="本場" unit="本場" value={honba} min={0} max={19} set={setHonba} />
-                <Stepper label="供託" unit="本" value={kyotaku} min={0} max={9} set={setKyotaku} />
-                <DoraNavRow label="ドラ" code={dora} onOpen={(e) => openDoraPicker(e, "dora")} />
-                <DoraNavRow
-                  label="裏ドラ"
-                  code={uraDora}
-                  onOpen={(e) => openDoraPicker(e, "uradora")}
-                />
-              </div>
-            )}
-          </section>
-
-          {/* 和了 */}
-          <section className={s.navsec}>
-            <button
-              className={`${s.accHead} ${open.agari ? s.accHeadOpen : ""}`}
-              aria-expanded={open.agari}
-              onClick={() => acc("agari")}
-            >
-              <svg className={s.arr} viewBox="0 0 12 12">
-                <path d="M4 2l5 4-5 4" />
-              </svg>
-              和了
-            </button>
-            {open.agari && (
-              <div className={s.accBody}>
-                <AgariEditor
-                  kifu={kifu}
-                  dealer={dealer}
-                  onChange={(agaris) =>
-                    mutate((d) => {
-                      d.agari = agaris;
-                    })
-                  }
-                />
-              </div>
-            )}
-          </section>
-
-          {/* ポイント */}
-          <section className={s.navsec}>
-            <button
-              className={`${s.accHead} ${showPoints ? s.accHeadOpen : ""}`}
-              aria-expanded={showPoints}
-              onClick={() => setShowPoints((v) => !v)}
-            >
-              <svg className={s.arr} viewBox="0 0 12 12">
-                <path d="M4 2l5 4-5 4" />
-              </svg>
-              ポイント
-            </button>
-            {showPoints && (
-              <div className={s.accBody}>
-                {SEAT_ORDER.map((seat) => (
-                  <div key={seat} className={s.agrow}>
-                    <input
-                      className={s.field}
-                      style={{ flex: 1, minWidth: 0 }}
-                      value={names[seat]}
-                      placeholder={`${windOf(seat, dealer)}家`}
-                      aria-label="選手名"
-                      onChange={(e) => setNames((n) => ({ ...n, [seat]: e.target.value }))}
-                    />
-                    <input
-                      type="number"
-                      step="0.1"
-                      value={points[seat]}
-                      aria-label="ポイント"
-                      style={{
-                        width: 72,
-                        background: "transparent",
-                        border: 0,
-                        borderBottom: "1px solid var(--line)",
-                        color: "var(--orange)",
-                        fontWeight: 700,
-                        fontSize: 14,
-                        textAlign: "right",
-                        fontFamily: "var(--round)",
-                      }}
-                      onChange={(e) => setPoints((pt) => ({ ...pt, [seat]: e.target.value }))}
-                    />
-                  </div>
-                ))}
-              </div>
-            )}
-          </section>
-
-          {/* 基本情報 */}
-          <section className={s.navsec} style={{ borderBottom: 0 }}>
-            <button
-              className={`${s.accHead} ${open.basic ? s.accHeadOpen : ""}`}
-              aria-expanded={open.basic}
-              onClick={() => acc("basic")}
-            >
-              <svg className={s.arr} viewBox="0 0 12 12">
-                <path d="M4 2l5 4-5 4" />
-              </svg>
-              基本情報
-            </button>
-            {open.basic && (
-              <div className={s.accBody}>
-                <div className={s.field}>
-                  <label>半荘名</label>
-                  <input value={hanchanName} onChange={(e) => setHanchanName(e.target.value)} />
-                </div>
-                <div className={s.field}>
-                  <label>日付</label>
-                  <input
-                    type="date"
-                    value={dateInput}
-                    onChange={(e) => setDateInput(e.target.value)}
-                  />
-                </div>
-                <div className={s.field}>
-                  <label>公開範囲</label>
-                  <div className={s.seg} role="group" aria-label="公開範囲">
-                    <button
-                      aria-pressed={vis === "private"}
-                      disabled={visBusy}
-                      onClick={() => toggleVis("private")}
-                    >
-                      非公開
-                    </button>
-                    <button
-                      aria-pressed={vis === "public"}
-                      disabled={visBusy}
-                      onClick={() => toggleVis("public")}
-                    >
-                      公開
-                    </button>
-                  </div>
-                </div>
-                {vis === "public" && (
-                  <>
-                    <div className={s.shareUrl}>
-                      <span className={s.url}>{shareUrl}</span>
+        {tab === "board" && (
+          <aside className={s.rail} onClick={(e) => e.stopPropagation()}>
+            {/* 半荘 */}
+            <section className={s.navsec}>
+              <button
+                className={`${s.accHead} ${open.han ? s.accHeadOpen : ""}`}
+                aria-expanded={open.han}
+                onClick={() => acc("han")}
+              >
+                <svg className={s.arr} viewBox="0 0 12 12">
+                  <path d="M4 2l5 4-5 4" />
+                </svg>
+                半荘
+              </button>
+              {open.han && (
+                <div className={s.accBody}>
+                  <div className={s.roundwrap}>
+                    <div className={s.roundnav}>
                       <button
-                        className={s.copyurl}
-                        aria-label="URLをコピー"
-                        onClick={() => navigator.clipboard?.writeText(shareUrl).catch(() => {})}
+                        className={s.arrow}
+                        disabled={idx === 0}
+                        aria-label="前の局"
+                        onClick={() => p.onSwitch(idx - 1)}
                       >
-                        <svg viewBox="0 0 24 24">
-                          <rect x="9" y="9" width="11" height="11" rx="2" />
-                          <path d="M5 15V5a2 2 0 0 1 2-2h10" />
+                        <svg viewBox="0 0 16 16">
+                          <path d="M10 3L6 8l4 5" />
+                        </svg>
+                      </button>
+                      <button
+                        className={s.roundlbl}
+                        onClick={() => setRoundMenu((v) => !v)}
+                        aria-expanded={roundMenu}
+                      >
+                        {round} <small>{honba}本場</small>
+                        <svg className={s.caret} viewBox="0 0 12 12">
+                          <path d="M3 5l3 3 3-3" />
+                        </svg>
+                      </button>
+                      <button
+                        className={s.arrow}
+                        disabled={idx >= detail.logs.length - 1}
+                        aria-label="次の局"
+                        onClick={() => p.onSwitch(idx + 1)}
+                      >
+                        <svg viewBox="0 0 16 16">
+                          <path d="M6 3l4 5-4 5" />
                         </svg>
                       </button>
                     </div>
-                    <p className={s.visNote}>
-                      <Link href={`/k/${gameId}`} style={{ color: "#fff" }}>
-                        公開ページを見る →
-                      </Link>
-                    </p>
-                  </>
-                )}
-                <p className={s.visNote}>
-                  公開すると共有URLで誰でも閲覧できます（{visibilityLabel(vis)}）。
-                </p>
-              </div>
-            )}
-          </section>
-        </aside>
+                    {roundMenu && (
+                      <div className={s.roundMenu}>
+                        {detail.logs.map((l, i) => (
+                          <button
+                            key={l.id}
+                            className={`${s.roundItem} ${i === idx ? s.on : ""}`}
+                            onClick={() => {
+                              p.onSwitch(i);
+                              setRoundMenu(false);
+                            }}
+                          >
+                            {roundName(i)}
+                            <small>第{l.seq}局</small>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  <div className={s.kyakuAct}>
+                    <button className={s.addkyoku} onClick={() => setRulesOpen(true)}>
+                      ⚙ ルール設定
+                    </button>
+                    <button className={s.addkyoku} onClick={() => setAddOpen(true)}>
+                      ＋ 局の追加
+                    </button>
+                    <button
+                      className={`${s.delkyoku} ${delArm ? s.arm : ""}`}
+                      disabled={detail.logs.length <= 1}
+                      onClick={() => void onDelete()}
+                    >
+                      {delArm ? "もう一度押して削除" : "この局を削除"}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </section>
+
+            {/* 局情報 */}
+            <section className={s.navsec}>
+              <button
+                className={`${s.accHead} ${open.info ? s.accHeadOpen : ""}`}
+                aria-expanded={open.info}
+                onClick={() => acc("info")}
+              >
+                <svg className={s.arr} viewBox="0 0 12 12">
+                  <path d="M4 2l5 4-5 4" />
+                </svg>
+                局情報
+              </button>
+              {open.info && (
+                <div className={s.accBody}>
+                  <div className={s.steprow}>
+                    <span className={s.stlabel}>親</span>
+                    <div className={s.agsel}>
+                      <select
+                        className={s.sel2}
+                        value={dealer}
+                        onChange={(e) => setDealerSeat(e.target.value as Seat)}
+                        aria-label="親"
+                      >
+                        {SEAT_ORDER.map((seat) => (
+                          <option key={seat} value={seat}>
+                            {windOf(seat, dealer)}家
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                  <Stepper
+                    label="最終巡目"
+                    unit="巡"
+                    value={junme}
+                    min={1}
+                    max={30}
+                    set={setJunme}
+                  />
+                  <Stepper label="本場" unit="本場" value={honba} min={0} max={19} set={setHonba} />
+                  <Stepper
+                    label="供託"
+                    unit="本"
+                    value={kyotaku}
+                    min={0}
+                    max={9}
+                    set={setKyotaku}
+                  />
+                  <DoraNavRow label="ドラ" code={dora} onOpen={(e) => openDoraPicker(e, "dora")} />
+                  <DoraNavRow
+                    label="裏ドラ"
+                    code={uraDora}
+                    onOpen={(e) => openDoraPicker(e, "uradora")}
+                  />
+                </div>
+              )}
+            </section>
+
+            {/* 和了 */}
+            <section className={s.navsec}>
+              <button
+                className={`${s.accHead} ${open.agari ? s.accHeadOpen : ""}`}
+                aria-expanded={open.agari}
+                onClick={() => acc("agari")}
+              >
+                <svg className={s.arr} viewBox="0 0 12 12">
+                  <path d="M4 2l5 4-5 4" />
+                </svg>
+                和了
+              </button>
+              {open.agari && (
+                <div className={s.accBody}>
+                  <AgariEditor
+                    kifu={kifu}
+                    dealer={dealer}
+                    onChange={(agaris) =>
+                      mutate((d) => {
+                        d.agari = agaris;
+                      })
+                    }
+                  />
+                </div>
+              )}
+            </section>
+
+            {/* ポイント */}
+            <section className={s.navsec}>
+              <button
+                className={`${s.accHead} ${showPoints ? s.accHeadOpen : ""}`}
+                aria-expanded={showPoints}
+                onClick={() => setShowPoints((v) => !v)}
+              >
+                <svg className={s.arr} viewBox="0 0 12 12">
+                  <path d="M4 2l5 4-5 4" />
+                </svg>
+                ポイント
+              </button>
+              {showPoints && (
+                <div className={s.accBody}>
+                  {SEAT_ORDER.map((seat) => (
+                    <div key={seat} className={s.agrow}>
+                      <input
+                        className={s.field}
+                        style={{ flex: 1, minWidth: 0 }}
+                        value={names[seat]}
+                        placeholder={`${windOf(seat, dealer)}家`}
+                        aria-label="選手名"
+                        onChange={(e) => setNames((n) => ({ ...n, [seat]: e.target.value }))}
+                      />
+                      <input
+                        type="number"
+                        step="0.1"
+                        value={points[seat]}
+                        aria-label="ポイント"
+                        style={{
+                          width: 72,
+                          background: "transparent",
+                          border: 0,
+                          borderBottom: "1px solid var(--line)",
+                          color: "var(--orange)",
+                          fontWeight: 700,
+                          fontSize: 14,
+                          textAlign: "right",
+                          fontFamily: "var(--round)",
+                        }}
+                        onChange={(e) => setPoints((pt) => ({ ...pt, [seat]: e.target.value }))}
+                      />
+                    </div>
+                  ))}
+                </div>
+              )}
+            </section>
+
+            {/* 基本情報 */}
+            <section className={s.navsec} style={{ borderBottom: 0 }}>
+              <button
+                className={`${s.accHead} ${open.basic ? s.accHeadOpen : ""}`}
+                aria-expanded={open.basic}
+                onClick={() => acc("basic")}
+              >
+                <svg className={s.arr} viewBox="0 0 12 12">
+                  <path d="M4 2l5 4-5 4" />
+                </svg>
+                基本情報
+              </button>
+              {open.basic && (
+                <div className={s.accBody}>
+                  <div className={s.field}>
+                    <label>半荘名</label>
+                    <input value={hanchanName} onChange={(e) => setHanchanName(e.target.value)} />
+                  </div>
+                  <div className={s.field}>
+                    <label>日付</label>
+                    <input
+                      type="date"
+                      value={dateInput}
+                      onChange={(e) => setDateInput(e.target.value)}
+                    />
+                  </div>
+                  <div className={s.field}>
+                    <label>公開範囲</label>
+                    <div className={s.seg} role="group" aria-label="公開範囲">
+                      <button
+                        aria-pressed={vis === "private"}
+                        disabled={visBusy}
+                        onClick={() => toggleVis("private")}
+                      >
+                        非公開
+                      </button>
+                      <button
+                        aria-pressed={vis === "public"}
+                        disabled={visBusy}
+                        onClick={() => toggleVis("public")}
+                      >
+                        公開
+                      </button>
+                    </div>
+                  </div>
+                  {vis === "public" && (
+                    <>
+                      <div className={s.shareUrl}>
+                        <span className={s.url}>{shareUrl}</span>
+                        <button
+                          className={s.copyurl}
+                          aria-label="URLをコピー"
+                          onClick={() => navigator.clipboard?.writeText(shareUrl).catch(() => {})}
+                        >
+                          <svg viewBox="0 0 24 24">
+                            <rect x="9" y="9" width="11" height="11" rx="2" />
+                            <path d="M5 15V5a2 2 0 0 1 2-2h10" />
+                          </svg>
+                        </button>
+                      </div>
+                      <p className={s.visNote}>
+                        <Link href={`/k/${gameId}`} style={{ color: "#fff" }}>
+                          公開ページを見る →
+                        </Link>
+                      </p>
+                    </>
+                  )}
+                  <p className={s.visNote}>
+                    公開すると共有URLで誰でも閲覧できます（{visibilityLabel(vis)}）。
+                  </p>
+                </div>
+              )}
+            </section>
+          </aside>
+        )}
       </div>
 
       {pop && (
