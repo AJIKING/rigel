@@ -16,15 +16,13 @@ import type { GameRepository } from "../domain/game/game.repository";
 import type { AnalysisInput, Analyzer } from "../domain/kifu/analyzer";
 import type { GameLog } from "../domain/kifu/game-log";
 import type { GameLogRepository } from "../domain/kifu/game-log.repository";
-import { draftLimit } from "../domain/user/user";
-import { isOverLimitForPlan } from "./limits";
 import type { UserRepository } from "../domain/user/user.repository";
 
 export type AnalyzeResult =
   | { ok: true; gameLog: GameLog; gameId: string }
   | {
       ok: false;
-      reason: "user_not_found" | "quota_exceeded" | "game_not_found" | "draft_limit";
+      reason: "user_not_found" | "quota_exceeded" | "game_not_found";
     };
 
 export interface AnalyzeDeps {
@@ -55,17 +53,8 @@ export class AnalyzeAndSaveKifu {
 
     const user = await users.findById(params.userId);
     if (!user) return { ok: false, reason: "user_not_found" };
+    // Free は AI再現なし（枠0）＝ここで弾かれる。解析できるのは有料プランのみ。
     if (!user.canAnalyze(now())) return { ok: false, reason: "quota_exceeded" };
-
-    // 新規牌譜は下書き(draft)で作るので、無料プランの下書き上限に達していれば
-    // 解析(=Gemini 枠の消費)に入る前に断る（非公開上限とは別枠）。
-    if (
-      await isOverLimitForPlan(user.plan, draftLimit, () =>
-        gameLogs.countByUserAndStatus(user.id, "draft"),
-      )
-    ) {
-      return { ok: false, reason: "draft_limit" };
-    }
 
     // 既存半荘の指定があれば、解析の前に所有確認（無駄な解析・課金を避ける）。
     let game: Game | null = null;

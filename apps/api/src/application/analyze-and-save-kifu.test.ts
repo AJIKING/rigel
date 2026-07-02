@@ -40,11 +40,12 @@ class FailingAnalyzer implements Analyzer {
   }
 }
 
-function freeUser(count: number): User {
+// 解析できるのは有料プランのみ（Free は AI枠0）。テストは next プラン(枠100)で行う。
+function paidUser(count: number): User {
   return new User({
     id: "u1",
     googleSub: "g1",
-    plan: "free",
+    plan: "next",
     analysisCountThisMonth: count,
     countResetAt: firstOfNextMonthUtc(NOW),
   });
@@ -70,7 +71,7 @@ function makeUsecase(opts: { user?: User; analyzer: Analyzer; games?: Game[] }) 
 
 describe("AnalyzeAndSaveKifu", () => {
   it("成功すると新規半荘に private 局として保存され、実呼び出し回数ぶん加算される", async () => {
-    const user = freeUser(0);
+    const user = paidUser(0);
     const { usecase, gameLogs, games } = makeUsecase({
       user,
       analyzer: new FakeAnalyzer(validKifu, 4),
@@ -90,7 +91,7 @@ describe("AnalyzeAndSaveKifu", () => {
   });
 
   it("gameId 指定で既存半荘に追加すると seq が増える", async () => {
-    const user = freeUser(0);
+    const user = paidUser(0);
     const game: Game = { id: "g1", userId: "u1", title: "", createdAt: NOW };
     const { usecase, gameLogs, games } = makeUsecase({
       user,
@@ -116,7 +117,7 @@ describe("AnalyzeAndSaveKifu", () => {
   });
 
   it("他人の半荘を指定したら game_not_found（解析しない）", async () => {
-    const user = freeUser(0);
+    const user = paidUser(0);
     const game: Game = { id: "g1", userId: "someone-else", title: "", createdAt: NOW };
     const analyzer = new FakeAnalyzer(validKifu);
     const { usecase, gameLogs } = makeUsecase({ user, analyzer, games: [game] });
@@ -130,7 +131,7 @@ describe("AnalyzeAndSaveKifu", () => {
   });
 
   it("月の呼び出し枠を使い切っていると解析させず、保存もカウントもしない", async () => {
-    const user = freeUser(MONTHLY_CALL_QUOTA.free); // 上限
+    const user = paidUser(MONTHLY_CALL_QUOTA.next); // 上限
     const analyzer = new FakeAnalyzer(validKifu);
     const { usecase, gameLogs } = makeUsecase({ user, analyzer });
 
@@ -139,35 +140,14 @@ describe("AnalyzeAndSaveKifu", () => {
     expect(result).toEqual({ ok: false, reason: "quota_exceeded" });
     expect(analyzer.calls).toBe(0); // 解析を呼ばない（コストもかけない）
     expect(gameLogs.saved).toHaveLength(0);
-    expect(user.analysisCountThisMonth).toBe(MONTHLY_CALL_QUOTA.free);
+    expect(user.analysisCountThisMonth).toBe(MONTHLY_CALL_QUOTA.next);
   });
 
-  it("無料の下書き上限(5)に達していると解析させず draft_limit（解析牌譜も draft）", async () => {
-    const user = freeUser(0);
-    const analyzer = new FakeAnalyzer(validKifu);
-    const { usecase, gameLogs } = makeUsecase({ user, analyzer });
-    for (let i = 0; i < 5; i++) {
-      await gameLogs.save({
-        id: `d${i}`,
-        userId: "u1",
-        gameId: null,
-        seq: 1,
-        kifu: validKifu,
-        visibility: "private",
-        status: "draft",
-        createdAt: NOW,
-      });
-    }
-
-    const result = await usecase.execute({ userId: "u1", input: dummyInput });
-
-    expect(result).toEqual({ ok: false, reason: "draft_limit" });
-    expect(analyzer.calls).toBe(0); // 解析(=Gemini 枠)を消費しない
-    expect(user.analysisCountThisMonth).toBe(0);
-  });
+  // 注: 解析は有料プランのみ（Free は AI枠0）。有料は下書き無制限なので、
+  //     analyze 経路での draft_limit は発生しない（手動作成の下書き上限は create-empty 側でテスト）。
 
   it("解析が失敗したらカウントを進めず保存もしない（成功時のみ加算）", async () => {
-    const user = freeUser(3);
+    const user = paidUser(3);
     const { usecase, gameLogs } = makeUsecase({ user, analyzer: new FailingAnalyzer() });
 
     await expect(usecase.execute({ userId: "u1", input: dummyInput })).rejects.toThrow(

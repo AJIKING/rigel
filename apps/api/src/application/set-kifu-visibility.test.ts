@@ -60,9 +60,9 @@ describe("SetKifuVisibility", () => {
     expect(result).toEqual({ ok: false, reason: "not_found" });
   });
 
-  it("無料は非公開上限(4)を超える private 化を拒否する", async () => {
+  it("無料は非公開上限(5)を超える private 化を拒否する", async () => {
     const gameLogs = new InMemoryGameLogRepository();
-    for (let i = 0; i < 4; i++) await gameLogs.save(log(`p${i}`, "u1", "private"));
+    for (let i = 0; i < 5; i++) await gameLogs.save(log(`p${i}`, "u1", "private"));
     await gameLogs.save(log("pub", "u1", "public")); // これを private にしたい
     const users = new InMemoryUserRepository([user("free")]);
 

@@ -13,11 +13,12 @@ export type Plan = "free" | "next" | "pro";
  * 1局の解析は河(4方向)＋撮影した手牌の枚数ぶん呼び出すので、枠は「局数」ではなく
  * 実呼び出し回数で数える（free 20 ≒ 2局）。
  */
-export const MONTHLY_CALL_QUOTA: Record<Plan, number> = { free: 20, next: 100, pro: 320 };
+// Free は AI再現なし（枠0）。AI再現は Next 以上。
+export const MONTHLY_CALL_QUOTA: Record<Plan, number> = { free: 0, next: 100, pro: 320 };
 
 /** プランごとの private(非公開)かつ complete(編集済) 牌譜の保存上限。null は無制限。
  *  下書き(draft)はこの上限に数えない（別枠 = DRAFT_LIMIT）。 */
-export const PRIVATE_KIFU_LIMIT: Record<Plan, number | null> = { free: 4, next: null, pro: null };
+export const PRIVATE_KIFU_LIMIT: Record<Plan, number | null> = { free: 5, next: null, pro: null };
 
 /** プランごとの下書き(draft)保存上限。null は無制限（有料）。非公開上限とは別枠。 */
 export const DRAFT_LIMIT: Record<Plan, number | null> = { free: 5, next: null, pro: null };

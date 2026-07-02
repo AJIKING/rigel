@@ -20,13 +20,13 @@ const PLAN_CARDS: {
   reco?: boolean;
   feats: string[];
 }[] = [
-  { key: "free", feats: ["非公開の保存 4件まで", "AI再現 月20回相当", "公開・共有リンク"] },
+  { key: "free", feats: ["公開牌譜の保存 無制限", "非公開の保存 5件まで", "AI再現 なし"] },
   {
     key: "next",
     reco: true,
-    feats: ["非公開の保存 無制限", "AI再現 月100回相当", "お気に入り 無制限"],
+    feats: ["Free の全機能", "非公開の保存 無制限", "AI再現 月100回相当"],
   },
-  { key: "pro", feats: ["Next の全機能", "AI再現 月320回相当", "（今後）成績・着順の統計"] },
+  { key: "pro", feats: ["Next の全機能", "AI再現 月320回相当"] },
 ];
 
 export function SettingsShell() {

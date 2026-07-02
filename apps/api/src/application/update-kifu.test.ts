@@ -72,8 +72,8 @@ describe("UpdateKifu", () => {
     expect(result).toEqual({ ok: false, reason: "draft_limit" });
   });
 
-  it("無料: draft→complete かつ private で非公開上限(4)を超えると private_limit", async () => {
-    const privs = Array.from({ length: 4 }, (_, i) =>
+  it("無料: draft→complete かつ private で非公開上限(5)を超えると private_limit", async () => {
+    const privs = Array.from({ length: 5 }, (_, i) =>
       log(`p${i}`, "u1", { visibility: "private", status: "complete" }),
     );
     const { uc } = make([log("l1", "u1", { visibility: "private", status: "draft" }), ...privs]);

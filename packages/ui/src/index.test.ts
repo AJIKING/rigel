@@ -115,8 +115,9 @@ describe("checkoutErrorMessage", () => {
 
 describe("プラン表示", () => {
   it("planLabel / planMonthlyPrice", () => {
-    expect(planLabel("free")).toBe("無料");
-    expect(planLabel("pro")).toBe("RIGEL Pro");
+    expect(planLabel("free")).toBe("Free");
+    expect(planLabel("next")).toBe("Next");
+    expect(planLabel("pro")).toBe("Pro");
     expect(planMonthlyPrice("next")).toBe(480);
   });
   it("upgradeTargets は上位プランだけ返す", () => {

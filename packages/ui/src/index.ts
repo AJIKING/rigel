@@ -111,7 +111,7 @@ export function checkoutErrorMessage(status: number): string {
 export type Plan = "free" | "next" | "pro";
 export type PaidPlan = "next" | "pro";
 
-const PLAN_LABELS: Record<Plan, string> = { free: "無料", next: "RIGEL Next", pro: "RIGEL Pro" };
+const PLAN_LABELS: Record<Plan, string> = { free: "Free", next: "Next", pro: "Pro" };
 const PLAN_MONTHLY_PRICE: Record<Plan, number> = { free: 0, next: 480, pro: 1480 };
 
 /** プランの表示名。 */
