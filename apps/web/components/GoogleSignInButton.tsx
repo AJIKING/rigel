@@ -21,7 +21,8 @@ declare global {
 /**
  * Google ログインボタン。Google Identity Services を読み込み、取得した ID トークンを
  * `POST /auth/google` に送ってセッションを確立する。デザインに合わせ白・大・日本語表記。
- * NEXT_PUBLIC_GOOGLE_CLIENT_ID 未設定時は、その旨を表示して無効化する。
+ * CLIENT_ID(NEXT_PUBLIC_GOOGLE_CLIENT_ID) 未設定時は、内部情報を出さず
+ * 「ご利用いただけません」の中立的な文言だけ表示して無効化する。
  */
 export function GoogleSignInButton() {
   const { signInWithGoogle } = useAuth();
@@ -50,12 +51,7 @@ export function GoogleSignInButton() {
   }, [ready, signInWithGoogle]);
 
   if (!CLIENT_ID) {
-    return (
-      <p className={s.notice}>
-        Google ログインは未設定です（環境変数 <code>NEXT_PUBLIC_GOOGLE_CLIENT_ID</code>{" "}
-        を設定すると有効化されます）。
-      </p>
-    );
+    return <p className={s.notice}>ただいまログインをご利用いただけません。</p>;
   }
 
   return (
