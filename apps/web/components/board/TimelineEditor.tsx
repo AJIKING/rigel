@@ -13,16 +13,9 @@ import {
 import { deriveTimeline, seatLabel, syncSeatsFromTimeline, timelineTurns } from "@rigel/ui";
 import { useState } from "react";
 import { OssTileFace } from "../OssTileFace";
-import { NUMS, type Suit } from "../../lib/board";
+import { NUMS, SEAT_ORDER, SUITS, type Suit } from "../../lib/board";
 import s from "./timeline-editor.module.css";
 
-const SEATS: Seat[] = ["east", "south", "west", "north"];
-const SUITS: { key: Suit; label: string }[] = [
-  { key: "m", label: "萬" },
-  { key: "p", label: "筒" },
-  { key: "s", label: "索" },
-  { key: "z", label: "字" },
-];
 const MELD_TYPES: MeldType[] = ["pon", "chi", "kan_open", "kan_closed", "kan_added"];
 const MELD_LABEL: Record<MeldType, string> = {
   pon: "ポン",
@@ -33,13 +26,13 @@ const MELD_LABEL: Record<MeldType, string> = {
 };
 const isKan = (t: MeldType) => t === "kan_open" || t === "kan_closed" || t === "kan_added";
 
-const nextSeat = (seat: Seat): Seat => SEATS[(SEATS.indexOf(seat) + 1) % 4]!;
+const nextSeat = (seat: Seat): Seat => SEAT_ORDER[(SEAT_ORDER.indexOf(seat) + 1) % 4]!;
 const nextFrom = (from: Seat | null, self: Seat): Seat => {
-  let i = SEATS.indexOf(from ?? self);
+  let i = SEAT_ORDER.indexOf(from ?? self);
   do {
     i = (i + 1) % 4;
-  } while (SEATS[i] === self);
-  return SEATS[i]!;
+  } while (SEAT_ORDER[i] === self);
+  return SEAT_ORDER[i]!;
 };
 
 /** ピッカーの対象。draw/disc は打牌イベント、mtile は鳴き牌。 */
@@ -286,16 +279,16 @@ export function TimelineEditor({
             <div className={s.ptabs}>
               {SUITS.map((su) => (
                 <button
-                  key={su.key}
-                  className={pickSuit === su.key ? s.on : ""}
-                  onClick={() => setPickSuit(su.key)}
+                  key={su.suit}
+                  className={pickSuit === su.suit ? s.on : ""}
+                  onClick={() => setPickSuit(su.suit)}
                 >
                   {su.label}
                 </button>
               ))}
             </div>
             <div className={s.pgrid}>
-              {pickCodes(pickSuit).map((code) => (
+              {NUMS[pickSuit].map((code) => (
                 <button key={code} className={s.pcell} onClick={() => onPick(code)}>
                   <OssTileFace code={code} />
                 </button>
@@ -309,11 +302,6 @@ export function TimelineEditor({
       )}
     </aside>
   );
-}
-
-/** ピッカーのその色の候補牌（NUMS: 1..9 + 赤5、字は1..7）。 */
-function pickCodes(suit: Suit): Tile[] {
-  return NUMS[suit];
 }
 
 function TileBox({ code, small }: { code: Tile | null; small?: boolean }) {
