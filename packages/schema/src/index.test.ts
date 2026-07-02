@@ -83,6 +83,56 @@ describe("KifuSchema（牌譜1件の最終検証）", () => {
     expect(result.success).toBe(false);
   });
 
+  it("timeline は省略時に空配列になる（後方互換）", () => {
+    const kifu = KifuSchema.parse(minimalKifu);
+    expect(kifu.timeline).toEqual([]);
+  });
+
+  it("timeline の打牌イベントは draw/tsumogiri/riichi の既定が入る", () => {
+    const kifu = KifuSchema.parse({
+      ...minimalKifu,
+      timeline: [{ kind: "discard", seat: "east", tile: "1m" }],
+    });
+    expect(kifu.timeline[0]).toEqual({
+      kind: "discard",
+      seat: "east",
+      draw: null,
+      tile: "1m",
+      tsumogiri: false,
+      riichi: false,
+      confidence: 1,
+    });
+  });
+
+  it("timeline の鳴きイベントは Meld を保持する", () => {
+    const kifu = KifuSchema.parse({
+      ...minimalKifu,
+      timeline: [
+        {
+          kind: "meld",
+          seat: "south",
+          meld: {
+            type: "pon",
+            tiles: [{ tile: "5z" }, { tile: "5z" }, { tile: "5z" }],
+            from: "east",
+          },
+        },
+      ],
+    });
+    expect(kifu.timeline[0]).toMatchObject({ kind: "meld", seat: "south" });
+    if (kifu.timeline[0]?.kind === "meld") {
+      expect(kifu.timeline[0].meld.type).toBe("pon");
+    }
+  });
+
+  it("timeline の不正な kind は拒否する", () => {
+    const r = KifuSchema.safeParse({
+      ...minimalKifu,
+      timeline: [{ kind: "bogus", seat: "east" }],
+    });
+    expect(r.success).toBe(false);
+  });
+
   it("局メタ(本場/供託/ドラ/裏ドラ/最終巡目)は省略時に既定が入る（後方互換）", () => {
     const kifu = KifuSchema.parse(minimalKifu);
     expect(kifu.meta).toMatchObject({

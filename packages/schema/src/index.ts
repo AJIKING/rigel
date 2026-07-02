@@ -130,6 +130,44 @@ export const SeatBoardSchema = z.object({
 export type SeatBoard = z.infer<typeof SeatBoardSchema>;
 
 // ------------------------------------------------------------
+// 手順（タイムライン）イベント
+//   全席横断の時系列。打牌(手出し/ツモ切り)と鳴きを1列に並べる。これを正典とし、
+//   盤面(席ごと river/melds)と巡目はここから導出する（段階移行。設計: docs/designs/timeline-editor.md）。
+// ------------------------------------------------------------
+
+/** 打牌イベント（ツモ→捨て）。 */
+export const DiscardEventSchema = z.object({
+  kind: z.literal("discard"),
+  /** 打牌した席（絶対位置）。 */
+  seat: SeatSchema,
+  /** ツモ牌。写真から復元できないことが多く任意（不明/なしは null）。 */
+  draw: MaybeTileSchema.default(null),
+  /** 捨て牌。 */
+  tile: MaybeTileSchema,
+  /** 自摸切り（ツモ牌をそのまま捨てた）なら true。既定は手出し。 */
+  tsumogiri: z.boolean().default(false),
+  /** 横向きの牌 = リーチ宣言牌。 */
+  riichi: z.boolean().default(false),
+  confidence: ConfidenceSchema.default(1),
+});
+export type DiscardEvent = z.infer<typeof DiscardEventSchema>;
+
+/** 鳴きイベント（既存 Meld を時系列上に置く）。 */
+export const MeldEventSchema = z.object({
+  kind: z.literal("meld"),
+  /** 鳴いた席（絶対位置）。 */
+  seat: SeatSchema,
+  meld: MeldSchema,
+});
+export type MeldEvent = z.infer<typeof MeldEventSchema>;
+
+export const TimelineEventSchema = z.discriminatedUnion("kind", [
+  DiscardEventSchema,
+  MeldEventSchema,
+]);
+export type TimelineEvent = z.infer<typeof TimelineEventSchema>;
+
+// ------------------------------------------------------------
 // 半荘ルール（点数計算の前提。docs/rigel-rules-dialog.html を再現）
 //   写真から復元できないので手入力。既定は Mリーグ相当。
 // ------------------------------------------------------------
@@ -279,6 +317,10 @@ export const KifuSchema = z.object({
 
   /** 解析時の読み取り困難メモ（グレア・ブレ・見切れ等）。AIのnotesを引き継ぐ。 */
   readingNotes: z.string().default(""),
+
+  /** 手順（タイムライン）。打牌・鳴きの全席横断の時系列。省略時は空（後方互換）。
+   *  盤面/巡目はここから導出する正典（設計: docs/designs/timeline-editor.md）。 */
+  timeline: z.array(TimelineEventSchema).default([]),
 });
 export type Kifu = z.infer<typeof KifuSchema>;
 
