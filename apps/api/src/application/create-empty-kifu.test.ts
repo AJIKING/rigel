@@ -102,12 +102,13 @@ describe("CreateEmptyKifu", () => {
     expect(result).toEqual({ ok: false, reason: "game_not_found" });
   });
 
-  it("無料の非公開上限(4)を超えると private_limit", async () => {
+  it("無料の下書き上限(5)を超えると draft_limit（作成は draft）", async () => {
     const { uc, gameLogs } = make({ games: [game("g1", "u1")] });
-    for (let i = 0; i < 4; i++)
+    for (let i = 0; i < 5; i++)
       await uc.execute({ userId: "u1", gameId: "g1", cameraBottomSeat: "east" });
     const result = await uc.execute({ userId: "u1", gameId: "g1", cameraBottomSeat: "east" });
-    expect(result).toEqual({ ok: false, reason: "private_limit" });
-    expect(gameLogs.saved).toHaveLength(4);
+    expect(result).toEqual({ ok: false, reason: "draft_limit" });
+    expect(gameLogs.saved).toHaveLength(5);
+    expect(gameLogs.saved.every((l) => l.status === "draft")).toBe(true);
   });
 });

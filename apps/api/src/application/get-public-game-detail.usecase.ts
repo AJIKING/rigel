@@ -24,7 +24,10 @@ export class GetPublicGameDetail {
   async execute(gameId: string): Promise<PublicGameDetail | null> {
     const game = await this.games.findById(gameId);
     if (!game) return null;
-    const logs = (await this.gameLogs.listByGame(gameId)).filter((l) => l.visibility === "public");
+    // 公開フィードは編集済(complete)のみ。下書きは public でも出さない。
+    const logs = (await this.gameLogs.listByGame(gameId)).filter(
+      (l) => l.visibility === "public" && l.status === "complete",
+    );
     if (logs.length === 0) return null;
     const owner = await this.users.findById(game.userId);
     return {

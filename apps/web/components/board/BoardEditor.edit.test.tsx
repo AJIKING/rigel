@@ -44,6 +44,7 @@ function makeDetail(logs: { id: string }[]): GameDetail {
       seq: i + 1,
       kifu: makeKifu(),
       visibility: "private" as const,
+      status: "complete" as const,
       createdAt: "2026-06-28T00:00:00.000Z",
     })),
   };

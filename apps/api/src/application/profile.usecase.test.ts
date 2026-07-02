@@ -31,6 +31,7 @@ const log = (id: string, userId: string, gameId: string, vis: "public" | "privat
   seq: 1,
   kifu: validKifu,
   visibility: vis,
+  status: "complete",
   createdAt: NOW,
 });
 

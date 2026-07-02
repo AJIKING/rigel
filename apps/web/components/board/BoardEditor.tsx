@@ -173,6 +173,9 @@ function Editor(p: EditorProps) {
   const [kanType, setKanType] = useState<KanType>("minkan");
 
   const [save, setSave] = useState<"idle" | "saving" | "done">("idle");
+  const [saveErr, setSaveErr] = useState<string | null>(null);
+  // 編集状態（下書き/編集済）。保存ボタン左のトグルで切り替え、保存時に送る。
+  const [status, setStatus] = useState(log.status);
   const [vis, setVis] = useState(log.visibility);
   const [visBusy, setVisBusy] = useState(false);
   const [hanchanName, setHanchanName] = useState(detail.game.title || "");
@@ -299,9 +302,23 @@ function Editor(p: EditorProps) {
 
   async function onSave() {
     setSave("saving");
-    const res = await updateKifuAction(log.id, kifu).catch(() => ({ ok: false, status: 0 }));
+    setSaveErr(null);
+    const res = await updateKifuAction(log.id, kifu, status).catch(() => ({
+      ok: false,
+      status: 0,
+    }));
     setSave(res.ok ? "done" : "idle");
-    if (res.ok) setTimeout(() => setSave("idle"), 1500);
+    if (res.ok) {
+      setTimeout(() => setSave("idle"), 1500);
+    } else if (res.status === 403) {
+      setSaveErr(
+        status === "complete"
+          ? "非公開の保存上限に達しています（公開にするか、有料プランへ）。"
+          : "無料プランの下書きは5件までです（編集済にするか、有料プランへ）。",
+      );
+    } else {
+      setSaveErr("保存に失敗しました。");
+    }
   }
   async function toggleVis(next: "public" | "private") {
     if (next === vis || visBusy) return;
@@ -378,6 +395,28 @@ function Editor(p: EditorProps) {
           <b>{round}</b>
         </nav>
         <div className={s.sp} />
+        {saveErr && <span className={s.saveErr}>{saveErr}</span>}
+        {/* 保存ボタンの左：下書き / 編集済み トグル。 */}
+        <div className={s.statusSeg} role="group" aria-label="編集状態">
+          {(
+            [
+              ["draft", "下書き"],
+              ["complete", "編集済"],
+            ] as const
+          ).map(([v, label]) => (
+            <button
+              key={v}
+              className={status === v ? s.on : ""}
+              aria-pressed={status === v}
+              onClick={(e) => {
+                e.stopPropagation();
+                setStatus(v);
+              }}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
         <button
           className={`${s.savebtn} ${save === "done" ? s.done : ""}`}
           disabled={save !== "idle"}

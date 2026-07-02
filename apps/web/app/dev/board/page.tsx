@@ -89,6 +89,7 @@ const DETAIL: PublicGameDetail = {
       seq: 1,
       kifu: fullKifu(),
       visibility: "public",
+      status: "complete",
       createdAt: "2026-06-28T00:00:00.000Z",
     },
   ],

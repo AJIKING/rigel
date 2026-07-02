@@ -3,7 +3,7 @@
 import type { AnalysisCommitInput, AnalysisStore } from "../domain/analysis/analysis-store";
 import type { Game } from "../domain/game/game";
 import type { GameRepository } from "../domain/game/game.repository";
-import type { GameLog, Visibility } from "../domain/kifu/game-log";
+import type { GameLog, KifuStatus, Visibility } from "../domain/kifu/game-log";
 import type { GameLogRepository } from "../domain/kifu/game-log.repository";
 import type { User } from "../domain/user/user";
 import type { UserRepository } from "../domain/user/user.repository";
@@ -73,16 +73,28 @@ export class InMemoryGameLogRepository implements GameLogRepository {
     );
   }
 
-  countByUserAndVisibility(userId: string, visibility: Visibility): Promise<number> {
+  countByUserAndStatus(userId: string, status: KifuStatus): Promise<number> {
     return Promise.resolve(
-      this.saved.filter((g) => g.userId === userId && g.visibility === visibility).length,
+      this.saved.filter((g) => g.userId === userId && g.status === status).length,
+    );
+  }
+
+  countByUserVisibilityStatus(
+    userId: string,
+    visibility: Visibility,
+    status: KifuStatus,
+  ): Promise<number> {
+    return Promise.resolve(
+      this.saved.filter(
+        (g) => g.userId === userId && g.visibility === visibility && g.status === status,
+      ).length,
     );
   }
 
   listPublic(limit: number): Promise<GameLog[]> {
     return Promise.resolve(
       this.saved
-        .filter((g) => g.visibility === "public")
+        .filter((g) => g.visibility === "public" && g.status === "complete")
         .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
         .slice(0, limit),
     );

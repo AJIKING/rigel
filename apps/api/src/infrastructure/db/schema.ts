@@ -71,6 +71,11 @@ export const gameLogs = sqliteTable(
     visibility: text("visibility", { enum: ["public", "private"] })
       .notNull()
       .default("private"),
+    /** 編集状態。draft=下書き / complete=編集済（公開フィードに出る）。
+     *  既定は complete（既存データを確定扱いにする後方互換）。新規は作成時に draft を書く。 */
+    status: text("status", { enum: ["draft", "complete"] })
+      .notNull()
+      .default("complete"),
     createdAt: integer("created_at", { mode: "timestamp_ms" })
       .notNull()
       .$defaultFn(() => new Date()),
@@ -79,6 +84,8 @@ export const gameLogs = sqliteTable(
     index("game_logs_user_idx").on(t.userId),
     index("game_logs_game_idx").on(t.gameId),
     index("game_logs_visibility_idx").on(t.visibility),
+    // 公開フィード（visibility=public かつ status=complete）用。
+    index("game_logs_pub_idx").on(t.visibility, t.status),
   ],
 );
 

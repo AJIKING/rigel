@@ -12,13 +12,20 @@ import { GetPublicGameDetail } from "./get-public-game-detail.usecase";
 
 const NOW = new Date("2026-06-29T00:00:00.000Z");
 const game = (id: string, userId: string): Game => ({ id, userId, title: "卓", createdAt: NOW });
-const log = (id: string, gameId: string, seq: number, vis: Visibility): GameLog => ({
+const log = (
+  id: string,
+  gameId: string,
+  seq: number,
+  vis: Visibility,
+  status: "draft" | "complete" = "complete",
+): GameLog => ({
   id,
   userId: "u1",
   gameId,
   seq,
   kifu: validKifu,
   visibility: vis,
+  status,
   createdAt: NOW,
 });
 function owner(): User {
@@ -46,6 +53,19 @@ describe("GetPublicGameDetail", () => {
 
     expect(detail?.owner.handle).toBe("kuro_2p");
     expect(detail?.logs.map((l) => l.id)).toEqual(["l1", "l3"]);
+  });
+
+  it("下書き(draft)の公開局は除外される（編集済のみ）", async () => {
+    const games = new InMemoryGameRepository([game("g1", "u1")]);
+    const gameLogs = new InMemoryGameLogRepository();
+    await gameLogs.save(log("l1", "g1", 1, "public", "complete"));
+    await gameLogs.save(log("l2", "g1", 2, "public", "draft")); // public でも draft は除外
+    const detail = await new GetPublicGameDetail(
+      games,
+      gameLogs,
+      new InMemoryUserRepository([owner()]),
+    ).execute("g1");
+    expect(detail?.logs.map((l) => l.id)).toEqual(["l1"]);
   });
 
   it("公開局が無ければ null", async () => {

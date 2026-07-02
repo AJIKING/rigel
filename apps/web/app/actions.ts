@@ -1,6 +1,6 @@
 "use server";
 
-import { type KifuMetaInput } from "@rigel/client";
+import { type KifuMetaInput, type KifuStatus } from "@rigel/client";
 import { type Kifu, type Seat } from "@rigel/schema";
 import {
   analyze,
@@ -36,8 +36,8 @@ export async function getMyGamesAction() {
   return getMyGames(await requireToken());
 }
 
-export async function updateKifuAction(logId: string, kifu: Kifu) {
-  return updateKifu(await requireToken(), logId, kifu);
+export async function updateKifuAction(logId: string, kifu: Kifu, status?: KifuStatus) {
+  return updateKifu(await requireToken(), logId, kifu, status);
 }
 
 export async function setVisibilityAction(logId: string, visibility: "public" | "private") {

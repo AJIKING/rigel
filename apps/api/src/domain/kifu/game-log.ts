@@ -6,6 +6,9 @@ import type { Kifu } from "@rigel/schema";
 /** 公開範囲。public=他ユーザーも閲覧可 / private=所有者のみ。 */
 export type Visibility = "public" | "private";
 
+/** 編集状態。draft=下書き（作成直後・要修正）/ complete=編集済（公開フィードに出る）。 */
+export type KifuStatus = "draft" | "complete";
+
 export interface GameLog {
   /** 牌譜ID（= 共有URL単位 / 課金単位）。 */
   id: string;
@@ -19,5 +22,7 @@ export interface GameLog {
   kifu: Kifu;
   /** 公開範囲（既定 private）。 */
   visibility: Visibility;
+  /** 編集状態（既定 draft。公開フィードは complete のみ）。 */
+  status: KifuStatus;
   createdAt: Date;
 }

@@ -104,6 +104,7 @@ describe("AnalyzeAndSaveKifu", () => {
       seq: 1,
       kifu: validKifu,
       visibility: "private",
+      status: "complete",
       createdAt: NOW,
     });
 
@@ -141,25 +142,26 @@ describe("AnalyzeAndSaveKifu", () => {
     expect(user.analysisCountThisMonth).toBe(MONTHLY_CALL_QUOTA.free);
   });
 
-  it("無料の非公開上限(4)に達していると解析させず private_limit", async () => {
+  it("無料の下書き上限(5)に達していると解析させず draft_limit（解析牌譜も draft）", async () => {
     const user = freeUser(0);
     const analyzer = new FakeAnalyzer(validKifu);
     const { usecase, gameLogs } = makeUsecase({ user, analyzer });
-    for (let i = 0; i < 4; i++) {
+    for (let i = 0; i < 5; i++) {
       await gameLogs.save({
-        id: `p${i}`,
+        id: `d${i}`,
         userId: "u1",
         gameId: null,
         seq: 1,
         kifu: validKifu,
         visibility: "private",
+        status: "draft",
         createdAt: NOW,
       });
     }
 
     const result = await usecase.execute({ userId: "u1", input: dummyInput });
 
-    expect(result).toEqual({ ok: false, reason: "private_limit" });
+    expect(result).toEqual({ ok: false, reason: "draft_limit" });
     expect(analyzer.calls).toBe(0); // 解析(=Gemini 枠)を消費しない
     expect(user.analysisCountThisMonth).toBe(0);
   });

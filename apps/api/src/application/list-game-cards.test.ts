@@ -18,6 +18,7 @@ const log = (id: string, userId: string, gameId: string, vis: Visibility): GameL
   seq: 1,
   kifu: validKifu,
   visibility: vis,
+  status: "complete",
   createdAt: new Date("2026-06-29T00:00:00.000Z"),
 });
 

@@ -5,7 +5,7 @@ import { KifuSchema, type Kifu, type Seat, type Tile } from "@rigel/schema";
 import type { GameRepository } from "../domain/game/game.repository";
 import type { GameLog } from "../domain/kifu/game-log";
 import type { GameLogRepository } from "../domain/kifu/game-log.repository";
-import { privateKifuLimit } from "../domain/user/user";
+import { draftLimit } from "../domain/user/user";
 import type { UserRepository } from "../domain/user/user.repository";
 
 /** 作成時に焼き込める局メタ（写真に写らない情報。記録のみ・点数計算はしない）。 */
@@ -13,7 +13,7 @@ export type EmptyKifuMeta = Partial<Kifu["meta"]>;
 
 export type CreateEmptyResult =
   | { ok: true; gameId: string; logId: string }
-  | { ok: false; reason: "game_not_found" | "private_limit" };
+  | { ok: false; reason: "game_not_found" | "draft_limit" };
 
 /** 手動作成の下敷き牌（1m→字牌の自然順・赤ドラ除く。34種）。 */
 const TILE_SEQUENCE = [
@@ -105,11 +105,12 @@ export class CreateEmptyKifu {
       return { ok: false, reason: "game_not_found" };
     }
 
+    // 新規は下書き(draft)で作るので、下書き上限で判定する（非公開上限とは別枠）。
     const user = await users.findById(params.userId);
-    const limit = user ? privateKifuLimit(user.plan) : 0;
+    const limit = user ? draftLimit(user.plan) : 0;
     if (limit !== null) {
-      const current = await gameLogs.countByUserAndVisibility(params.userId, "private");
-      if (current >= limit) return { ok: false, reason: "private_limit" };
+      const current = await gameLogs.countByUserAndStatus(params.userId, "draft");
+      if (current >= limit) return { ok: false, reason: "draft_limit" };
     }
 
     // 上限を通過してから半荘を作る（弾かれた時に空半荘を残さない）。
@@ -126,6 +127,7 @@ export class CreateEmptyKifu {
       seq: existing.length + 1,
       kifu: emptyKifu(now().toISOString(), params.cameraBottomSeat, params.meta),
       visibility: "private",
+      status: "draft",
       createdAt: now(),
     };
     await gameLogs.save(log);

@@ -13,6 +13,8 @@ export type KifuMetaInput = Partial<Pick<Kifu["meta"], "honba" | "kyotaku" | "do
 export type Plan = "free" | "next" | "pro";
 export type PaidPlan = "next" | "pro";
 export type Visibility = "public" | "private";
+/** 編集状態。draft=下書き / complete=編集済（公開フィードに出る）。 */
+export type KifuStatus = "draft" | "complete";
 
 export interface AuthUser {
   id: string;
@@ -63,6 +65,7 @@ export interface GameLog {
   seq: number;
   kifu: Kifu;
   visibility: Visibility;
+  status: KifuStatus;
   createdAt: string;
 }
 
@@ -120,7 +123,12 @@ export interface ApiClient {
    */
   analyze(token: string, form: FormData): Promise<AnalyzeResult>;
   /** 牌譜の修正を保存する（所有者のみ）。成否を返す。 */
-  updateKifu(token: string, logId: string, kifu: Kifu): Promise<{ ok: boolean; status: number }>;
+  updateKifu(
+    token: string,
+    logId: string,
+    kifu: Kifu,
+    status?: KifuStatus,
+  ): Promise<{ ok: boolean; status: number }>;
   /**
    * 指定プラン(next/pro)へのアップグレード Checkout を開始し、決済ページURLを得る。
    * urls は決済後/中断後の戻り先（各アプリが自分のオリジンで組む）。
@@ -262,11 +270,11 @@ export function createApiClient(baseUrl: string, fetchImpl?: typeof fetch): ApiC
       return { ok: false, status: res.status, reason: body.reason ?? body.error };
     },
 
-    async updateKifu(token, logId, kifu) {
+    async updateKifu(token, logId, kifu, status) {
       const res = await doFetch(`${baseUrl}/kifu/${logId}`, {
         method: "PUT",
         headers: { ...bearer(token), "content-type": "application/json" },
-        body: JSON.stringify(kifu),
+        body: JSON.stringify({ kifu, status }),
       });
       return { ok: res.ok, status: res.status };
     },

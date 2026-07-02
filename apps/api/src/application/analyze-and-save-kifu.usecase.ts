@@ -16,14 +16,14 @@ import type { GameRepository } from "../domain/game/game.repository";
 import type { AnalysisInput, Analyzer } from "../domain/kifu/analyzer";
 import type { GameLog } from "../domain/kifu/game-log";
 import type { GameLogRepository } from "../domain/kifu/game-log.repository";
-import { privateKifuLimit } from "../domain/user/user";
+import { draftLimit } from "../domain/user/user";
 import type { UserRepository } from "../domain/user/user.repository";
 
 export type AnalyzeResult =
   | { ok: true; gameLog: GameLog; gameId: string }
   | {
       ok: false;
-      reason: "user_not_found" | "quota_exceeded" | "game_not_found" | "private_limit";
+      reason: "user_not_found" | "quota_exceeded" | "game_not_found" | "draft_limit";
     };
 
 export interface AnalyzeDeps {
@@ -56,12 +56,12 @@ export class AnalyzeAndSaveKifu {
     if (!user) return { ok: false, reason: "user_not_found" };
     if (!user.canAnalyze(now())) return { ok: false, reason: "quota_exceeded" };
 
-    // 新規牌譜は private で作るので、無料プランの非公開上限に達していれば
-    // 解析(=Gemini 枠の消費)に入る前に断る。
-    const limit = privateKifuLimit(user.plan);
+    // 新規牌譜は下書き(draft)で作るので、無料プランの下書き上限に達していれば
+    // 解析(=Gemini 枠の消費)に入る前に断る（非公開上限とは別枠）。
+    const limit = draftLimit(user.plan);
     if (limit !== null) {
-      const current = await gameLogs.countByUserAndVisibility(user.id, "private");
-      if (current >= limit) return { ok: false, reason: "private_limit" };
+      const current = await gameLogs.countByUserAndStatus(user.id, "draft");
+      if (current >= limit) return { ok: false, reason: "draft_limit" };
     }
 
     // 既存半荘の指定があれば、解析の前に所有確認（無駄な解析・課金を避ける）。
@@ -86,8 +86,9 @@ export class AnalyzeAndSaveKifu {
       gameId: game.id,
       seq: existing.length + 1,
       kifu,
-      // 新規牌譜は既定で非公開。公開は所有者が明示的に切り替える。
+      // 新規牌譜は既定で非公開・下書き。公開/編集済は所有者が明示的に切り替える。
       visibility: "private",
+      status: "draft",
       createdAt: now(),
     };
 

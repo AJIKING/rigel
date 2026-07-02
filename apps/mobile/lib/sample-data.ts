@@ -44,6 +44,7 @@ const sampleLogs: GameLog[] = [
     seq: 1,
     kifu: sampleKifu,
     visibility: "public",
+    status: "complete",
     createdAt: "2026-06-28T12:00:00.000Z",
   },
   {
@@ -53,6 +54,7 @@ const sampleLogs: GameLog[] = [
     seq: 2,
     kifu: sampleKifu,
     visibility: "public",
+    status: "complete",
     createdAt: "2026-06-28T12:12:00.000Z",
   },
 ];

@@ -120,7 +120,7 @@ export function buildContainer(env: Env): AppContainer {
     }),
     getKifu: new GetKifu(gameLogs),
     listKifu: new ListKifu(gameLogs),
-    updateKifu: new UpdateKifu(gameLogs),
+    updateKifu: new UpdateKifu(gameLogs, users),
     setKifuVisibility: new SetKifuVisibility(gameLogs, users),
     deleteKifu: new DeleteKifu(gameLogs),
     createEmptyKifu: new CreateEmptyKifu({ games: gamesRepo, gameLogs, users, now, newId }),

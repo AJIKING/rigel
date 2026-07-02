@@ -2,7 +2,7 @@
 
 import { KifuSchema } from "@rigel/schema";
 import { and, asc, count, desc, eq } from "drizzle-orm";
-import type { GameLog, Visibility } from "../../domain/kifu/game-log";
+import type { GameLog, KifuStatus, Visibility } from "../../domain/kifu/game-log";
 import type { GameLogRepository } from "../../domain/kifu/game-log.repository";
 import type { Db } from "../db/client";
 import { gameLogs, type GameLogRow } from "../db/schema";
@@ -17,6 +17,7 @@ function toDomain(row: GameLogRow): GameLog {
     // 既定を埋める（旧データの後方互換）。
     kifu: KifuSchema.parse(row.kifu),
     visibility: row.visibility,
+    status: row.status,
     createdAt: row.createdAt,
   };
 }
@@ -34,6 +35,7 @@ export class DrizzleGameLogRepository implements GameLogRepository {
         seq: gameLog.seq,
         kifu: gameLog.kifu,
         visibility: gameLog.visibility,
+        status: gameLog.status,
         createdAt: gameLog.createdAt,
       })
       .onConflictDoUpdate({
@@ -43,6 +45,7 @@ export class DrizzleGameLogRepository implements GameLogRepository {
           gameId: gameLog.gameId,
           seq: gameLog.seq,
           visibility: gameLog.visibility,
+          status: gameLog.status,
         },
       });
   }
@@ -72,11 +75,30 @@ export class DrizzleGameLogRepository implements GameLogRepository {
     return rows.map(toDomain);
   }
 
-  async countByUserAndVisibility(userId: string, visibility: Visibility): Promise<number> {
+  async countByUserAndStatus(userId: string, status: KifuStatus): Promise<number> {
     const row = await this.db
       .select({ n: count() })
       .from(gameLogs)
-      .where(and(eq(gameLogs.userId, userId), eq(gameLogs.visibility, visibility)))
+      .where(and(eq(gameLogs.userId, userId), eq(gameLogs.status, status)))
+      .get();
+    return row?.n ?? 0;
+  }
+
+  async countByUserVisibilityStatus(
+    userId: string,
+    visibility: Visibility,
+    status: KifuStatus,
+  ): Promise<number> {
+    const row = await this.db
+      .select({ n: count() })
+      .from(gameLogs)
+      .where(
+        and(
+          eq(gameLogs.userId, userId),
+          eq(gameLogs.visibility, visibility),
+          eq(gameLogs.status, status),
+        ),
+      )
       .get();
     return row?.n ?? 0;
   }
@@ -85,7 +107,7 @@ export class DrizzleGameLogRepository implements GameLogRepository {
     const rows = await this.db
       .select()
       .from(gameLogs)
-      .where(eq(gameLogs.visibility, "public"))
+      .where(and(eq(gameLogs.visibility, "public"), eq(gameLogs.status, "complete")))
       .orderBy(desc(gameLogs.createdAt))
       .limit(limit)
       .all();

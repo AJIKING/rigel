@@ -26,11 +26,16 @@ export class SetKifuVisibility {
     if (log.visibility === params.visibility) return { ok: true };
 
     // private 化のとき、無料プランの非公開上限を超えるなら拒否。
-    if (params.visibility === "private") {
+    // 非公開上限は「complete かつ private」だけを数える（下書きは別枠なので対象外）。
+    if (params.visibility === "private" && log.status === "complete") {
       const user = await this.users.findById(params.userId);
       const limit = user ? privateKifuLimit(user.plan) : 0;
       if (limit !== null) {
-        const current = await this.gameLogs.countByUserAndVisibility(params.userId, "private");
+        const current = await this.gameLogs.countByUserVisibilityStatus(
+          params.userId,
+          "private",
+          "complete",
+        );
         if (current >= limit) return { ok: false, reason: "private_limit" };
       }
     }

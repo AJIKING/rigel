@@ -18,7 +18,16 @@ function user(plan: "free" | "next" | "pro"): User {
 }
 
 function log(id: string, userId: string, visibility: Visibility): GameLog {
-  return { id, userId, gameId: null, seq: 1, kifu: validKifu, visibility, createdAt: NOW };
+  return {
+    id,
+    userId,
+    gameId: null,
+    seq: 1,
+    kifu: validKifu,
+    visibility,
+    status: "complete",
+    createdAt: NOW,
+  };
 }
 
 describe("SetKifuVisibility", () => {

@@ -79,6 +79,41 @@
   opacity: 0.6;
   cursor: default;
 }
+/* 下書き/編集済 トグル（保存ボタンの左）。 */
+.statusSeg {
+  display: inline-flex;
+  background: var(--chrome-2);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  padding: 2px;
+  margin-right: 10px;
+}
+.statusSeg button {
+  background: transparent;
+  border: 0;
+  color: var(--w70);
+  font-family: var(--round);
+  font-weight: 700;
+  font-size: 12px;
+  padding: 5px 11px;
+  border-radius: 2px;
+  cursor: pointer;
+  transition: 0.13s;
+}
+.statusSeg button:hover {
+  color: #fff;
+}
+.statusSeg button.on {
+  background: rgba(255, 158, 69, 0.16);
+  color: var(--accent);
+}
+.saveErr {
+  color: var(--vermilion);
+  font-size: 11.5px;
+  font-weight: 600;
+  margin-right: 12px;
+  max-width: 260px;
+}
 .plan {
   display: inline-flex;
   align-items: center;

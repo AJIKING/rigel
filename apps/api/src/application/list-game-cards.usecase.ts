@@ -43,7 +43,9 @@ export class ListMyGamesWithCounts {
           title: g.title,
           createdAt: g.createdAt,
           kyokuCount: logs.length,
-          publicCount: logs.filter((l) => l.visibility === "public").length,
+          // 公開として見えるのは編集済(complete)のみ。
+          publicCount: logs.filter((l) => l.visibility === "public" && l.status === "complete")
+            .length,
         };
       }),
     );

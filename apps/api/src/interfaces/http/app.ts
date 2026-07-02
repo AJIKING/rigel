@@ -25,6 +25,7 @@ function reasonStatus(reason: string): 400 | 402 | 403 | 404 {
     case "quota_exceeded":
       return 402;
     case "private_limit":
+    case "draft_limit":
       return 403;
     case "game_not_found":
     case "not_found":
@@ -272,14 +273,26 @@ export function createApp(): Hono<AppEnv> {
 
   // 牌譜の修正を保存（所有者のみ）。body は Kifu JSON。
   app.put("/kifu/:id", requireAuth, async (c) => {
-    const parsed = parseKifu(await c.req.json().catch(() => null));
+    // body は { kifu, status? }。旧クライアント互換で「body 自体が Kifu」も受ける。
+    const body = (await c.req.json().catch(() => null)) as {
+      kifu?: unknown;
+      status?: unknown;
+    } | null;
+    const hasWrap = !!body && typeof body === "object" && "kifu" in body;
+    const parsed = parseKifu(hasWrap ? body.kifu : body);
     if (!parsed.ok) return c.json({ ok: false, errors: parsed.errors }, 400);
+    const status =
+      body?.status === "draft" || body?.status === "complete" ? body.status : undefined;
     const result = await c.get("container").updateKifu.execute({
       userId: c.get("userId")!,
       logId: c.req.param("id"),
       kifu: parsed.kifu,
+      status,
     });
-    if (!result.ok) return c.json({ error: "not found" }, 404);
+    if (!result.ok) {
+      if (result.reason === "not_found") return c.json({ error: "not found" }, 404);
+      return c.json({ ok: false, reason: result.reason }, reasonStatus(result.reason));
+    }
     return c.json({ ok: true });
   });
 

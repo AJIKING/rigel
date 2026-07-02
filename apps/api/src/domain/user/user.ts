@@ -15,17 +15,26 @@ export type Plan = "free" | "next" | "pro";
  */
 export const MONTHLY_CALL_QUOTA: Record<Plan, number> = { free: 20, next: 100, pro: 320 };
 
-/** プランごとの private(非公開)牌譜の保存上限。null は無制限（public は常に無制限）。 */
+/** プランごとの private(非公開)かつ complete(編集済) 牌譜の保存上限。null は無制限。
+ *  下書き(draft)はこの上限に数えない（別枠 = DRAFT_LIMIT）。 */
 export const PRIVATE_KIFU_LIMIT: Record<Plan, number | null> = { free: 4, next: null, pro: null };
+
+/** プランごとの下書き(draft)保存上限。null は無制限（有料）。非公開上限とは別枠。 */
+export const DRAFT_LIMIT: Record<Plan, number | null> = { free: 5, next: null, pro: null };
 
 /** プランの月間呼び出し上限。 */
 export function monthlyCallQuota(plan: Plan): number {
   return MONTHLY_CALL_QUOTA[plan];
 }
 
-/** プランの private 牌譜保存上限（null=無制限）。 */
+/** プランの private(かつ complete) 牌譜保存上限（null=無制限）。 */
 export function privateKifuLimit(plan: Plan): number | null {
   return PRIVATE_KIFU_LIMIT[plan];
+}
+
+/** プランの下書き(draft)保存上限（null=無制限）。 */
+export function draftLimit(plan: Plan): number | null {
+  return DRAFT_LIMIT[plan];
 }
 
 export interface UserProps {
