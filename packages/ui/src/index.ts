@@ -21,6 +21,8 @@ export * from "./score";
 export * from "./yaku";
 // 局跨ぎの点棒集計（持ち点・成績）。
 export * from "./standings";
+// 手順（タイムライン）の導出・巡目・盤面同期。
+export * from "./timeline";
 
 const SEAT_ORDER: Seat[] = ["east", "south", "west", "north"];
 
