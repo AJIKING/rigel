@@ -6,6 +6,7 @@ import type { GameRepository } from "../domain/game/game.repository";
 import type { GameLog } from "../domain/kifu/game-log";
 import type { GameLogRepository } from "../domain/kifu/game-log.repository";
 import { draftLimit } from "../domain/user/user";
+import { isOverLimit } from "./limits";
 import type { UserRepository } from "../domain/user/user.repository";
 
 /** 作成時に焼き込める局メタ（写真に写らない情報。記録のみ・点数計算はしない）。 */
@@ -106,11 +107,12 @@ export class CreateEmptyKifu {
     }
 
     // 新規は下書き(draft)で作るので、下書き上限で判定する（非公開上限とは別枠）。
-    const user = await users.findById(params.userId);
-    const limit = user ? draftLimit(user.plan) : 0;
-    if (limit !== null) {
-      const current = await gameLogs.countByUserAndStatus(params.userId, "draft");
-      if (current >= limit) return { ok: false, reason: "draft_limit" };
+    if (
+      await isOverLimit(users, params.userId, draftLimit, () =>
+        gameLogs.countByUserAndStatus(params.userId, "draft"),
+      )
+    ) {
+      return { ok: false, reason: "draft_limit" };
     }
 
     // 上限を通過してから半荘を作る（弾かれた時に空半荘を残さない）。
