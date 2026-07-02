@@ -64,6 +64,37 @@ function DoraNavRow({
   );
 }
 
+/** ヘッダのセグメント切替（盤面/手順・下書き/編集済 で共用）。 */
+function Seg<T extends string>({
+  value,
+  options,
+  onChange,
+  label,
+}: {
+  value: T;
+  options: readonly (readonly [T, string])[];
+  onChange: (v: T) => void;
+  label: string;
+}) {
+  return (
+    <div className={s.statusSeg} role="group" aria-label={label}>
+      {options.map(([v, l]) => (
+        <button
+          key={v}
+          className={value === v ? s.on : ""}
+          aria-pressed={value === v}
+          onClick={(e) => {
+            e.stopPropagation();
+            onChange(v);
+          }}
+        >
+          {l}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 /**
  * 盤面エディタ（クライアント）。認証・初期データ取得は Server Component
  * （app/kifu/[gameId]/[logId]/page.tsx）が Cookie セッションで済ませ、正規化済みの
@@ -399,48 +430,26 @@ function Editor(p: EditorProps) {
         </nav>
         <div className={s.sp} />
         {/* 盤面 / 手順 タブ切替。 */}
-        <div className={s.statusSeg} role="group" aria-label="編集モード">
-          {(
-            [
-              ["board", "盤面"],
-              ["timeline", "手順"],
-            ] as const
-          ).map(([v, label]) => (
-            <button
-              key={v}
-              className={tab === v ? s.on : ""}
-              aria-pressed={tab === v}
-              onClick={(e) => {
-                e.stopPropagation();
-                setTab(v);
-              }}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
+        <Seg
+          value={tab}
+          options={[
+            ["board", "盤面"],
+            ["timeline", "手順"],
+          ]}
+          onChange={setTab}
+          label="編集モード"
+        />
         {saveErr && <span className={s.saveErr}>{saveErr}</span>}
         {/* 保存ボタンの左：下書き / 編集済み トグル。 */}
-        <div className={s.statusSeg} role="group" aria-label="編集状態">
-          {(
-            [
-              ["draft", "下書き"],
-              ["complete", "編集済"],
-            ] as const
-          ).map(([v, label]) => (
-            <button
-              key={v}
-              className={status === v ? s.on : ""}
-              aria-pressed={status === v}
-              onClick={(e) => {
-                e.stopPropagation();
-                setStatus(v);
-              }}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
+        <Seg
+          value={status}
+          options={[
+            ["draft", "下書き"],
+            ["complete", "編集済"],
+          ]}
+          onChange={setStatus}
+          label="編集状態"
+        />
         <button
           className={`${s.savebtn} ${save === "done" ? s.done : ""}`}
           disabled={save !== "idle"}

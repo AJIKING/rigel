@@ -2,6 +2,7 @@
 
 import {
   KifuSchema,
+  type DiscardEvent,
   type Kifu,
   type Meld,
   type MeldType,
@@ -75,6 +76,14 @@ export function TimelineEditor({
   }
   function update(index: number, fn: (e: TimelineEvent) => TimelineEvent) {
     commit(timeline.map((e, i) => (i === index ? fn(e) : e)));
+  }
+  /** 打牌イベントだけを更新する（種別ガードを1か所に集約）。 */
+  function updateDiscard(index: number, fn: (e: DiscardEvent) => DiscardEvent) {
+    update(index, (e) => (e.kind === "discard" ? fn(e) : e));
+  }
+  /** 鳴きイベントの Meld だけを更新する。 */
+  function updateMeld(index: number, fn: (m: Meld) => Meld) {
+    update(index, (e) => (e.kind === "meld" ? { ...e, meld: fn(e.meld) } : e));
   }
 
   function reorder(from: number, to: number) {
@@ -197,24 +206,18 @@ export function TimelineEditor({
                     <button
                       className={`${s.mode} ${e.tsumogiri ? s.tsumogiri : s.tegiri}`}
                       onClick={() =>
-                        update(i, (x) =>
-                          x.kind === "discard"
-                            ? {
-                                ...x,
-                                tsumogiri: !x.tsumogiri,
-                                tile: !x.tsumogiri ? x.draw : x.tile,
-                              }
-                            : x,
-                        )
+                        updateDiscard(i, (x) => ({
+                          ...x,
+                          tsumogiri: !x.tsumogiri,
+                          tile: !x.tsumogiri ? x.draw : x.tile,
+                        }))
                       }
                     >
                       {e.tsumogiri ? "ツモ切り" : "手出し"}
                     </button>
                     <button
                       className={`${s.riichi} ${e.riichi ? s.on : ""}`}
-                      onClick={() =>
-                        update(i, (x) => (x.kind === "discard" ? { ...x, riichi: !x.riichi } : x))
-                      }
+                      onClick={() => updateDiscard(i, (x) => ({ ...x, riichi: !x.riichi }))}
                     >
                       リーチ
                     </button>
@@ -224,18 +227,16 @@ export function TimelineEditor({
                     <button
                       className={s.kind}
                       onClick={() =>
-                        update(i, (x) => {
-                          if (x.kind !== "meld") return x;
-                          const type = MELD_TYPES[(MELD_TYPES.indexOf(x.meld.type) + 1) % 5]!;
+                        updateMeld(i, (m) => {
+                          const type = MELD_TYPES[(MELD_TYPES.indexOf(m.type) + 1) % 5]!;
                           const n = isKan(type) ? 4 : 3;
                           const tiles = Array.from(
                             { length: n },
-                            (_, k) =>
-                              x.meld.tiles[k] ?? x.meld.tiles[0] ?? { tile: null, confidence: 1 },
+                            (_, k) => m.tiles[k] ?? m.tiles[0] ?? { tile: null, confidence: 1 },
                           );
                           const from =
-                            type === "kan_closed" ? null : (x.meld.from ?? nextFrom(null, x.seat));
-                          return { ...x, meld: { type, tiles, from } };
+                            type === "kan_closed" ? null : (m.from ?? nextFrom(null, e.seat));
+                          return { type, tiles, from };
                         })
                       }
                     >
@@ -256,11 +257,7 @@ export function TimelineEditor({
                       <button
                         className={s.from}
                         onClick={() =>
-                          update(i, (x) =>
-                            x.kind === "meld"
-                              ? { ...x, meld: { ...x.meld, from: nextFrom(x.meld.from, x.seat) } }
-                              : x,
-                          )
+                          updateMeld(i, (m) => ({ ...m, from: nextFrom(m.from, e.seat) }))
                         }
                       >
                         {seatLabel(e.meld.from ?? nextFrom(null, e.seat))}
