@@ -1,0 +1,16 @@
+# ローカル api（wrangler dev）用の環境変数。このファイルを .dev.vars にコピーして値を入れる。
+# （.dev.vars は gitignore 対象。コミットしない）
+
+# セッショントークンの署名鍵。ローカルは任意の十分長いランダム文字列でよい。
+SESSION_SECRET=dev-only-change-me-to-a-long-random-string
+
+# Google OAuth クライアントID（web の NEXT_PUBLIC_GOOGLE_CLIENT_ID と「同一の値」にする）。
+# idToken の aud をこのIDで検証する。不一致だとログインが 401 になる。
+GOOGLE_CLIENT_ID=
+
+# CORS で許可する web オリジン。localhost:3000 は既定で許可されるので通常は空でよい。
+ALLOWED_ORIGINS=http://localhost:3000
+
+# --- ここから下は「AI解析(/analyze)」を試すときだけ必要。ログイン/編集/採点/公開だけなら未設定でよい。 ---
+# GEMINI_API_KEY=
+# CLOUDFLARE_AI_GATEWAY_URL=
