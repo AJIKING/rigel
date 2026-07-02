@@ -5,4 +5,6 @@ export interface GoogleIdentity {
   sub: string;
   /** メール（取得できれば。なければ null）。 */
   email: string | null;
+  /** 表示名（Google プロフィールの name。取得できれば。なければ null）。初回の既定表示名に使う。 */
+  name: string | null;
 }

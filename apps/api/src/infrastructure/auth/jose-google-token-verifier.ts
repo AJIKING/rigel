@@ -24,6 +24,7 @@ export class JoseGoogleTokenVerifier implements GoogleTokenVerifier {
       throw new Error("Google ID トークンに sub がありません");
     }
     const email = typeof payload.email === "string" ? payload.email : null;
-    return { sub: payload.sub, email };
+    const name = typeof payload.name === "string" ? payload.name : null;
+    return { sub: payload.sub, email, name };
   }
 }

@@ -85,14 +85,23 @@ export class User {
     this._profilePublic = props.profilePublic ?? true;
   }
 
-  /** 新規ユーザー（Google認証の sub 紐付け）。無料プランで作成する。 */
-  static create(params: { id: string; googleSub: string; now: Date }): User {
+  /** 新規ユーザー（Google認証の sub 紐付け）。無料プランで作成する。
+   *  初回は表示名(displayName)と公開ID(handle)に既定値を入れておく（設定画面に出す）。 */
+  static create(params: {
+    id: string;
+    googleSub: string;
+    now: Date;
+    displayName?: string;
+    handle?: string | null;
+  }): User {
     return new User({
       id: params.id,
       googleSub: params.googleSub,
       plan: "free",
       analysisCountThisMonth: 0,
       countResetAt: firstOfNextMonthUtc(params.now),
+      displayName: params.displayName,
+      handle: params.handle ?? null,
     });
   }
 

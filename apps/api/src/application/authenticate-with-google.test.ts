@@ -17,11 +17,15 @@ const fakeSession: SessionService = {
     Promise.resolve(token.startsWith("token:") ? { userId: token.slice(6) } : null),
 };
 
-function makeUsecase(users: InMemoryUserRepository, sub: string) {
+function makeUsecase(
+  users: InMemoryUserRepository,
+  sub: string,
+  identity?: Partial<GoogleIdentity>,
+) {
   let n = 0;
   return new AuthenticateWithGoogle({
     users,
-    verifier: verifier({ sub, email: "a@example.com" }),
+    verifier: verifier({ sub, email: "a@example.com", name: null, ...identity }),
     session: fakeSession,
     now: () => NOW,
     newId: () => `user-${++n}`,
@@ -38,6 +42,27 @@ describe("AuthenticateWithGoogle", () => {
     expect(result.user.plan).toBe("free");
     expect(result.sessionToken).toBe(`token:${result.user.id}`);
     expect(users.size).toBe(1);
+  });
+
+  it("初回は表示名(Google名)と公開ID(handle=メールのローカル部)を既定で設定する", async () => {
+    const users = new InMemoryUserRepository();
+    const result = await makeUsecase(users, "g1", {
+      email: "rin-riichi@example.com",
+      name: "リン",
+    }).execute({ idToken: "id" });
+
+    expect(result.user.displayName).toBe("リン");
+    expect(result.user.handle).toBe("rin_riichi"); // 記号は _ に整形
+  });
+
+  it("handle が既に使われていたら連番を足して一意にする", async () => {
+    const users = new InMemoryUserRepository();
+    await makeUsecase(users, "g1", { email: "taro@example.com" }).execute({ idToken: "id" });
+    const second = await makeUsecase(users, "g2", { email: "taro@example.com" }).execute({
+      idToken: "id",
+    });
+
+    expect(second.user.handle).toBe("taro2");
   });
 
   it("既存ユーザーは作り直さず同じユーザーを返す", async () => {
