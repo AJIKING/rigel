@@ -102,4 +102,34 @@ describe("timelineToSeats / syncSeatsFromTimeline", () => {
     expect(synced.seats.east.hand).toHaveLength(1); // 手牌は残る
     expect(synced.seats.east.river.map((d) => d.tile)).toEqual(["1m"]);
   });
+
+  it("リーチ(横向き)と鳴きが timeline→盤面へ同期される", () => {
+    const k = kifu({
+      timeline: [
+        {
+          kind: "discard",
+          seat: "east",
+          draw: null,
+          tile: "1z",
+          tsumogiri: false,
+          riichi: true,
+          confidence: 1,
+        },
+        {
+          kind: "meld",
+          seat: "south",
+          meld: {
+            type: "pon",
+            tiles: [{ tile: "5z" }, { tile: "5z" }, { tile: "5z" }],
+            from: "east",
+          },
+        },
+      ],
+    });
+    const synced = syncSeatsFromTimeline(k);
+    // リーチ牌は river に riichi:true で入る → 盤面は lay(横向き)で描画。
+    expect(synced.seats.east.river[0]).toMatchObject({ tile: "1z", riichi: true });
+    // 鳴きは melds に入る → 盤面は melds を描画。
+    expect(synced.seats.south.melds[0]).toMatchObject({ type: "pon", from: "east" });
+  });
 });
