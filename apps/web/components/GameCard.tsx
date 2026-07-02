@@ -52,8 +52,21 @@ export function GameCard({
   onToggleFav: () => void;
   onOpen: () => void;
 }) {
+  // カードは中に <button>（お気に入り）を含むため、<button> ではなく role=button の
+  // クリック可能な要素にする（button の入れ子は不正で hydration エラーになる）。
   return (
-    <button type="button" className={s.card} onClick={onOpen}>
+    <div
+      className={s.card}
+      role="button"
+      tabIndex={0}
+      onClick={onOpen}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onOpen();
+        }
+      }}
+    >
       <FavButton on={faved} onToggle={onToggleFav} />
       <Thumb />
       <div className={s.ctop}>
@@ -61,6 +74,6 @@ export function GameCard({
         {badge}
       </div>
       <div className={s.cmeta}>{meta}</div>
-    </button>
+    </div>
   );
 }
