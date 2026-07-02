@@ -64,6 +64,15 @@
       "name": "Next.js: server + client",
       "configurations": ["Next.js: web (server デバッグ)", "Chrome: web (client)"],
       "stopAll": true
+    },
+    {
+      "name": "フルスタック: api + web + client（ローカル完結）",
+      "configurations": [
+        "Wrangler: api dev",
+        "Next.js: web (server デバッグ)",
+        "Chrome: web (client)"
+      ],
+      "stopAll": true
     }
   ]
 }

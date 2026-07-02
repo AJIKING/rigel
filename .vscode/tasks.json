@@ -51,6 +51,15 @@
       "problemMatcher": []
     },
     {
+      "label": "dev: all (web + api)",
+      "type": "shell",
+      "command": "pnpm dev",
+      "isBackground": true,
+      "problemMatcher": [],
+      "presentation": { "panel": "dedicated" },
+      "detail": "turbo run dev で web(:3000) と api(:8787) を同時起動（ローカル完結）"
+    },
+    {
       "label": "dev: web (Next.js)",
       "type": "shell",
       "command": "pnpm --filter web dev",
