@@ -5,9 +5,23 @@ import type { Plan } from "../domain/user/user";
 import type { UserRepository } from "../domain/user/user.repository";
 
 /**
- * ユーザーのプラン上限を超えているか。
- * limit=null は無制限（false）。ユーザー不在は上限0扱い（安全側）。
+ * プランの上限を超えているか。limit=null は無制限（false）。
  * count は上限が有限のときだけ評価する（無駄な集計を避ける）。
+ */
+export async function isOverLimitForPlan(
+  plan: Plan,
+  limitOf: (plan: Plan) => number | null,
+  count: () => Promise<number>,
+): Promise<boolean> {
+  const limit = limitOf(plan);
+  if (limit === null) return false;
+  return (await count()) >= limit;
+}
+
+/**
+ * ユーザーを引いてプラン上限を超えているか判定する。
+ * ユーザー不在は上限超過(true)扱い（安全側）。既に user がある場合は
+ * isOverLimitForPlan を直接使う（二重取得を避ける）。
  */
 export async function isOverLimit(
   users: UserRepository,
@@ -16,7 +30,6 @@ export async function isOverLimit(
   count: () => Promise<number>,
 ): Promise<boolean> {
   const user = await users.findById(userId);
-  const limit = user ? limitOf(user.plan) : 0;
-  if (limit === null) return false;
-  return (await count()) >= limit;
+  if (!user) return true;
+  return isOverLimitForPlan(user.plan, limitOf, count);
 }

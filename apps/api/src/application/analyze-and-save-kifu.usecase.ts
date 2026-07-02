@@ -17,6 +17,7 @@ import type { AnalysisInput, Analyzer } from "../domain/kifu/analyzer";
 import type { GameLog } from "../domain/kifu/game-log";
 import type { GameLogRepository } from "../domain/kifu/game-log.repository";
 import { draftLimit } from "../domain/user/user";
+import { isOverLimitForPlan } from "./limits";
 import type { UserRepository } from "../domain/user/user.repository";
 
 export type AnalyzeResult =
@@ -58,10 +59,12 @@ export class AnalyzeAndSaveKifu {
 
     // 新規牌譜は下書き(draft)で作るので、無料プランの下書き上限に達していれば
     // 解析(=Gemini 枠の消費)に入る前に断る（非公開上限とは別枠）。
-    const limit = draftLimit(user.plan);
-    if (limit !== null) {
-      const current = await gameLogs.countByUserAndStatus(user.id, "draft");
-      if (current >= limit) return { ok: false, reason: "draft_limit" };
+    if (
+      await isOverLimitForPlan(user.plan, draftLimit, () =>
+        gameLogs.countByUserAndStatus(user.id, "draft"),
+      )
+    ) {
+      return { ok: false, reason: "draft_limit" };
     }
 
     // 既存半荘の指定があれば、解析の前に所有確認（無駄な解析・課金を避ける）。
