@@ -13,7 +13,7 @@
 # 3. 環境変数グループ `rigel_mobile_env` に、ビルド時にバンドルへ焼き込む公開値:
 #       EXPO_PUBLIC_API_URL          … 本番 API のベースURL（Workers のデプロイ先）
 #       EXPO_PUBLIC_GOOGLE_CLIENT_ID … Google OAuth Web クライアントID（id_token フロー用）
-# 4. App Store Connect に App（Bundle ID: co.plaria.rigel）を登録しておく
+# 4. App Store Connect に App（Bundle ID: jp.co.plaria.rigel）を登録しておく
 #    （app.json の ios.bundleIdentifier と一致させる）。
 # 5. アプリ設定で「Switch to codemagic.yaml configuration」を選ぶ。
 #
@@ -39,7 +39,7 @@ workflows:
       xcode: latest
       cocoapods: default
       vars:
-        BUNDLE_ID: "co.plaria.rigel" # app.json の ios.bundleIdentifier と一致
+        BUNDLE_ID: "jp.co.plaria.rigel" # app.json の ios.bundleIdentifier と一致
         XCODE_WORKSPACE: "apps/mobile/ios/rigel.xcworkspace" # expo prebuild が生成
         XCODE_SCHEME: "rigel" # Xcode スキーム名（= アプリ名。生成後に要確認）
     scripts:
@@ -111,7 +111,7 @@ workflows:
   #       CM_KEY_PASSWORD      … 鍵のパスワード
   #   - 環境変数グループ `google_play_credentials`:
   #       GCLOUD_SERVICE_ACCOUNT_CREDENTIALS … Google Play 用サービスアカウントの JSON
-  #   - Google Play Console にアプリ（co.plaria.rigel）を登録し、内部テストトラックを用意。
+  #   - Google Play Console にアプリ（jp.co.plaria.rigel）を登録し、内部テストトラックを用意。
   # 署名は build.gradle を書き換えず AGP の injected signing で行う。
   # ------------------------------------------------------------
   android-googleplay:
@@ -126,7 +126,7 @@ workflows:
       node: 22
       java: 17
       vars:
-        PACKAGE_NAME: "co.plaria.rigel" # app.json の android.package と一致
+        PACKAGE_NAME: "jp.co.plaria.rigel" # app.json の android.package と一致
     scripts:
       - name: pnpm を有効化
         script: corepack enable && corepack prepare pnpm@10.13.1 --activate

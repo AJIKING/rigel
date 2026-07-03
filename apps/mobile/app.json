@@ -9,14 +9,14 @@
     "platforms": ["ios", "android"],
     "icon": "./assets/icon.png",
     "ios": {
-      "bundleIdentifier": "co.plaria.rigel",
+      "bundleIdentifier": "jp.co.plaria.rigel",
       "supportsTablet": true,
       "config": {
         "usesNonExemptEncryption": false
       }
     },
     "android": {
-      "package": "co.plaria.rigel",
+      "package": "jp.co.plaria.rigel",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#0b6249"
