@@ -676,3 +676,96 @@
     min-height: auto;
   }
 }
+
+/* ============================================================
+   スマホ幅（docs/rigel-mobile-view2.html）: 卓を最大化し、場ナビを最下部固定、
+   情報は下からのボトムシートにする。デスクトップの回転卓・再生ロジックは共通のまま。
+   ============================================================ */
+@media (max-width: 640px) {
+  .app {
+    display: flex;
+    flex-direction: column;
+    min-height: 100dvh;
+  }
+  /* ブランドのパンくずバーは省いて卓の面積を稼ぐ。 */
+  .bar {
+    display: none;
+  }
+  /* 上部バー: タイトル＋メタ。操作はアイコンのみに圧縮。 */
+  .khead {
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    padding: 9px 10px;
+    gap: 8px;
+    align-items: center;
+  }
+  .ktitle {
+    font-size: 14.5px;
+    gap: 8px;
+  }
+  .kmeta {
+    margin-top: 3px;
+    font-size: 11px;
+  }
+  .khAct {
+    gap: 4px;
+  }
+  .khAct .iconbtn {
+    padding: 9px;
+    gap: 0;
+    font-size: 0;
+  }
+  .khAct .iconbtn svg {
+    width: 18px;
+    height: 18px;
+  }
+
+  /* 本体: 1カラムで縦に伸ばし、卓を中央に最大化。背景はダーク（卓だけ緑）。 */
+  .wrap,
+  .wrap.noSide {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+  }
+  .main {
+    flex: 1;
+    padding: 6px;
+    background: var(--bg);
+    align-items: center;
+  }
+
+  /* 場ナビ: 最下部に固定。狭幅で自然に2段へ折り返す。 */
+  .controlbar {
+    position: sticky;
+    bottom: 0;
+    z-index: 20;
+    margin-top: 0;
+    gap: 8px;
+    border-radius: 0;
+    border-left: 0;
+    border-right: 0;
+    border-bottom: 0;
+    padding: 8px 10px calc(8px + env(safe-area-inset-bottom));
+    background: rgba(18, 20, 25, 0.96);
+    backdrop-filter: blur(10px);
+  }
+
+  /* 情報: 右パネルではなく下からのシート。「情報」ボタン（noSide トグル）で開閉。 */
+  .side {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 30;
+    border-left: 0;
+    border-top: 1px solid var(--line);
+    border-radius: 12px 12px 0 0;
+    min-height: auto;
+    max-height: 64vh;
+    overflow-y: auto;
+    padding: 8px 16px calc(24px + env(safe-area-inset-bottom));
+    box-shadow: 0 -20px 50px -20px rgba(0, 0, 0, 0.7);
+  }
+}

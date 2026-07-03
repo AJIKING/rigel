@@ -48,12 +48,21 @@ describe("createApiClient", () => {
       fakeFetch((url) => {
         expect(url).toBe("https://api.test/games/public");
         return json([
-          { id: "g1", ownerId: "u9", title: "公開卓", createdAt: "2026-06-28", kyokuCount: 5 },
+          {
+            id: "g1",
+            ownerId: "u9",
+            ownerHandle: "kuro",
+            ownerName: "くろ",
+            title: "公開卓",
+            createdAt: "2026-06-28",
+            kyokuCount: 5,
+          },
         ]);
       }),
     );
     const cards = await client.getPublicGames();
     expect(cards[0]?.ownerId).toBe("u9");
+    expect(cards[0]?.ownerHandle).toBe("kuro");
   });
 
   it("getGame は 404 で null", async () => {

@@ -5,6 +5,7 @@
 
 import type { GameRepository } from "../domain/game/game.repository";
 import type { GameLogRepository } from "../domain/kifu/game-log.repository";
+import type { UserRepository } from "../domain/user/user.repository";
 
 export interface MyGameCard {
   id: string;
@@ -19,6 +20,10 @@ export interface MyGameCard {
 export interface PublicGameCard {
   id: string;
   ownerId: string;
+  /** 著者ハンドル(@なし)。プロフィール非公開・未設定なら null。 */
+  ownerHandle: string | null;
+  /** 著者の表示名。プロフィール非公開なら null。 */
+  ownerName: string | null;
   title: string;
   createdAt: Date;
   /** 公開している局数。 */
@@ -57,6 +62,7 @@ export class ListPublicGames {
   constructor(
     private readonly games: GameRepository,
     private readonly gameLogs: GameLogRepository,
+    private readonly users: UserRepository,
   ) {}
 
   async execute(limit = 60): Promise<PublicGameCard[]> {
@@ -74,13 +80,31 @@ export class ListPublicGames {
       }
       counts.set(gid, (counts.get(gid) ?? 0) + 1);
     }
+    // 著者は同一ユーザーが複数半荘を持つので userId でキャッシュして重複取得を避ける。
+    const ownerCache = new Map<string, { handle: string | null; name: string | null }>();
+    const resolveOwner = async (userId: string) => {
+      const cached = ownerCache.get(userId);
+      if (cached) return cached;
+      const user = await this.users.findById(userId);
+      // プロフィール非公開の著者は名前を伏せる（牌譜自体の公開とは別軸）。
+      const author =
+        user && user.profilePublic
+          ? { handle: user.handle ?? null, name: user.displayName || null }
+          : { handle: null, name: null };
+      ownerCache.set(userId, author);
+      return author;
+    };
+
     const cards: PublicGameCard[] = [];
     for (const gid of order.slice(0, limit)) {
       const game = await this.games.findById(gid);
       if (!game) continue;
+      const owner = await resolveOwner(game.userId);
       cards.push({
         id: game.id,
         ownerId: game.userId,
+        ownerHandle: owner.handle,
+        ownerName: owner.name,
         title: game.title,
         createdAt: game.createdAt,
         kyokuCount: counts.get(gid) ?? 0,

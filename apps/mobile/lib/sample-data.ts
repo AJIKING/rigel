@@ -1,5 +1,5 @@
 import { KifuSchema, type Kifu } from "@rigel/schema";
-import type { Game, GameDetail, GameLog } from "./api";
+import type { Game, GameDetail, GameLog, MyGameCard, PublicGameCard } from "./api";
 
 export const SAMPLE_GAME_ID = "sample";
 
@@ -60,3 +60,62 @@ const sampleLogs: GameLog[] = [
 ];
 
 export const sampleGameDetail: GameDetail = { game: sampleGames[0], logs: sampleLogs };
+
+/** マイ牌譜フィードのサンプル（未ログイン時の表示用）。 */
+export const sampleMyGames: MyGameCard[] = [
+  {
+    id: SAMPLE_GAME_ID,
+    title: "東風戦 東一局 リーチ一発ツモ",
+    createdAt: "2026-06-28T12:00:00.000Z",
+    kyokuCount: 8,
+    publicCount: 8,
+  },
+  {
+    id: "sample-2",
+    title: "佐藤さんの倍満放銃、痛恨の一局",
+    createdAt: "2026-06-27T21:00:00.000Z",
+    kyokuCount: 12,
+    publicCount: 0,
+  },
+  {
+    id: "sample-3",
+    title: "半荘 南四局 逆転の三倍満",
+    createdAt: "2026-06-20T10:00:00.000Z",
+    kyokuCount: 16,
+    publicCount: 16,
+  },
+];
+
+/** 公開牌譜フィードのサンプル（未ログイン時の表示用）。 */
+export const samplePublicGames: PublicGameCard[] = [
+  {
+    id: SAMPLE_GAME_ID,
+    ownerId: "demo",
+    ownerHandle: "kuro",
+    ownerName: "kuro",
+    title: "東風戦 東一局 リーチ一発ツモ",
+    createdAt: "2026-06-28T12:00:00.000Z",
+    kyokuCount: 8,
+    firstLogId: "sample-e1",
+  },
+  {
+    id: "sample-p2",
+    ownerId: "nodoka",
+    ownerHandle: "nodoka",
+    ownerName: "nodoka",
+    title: "国士無双、一生に一度の配牌",
+    createdAt: "2026-06-28T11:00:00.000Z",
+    kyokuCount: 4,
+    firstLogId: "sample-p2-e1",
+  },
+  {
+    id: "sample-p3",
+    ownerId: "tsuru",
+    ownerHandle: null,
+    ownerName: null,
+    title: "半荘 南四局 逆転の三倍満",
+    createdAt: "2026-06-26T09:00:00.000Z",
+    kyokuCount: 16,
+    firstLogId: "sample-p3-e1",
+  },
+];

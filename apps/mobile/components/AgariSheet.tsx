@@ -1,0 +1,203 @@
+import { totalHan, type Agari, type Kifu, type Seat } from "@rigel/schema";
+import { agariDeltas, scoreAgari, windOf, SEAT_ORDER } from "@rigel/ui";
+import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { colors, radius } from "../lib/theme";
+import { MiniTile } from "./MiniTile";
+
+/** 和了演出シート（和了牌・役・打点・点数増減）。点数の絶対値は記録しないため増減のみ表示。 */
+export function AgariSheet({
+  kifu,
+  dealer,
+  ownerName,
+  onClose,
+}: {
+  kifu: Kifu;
+  dealer: Seat;
+  ownerName?: string | null;
+  onClose: () => void;
+}) {
+  const deltas = agariDeltas(kifu);
+
+  return (
+    <View style={styles.overlay}>
+      <View style={styles.card}>
+        <ScrollView>
+          {kifu.agari.map((agari, i) => (
+            <WinBlock key={i} agari={agari} kifu={kifu} dealer={dealer} />
+          ))}
+
+          <View style={styles.deltas}>
+            {SEAT_ORDER.map((seat) => {
+              const v = deltas[seat] ?? 0;
+              const isWin = kifu.agari.some((a) => a.winner === seat);
+              const wind = windOf(seat, dealer);
+              const isBottom = seat === kifu.cameraBottomSeat;
+              const label = isBottom ? ownerName || `${wind}家` : `${wind}家`;
+              const cls = v > 0 ? styles.plus : v < 0 ? styles.minus : styles.zero;
+              return (
+                <View key={seat} style={[styles.dc, isWin && styles.dcWin]}>
+                  <Text style={styles.dn} numberOfLines={1}>
+                    {label}
+                  </Text>
+                  <Text style={[styles.dv, cls]}>
+                    {v > 0 ? "+" : ""}
+                    {v.toLocaleString()}
+                  </Text>
+                </View>
+              );
+            })}
+          </View>
+
+          <Pressable style={styles.close} onPress={onClose} accessibilityRole="button">
+            <Text style={styles.closeText}>閉じる</Text>
+          </Pressable>
+        </ScrollView>
+      </View>
+    </View>
+  );
+}
+
+function WinBlock({ agari, kifu, dealer }: { agari: Agari; kifu: Kifu; dealer: Seat }) {
+  const score = scoreAgari(agari, kifu.meta.dealer, kifu.rules);
+  const han = totalHan(agari);
+  const hand = kifu.seats[agari.winner].hand;
+
+  return (
+    <View style={styles.win}>
+      <View style={styles.head}>
+        <Text style={styles.kind}>{agari.from === null ? "ツモ" : "ロン"}</Text>
+        <Text style={styles.winner}>{windOf(agari.winner, dealer)}家</Text>
+        <Text style={styles.meta}>
+          {han}飜 {agari.fu}符
+        </Text>
+      </View>
+
+      <View style={styles.hand}>
+        {hand.map((h, i) => (
+          <MiniTile key={i} code={h.tile} w={20} h={28} />
+        ))}
+        {agari.winTile ? (
+          <View style={styles.winTile}>
+            <MiniTile code={agari.winTile} w={20} h={28} />
+          </View>
+        ) : null}
+      </View>
+
+      {agari.yaku.length > 0 ? (
+        <View style={styles.yaku}>
+          {agari.yaku.map((y) => (
+            <View key={y.name} style={styles.yrow}>
+              <Text style={styles.yname}>{y.name}</Text>
+              <Text style={styles.yhan}>{y.han}飜</Text>
+            </View>
+          ))}
+          <View style={styles.yrow}>
+            <Text style={styles.ynameDim}>ドラ / 赤 / 裏</Text>
+            <Text style={styles.ynameDim}>
+              {agari.dora} / {agari.aka} / {agari.ura}
+            </Text>
+          </View>
+        </View>
+      ) : null}
+
+      <View style={styles.total}>
+        <Text style={styles.totalLabel}>
+          {han}飜 {agari.fu}符
+        </Text>
+        <Text style={styles.totalScore}>
+          {score.total.toLocaleString()}点{score.limit ? ` ${score.limit}` : ""}
+        </Text>
+      </View>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  overlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(8,10,13,0.66)",
+    justifyContent: "flex-end",
+  },
+  card: {
+    backgroundColor: colors.chrome,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.line,
+    borderTopLeftRadius: 12,
+    borderTopRightRadius: 12,
+    maxHeight: "88%",
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 24,
+  },
+  win: { marginBottom: 12 },
+  head: { flexDirection: "row", alignItems: "center", gap: 9, marginBottom: 12 },
+  kind: {
+    fontWeight: "800",
+    fontSize: 12.5,
+    color: colors.accent,
+    backgroundColor: colors.accentSoft,
+    borderWidth: 1,
+    borderColor: colors.accent,
+    borderRadius: radius.sm,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    overflow: "hidden",
+  },
+  winner: { fontWeight: "800", fontSize: 18, color: colors.white },
+  meta: { marginLeft: "auto", fontSize: 11, color: colors.w45, textAlign: "right" },
+  hand: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 2,
+    justifyContent: "center",
+    padding: 12,
+    backgroundColor: "#0c1c16",
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.line,
+    borderRadius: radius.sm,
+    marginBottom: 14,
+  },
+  winTile: { marginLeft: 6, borderWidth: 2, borderColor: colors.accent, borderRadius: 3 },
+  yaku: { gap: 7, marginBottom: 13 },
+  yrow: { flexDirection: "row", justifyContent: "space-between" },
+  yname: { fontSize: 13.5, color: colors.white },
+  yhan: { fontSize: 13.5, color: colors.accent, fontWeight: "800" },
+  ynameDim: { fontSize: 12.5, color: colors.w45 },
+  total: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "baseline",
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.line,
+    paddingTop: 10,
+  },
+  totalLabel: { fontSize: 12.5, color: colors.w70 },
+  totalScore: { fontWeight: "800", fontSize: 22, color: colors.white },
+  deltas: { flexDirection: "row", gap: 6, marginTop: 4 },
+  dc: {
+    flex: 1,
+    backgroundColor: colors.chrome2,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.line,
+    borderRadius: radius.sm,
+    paddingVertical: 8,
+    paddingHorizontal: 3,
+    alignItems: "center",
+  },
+  dcWin: { borderColor: colors.accent },
+  dn: { fontSize: 10, color: colors.w45, marginBottom: 4 },
+  dv: { fontWeight: "800", fontSize: 13 },
+  plus: { color: colors.emLite },
+  minus: { color: colors.vermilion },
+  zero: { color: colors.w45 },
+  close: {
+    marginTop: 16,
+    alignSelf: "center",
+    paddingVertical: 10,
+    paddingHorizontal: 28,
+    borderRadius: radius.base,
+    borderWidth: 1,
+    borderColor: colors.line,
+  },
+  closeText: { color: colors.w70, fontWeight: "700" },
+});

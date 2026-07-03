@@ -8,6 +8,7 @@ import { Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-nati
 import { analyze } from "../lib/api";
 import { useAuth } from "../lib/auth";
 import type { RootStackParamList } from "../lib/navigation";
+import { colors } from "../lib/theme";
 
 type Nav = NativeStackNavigationProp<RootStackParamList, "Capture">;
 
@@ -75,7 +76,7 @@ export function CaptureScreen() {
   }
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
+    <ScrollView style={styles.root} contentContainerStyle={styles.container}>
       <Text style={styles.label}>手前（カメラ手前）の席</Text>
       <View style={styles.seatRow}>
         {SeatSchema.options.map((s) => (
@@ -130,40 +131,50 @@ export function CaptureScreen() {
 }
 
 const styles = StyleSheet.create({
+  root: { flex: 1, backgroundColor: colors.bg },
   container: { padding: 16, gap: 10 },
-  label: { color: "#555", fontSize: 13, marginTop: 6 },
+  label: { color: colors.w70, fontSize: 13, marginTop: 6 },
   seatRow: { flexDirection: "row", gap: 8 },
   seatBtn: {
-    borderWidth: 1,
-    borderColor: "#ccc",
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.line,
     borderRadius: 8,
     paddingVertical: 8,
     paddingHorizontal: 14,
+    backgroundColor: colors.chrome2,
   },
-  seatActive: { backgroundColor: "#222", borderColor: "#222" },
-  seatActiveText: { color: "#fff" },
-  pick: { borderWidth: 1, borderColor: "#ccc", borderRadius: 8, padding: 12, alignItems: "center" },
-  pickText: { color: "#0b5cad" },
+  seatActive: { backgroundColor: colors.accent, borderColor: colors.accent },
+  seatActiveText: { color: "#16181d", fontWeight: "700" },
+  pick: {
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.line,
+    borderRadius: 8,
+    padding: 12,
+    alignItems: "center",
+    backgroundColor: colors.chrome,
+  },
+  pickText: { color: colors.accent },
   thumb: { width: 120, height: 90, borderRadius: 6 },
   thumbSmall: { width: 44, height: 44, borderRadius: 4 },
   handRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    borderWidth: 1,
-    borderColor: "#eee",
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.line,
     borderRadius: 8,
     padding: 10,
+    backgroundColor: colors.chrome,
   },
-  handLabel: { color: "#555" },
-  error: { color: "crimson", fontSize: 14 },
+  handLabel: { color: colors.w70 },
+  error: { color: colors.vermilion, fontSize: 14 },
   submit: {
-    backgroundColor: "#222",
+    backgroundColor: colors.accent,
     borderRadius: 8,
     padding: 14,
     alignItems: "center",
     marginTop: 8,
   },
-  submitDisabled: { backgroundColor: "#999" },
-  submitText: { color: "#fff", fontSize: 15, fontWeight: "600" },
+  submitDisabled: { backgroundColor: colors.chrome3 },
+  submitText: { color: "#16181d", fontSize: 15, fontWeight: "700" },
 });

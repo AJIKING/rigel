@@ -1,5 +1,6 @@
 "use client";
 
+import { authorLabel } from "@rigel/ui";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
@@ -61,7 +62,13 @@ export function KifuListShell({ view }: { view: "mine" | "public" }) {
 
   const pubView = useMemo(() => {
     let arr = (pub ?? []).slice();
-    if (pubQ) arr = arr.filter((c) => c.title.includes(pubQ) || c.ownerId.includes(pubQ));
+    if (pubQ)
+      arr = arr.filter(
+        (c) =>
+          c.title.includes(pubQ) ||
+          (c.ownerHandle ?? "").includes(pubQ) ||
+          (c.ownerName ?? "").includes(pubQ),
+      );
     arr.sort((a, b) =>
       pubSort === "kyoku" ? b.kyokuCount - a.kyokuCount : -a.createdAt.localeCompare(b.createdAt),
     );
@@ -227,18 +234,22 @@ export function KifuListShell({ view }: { view: "mine" | "public" }) {
                     title={c.title || "（無題の半荘）"}
                     meta={
                       <>
-                        <span
-                          className={gc.au}
-                          role="link"
-                          tabIndex={0}
-                          style={{ cursor: "pointer" }}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            router.push(`/u/${c.ownerId}`);
-                          }}
-                        >
-                          @{c.ownerId.slice(0, 6)}
-                        </span>
+                        {c.ownerHandle || c.ownerName ? (
+                          <span
+                            className={gc.au}
+                            role="link"
+                            tabIndex={0}
+                            style={{ cursor: "pointer" }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              router.push(`/u/${c.ownerHandle ?? c.ownerId}`);
+                            }}
+                          >
+                            {authorLabel({ handle: c.ownerHandle, name: c.ownerName })}
+                          </span>
+                        ) : (
+                          <span className={gc.au}>名無し</span>
+                        )}
                         <span className={gc.sep}>·</span>
                         {fmtDateSlash(c.createdAt)}
                         <span className={gc.sep}>·</span>

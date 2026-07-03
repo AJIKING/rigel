@@ -1,7 +1,14 @@
 import { useEffect, useState } from "react";
-import { getGame, getGames, type Game, type GameDetail } from "./api";
+import {
+  getGame,
+  getMyGames,
+  getPublicGames,
+  type GameDetail,
+  type MyGameCard,
+  type PublicGameCard,
+} from "./api";
 import { useAuth } from "./auth";
-import { sampleGameDetail, sampleGames } from "./sample-data";
+import { sampleGameDetail, sampleMyGames, samplePublicGames } from "./sample-data";
 
 interface ResourceState<T> {
   loading: boolean;
@@ -53,9 +60,38 @@ function useAuthedData<T>(
   return state;
 }
 
-export function useGames() {
-  const s = useAuthedData(getGames, { sample: sampleGames, empty: [] as Game[] }, "games");
+export function useMyGames() {
+  const s = useAuthedData(
+    getMyGames,
+    { sample: sampleMyGames, empty: [] as MyGameCard[] },
+    "my-games",
+  );
   return { loading: s.loading, games: s.data, sample: s.sample, error: s.error };
+}
+
+/** 公開牌譜フィード（認証不要・全ユーザーの公開半荘）。失敗時はサンプルを表示。 */
+export function usePublicGames() {
+  const [state, setState] = useState<{
+    loading: boolean;
+    games: PublicGameCard[];
+    sample: boolean;
+  }>({ loading: true, games: [], sample: false });
+
+  useEffect(() => {
+    let active = true;
+    getPublicGames()
+      .then((games) => {
+        if (active) setState({ loading: false, games, sample: false });
+      })
+      .catch(() => {
+        if (active) setState({ loading: false, games: samplePublicGames, sample: true });
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  return state;
 }
 
 export function useGame(id: string) {

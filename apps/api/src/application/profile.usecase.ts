@@ -78,6 +78,9 @@ export class GetPublicProfile {
         cards.push({
           id: g.id,
           ownerId: user.id,
+          // GetPublicProfile は profilePublic を通過済みなので著者名を出す。
+          ownerHandle: user.handle,
+          ownerName: user.displayName || null,
           title: g.title,
           createdAt: g.createdAt,
           kyokuCount: publicLogs.length,

@@ -5,7 +5,14 @@ import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { type PublicGameDetail } from "../../lib/api";
 import { useAuth } from "../../lib/auth-context";
-import { SEAT_ORDER, chunk, roundName, windOf } from "../../lib/board";
+import {
+  SEAT_ORDER,
+  buildRiverPlayback,
+  chunk,
+  revealCounts,
+  roundName,
+  windOf,
+} from "../../lib/board";
 import { useBoardScale } from "../../lib/use-board-scale";
 import { fmtDate } from "../../lib/format";
 import { useFavorites } from "../../lib/use-favorites";
@@ -99,32 +106,32 @@ export function KifuViewer({ detail, gameId }: { detail: PublicGameDetail; gameI
     return () => window.removeEventListener("keydown", onEsc);
   }, []);
 
+  // スマホ幅では情報シートは初期状態で閉じておく（卓を最大化するため）。
+  useEffect(() => {
+    if (typeof window.matchMedia === "function" && window.matchMedia("(max-width: 640px)").matches)
+      setSideOpen(false);
+  }, []);
+
   const log = detail.logs[gi];
   const kifu: Kifu | undefined = log?.kifu;
   const bottomSeat: Seat = kifu?.cameraBottomSeat ?? "east";
   const dealer: Seat = kifu?.meta.dealer ?? bottomSeat;
 
-  // 打牌の擬似ターン順（東→南→西→北を河の枚数ぶん回す）。
-  const { order, dstops, maxLen } = useMemo(() => {
-    if (!kifu) return { order: [] as Seat[], dstops: [] as number[], maxLen: 0 };
-    const windSeq = Array.from(
-      { length: 4 },
-      (_, i) => SEAT_ORDER[(SEAT_ORDER.indexOf(dealer) + i) % 4],
-    );
-    const m = Math.max(0, ...SEAT_ORDER.map((p) => kifu.seats[p].river.length));
-    const ord: Seat[] = [];
-    for (let t = 0; t < m; t++)
-      for (const p of windSeq) if (t < kifu.seats[p].river.length) ord.push(p);
-    const ds = ord.map((p, i) => (p === dealer ? i + 1 : -1)).filter((x) => x >= 0);
-    return { order: ord, dstops: ds, maxLen: m };
-  }, [kifu, dealer]);
+  // 打牌の擬似ターン順（東→南→西→北を河の枚数ぶん回す）。@rigel/ui の共有ロジック。
+  const {
+    order,
+    junmeStops: dstops,
+    maxTurn: maxLen,
+  } = useMemo(
+    () =>
+      kifu
+        ? buildRiverPlayback(kifu, dealer)
+        : { order: [] as Seat[], junmeStops: [] as number[], maxTurn: 0 },
+    [kifu, dealer],
+  );
 
   const shown = reveal < 0 || reveal > order.length ? order.length : reveal;
-  const revealed = useMemo(() => {
-    const c: Record<Seat, number> = { east: 0, south: 0, west: 0, north: 0 };
-    for (let i = 0; i < shown; i++) c[order[i]!]++;
-    return c;
-  }, [order, shown]);
+  const revealed = useMemo(() => revealCounts(order, shown), [order, shown]);
 
   // 上がりは「再生して末尾に達したとき」だけ出す。初期の全表示(reveal=-1)では出さない
   // （リロード時に一瞬ポップするのを防ぐ）。reveal が実インデックスで末尾以上のときのみ。

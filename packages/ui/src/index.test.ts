@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   analyzeErrorMessage,
   applyTileEdit,
+  authorLabel,
   cameraLabel,
   checkoutErrorMessage,
   collectReviewItems,
@@ -203,5 +204,18 @@ describe("applyTileEdit", () => {
     const loc = collectReviewItems(kifuWithReviews)[0]!.location;
     const next = applyTileEdit(kifuWithReviews, loc, "2m");
     expect(collectReviewItems(next)).toHaveLength(1);
+  });
+});
+
+describe("authorLabel", () => {
+  it("handle があれば @handle", () => {
+    expect(authorLabel({ handle: "kuro", name: "くろ" })).toBe("@kuro");
+  });
+  it("handle が無ければ表示名", () => {
+    expect(authorLabel({ handle: null, name: "くろ" })).toBe("くろ");
+  });
+  it("どちらも無ければ既定の名無し（fallback 指定可）", () => {
+    expect(authorLabel({ handle: null, name: null })).toBe("名無し");
+    expect(authorLabel({}, "匿名")).toBe("匿名");
   });
 });

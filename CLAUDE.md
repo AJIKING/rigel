@@ -105,7 +105,7 @@ rigel/
     └── mobile/  mobile            # Expo + react-navigation。Capture/GamesList/GameDetail/Board/Login
 ```
 
-> 検証ゲート: web は `next build` + Vitest(jsdom)、mobile は `tsc`+ESLint（Expo 実機/EAS は CI 外）、
+> 検証ゲート: web は `next build` + Vitest(jsdom)、mobile は `tsc`+ESLint+Jest(jest-expo/RNTL)（Expo 実機/EAS は CI 外）、
 > api/packages は `tsc`+Vitest+ESLint。Gemini 解析・Photon・実認証は鍵/ランタイム設定後に疎通。
 
 ---
@@ -135,7 +135,7 @@ AI精度の実測 / UI共有手段 / カウンタ整合の原子化 / 認証実�
 
 - OS: Windows 11 / シェルは PowerShell（主）と Bash（POSIX）。パスは環境に合わせる。
 - git 管理済み（`main` ブランチ）。M0（モノレポ土台）/ M1（`@rigel/schema`）構築済み。`api`/`ui` は土台のみ、`web`/`mobile` は未作成。
-- ツールチェーン：Node.js >= 20 / **pnpm 10**（workspace）/ turborepo / Vitest / ESLint / Prettier。Workers は wrangler（M5/M7 で本格導入）、モバイルは Expo（M5+）。
+- ツールチェーン：Node.js >= 20 / **pnpm 10**（workspace）/ turborepo / Vitest / **Jest(mobile=jest-expo + React Native Testing Library)** / ESLint / Prettier。Workers は wrangler（M5/M7 で本格導入）、モバイルは Expo（M5+）。
 - AI の鍵などの秘匿情報は `.env` / `.dev.vars`（読み取りは権限で deny 済み・コミットしない。雛形は `.env.example`）。AI 呼び出しは **AI Gateway 経由**。
 - 検証コマンドは [docs/開発ガイド/04_検証とCIゲート.md](docs/開発ガイド/04_検証とCIゲート.md) に一元化。ルートで `pnpm typecheck / lint / format:check / test / build`。CI は `.github/workflows/ci.yml`。
 

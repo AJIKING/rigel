@@ -23,6 +23,8 @@ export * from "./yaku";
 export * from "./standings";
 // 手順（タイムライン）の導出・巡目・盤面同期。
 export * from "./timeline";
+// 盤面表示の共有ヘルパ（自風・局名・河の巡送り）。
+export * from "./board";
 
 const SEAT_ORDER: Seat[] = ["east", "south", "west", "north"];
 
@@ -136,6 +138,19 @@ export function upgradeTargets(plan: Plan): PaidPlan[] {
 /** 公開範囲の表示名。 */
 export function visibilityLabel(visibility: "public" | "private"): string {
   return visibility === "public" ? "公開" : "非公開";
+}
+
+/**
+ * 公開カード/ビューアの著者表記。handle があれば `@handle`、無ければ表示名、
+ * どちらも無ければ（プロフィール非公開など）`fallback`（既定「名無し」）。
+ * web/mobile の公開一覧・ビューアで表記を統一する。
+ */
+export function authorLabel(
+  author: { handle?: string | null; name?: string | null },
+  fallback = "名無し",
+): string {
+  if (author.handle) return `@${author.handle}`;
+  return author.name || fallback;
 }
 
 // ============================================================

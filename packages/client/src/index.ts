@@ -87,6 +87,10 @@ export interface MyGameCard {
 export interface PublicGameCard {
   id: string;
   ownerId: string;
+  /** 著者ハンドル(@なし)。プロフィール非公開・未設定なら null。 */
+  ownerHandle: string | null;
+  /** 著者の表示名。プロフィール非公開なら null。 */
+  ownerName: string | null;
   title: string;
   createdAt: string;
   kyokuCount: number;

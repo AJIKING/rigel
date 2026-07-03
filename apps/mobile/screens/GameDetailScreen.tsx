@@ -1,8 +1,10 @@
 import { useNavigation, useRoute, type RouteProp } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { collectReviewItems } from "@rigel/ui";
-import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from "react-native";
+import { FlatList, Pressable, StyleSheet, Text, View } from "react-native";
+import { CenterState } from "../components/CenterState";
 import { fmtDate } from "../lib/format";
+import { colors } from "../lib/theme";
 import type { RootStackParamList } from "../lib/navigation";
 import { useGame } from "../lib/use-kifu-data";
 
@@ -13,20 +15,8 @@ export function GameDetailScreen() {
   const { gameId } = useRoute<RouteProp<RootStackParamList, "GameDetail">>().params;
   const { loading, detail } = useGame(gameId);
 
-  if (loading) {
-    return (
-      <View style={styles.center}>
-        <ActivityIndicator />
-      </View>
-    );
-  }
-  if (!detail) {
-    return (
-      <View style={styles.center}>
-        <Text style={styles.empty}>半荘が見つかりませんでした。</Text>
-      </View>
-    );
-  }
+  if (loading) return <CenterState loading />;
+  if (!detail) return <CenterState message="半荘が見つかりませんでした。" />;
 
   return (
     <View style={styles.container}>
@@ -64,23 +54,22 @@ export function GameDetailScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
-  center: { flex: 1, alignItems: "center", justifyContent: "center" },
+  container: { flex: 1, backgroundColor: colors.bg },
   head: { padding: 12, paddingBottom: 0 },
-  title: { fontWeight: "700", fontSize: 16 },
-  date: { color: "#999", fontSize: 12, marginTop: 2 },
-  empty: { color: "#888" },
+  title: { color: colors.white, fontWeight: "700", fontSize: 16 },
+  date: { color: colors.w45, fontSize: 12, marginTop: 2 },
   card: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    borderWidth: 1,
-    borderColor: "#eee",
+    backgroundColor: colors.chrome,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.line,
     borderRadius: 8,
     padding: 12,
   },
-  localTitle: { fontWeight: "700" },
-  result: { color: "#999", fontWeight: "400", fontSize: 13 },
-  review: { color: "#d10f3a", fontSize: 12 },
-  done: { color: "#1b7a2f", fontSize: 12 },
+  localTitle: { color: colors.white, fontWeight: "700" },
+  result: { color: colors.w45, fontWeight: "400", fontSize: 13 },
+  review: { color: colors.vermilion, fontSize: 12 },
+  done: { color: colors.emLite, fontSize: 12 },
 });

@@ -126,7 +126,7 @@ export function buildContainer(env: Env): AppContainer {
     createEmptyKifu: new CreateEmptyKifu({ games: gamesRepo, gameLogs, users, now, newId }),
     listGames: new ListGames(gamesRepo),
     listMyGamesWithCounts: new ListMyGamesWithCounts(gamesRepo, gameLogs),
-    listPublicGames: new ListPublicGames(gamesRepo, gameLogs),
+    listPublicGames: new ListPublicGames(gamesRepo, gameLogs, users),
     getGameWithLogs: new GetGameWithLogs(gamesRepo, gameLogs),
     getPublicGameDetail: new GetPublicGameDetail(gamesRepo, gameLogs, users),
     authenticateWithGoogle: new AuthenticateWithGoogle({
