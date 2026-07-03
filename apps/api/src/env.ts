@@ -12,7 +12,8 @@ export interface Env {
   GEMINI_RIVER_MODEL?: string;
   /** 手牌読み取りモデル名（任意。未指定なら既定値。素直なタスクなので Flash-Lite 系）。 */
   GEMINI_HAND_MODEL?: string;
-  /** Google OAuth クライアントID（ID トークンの aud 検証に使う）。 */
+  /** Google OAuth クライアントID（ID トークンの aud 検証に使う）。
+   *  web/iOS/Android で別クライアントIDを使うため、カンマ区切りで複数指定可。 */
   GOOGLE_CLIENT_ID: string;
   /** CORS 許可オリジン（カンマ区切り。例: "https://rigel.plaria.co.jp"）。
    *  localhost 開発オリジンは既定で常に許可するので本番ドメインだけ列挙すればよい。 */

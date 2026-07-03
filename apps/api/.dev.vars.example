@@ -6,6 +6,7 @@ SESSION_SECRET=dev-only-change-me-to-a-long-random-string
 
 # Google OAuth クライアントID（web の NEXT_PUBLIC_GOOGLE_CLIENT_ID と「同一の値」にする）。
 # idToken の aud をこのIDで検証する。不一致だとログインが 401 になる。
+# web/iOS/Android で別IDを使う場合はカンマ区切りで複数可（例: "web.apps...,ios.apps..."）。
 GOOGLE_CLIENT_ID=
 
 # CORS で許可する web オリジン。localhost:3000 は既定で許可されるので通常は空でよい。
