@@ -28,7 +28,9 @@ export const {
   analyze,
   createCheckout,
   createPortal,
+  createGame,
   redeemAppStorePurchase,
+  updateKifu,
   updateProfile,
   deleteAccount,
 } = client;

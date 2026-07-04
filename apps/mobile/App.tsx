@@ -8,6 +8,7 @@ import type { RootStackParamList } from "./lib/navigation";
 import { colors } from "./lib/theme";
 import { BoardScreen } from "./screens/BoardScreen";
 import { CaptureScreen } from "./screens/CaptureScreen";
+import { EditScreen } from "./screens/EditScreen";
 import { GameDetailScreen } from "./screens/GameDetailScreen";
 import { HomeTabs } from "./screens/HomeTabs";
 import { LoginScreen } from "./screens/LoginScreen";
@@ -52,6 +53,7 @@ function Root() {
         <Stack.Screen name="Home" component={HomeTabs} options={{ headerShown: false }} />
         <Stack.Screen name="GameDetail" component={GameDetailScreen} options={{ title: "半荘" }} />
         <Stack.Screen name="Board" component={BoardScreen} options={{ title: "牌譜" }} />
+        <Stack.Screen name="Edit" component={EditScreen} options={{ title: "牌譜を編集" }} />
         <Stack.Screen
           name="PublicGame"
           component={PublicGameScreen}

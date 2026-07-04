@@ -2,36 +2,17 @@ import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { SeatSchema, type Seat } from "@rigel/schema";
 import { analyzeErrorMessage, cameraLabel, seatLabel } from "@rigel/ui";
-import * as ImagePicker from "expo-image-picker";
 import { useState } from "react";
 import { Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
-import { analyze } from "../lib/api";
+import { analyze, createGame } from "../lib/api";
 import { useAuth } from "../lib/auth";
 import type { RootStackParamList } from "../lib/navigation";
+import { pickImage, type PickedImage as Picked } from "../lib/pick-image";
 import { colors } from "../lib/theme";
 
 type Nav = NativeStackNavigationProp<RootStackParamList, "Capture">;
 
 const CAMS = ["bottom", "right", "top", "left"] as const;
-
-interface Picked {
-  uri: string;
-  name: string;
-  type: string;
-}
-
-async function pickImage(): Promise<Picked | null> {
-  const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
-  if (!perm.granted) return null;
-  const res = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ["images"], quality: 0.8 });
-  const asset = res.canceled ? null : res.assets[0];
-  if (!asset) return null;
-  return {
-    uri: asset.uri,
-    name: asset.fileName ?? "photo.jpg",
-    type: asset.mimeType ?? "image/jpeg",
-  };
-}
 
 export function CaptureScreen() {
   const nav = useNavigation<Nav>();
@@ -41,6 +22,36 @@ export function CaptureScreen() {
   const [hands, setHands] = useState<Partial<Record<(typeof CAMS)[number], Picked>>>({});
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  /** 写真なしの手入力作成。空の初局つき半荘を作って編集画面へ。 */
+  async function onCreateManual() {
+    if (!token) {
+      setError("ログインが必要です。");
+      return;
+    }
+    setError(null);
+    setSubmitting(true);
+    try {
+      const res = await createGame(token, seat);
+      if (res.ok) nav.navigate("Edit", { gameId: res.gameId, logId: res.logId });
+      else setError("作成に失敗しました。");
+    } catch {
+      setError("通信に失敗しました。");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  /** 写真を選んで onPicked に渡す。拒否時は設定誘導（pickImage 内）＋インライン表示。 */
+  async function pickInto(onPicked: (file: Picked) => void) {
+    const result = await pickImage();
+    if (result.status === "picked") {
+      setError(null);
+      onPicked(result.file);
+    } else if (result.status === "denied") {
+      setError("写真へのアクセスが許可されていません。設定アプリから許可してください。");
+    }
+  }
 
   async function onSubmit() {
     if (!token) {
@@ -91,7 +102,7 @@ export function CaptureScreen() {
       </View>
 
       <Text style={styles.label}>河（卓を上から1枚）*</Text>
-      <Pressable style={styles.pick} onPress={() => void pickImage().then((p) => p && setRiver(p))}>
+      <Pressable style={styles.pick} onPress={() => void pickInto(setRiver)}>
         {river ? (
           <Image source={{ uri: river.uri }} style={styles.thumb} />
         ) : (
@@ -104,7 +115,7 @@ export function CaptureScreen() {
         <Pressable
           key={cam}
           style={styles.handRow}
-          onPress={() => void pickImage().then((p) => p && setHands((h) => ({ ...h, [cam]: p })))}
+          onPress={() => void pickInto((p) => setHands((h) => ({ ...h, [cam]: p })))}
         >
           <Text style={styles.handLabel}>{cameraLabel(cam)}</Text>
           {hands[cam] ? (
@@ -125,6 +136,16 @@ export function CaptureScreen() {
         <Text style={styles.submitText}>
           {submitting ? "解析中…（少し時間がかかります）" : "解析して保存"}
         </Text>
+      </Pressable>
+
+      {/* 写真なしの手入力作成（空の初局を作って編集画面へ）。 */}
+      <Pressable
+        disabled={submitting}
+        onPress={() => void onCreateManual()}
+        style={[styles.manual, submitting && styles.submitDisabled]}
+        accessibilityRole="button"
+      >
+        <Text style={styles.manualText}>写真なしで作成（手入力）</Text>
       </Pressable>
     </ScrollView>
   );
@@ -177,4 +198,13 @@ const styles = StyleSheet.create({
   },
   submitDisabled: { backgroundColor: colors.chrome3 },
   submitText: { color: "#16181d", fontSize: 15, fontWeight: "700" },
+  manual: {
+    borderWidth: 1,
+    borderColor: colors.line,
+    borderRadius: 8,
+    padding: 13,
+    alignItems: "center",
+    marginTop: 2,
+  },
+  manualText: { color: colors.accent, fontSize: 14, fontWeight: "700" },
 });

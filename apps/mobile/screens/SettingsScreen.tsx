@@ -131,9 +131,11 @@ export function SettingsScreen() {
     if (Platform.OS === "ios") {
       try {
         // 結果は onPurchaseSuccess / onPurchaseError で受ける。
+        // ※ expo-iap は 2.9 系に固定（3.x/4.x は Expo SDK 53+ の expo-modules-core が必要で
+        //   SDK 52 の iOS ビルドが通らない）。2.x はプラットフォームキーが ios / android。
         await requestPurchase({
           request: {
-            apple: {
+            ios: {
               sku: IAP_PRODUCT_IDS[plan],
               // 検証前に自動で閉じない（api の検証が通ってから finishTransaction する）。
               andDangerouslyFinishTransactionAutomatically: false,

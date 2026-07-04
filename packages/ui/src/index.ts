@@ -25,6 +25,8 @@ export * from "./standings";
 export * from "./timeline";
 // 盤面表示の共有ヘルパ（自風・局名・河の巡送り）。
 export * from "./board";
+// 牌譜の編集操作（追加/削除/フラグ/鳴き）とピッカー素材。
+export * from "./edit";
 
 const SEAT_ORDER: Seat[] = ["east", "south", "west", "north"];
 

@@ -97,8 +97,8 @@ importers:
         specifier: ~14.0.2
         version: 14.0.2(expo@52.0.49(@babel/core@7.29.7)(@babel/preset-env@7.29.7(@babel/core@7.29.7))(react-native@0.76.5(@babel/core@7.29.7)(@babel/preset-env@7.29.7(@babel/core@7.29.7))(@types/react@19.2.17)(react@18.3.1))(react@18.3.1))
       expo-iap:
-        specifier: ^4.3.6
-        version: 4.3.6(expo@52.0.49(@babel/core@7.29.7)(@babel/preset-env@7.29.7(@babel/core@7.29.7))(react-native@0.76.5(@babel/core@7.29.7)(@babel/preset-env@7.29.7(@babel/core@7.29.7))(@types/react@19.2.17)(react@18.3.1))(react@18.3.1))(react-native@0.76.5(@babel/core@7.29.7)(@babel/preset-env@7.29.7(@babel/core@7.29.7))(@types/react@19.2.17)(react@18.3.1))(react@18.3.1)
+        specifier: ^2.9.4
+        version: 2.9.4(expo@52.0.49(@babel/core@7.29.7)(@babel/preset-env@7.29.7(@babel/core@7.29.7))(react-native@0.76.5(@babel/core@7.29.7)(@babel/preset-env@7.29.7(@babel/core@7.29.7))(@types/react@19.2.17)(react@18.3.1))(react@18.3.1))(react-native@0.76.5(@babel/core@7.29.7)(@babel/preset-env@7.29.7(@babel/core@7.29.7))(@types/react@19.2.17)(react@18.3.1))(react@18.3.1)
       expo-image-picker:
         specifier: ~16.0.6
         version: 16.0.6(expo@52.0.49(@babel/core@7.29.7)(@babel/preset-env@7.29.7(@babel/core@7.29.7))(react-native@0.76.5(@babel/core@7.29.7)(@babel/preset-env@7.29.7(@babel/core@7.29.7))(@types/react@19.2.17)(react@18.3.1))(react@18.3.1))
@@ -4802,8 +4802,9 @@ packages:
       expo: '*'
       react: '*'
 
-  expo-iap@4.3.6:
-    resolution: {integrity: sha512-kkqgaVQgVJExdnS7RXfqsacW6LlARZf+6jxwUmAhk3kZB1LfLj+cnfLWZaIDvZWCpr3695jQEgsk1uVQ6V/C+w==}
+  expo-iap@2.9.4:
+    resolution: {integrity: sha512-yMYi3DM2NdZ8rabJNQnaFv19mYi0T6/BOKgZzLkgIZMK7EHBT3HD4huI6qruMaCeCIPmvUDKURcPMhG945yqbw==}
+    deprecated: ⚠️ This version has known issues. Please upgrade to 2.9.5 or later.
     peerDependencies:
       expo: '*'
       react: '*'
@@ -13020,7 +13021,7 @@ snapshots:
       fontfaceobserver: 2.3.0
       react: 18.3.1
 
-  expo-iap@4.3.6(expo@52.0.49(@babel/core@7.29.7)(@babel/preset-env@7.29.7(@babel/core@7.29.7))(react-native@0.76.5(@babel/core@7.29.7)(@babel/preset-env@7.29.7(@babel/core@7.29.7))(@types/react@19.2.17)(react@18.3.1))(react@18.3.1))(react-native@0.76.5(@babel/core@7.29.7)(@babel/preset-env@7.29.7(@babel/core@7.29.7))(@types/react@19.2.17)(react@18.3.1))(react@18.3.1):
+  expo-iap@2.9.4(expo@52.0.49(@babel/core@7.29.7)(@babel/preset-env@7.29.7(@babel/core@7.29.7))(react-native@0.76.5(@babel/core@7.29.7)(@babel/preset-env@7.29.7(@babel/core@7.29.7))(@types/react@19.2.17)(react@18.3.1))(react@18.3.1))(react-native@0.76.5(@babel/core@7.29.7)(@babel/preset-env@7.29.7(@babel/core@7.29.7))(@types/react@19.2.17)(react@18.3.1))(react@18.3.1):
     dependencies:
       expo: 52.0.49(@babel/core@7.29.7)(@babel/preset-env@7.29.7(@babel/core@7.29.7))(react-native@0.76.5(@babel/core@7.29.7)(@babel/preset-env@7.29.7(@babel/core@7.29.7))(@types/react@19.2.17)(react@18.3.1))(react@18.3.1)
       react: 18.3.1

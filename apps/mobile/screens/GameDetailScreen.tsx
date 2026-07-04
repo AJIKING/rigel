@@ -40,11 +40,21 @@ export function GameDetailScreen() {
               <Text style={styles.localTitle}>
                 第 {item.seq} 局 <Text style={styles.result}>{item.kifu.result ?? "—"}</Text>
               </Text>
-              {reviews > 0 ? (
-                <Text style={styles.review}>要確認 {reviews}</Text>
-              ) : (
-                <Text style={styles.done}>確認済</Text>
-              )}
+              <View style={styles.cardRight}>
+                {reviews > 0 ? (
+                  <Text style={styles.review}>要確認 {reviews}</Text>
+                ) : (
+                  <Text style={styles.done}>確認済</Text>
+                )}
+                <Pressable
+                  onPress={() => nav.navigate("Edit", { gameId, logId: item.id })}
+                  accessibilityRole="button"
+                  accessibilityLabel={`第${item.seq}局を編集`}
+                  hitSlop={8}
+                >
+                  <Text style={styles.edit}>編集 ›</Text>
+                </Pressable>
+              </View>
             </Pressable>
           );
         }}
@@ -72,4 +82,6 @@ const styles = StyleSheet.create({
   result: { color: colors.w45, fontWeight: "400", fontSize: 13 },
   review: { color: colors.vermilion, fontSize: 12 },
   done: { color: colors.emLite, fontSize: 12 },
+  cardRight: { flexDirection: "row", alignItems: "center", gap: 14 },
+  edit: { color: colors.accent, fontSize: 12.5, fontWeight: "700" },
 });
