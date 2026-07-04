@@ -29,8 +29,11 @@ export const {
   createCheckout,
   createPortal,
   createGame,
+  createEmptyKifu,
   redeemAppStorePurchase,
   updateKifu,
+  setVisibility,
+  deleteKifu,
   updateProfile,
   deleteAccount,
 } = client;

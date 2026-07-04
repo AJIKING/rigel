@@ -75,6 +75,13 @@ describe("addMeld / removeMeld", () => {
     expect(kan.seats.south.melds[0]?.type).toBe("kan_open");
     expect(kan.seats.south.melds[0]?.tiles).toHaveLength(4);
   });
+  it("カンは種別（大明槓/暗槓/加槓）を指定できる。すべて4枚", () => {
+    for (const type of ["kan_open", "kan_closed", "kan_added"] as const) {
+      const kan = addMeld(kifu(), "south", type, "3m");
+      expect(kan.seats.south.melds[0]?.type).toBe(type);
+      expect(kan.seats.south.melds[0]?.tiles.map((t) => t.tile)).toEqual(["3m", "3m", "3m", "3m"]);
+    }
+  });
   it("チーは選択牌を含む3連続（字牌は同牌3枚にフォールバック）", () => {
     const chi = addMeld(kifu(), "south", "chi", "3m");
     expect(chi.seats.south.melds[0]?.tiles.map((t) => t.tile)).toEqual(["2m", "3m", "4m"]);

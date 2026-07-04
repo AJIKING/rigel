@@ -77,12 +77,26 @@ export function meldTiles(type: MeldPick, code: Tile): Tile[] {
   return [`${st}${su}` as Tile, `${st + 1}${su}` as Tile, `${st + 2}${su}` as Tile];
 }
 
-/** 鳴きを追加する（kan は明槓=kan_open。from は不明のため null）。 */
-export function addMeld(kifu: Kifu, seat: Seat, type: MeldPick, tile: Tile): Kifu {
+/** addMeld が受け付ける鳴き種別。"kan" は明槓(kan_open)の別名。カンは種別を明示指定できる。 */
+export type MeldAddType = MeldPick | "kan_open" | "kan_closed" | "kan_added";
+
+/** 保存する MeldType（"kan" 別名は kan_open に正規化）。 */
+function storedMeldType(
+  type: MeldAddType,
+): "chi" | "pon" | "kan_open" | "kan_closed" | "kan_added" {
+  return type === "kan" ? "kan_open" : type;
+}
+/** 牌の並びを決める種別（カン系はすべて4枚＝"kan" 扱い）。 */
+function tileShape(type: MeldAddType): MeldPick {
+  return type === "chi" ? "chi" : type === "pon" ? "pon" : "kan";
+}
+
+/** 鳴きを追加する（from は盤面編集では不明のため null。カンは種別を指定可）。 */
+export function addMeld(kifu: Kifu, seat: Seat, type: MeldAddType, tile: Tile): Kifu {
   const d = clone(kifu);
   d.seats[seat].melds.push({
-    type: type === "kan" ? "kan_open" : type,
-    tiles: meldTiles(type, tile).map((t) => ({ tile: t, confidence: 1 })),
+    type: storedMeldType(type),
+    tiles: meldTiles(tileShape(type), tile).map((t) => ({ tile: t, confidence: 1 })),
     from: null,
   });
   return KifuSchema.parse(d);

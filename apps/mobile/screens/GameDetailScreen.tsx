@@ -1,8 +1,11 @@
 import { useNavigation, useRoute, type RouteProp } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { collectReviewItems } from "@rigel/ui";
+import { useState } from "react";
 import { FlatList, Pressable, StyleSheet, Text, View } from "react-native";
 import { CenterState } from "../components/CenterState";
+import { createEmptyKifu } from "../lib/api";
+import { useAuth } from "../lib/auth";
 import { fmtDate } from "../lib/format";
 import { colors } from "../lib/theme";
 import type { RootStackParamList } from "../lib/navigation";
@@ -13,10 +16,33 @@ type Nav = NativeStackNavigationProp<RootStackParamList, "GameDetail">;
 export function GameDetailScreen() {
   const nav = useNavigation<Nav>();
   const { gameId } = useRoute<RouteProp<RootStackParamList, "GameDetail">>().params;
+  const { token } = useAuth();
   const { loading, detail } = useGame(gameId);
+  const [adding, setAdding] = useState(false);
+  const [note, setNote] = useState<string | null>(null);
 
   if (loading) return <CenterState loading />;
   if (!detail) return <CenterState message="半荘が見つかりませんでした。" />;
+
+  // 新しい局は既存局と同じ手前席で作る（無ければ東）。作成後その局の編集画面へ。
+  const bottomSeat = detail.logs[0]?.kifu.cameraBottomSeat ?? "east";
+  async function onAddKyoku() {
+    if (!token || adding) return;
+    setAdding(true);
+    setNote(null);
+    try {
+      const res = await createEmptyKifu(token, gameId, bottomSeat);
+      if (res.ok) nav.navigate("Edit", { gameId, logId: res.logId });
+      else
+        setNote(
+          res.status === 403 ? "保存上限に達しています（有料プランへ）" : "追加に失敗しました",
+        );
+    } catch {
+      setNote("通信に失敗しました");
+    } finally {
+      setAdding(false);
+    }
+  }
 
   return (
     <View style={styles.container}>
@@ -25,6 +51,18 @@ export function GameDetailScreen() {
         <Text style={styles.date}>
           {fmtDate(detail.game.createdAt)} ／ {detail.logs.length} 局
         </Text>
+        <View style={styles.headActions}>
+          <Pressable
+            style={[styles.addBtn, adding && styles.addBtnOff]}
+            disabled={adding}
+            onPress={() => void onAddKyoku()}
+            accessibilityRole="button"
+            accessibilityLabel="局を追加"
+          >
+            <Text style={styles.addBtnText}>{adding ? "追加中…" : "＋ 局を追加"}</Text>
+          </Pressable>
+        </View>
+        {note ? <Text style={styles.note}>{note}</Text> : null}
       </View>
       <FlatList
         data={detail.logs}
@@ -68,6 +106,18 @@ const styles = StyleSheet.create({
   head: { padding: 12, paddingBottom: 0 },
   title: { color: colors.white, fontWeight: "700", fontSize: 16 },
   date: { color: colors.w45, fontSize: 12, marginTop: 2 },
+  headActions: { flexDirection: "row", marginTop: 10 },
+  addBtn: {
+    paddingVertical: 9,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.accent,
+    backgroundColor: colors.accentSoft,
+  },
+  addBtnOff: { opacity: 0.6 },
+  addBtnText: { color: colors.accent, fontWeight: "800", fontSize: 13 },
+  note: { color: colors.vermilion, fontSize: 12, marginTop: 8 },
   card: {
     flexDirection: "row",
     justifyContent: "space-between",

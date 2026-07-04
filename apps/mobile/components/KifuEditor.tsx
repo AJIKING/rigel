@@ -21,7 +21,7 @@ import {
   setDiscardFlags,
   windOf,
   SEAT_ORDER,
-  type MeldPick,
+  type MeldAddType,
   type PickerSuit,
 } from "@rigel/ui";
 import { useState } from "react";
@@ -30,22 +30,27 @@ import { colors, radius } from "../lib/theme";
 import { AgariForm } from "./AgariForm";
 import { MiniTile } from "./MiniTile";
 import { Segment } from "./Segment";
+import { Stepper } from "./Stepper";
 import { TilePickerSheet } from "./TilePickerSheet";
 
 /** ピッカーが「今なにを編集しているか」。 */
 type Picker =
   | { kind: "add-hand" }
   | { kind: "add-river" }
-  | { kind: "add-meld"; meld: MeldPick }
+  | { kind: "add-meld"; meld: MeldAddType }
   | { kind: "edit-hand"; index: number; suit: PickerSuit }
   | { kind: "edit-river"; index: number; suit: PickerSuit }
   | { kind: "dora" }
+  | { kind: "uradora" }
   | null;
 
-const MELD_LABELS: { pick: MeldPick; label: string }[] = [
-  { pick: "chi", label: "チー" },
-  { pick: "pon", label: "ポン" },
-  { pick: "kan", label: "カン" },
+// チー/ポンに加え、カンは種別（大明槓/暗槓/加槓）まで選べる（web の TilePickerPopup と同等）。
+const MELD_LABELS: { type: MeldAddType; label: string }[] = [
+  { type: "chi", label: "チー" },
+  { type: "pon", label: "ポン" },
+  { type: "kan_open", label: "大明槓" },
+  { type: "kan_closed", label: "暗槓" },
+  { type: "kan_added", label: "加槓" },
 ];
 
 /**
@@ -116,6 +121,10 @@ export function KifuEditor({
       mutate((d) => {
         d.meta.dora = code;
       });
+    else if (picker.kind === "uradora")
+      mutate((d) => {
+        d.meta.uraDora = code;
+      });
     setPicker(null);
   }
 
@@ -134,26 +143,40 @@ export function KifuEditor({
       : picker.kind === "add-river"
         ? "河に追加"
         : picker.kind === "add-meld"
-          ? `${MELD_LABELS.find((m) => m.pick === picker.meld)?.label}を追加`
+          ? `${MELD_LABELS.find((m) => m.type === picker.meld)?.label}を追加`
           : picker.kind === "dora"
             ? "ドラを選ぶ"
-            : "牌を変更";
+            : picker.kind === "uradora"
+              ? "裏ドラを選ぶ"
+              : "牌を変更";
 
   return (
     <View style={styles.root}>
       <ScrollView contentContainerStyle={styles.body}>
-        {/* 局メタ: 局名・親・ドラ */}
+        {/* 局メタ: 局名・ドラ・裏ドラ */}
         <View style={styles.metaRow}>
           <Text style={styles.round}>{roundNameForSeq(seq)}</Text>
           <View style={styles.doraWrap}>
-            <Text style={styles.metaLabel}>ドラ</Text>
-            <Pressable
-              onPress={() => setPicker({ kind: "dora" })}
-              accessibilityRole="button"
-              accessibilityLabel="ドラを選ぶ"
-            >
-              <MiniTile code={kifu.meta.dora} w={26} h={36} />
-            </Pressable>
+            <View style={styles.doraCol}>
+              <Text style={styles.doraLbl}>ドラ</Text>
+              <Pressable
+                onPress={() => setPicker({ kind: "dora" })}
+                accessibilityRole="button"
+                accessibilityLabel="ドラを選ぶ"
+              >
+                <MiniTile code={kifu.meta.dora} w={26} h={36} />
+              </Pressable>
+            </View>
+            <View style={styles.doraCol}>
+              <Text style={styles.doraLbl}>裏</Text>
+              <Pressable
+                onPress={() => setPicker({ kind: "uradora" })}
+                accessibilityRole="button"
+                accessibilityLabel="裏ドラを選ぶ"
+              >
+                <MiniTile code={kifu.meta.uraDora} w={26} h={36} />
+              </Pressable>
+            </View>
           </View>
         </View>
         <View style={styles.segRow}>
@@ -164,6 +187,46 @@ export function KifuEditor({
             onChange={(s) =>
               mutate((d) => {
                 d.meta.dealer = s;
+              })
+            }
+          />
+        </View>
+
+        {/* 局情報: 最終巡目・本場・供託 */}
+        <View style={styles.metaBox}>
+          <Stepper
+            label="最終巡目"
+            unit="巡"
+            value={kifu.meta.junme}
+            min={1}
+            max={30}
+            onChange={(v) =>
+              mutate((d) => {
+                d.meta.junme = v;
+              })
+            }
+          />
+          <Stepper
+            label="本場"
+            unit="本場"
+            value={kifu.meta.honba}
+            min={0}
+            max={19}
+            onChange={(v) =>
+              mutate((d) => {
+                d.meta.honba = v;
+              })
+            }
+          />
+          <Stepper
+            label="供託"
+            unit="本"
+            value={kifu.meta.kyotaku}
+            min={0}
+            max={9}
+            onChange={(v) =>
+              mutate((d) => {
+                d.meta.kyotaku = v;
               })
             }
           />
@@ -244,11 +307,11 @@ export function KifuEditor({
           </View>
         ))}
         <View style={styles.meldAdd}>
-          {MELD_LABELS.map(({ pick, label }) => (
+          {MELD_LABELS.map(({ type, label }) => (
             <Pressable
-              key={pick}
+              key={type}
               style={styles.meldBtn}
-              onPress={() => setPicker({ kind: "add-meld", meld: pick })}
+              onPress={() => setPicker({ kind: "add-meld", meld: type })}
               accessibilityRole="button"
             >
               <Text style={styles.meldBtnText}>{label}</Text>
@@ -362,8 +425,19 @@ const styles = StyleSheet.create({
   body: { padding: 14, paddingBottom: 24, gap: 8 },
   metaRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   round: { color: colors.white, fontSize: 17, fontWeight: "800" },
-  doraWrap: { flexDirection: "row", alignItems: "center", gap: 8 },
+  doraWrap: { flexDirection: "row", alignItems: "flex-end", gap: 12 },
+  doraCol: { alignItems: "center", gap: 3 },
+  doraLbl: { color: colors.w45, fontSize: 10, fontWeight: "700" },
   metaLabel: { color: colors.w45, fontSize: 12, fontWeight: "700", width: 24 },
+  metaBox: {
+    gap: 10,
+    backgroundColor: colors.chrome,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.line,
+    borderRadius: radius.card,
+    padding: 12,
+    marginTop: 4,
+  },
   segRow: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 4 },
   section: { color: colors.w45, fontSize: 12, fontWeight: "800", marginTop: 12 },
   tiles: { flexDirection: "row", flexWrap: "wrap", gap: 5, alignItems: "center" },
@@ -381,10 +455,10 @@ const styles = StyleSheet.create({
   meldRow: { flexDirection: "row", alignItems: "center", gap: 12, marginTop: 4 },
   meldTiles: { flexDirection: "row", gap: 3 },
   meldDelete: { color: colors.vermilion, fontSize: 12.5, fontWeight: "700" },
-  meldAdd: { flexDirection: "row", gap: 8, marginTop: 6 },
+  meldAdd: { flexDirection: "row", flexWrap: "wrap", gap: 6, marginTop: 6 },
   meldBtn: {
     paddingVertical: 9,
-    paddingHorizontal: 18,
+    paddingHorizontal: 13,
     borderRadius: radius.base,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: colors.line,

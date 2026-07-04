@@ -67,6 +67,33 @@ describe("KifuEditor（モバイル編集画面）", () => {
     expect(saved.seats.east.river[0]).toMatchObject({ tile: "5p", riichi: true });
   });
 
+  it("局情報メタ（本場/供託/最終巡目）を増やして保存できる", () => {
+    const onSave = jest.fn();
+    render(<KifuEditor initialKifu={makeKifu()} seq={1} initialStatus="draft" onSave={onSave} />);
+    fireEvent.press(screen.getByLabelText("本場を増やす"));
+    fireEvent.press(screen.getByLabelText("本場を増やす"));
+    fireEvent.press(screen.getByLabelText("供託を増やす"));
+    fireEvent.press(screen.getByLabelText("最終巡目を増やす"));
+
+    fireEvent.press(screen.getByText("保存"));
+    const saved = onSave.mock.calls[0]![0] as Kifu;
+    expect(saved.meta.honba).toBe(2);
+    expect(saved.meta.kyotaku).toBe(1);
+    expect(saved.meta.junme).toBe(2); // 既定1 + 1
+  });
+
+  it("裏ドラを選んで保存できる", () => {
+    const onSave = jest.fn();
+    render(<KifuEditor initialKifu={makeKifu()} seq={1} initialStatus="draft" onSave={onSave} />);
+    fireEvent.press(screen.getByLabelText("裏ドラを選ぶ"));
+    fireEvent.press(screen.getByText("字")); // スートタブを字に切替
+    fireEvent.press(screen.getByLabelText("發"));
+
+    fireEvent.press(screen.getByText("保存"));
+    const saved = onSave.mock.calls[0]![0] as Kifu;
+    expect(saved.meta.uraDora).toBe("6z");
+  });
+
   it("編集済に切り替えて保存すると status=complete が渡る", () => {
     const onSave = jest.fn();
     render(<KifuEditor initialKifu={makeKifu()} seq={1} initialStatus="draft" onSave={onSave} />);
@@ -120,5 +147,17 @@ describe("KifuEditor（モバイル編集画面）", () => {
     const saved = onSave.mock.calls[0]![0] as Kifu;
     expect(saved.seats.east.melds[0]?.type).toBe("pon");
     expect(saved.seats.east.melds[0]?.tiles.map((t) => t.tile)).toEqual(["5p", "5p", "5p"]);
+  });
+
+  it("カンは種別（暗槓）を選んで追加できる", () => {
+    const onSave = jest.fn();
+    render(<KifuEditor initialKifu={makeKifu()} seq={1} initialStatus="draft" onSave={onSave} />);
+    fireEvent.press(screen.getByText("暗槓"));
+    fireEvent.press(screen.getByLabelText("1萬"));
+
+    fireEvent.press(screen.getByText("保存"));
+    const saved = onSave.mock.calls[0]![0] as Kifu;
+    expect(saved.seats.east.melds[0]?.type).toBe("kan_closed");
+    expect(saved.seats.east.melds[0]?.tiles.map((t) => t.tile)).toEqual(["1m", "1m", "1m", "1m"]);
   });
 });
