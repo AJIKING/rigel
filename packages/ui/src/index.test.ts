@@ -11,6 +11,7 @@ import {
   needsReview,
   planLabel,
   planMonthlyPrice,
+  planMonthlyPriceAppStore,
   RED_TILE_COLOR,
   REVIEW_CONFIDENCE_THRESHOLD,
   seatLabel,
@@ -120,6 +121,11 @@ describe("プラン表示", () => {
     expect(planLabel("next")).toBe("Next");
     expect(planLabel("pro")).toBe("Pro");
     expect(planMonthlyPrice("next")).toBe(480);
+  });
+  it("planMonthlyPriceAppStore は App Store 手数料ぶん 30% 割増", () => {
+    expect(planMonthlyPriceAppStore("free")).toBe(0);
+    expect(planMonthlyPriceAppStore("next")).toBe(624); // 480 × 1.3
+    expect(planMonthlyPriceAppStore("pro")).toBe(1924); // 1480 × 1.3
   });
   it("upgradeTargets は上位プランだけ返す", () => {
     expect(upgradeTargets("free")).toEqual(["next", "pro"]);

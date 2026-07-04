@@ -10,7 +10,7 @@ import {
   buildRiverPlayback,
   chunk,
   revealCounts,
-  roundName,
+  roundNameForSeq,
   windOf,
 } from "../../lib/board";
 import { useBoardScale } from "../../lib/use-board-scale";
@@ -168,9 +168,7 @@ export function KifuViewer({ detail, gameId }: { detail: PublicGameDetail; gameI
       </Shell>
     );
 
-  // 局名は配列位置(gi)ではなく牌譜の実際の局順(seq)から出す。公開ビューアは公開局の
-  // サブセットを渡すため、gi 基準だと「東一局」からの通し番号になり誤ラベルになる。
-  const round = roundName(Math.max(0, log.seq - 1));
+  const round = roundNameForSeq(log.seq);
   const authorName = detail.owner.handle ?? detail.owner.id.slice(0, 6);
   const curJunme = revealed[dealer];
   const resultLabel =
@@ -350,7 +348,7 @@ export function KifuViewer({ detail, gameId }: { detail: PublicGameDetail; gameI
                 >
                   {detail.logs.map((l, i) => (
                     <option key={l.id} value={i}>
-                      {roundName(Math.max(0, l.seq - 1))}
+                      {roundNameForSeq(l.seq)}
                     </option>
                   ))}
                 </select>
@@ -473,7 +471,7 @@ export function KifuViewer({ detail, gameId }: { detail: PublicGameDetail; gameI
                           className={`${s.ritem} ${i === gi ? s.on : ""}`}
                           onClick={() => switchLog(i)}
                         >
-                          {roundName(Math.max(0, l.seq - 1))} <small>第{l.seq}局</small>
+                          {roundNameForSeq(l.seq)} <small>第{l.seq}局</small>
                         </button>
                       ))}
                     </div>

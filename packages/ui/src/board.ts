@@ -19,6 +19,14 @@ export function roundName(index: number): string {
   return `${WINDS[Math.min(Math.floor(index / 4), 3)]}${KANJI[index % 4]}局`;
 }
 
+/**
+ * 局順 seq(1始まり) から局名を出す。局名は配列位置ではなく牌譜の実際の局順から
+ * 出すこと（公開ビューアは公開局のサブセットを受け取るため、位置基準だと誤ラベルになる）。
+ */
+export function roundNameForSeq(seq: number): string {
+  return roundName(Math.max(0, seq - 1));
+}
+
 /** 配列を n 個ずつに分割。 */
 export function chunk<T>(a: T[], n: number): T[][] {
   const r: T[][] = [];

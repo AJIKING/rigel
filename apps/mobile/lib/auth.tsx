@@ -11,6 +11,8 @@ interface AuthState {
   loading: boolean;
   signInWithGoogle: (idToken: string) => Promise<void>;
   signOut: () => void;
+  /** /me を再取得して user を最新化する（プロフィール保存後など）。 */
+  refresh: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthState | null>(null);
@@ -52,8 +54,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
   }, []);
 
+  const refresh = useCallback(async () => {
+    if (!token) return;
+    const u = await fetchMe(token);
+    if (u) setUser(u);
+  }, [token]);
+
   return (
-    <AuthContext.Provider value={{ user, token, loading, signInWithGoogle, signOut }}>
+    <AuthContext.Provider value={{ user, token, loading, signInWithGoogle, signOut, refresh }}>
       {children}
     </AuthContext.Provider>
   );

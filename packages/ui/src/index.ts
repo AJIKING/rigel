@@ -128,6 +128,14 @@ export function planMonthlyPrice(plan: Plan): number {
   return PLAN_MONTHLY_PRICE[plan];
 }
 
+/** App Store 決済の手数料率（Apple の 30%）。IAP 経由の販売価格に上乗せする。 */
+export const APP_STORE_FEE_RATE = 0.3;
+
+/** App Store（アプリ内課金）経由の月額（円）。手数料ぶん 30% 割増した価格。 */
+export function planMonthlyPriceAppStore(plan: Plan): number {
+  return Math.round(PLAN_MONTHLY_PRICE[plan] * (1 + APP_STORE_FEE_RATE));
+}
+
 /** いまのプランからアップグレード可能な有料プラン（上位のみ）。 */
 export function upgradeTargets(plan: Plan): PaidPlan[] {
   if (plan === "pro") return [];

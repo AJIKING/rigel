@@ -12,8 +12,19 @@ import type { AppContainer } from "../../composition-root";
 import { buildContainer } from "../../composition-root";
 import type { Env } from "../../env";
 import type { AnalysisInput, ImageRef } from "../../domain/kifu/analyzer";
-import { monthlyCallQuota } from "../../domain/user/user";
+import { monthlyCallQuota, type User } from "../../domain/user/user";
 import { parseKifu } from "./validate";
+
+/** /auth/google と /me が共通で返すユーザープロフィール項目（JSON 整形）。 */
+function userProfileJson(user: User) {
+  return {
+    id: user.id,
+    plan: user.plan,
+    handle: user.handle,
+    displayName: user.displayName,
+    profilePublic: user.profilePublic,
+  };
+}
 
 function asFile(value: unknown): File | null {
   return value instanceof File ? value : null;
@@ -127,10 +138,9 @@ export function createApp(): Hono<AppEnv> {
       const { sessionToken, user, created } = await c
         .get("container")
         .authenticateWithGoogle.execute({ idToken: body.idToken });
-      return c.json(
-        { sessionToken, created, user: { id: user.id, plan: user.plan } },
-        created ? 201 : 200,
-      );
+      // /me と同じプロフィール項目を同梱する。ログイン直後の設定画面が
+      // 自動設定済みの handle/表示名を（/me 再取得なしで）すぐ表示できるように。
+      return c.json({ sessionToken, created, user: userProfileJson(user) }, created ? 201 : 200);
     } catch {
       return c.json({ error: "invalid Google token" }, 401);
     }
@@ -174,11 +184,7 @@ export function createApp(): Hono<AppEnv> {
     const user = await c.get("container").getUser.execute(c.get("userId")!);
     if (!user) return c.json({ error: "not found" }, 404);
     return c.json({
-      id: user.id,
-      plan: user.plan,
-      handle: user.handle,
-      displayName: user.displayName,
-      profilePublic: user.profilePublic,
+      ...userProfileJson(user),
       analysisCountThisMonth: user.analysisCountThisMonth,
       monthlyCallQuota: monthlyCallQuota(user.plan),
       remainingCalls: user.remainingCalls(new Date()),

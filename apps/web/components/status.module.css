@@ -1,0 +1,91 @@
+/* ============================================================
+   404 / 500 ステータス画面。テーマ変数は app/theme.css の .themeApp が供給する。
+   ============================================================ */
+
+.shell {
+  background: var(--bg);
+  color: var(--white);
+  font-family: "Noto Sans JP", sans-serif;
+  display: grid;
+  place-items: center;
+}
+
+.center {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 32px 22px;
+}
+
+.code {
+  margin: 0;
+  font-family: var(--round);
+  font-weight: 800;
+  font-size: 64px;
+  line-height: 1;
+  letter-spacing: 0.06em;
+  color: var(--accent);
+}
+
+.h1 {
+  margin: 14px 0 0;
+  font-family: var(--round);
+  font-weight: 800;
+  font-size: 20px;
+  letter-spacing: 0.04em;
+}
+
+.message {
+  margin: 12px 0 0;
+  max-width: 420px;
+  font-size: 13.5px;
+  line-height: 2;
+  color: var(--w70);
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 26px;
+}
+
+.home,
+.retry {
+  display: inline-grid;
+  place-items: center;
+  min-width: 132px;
+  height: 40px;
+  padding: 0 18px;
+  font-family: var(--round);
+  font-weight: 700;
+  font-size: 13.5px;
+  letter-spacing: 0.04em;
+  border-radius: var(--r);
+  cursor: pointer;
+  transition:
+    color 0.15s,
+    border-color 0.15s,
+    background 0.15s;
+}
+
+.home {
+  color: var(--w85);
+  text-decoration: none;
+  background: transparent;
+  border: 1px solid var(--line-2);
+}
+.home:hover {
+  color: #fff;
+  border-color: var(--w45);
+}
+
+.retry {
+  color: #fff;
+  background: var(--em);
+  border: 1px solid transparent;
+}
+.retry:hover {
+  background: var(--em-deep);
+}

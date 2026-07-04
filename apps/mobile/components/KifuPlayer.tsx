@@ -1,6 +1,6 @@
 import type { GameLog } from "@rigel/client";
 import type { Kifu, Seat } from "@rigel/schema";
-import { buildRiverPlayback, revealCounts, roundName, windOf, SEAT_ORDER } from "@rigel/ui";
+import { buildRiverPlayback, revealCounts, roundNameForSeq, windOf, SEAT_ORDER } from "@rigel/ui";
 import { useEffect, useMemo, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -8,6 +8,7 @@ import Svg, { Path, Rect } from "react-native-svg";
 import { colors, radius } from "../lib/theme";
 import { AgariSheet } from "./AgariSheet";
 import { BoardTable } from "./BoardTable";
+import { BottomSheet } from "./BottomSheet";
 import { CenterState } from "./CenterState";
 
 const RESULT_LABEL: Record<string, string> = {
@@ -65,9 +66,7 @@ export function KifuPlayer({
 
   if (!log || !kifu) return <CenterState message="この半荘には局がありません。" />;
 
-  // 局名は配列位置(gi)ではなく牌譜の実際の局順(seq)から出す。公開ビューアは公開局の
-  // サブセットを渡すため、gi 基準だと「東一局」からの通し番号になり誤ラベルになる。
-  const roundLabel = roundName(Math.max(0, log.seq - 1));
+  const roundLabel = roundNameForSeq(log.seq);
   const showAgari = atEnd && kifu.agari.length > 0 && !agariClosed;
   const curJunme = revealed[dealer];
   // 卓は横幅いっぱいまで拡大（上限は大画面向けの保険）。縦は上部バー＋場ナビ分を控えて溢れを防ぐ。
@@ -172,12 +171,9 @@ export function KifuPlayer({
         </View>
       </View>
 
-      {/* 情報シート */}
+      {/* 情報シート（backdrop 無し＝出したまま下の場ナビを操作できる） */}
       {sheetOpen ? (
-        <View style={styles.sheet}>
-          <Pressable style={styles.handle} onPress={() => setSheetOpen(false)}>
-            <View style={styles.grabber} />
-          </Pressable>
+        <BottomSheet onClose={() => setSheetOpen(false)} backdrop={false} maxHeight="70%">
           <ScrollView contentContainerStyle={styles.sheetBody}>
             <Text style={styles.h3}>局情報</Text>
             <KV k="親" v={`${windOf(dealer, dealer)}家`} />
@@ -194,7 +190,7 @@ export function KifuPlayer({
             ))}
             <Text style={styles.muted}>点数は記録しません（打点は牌姿から計算）。</Text>
           </ScrollView>
-        </View>
+        </BottomSheet>
       ) : null}
 
       {/* 和了演出 */}
@@ -381,26 +377,7 @@ const styles = StyleSheet.create({
   togOn: { backgroundColor: colors.accentSoft, borderColor: colors.accent },
   togText: { color: colors.w70, fontWeight: "800", fontSize: 13.5 },
   togTextOn: { color: colors.accent },
-  sheet: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    bottom: 0,
-    zIndex: 30,
-    backgroundColor: colors.chrome,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: colors.line,
-    borderTopLeftRadius: 12,
-    borderTopRightRadius: 12,
-    maxHeight: "70%",
-    shadowColor: "#000",
-    shadowOpacity: 0.5,
-    shadowRadius: 20,
-    shadowOffset: { width: 0, height: -10 },
-  },
-  handle: { paddingVertical: 9, alignItems: "center" },
-  grabber: { width: 38, height: 4, borderRadius: 99, backgroundColor: colors.w45 },
-  sheetBody: { paddingHorizontal: 16, paddingBottom: 24 },
+  sheetBody: { paddingBottom: 8 },
   h3: { color: colors.w45, fontWeight: "800", fontSize: 12, marginTop: 12, marginBottom: 8 },
   kv: {
     flexDirection: "row",

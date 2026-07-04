@@ -1,6 +1,13 @@
 import { KifuSchema } from "@rigel/schema";
 import { describe, expect, it } from "vitest";
-import { buildRiverPlayback, chunk, revealCounts, roundName, windOf } from "./board";
+import {
+  buildRiverPlayback,
+  chunk,
+  revealCounts,
+  roundName,
+  roundNameForSeq,
+  windOf,
+} from "./board";
 
 function kifuWith(rivers: Partial<Record<"east" | "south" | "west" | "north", string[]>>) {
   const seat = (tiles: string[] = []) => ({
@@ -34,6 +41,18 @@ describe("roundName", () => {
     expect(roundName(0)).toBe("東一局");
     expect(roundName(3)).toBe("東四局");
     expect(roundName(4)).toBe("南一局");
+  });
+});
+
+describe("roundNameForSeq", () => {
+  it("局順(seq, 1始まり)を局名に（公開サブセットでも正しい局名になる）", () => {
+    expect(roundNameForSeq(1)).toBe("東一局");
+    expect(roundNameForSeq(3)).toBe("東三局");
+    expect(roundNameForSeq(5)).toBe("南一局");
+  });
+  it("不正な seq(0以下) は東一局に丸める", () => {
+    expect(roundNameForSeq(0)).toBe("東一局");
+    expect(roundNameForSeq(-2)).toBe("東一局");
   });
 });
 

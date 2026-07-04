@@ -1,7 +1,8 @@
 import { totalHan, type Agari, type Kifu, type Seat } from "@rigel/schema";
 import { agariDeltas, scoreAgari, windOf, SEAT_ORDER } from "@rigel/ui";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { colors, radius } from "../lib/theme";
+import { BottomSheet, SheetCloseButton } from "./BottomSheet";
 import { MiniTile } from "./MiniTile";
 
 /** 和了演出シート（和了牌・役・打点・点数増減）。点数の絶対値は記録しないため増減のみ表示。 */
@@ -19,41 +20,37 @@ export function AgariSheet({
   const deltas = agariDeltas(kifu);
 
   return (
-    <View style={styles.overlay}>
-      <View style={styles.card}>
-        <ScrollView>
-          {kifu.agari.map((agari, i) => (
-            <WinBlock key={i} agari={agari} kifu={kifu} dealer={dealer} />
-          ))}
+    <BottomSheet onClose={onClose} grabber={false}>
+      <ScrollView>
+        {kifu.agari.map((agari, i) => (
+          <WinBlock key={i} agari={agari} kifu={kifu} dealer={dealer} />
+        ))}
 
-          <View style={styles.deltas}>
-            {SEAT_ORDER.map((seat) => {
-              const v = deltas[seat] ?? 0;
-              const isWin = kifu.agari.some((a) => a.winner === seat);
-              const wind = windOf(seat, dealer);
-              const isBottom = seat === kifu.cameraBottomSeat;
-              const label = isBottom ? ownerName || `${wind}家` : `${wind}家`;
-              const cls = v > 0 ? styles.plus : v < 0 ? styles.minus : styles.zero;
-              return (
-                <View key={seat} style={[styles.dc, isWin && styles.dcWin]}>
-                  <Text style={styles.dn} numberOfLines={1}>
-                    {label}
-                  </Text>
-                  <Text style={[styles.dv, cls]}>
-                    {v > 0 ? "+" : ""}
-                    {v.toLocaleString()}
-                  </Text>
-                </View>
-              );
-            })}
-          </View>
+        <View style={styles.deltas}>
+          {SEAT_ORDER.map((seat) => {
+            const v = deltas[seat] ?? 0;
+            const isWin = kifu.agari.some((a) => a.winner === seat);
+            const wind = windOf(seat, dealer);
+            const isBottom = seat === kifu.cameraBottomSeat;
+            const label = isBottom ? ownerName || `${wind}家` : `${wind}家`;
+            const cls = v > 0 ? styles.plus : v < 0 ? styles.minus : styles.zero;
+            return (
+              <View key={seat} style={[styles.dc, isWin && styles.dcWin]}>
+                <Text style={styles.dn} numberOfLines={1}>
+                  {label}
+                </Text>
+                <Text style={[styles.dv, cls]}>
+                  {v > 0 ? "+" : ""}
+                  {v.toLocaleString()}
+                </Text>
+              </View>
+            );
+          })}
+        </View>
 
-          <Pressable style={styles.close} onPress={onClose} accessibilityRole="button">
-            <Text style={styles.closeText}>閉じる</Text>
-          </Pressable>
-        </ScrollView>
-      </View>
-    </View>
+        <SheetCloseButton onPress={onClose} />
+      </ScrollView>
+    </BottomSheet>
   );
 }
 
@@ -113,22 +110,6 @@ function WinBlock({ agari, kifu, dealer }: { agari: Agari; kifu: Kifu; dealer: S
 }
 
 const styles = StyleSheet.create({
-  overlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(8,10,13,0.66)",
-    justifyContent: "flex-end",
-  },
-  card: {
-    backgroundColor: colors.chrome,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: colors.line,
-    borderTopLeftRadius: 12,
-    borderTopRightRadius: 12,
-    maxHeight: "88%",
-    paddingHorizontal: 16,
-    paddingTop: 16,
-    paddingBottom: 24,
-  },
   win: { marginBottom: 12 },
   head: { flexDirection: "row", alignItems: "center", gap: 9, marginBottom: 12 },
   kind: {
@@ -190,14 +171,4 @@ const styles = StyleSheet.create({
   plus: { color: colors.emLite },
   minus: { color: colors.vermilion },
   zero: { color: colors.w45 },
-  close: {
-    marginTop: 16,
-    alignSelf: "center",
-    paddingVertical: 10,
-    paddingHorizontal: 28,
-    borderRadius: radius.base,
-    borderWidth: 1,
-    borderColor: colors.line,
-  },
-  closeText: { color: colors.w70, fontWeight: "700" },
 });

@@ -1,30 +1,34 @@
 import {
   checkoutErrorMessage,
   planLabel,
-  planMonthlyPrice,
+  planMonthlyPriceAppStore,
   upgradeTargets,
+  type PaidPlan,
   type Plan,
 } from "@rigel/ui";
 import { useEffect, useState } from "react";
 import { Linking, Pressable, StyleSheet, Switch, Text, TextInput, View } from "react-native";
 import Svg, { Circle, Path } from "react-native-svg";
 import { AppBar } from "../components/AppBar";
+import { PlanSheet } from "../components/PlanSheet";
 import { createCheckout, deleteAccount, updateProfile } from "../lib/api";
 import { useAuth } from "../lib/auth";
 import { colors, radius } from "../lib/theme";
 
+// アプリは App Store（アプリ内課金）経由の販売のため、手数料込み価格を表示する。
 function priceLabel(plan: Plan): string {
-  return plan === "free" ? "無料" : `¥${planMonthlyPrice(plan).toLocaleString()} / 月`;
+  return plan === "free" ? "無料" : `¥${planMonthlyPriceAppStore(plan).toLocaleString()} / 月`;
 }
 
 export function SettingsScreen() {
-  const { user, token, signOut } = useAuth();
+  const { user, token, signOut, refresh } = useAuth();
   const [handle, setHandle] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [profilePublic, setProfilePublic] = useState(true);
   const [note, setNote] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [delArm, setDelArm] = useState(false);
+  const [planOpen, setPlanOpen] = useState(false);
 
   useEffect(() => {
     if (!user) return;
@@ -42,8 +46,11 @@ export function SettingsScreen() {
     setNote(null);
     const res = await updateProfile(token, { handle, displayName });
     setSaving(false);
-    if (res.ok) setNote("保存しました");
-    else if (res.status === 409) setNote("そのIDは既に使われています");
+    if (res.ok) {
+      setNote("保存しました");
+      // 認証コンテキストの user も最新化する（他画面の表示名などに反映）。
+      void refresh();
+    } else if (res.status === 409) setNote("そのIDは既に使われています");
     else if (res.status === 400) setNote("IDは英数字とアンダースコア3〜20文字です");
     else setNote("保存に失敗しました");
   }
@@ -61,12 +68,16 @@ export function SettingsScreen() {
     }
   }
 
-  async function onChangePlan() {
-    if (!token || targets.length === 0) return;
+  // シートで選んだプランを購入する。
+  // TODO(IAP): App Store 審査要件上、実売はアプリ内課金（StoreKit）へ移行する。
+  // ライブラリ選定（expo-iap 等）は要承認のため、それまでは既存の Checkout を開く。
+  async function onSelectPlan(plan: PaidPlan) {
+    setPlanOpen(false);
+    if (!token) return;
     setNote(null);
     try {
       const res = await createCheckout(token, {
-        plan: targets[0],
+        plan,
         successUrl: "https://rigel.app/ok",
         cancelUrl: "https://rigel.app/ng",
       });
@@ -137,7 +148,12 @@ export function SettingsScreen() {
               <Text style={styles.planPrice}>{priceLabel(plan)}</Text>
             </View>
             {targets.length > 0 ? (
-              <Pressable onPress={() => void onChangePlan()}>
+              <Pressable
+                onPress={() => setPlanOpen(true)}
+                accessibilityRole="button"
+                accessibilityLabel="プランを変更"
+                hitSlop={10}
+              >
                 <Text style={styles.go}>変更 ›</Text>
               </Pressable>
             ) : null}
@@ -181,6 +197,15 @@ export function SettingsScreen() {
 
         {!token ? <Text style={styles.loginNote}>設定の保存にはログインが必要です。</Text> : null}
       </View>
+
+      {/* プラン変更: 下からのシートで選択（アプリは App Store 価格 = 手数料込み）。 */}
+      {planOpen ? (
+        <PlanSheet
+          targets={targets}
+          onSelect={(p) => void onSelectPlan(p)}
+          onClose={() => setPlanOpen(false)}
+        />
+      ) : null}
     </View>
   );
 }
