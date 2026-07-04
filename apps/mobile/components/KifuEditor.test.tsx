@@ -149,6 +149,17 @@ describe("KifuEditor（モバイル編集画面）", () => {
     expect(saved.seats.east.melds[0]?.tiles.map((t) => t.tile)).toEqual(["5p", "5p", "5p"]);
   });
 
+  it("ルール設定で赤ドラを各2枚にして保存できる", () => {
+    const onSave = jest.fn();
+    render(<KifuEditor initialKifu={makeKifu()} seq={1} initialStatus="draft" onSave={onSave} />);
+    fireEvent.press(screen.getByText(/ルール設定/));
+    fireEvent.press(screen.getByText("各2枚")); // 赤ドラ=各2枚
+    fireEvent.press(screen.getByLabelText("ルールを保存")); // シートを閉じる
+    fireEvent.press(screen.getByText("保存")); // エディタの保存
+    const saved = onSave.mock.calls[0]![0] as Kifu;
+    expect(saved.rules.aka).toBe("2");
+  });
+
   it("カンは種別（暗槓）を選んで追加できる", () => {
     const onSave = jest.fn();
     render(<KifuEditor initialKifu={makeKifu()} seq={1} initialStatus="draft" onSave={onSave} />);

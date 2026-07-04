@@ -29,6 +29,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { colors, radius } from "../lib/theme";
 import { AgariForm } from "./AgariForm";
 import { MiniTile } from "./MiniTile";
+import { RulesSheet } from "./RulesSheet";
 import { Segment } from "./Segment";
 import { Stepper } from "./Stepper";
 import { TilePickerSheet } from "./TilePickerSheet";
@@ -75,6 +76,7 @@ export function KifuEditor({
   const [seat, setSeat] = useState<Seat>(initialKifu.cameraBottomSeat ?? "east");
   const [picker, setPicker] = useState<Picker>(null);
   const [status, setStatus] = useState<KifuStatus>(initialStatus);
+  const [rulesOpen, setRulesOpen] = useState(false);
 
   const dealer = kifu.meta.dealer ?? "east";
   const board = kifu.seats[seat];
@@ -230,6 +232,13 @@ export function KifuEditor({
               })
             }
           />
+          <Pressable
+            style={styles.rulesBtn}
+            onPress={() => setRulesOpen(true)}
+            accessibilityRole="button"
+          >
+            <Text style={styles.rulesBtnText}>⚙ ルール設定</Text>
+          </Pressable>
         </View>
 
         {/* 編集する席 */}
@@ -397,6 +406,19 @@ export function KifuEditor({
           onClose={() => setPicker(null)}
         />
       ) : null}
+
+      {rulesOpen ? (
+        <RulesSheet
+          rules={kifu.rules}
+          onSave={(r) => {
+            mutate((d) => {
+              d.rules = r;
+            });
+            setRulesOpen(false);
+          }}
+          onClose={() => setRulesOpen(false)}
+        />
+      ) : null}
     </View>
   );
 }
@@ -438,6 +460,16 @@ const styles = StyleSheet.create({
     padding: 12,
     marginTop: 4,
   },
+  rulesBtn: {
+    alignSelf: "flex-start",
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: radius.base,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.line,
+    backgroundColor: colors.chrome2,
+  },
+  rulesBtnText: { color: colors.w70, fontWeight: "700", fontSize: 12.5 },
   segRow: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 4 },
   section: { color: colors.w45, fontSize: 12, fontWeight: "800", marginTop: 12 },
   tiles: { flexDirection: "row", flexWrap: "wrap", gap: 5, alignItems: "center" },
