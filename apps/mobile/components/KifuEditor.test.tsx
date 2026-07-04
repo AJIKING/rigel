@@ -149,6 +149,24 @@ describe("KifuEditor（モバイル編集画面）", () => {
     expect(saved.seats.east.melds[0]?.tiles.map((t) => t.tile)).toEqual(["5p", "5p", "5p"]);
   });
 
+  it("手順タブに切り替えると席編集が消え、打牌を足すと河に反映して保存できる", () => {
+    const onSave = jest.fn();
+    render(<KifuEditor initialKifu={makeKifu()} seq={1} initialStatus="draft" onSave={onSave} />);
+    // 既定は盤面タブ（手牌セクションが出る）。
+    expect(screen.getByText(/手牌/)).toBeTruthy();
+    fireEvent.press(screen.getByText("手順"));
+    // 手順タブでは手牌セクションは消え、追加ボタンが出る。
+    expect(screen.queryByText(/手牌（/)).toBeNull();
+    fireEvent.press(screen.getByText("＋打牌"));
+    fireEvent.press(screen.getByLabelText("打牌を選ぶ"));
+    fireEvent.press(screen.getByLabelText("3萬"));
+
+    fireEvent.press(screen.getByText("保存"));
+    const saved = onSave.mock.calls[0]![0] as Kifu;
+    expect(saved.seats.east.river.map((d) => d.tile)).toEqual(["3m"]);
+    expect(saved.timeline).toHaveLength(1);
+  });
+
   it("ルール設定で赤ドラを各2枚にして保存できる", () => {
     const onSave = jest.fn();
     render(<KifuEditor initialKifu={makeKifu()} seq={1} initialStatus="draft" onSave={onSave} />);

@@ -33,6 +33,7 @@ import { RulesSheet } from "./RulesSheet";
 import { Segment } from "./Segment";
 import { Stepper } from "./Stepper";
 import { TilePickerSheet } from "./TilePickerSheet";
+import { TimelineEditor } from "./TimelineEditor";
 
 /** ピッカーが「今なにを編集しているか」。 */
 type Picker =
@@ -77,6 +78,8 @@ export function KifuEditor({
   const [picker, setPicker] = useState<Picker>(null);
   const [status, setStatus] = useState<KifuStatus>(initialStatus);
   const [rulesOpen, setRulesOpen] = useState(false);
+  // 盤面（席ごと）/ 手順（タイムライン）の編集モード。web の 盤面/手順 タブと同等。
+  const [mode, setMode] = useState<"board" | "timeline">("board");
 
   const dealer = kifu.meta.dealer ?? "east";
   const board = kifu.seats[seat];
@@ -241,92 +244,112 @@ export function KifuEditor({
           </Pressable>
         </View>
 
-        {/* 編集する席 */}
-        <View style={styles.segRow}>
-          <Text style={styles.metaLabel}>席</Text>
+        {/* 盤面 / 手順 の編集モード切替 */}
+        <View style={styles.tabRow}>
           <Segment
-            options={SeatSchema.options.map(
-              (s) => [s, `${seatLabel(s)}（${windOf(s, dealer)}家）`] as const,
-            )}
-            value={seat}
-            onChange={setSeat}
-            compact
+            options={
+              [
+                ["board", "盤面"],
+                ["timeline", "手順"],
+              ] as const
+            }
+            value={mode}
+            onChange={setMode}
           />
         </View>
 
-        {/* 手牌 */}
-        <SectionLabel>手牌（{board.hand.length}枚）</SectionLabel>
-        <View style={styles.tiles}>
-          {board.hand.map((t, i) => (
-            <Pressable
-              key={`h${i}`}
-              onPress={() =>
-                setPicker({
-                  kind: "edit-hand",
-                  index: i,
-                  suit: (t.tile?.[1] as PickerSuit) ?? "m",
-                })
-              }
-              accessibilityRole="button"
-            >
-              <MiniTile code={t.tile} w={30} h={42} />
-            </Pressable>
-          ))}
-          <AddButton label="手牌に追加" onPress={() => setPicker({ kind: "add-hand" })} />
-        </View>
+        {mode === "timeline" ? (
+          <TimelineEditor kifu={kifu} dealer={dealer} onChange={setKifu} />
+        ) : (
+          <>
+            {/* 編集する席 */}
+            <View style={styles.segRow}>
+              <Text style={styles.metaLabel}>席</Text>
+              <Segment
+                options={SeatSchema.options.map(
+                  (s) => [s, `${seatLabel(s)}（${windOf(s, dealer)}家）`] as const,
+                )}
+                value={seat}
+                onChange={setSeat}
+                compact
+              />
+            </View>
 
-        {/* 河 */}
-        <SectionLabel>河（{board.river.length}枚）</SectionLabel>
-        <View style={styles.tiles}>
-          {board.river.map((d, i) => (
-            <Pressable
-              key={`r${i}`}
-              onPress={() =>
-                setPicker({
-                  kind: "edit-river",
-                  index: i,
-                  suit: (d.tile?.[1] as PickerSuit) ?? "m",
-                })
-              }
-              accessibilityRole="button"
-            >
-              <MiniTile code={d.tile} w={30} h={42} riichi={d.riichi} tsumogiri={d.tsumogiri} />
-            </Pressable>
-          ))}
-          <AddButton label="河に追加" onPress={() => setPicker({ kind: "add-river" })} />
-        </View>
+            {/* 手牌 */}
+            <SectionLabel>手牌（{board.hand.length}枚）</SectionLabel>
+            <View style={styles.tiles}>
+              {board.hand.map((t, i) => (
+                <Pressable
+                  key={`h${i}`}
+                  onPress={() =>
+                    setPicker({
+                      kind: "edit-hand",
+                      index: i,
+                      suit: (t.tile?.[1] as PickerSuit) ?? "m",
+                    })
+                  }
+                  accessibilityRole="button"
+                >
+                  <MiniTile code={t.tile} w={30} h={42} />
+                </Pressable>
+              ))}
+              <AddButton label="手牌に追加" onPress={() => setPicker({ kind: "add-hand" })} />
+            </View>
 
-        {/* 鳴き */}
-        <SectionLabel>鳴き</SectionLabel>
-        {board.melds.map((m, mi) => (
-          <View key={`m${mi}`} style={styles.meldRow}>
-            <View style={styles.meldTiles}>
-              {m.tiles.map((t, ti) => (
-                <MiniTile key={ti} code={t.tile} w={26} h={36} />
+            {/* 河 */}
+            <SectionLabel>河（{board.river.length}枚）</SectionLabel>
+            <View style={styles.tiles}>
+              {board.river.map((d, i) => (
+                <Pressable
+                  key={`r${i}`}
+                  onPress={() =>
+                    setPicker({
+                      kind: "edit-river",
+                      index: i,
+                      suit: (d.tile?.[1] as PickerSuit) ?? "m",
+                    })
+                  }
+                  accessibilityRole="button"
+                >
+                  <MiniTile code={d.tile} w={30} h={42} riichi={d.riichi} tsumogiri={d.tsumogiri} />
+                </Pressable>
+              ))}
+              <AddButton label="河に追加" onPress={() => setPicker({ kind: "add-river" })} />
+            </View>
+
+            {/* 鳴き */}
+            <SectionLabel>鳴き</SectionLabel>
+            {board.melds.map((m, mi) => (
+              <View key={`m${mi}`} style={styles.meldRow}>
+                <View style={styles.meldTiles}>
+                  {m.tiles.map((t, ti) => (
+                    <MiniTile key={ti} code={t.tile} w={26} h={36} />
+                  ))}
+                </View>
+                <Pressable
+                  onPress={() => setKifu(removeMeld(kifu, seat, mi))}
+                  accessibilityRole="button"
+                  accessibilityLabel={`鳴き${mi + 1}を削除`}
+                  hitSlop={8}
+                >
+                  <Text style={styles.meldDelete}>削除</Text>
+                </Pressable>
+              </View>
+            ))}
+            <View style={styles.meldAdd}>
+              {MELD_LABELS.map(({ type, label }) => (
+                <Pressable
+                  key={type}
+                  style={styles.meldBtn}
+                  onPress={() => setPicker({ kind: "add-meld", meld: type })}
+                  accessibilityRole="button"
+                >
+                  <Text style={styles.meldBtnText}>{label}</Text>
+                </Pressable>
               ))}
             </View>
-            <Pressable
-              onPress={() => setKifu(removeMeld(kifu, seat, mi))}
-              accessibilityRole="button"
-              accessibilityLabel={`鳴き${mi + 1}を削除`}
-              hitSlop={8}
-            >
-              <Text style={styles.meldDelete}>削除</Text>
-            </Pressable>
-          </View>
-        ))}
-        <View style={styles.meldAdd}>
-          {MELD_LABELS.map(({ type, label }) => (
-            <Pressable
-              key={type}
-              style={styles.meldBtn}
-              onPress={() => setPicker({ kind: "add-meld", meld: type })}
-              accessibilityRole="button"
-            >
-              <Text style={styles.meldBtnText}>{label}</Text>
-            </Pressable>
-          ))}
-        </View>
+          </>
+        )}
 
         {/* 結果・和了（点数は保存せず役/符から計算＝打点プレビュー） */}
         <SectionLabel>結果</SectionLabel>
@@ -471,6 +494,7 @@ const styles = StyleSheet.create({
   },
   rulesBtnText: { color: colors.w70, fontWeight: "700", fontSize: 12.5 },
   segRow: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 4 },
+  tabRow: { flexDirection: "row", marginTop: 4 },
   section: { color: colors.w45, fontSize: 12, fontWeight: "800", marginTop: 12 },
   tiles: { flexDirection: "row", flexWrap: "wrap", gap: 5, alignItems: "center" },
   add: {
