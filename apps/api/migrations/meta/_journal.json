@@ -36,6 +36,13 @@
       "when": 1782949999044,
       "tag": "0004_tranquil_warbound",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1783164448131,
+      "tag": "0005_brave_mauler",
+      "breakpoints": true
     }
   ]
 }

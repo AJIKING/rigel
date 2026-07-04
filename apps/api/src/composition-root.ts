@@ -14,7 +14,10 @@ import { GetGameWithLogs } from "./application/get-game-with-logs.usecase";
 import { GetKifu } from "./application/get-kifu.usecase";
 import { GetPublicGameDetail } from "./application/get-public-game-detail.usecase";
 import { GetUser } from "./application/get-user.usecase";
+import { HandleAppStoreNotification } from "./application/handle-appstore-notification.usecase";
 import { HandleBillingWebhook } from "./application/handle-billing-webhook.usecase";
+import { OpenBillingPortal } from "./application/open-billing-portal.usecase";
+import { RedeemAppStorePurchase } from "./application/redeem-appstore-purchase.usecase";
 import { ListGames } from "./application/list-games.usecase";
 import { ListMyGamesWithCounts, ListPublicGames } from "./application/list-game-cards.usecase";
 import { DeleteAccount, GetPublicProfile, UpdateProfile } from "./application/profile.usecase";
@@ -26,6 +29,7 @@ import type { SessionService } from "./domain/auth/session";
 import type { Env } from "./env";
 import { JoseGoogleTokenVerifier } from "./infrastructure/auth/jose-google-token-verifier";
 import { JwtSessionService } from "./infrastructure/auth/jwt-session-service";
+import { AppleAppStoreVerifier } from "./infrastructure/billing/apple-appstore-verifier";
 import { StripeBillingGateway } from "./infrastructure/billing/stripe-billing-gateway";
 import { DrizzleAnalysisStore } from "./infrastructure/analysis/drizzle-analysis-store";
 import { createDb } from "./infrastructure/db/client";
@@ -58,9 +62,14 @@ export interface AppContainer {
   getPublicProfile: GetPublicProfile;
   deleteAccount: DeleteAccount;
   startCheckout: StartCheckout;
+  openBillingPortal: OpenBillingPortal;
   handleBillingWebhook: HandleBillingWebhook;
+  redeemAppStorePurchase: RedeemAppStorePurchase;
+  handleAppStoreNotification: HandleAppStoreNotification;
   /** Stripe 鍵が揃っているか。未設定なら課金ルートは 501 を返す。 */
   billingEnabled: boolean;
+  /** IAP（App Store）設定が揃っているか。未設定なら IAP ルートは 501 を返す。 */
+  iapEnabled: boolean;
   /** 認証ミドルウェアが Bearer トークン検証に使う。 */
   session: SessionService;
 }
@@ -108,6 +117,17 @@ export function buildContainer(env: Env): AppContainer {
     env.STRIPE_PRICE_PRO,
   );
 
+  // IAP（iOS / App Store）。Stripe(web) とは独立した第2の課金経路。
+  const appStoreConfig = {
+    bundleId: env.APPLE_BUNDLE_ID ?? "",
+    productNext: env.APPSTORE_PRODUCT_NEXT ?? "",
+    productPro: env.APPSTORE_PRODUCT_PRO ?? "",
+  };
+  const iapEnabled = Boolean(
+    appStoreConfig.bundleId && appStoreConfig.productNext && appStoreConfig.productPro,
+  );
+  const appStoreVerifier = new AppleAppStoreVerifier();
+
   return {
     analyzeAndSaveKifu: new AnalyzeAndSaveKifu({
       users,
@@ -140,9 +160,22 @@ export function buildContainer(env: Env): AppContainer {
     updateProfile: new UpdateProfile(users),
     getPublicProfile: new GetPublicProfile(users, gamesRepo, gameLogs),
     deleteAccount: new DeleteAccount(users, gamesRepo, gameLogs),
-    startCheckout: new StartCheckout(billing),
+    startCheckout: new StartCheckout(billing, users),
+    openBillingPortal: new OpenBillingPortal(billing),
     handleBillingWebhook: new HandleBillingWebhook(billing, users),
+    redeemAppStorePurchase: new RedeemAppStorePurchase({
+      verifier: appStoreVerifier,
+      users,
+      config: appStoreConfig,
+      now,
+    }),
+    handleAppStoreNotification: new HandleAppStoreNotification({
+      verifier: appStoreVerifier,
+      users,
+      config: appStoreConfig,
+    }),
     billingEnabled,
+    iapEnabled,
     session,
   };
 }

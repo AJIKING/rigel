@@ -318,15 +318,72 @@ export function createApp(): Hono<AppEnv> {
       return c.json({ error: "successUrl と cancelUrl が必要です" }, 400);
     }
     try {
-      const { url } = await container.startCheckout.execute({
+      const result = await container.startCheckout.execute({
         userId: c.get("userId")!,
         plan: body.plan,
         successUrl: body.successUrl,
         cancelUrl: body.cancelUrl,
       });
-      return c.json({ url });
+      // 加入中の作り直しは二重サブスク＝二重課金になるため 409（ポータルで変更する）。
+      if (!result.ok) return c.json({ error: "already subscribed" }, 409);
+      return c.json({ url: result.url });
     } catch {
       return c.json({ error: "checkout の作成に失敗しました" }, 502);
+    }
+  });
+
+  // 課金: 決済ポータル（プラン変更・解約・支払い方法）。加入中ユーザーのみ（未加入は 404）。
+  app.post("/billing/portal", requireAuth, async (c) => {
+    const container = c.get("container");
+    if (!container.billingEnabled) return c.json({ error: "billing not configured" }, 501);
+    const body = (await c.req.json().catch(() => null)) as { returnUrl?: unknown } | null;
+    if (typeof body?.returnUrl !== "string") {
+      return c.json({ error: "returnUrl が必要です" }, 400);
+    }
+    try {
+      const result = await container.openBillingPortal.execute({
+        userId: c.get("userId")!,
+        returnUrl: body.returnUrl,
+      });
+      if (!result.ok) return c.json({ error: "not subscribed" }, 404);
+      return c.json({ url: result.url });
+    } catch {
+      return c.json({ error: "portal の作成に失敗しました" }, 502);
+    }
+  });
+
+  // IAP: 購入の引き換え（アプリが StoreKit 2 の署名済みトランザクション JWS を送る。要認証）。
+  app.post("/billing/appstore/redeem", requireAuth, async (c) => {
+    const container = c.get("container");
+    if (!container.iapEnabled) return c.json({ error: "iap not configured" }, 501);
+    const body = (await c.req.json().catch(() => null)) as { jws?: unknown } | null;
+    if (typeof body?.jws !== "string") return c.json({ error: "jws required" }, 400);
+    const result = await container.redeemAppStorePurchase.execute({
+      userId: c.get("userId")!,
+      jws: body.jws,
+    });
+    if (!result.ok) {
+      const status = result.reason === "not_found" ? 404 : result.reason === "expired" ? 410 : 400;
+      return c.json({ ok: false, reason: result.reason }, status);
+    }
+    return c.json({ ok: true, plan: result.plan });
+  });
+
+  // IAP: App Store Server Notifications V2（Apple から直接。x5c 署名検証で真正性を担保）。
+  app.post("/billing/appstore/notifications", async (c) => {
+    const container = c.get("container");
+    if (!container.iapEnabled) return c.json({ error: "iap not configured" }, 501);
+    const body = (await c.req.json().catch(() => null)) as { signedPayload?: unknown } | null;
+    if (typeof body?.signedPayload !== "string") {
+      return c.json({ error: "signedPayload required" }, 400);
+    }
+    try {
+      const result = await container.handleAppStoreNotification.execute({
+        signedPayload: body.signedPayload,
+      });
+      return c.json({ received: true, handled: result.handled });
+    } catch {
+      return c.json({ error: "invalid notification" }, 400);
     }
   });
 

@@ -28,6 +28,27 @@ function asPaidPlan(value: unknown): PaidPlan | null {
   return value === "next" || value === "pro" ? value : null;
 }
 
+/**
+ * customer.subscription.updated を正規化する（純関数）。Billing Portal でのプラン変更を
+ * 反映する経路。active/trialing の価格IDからプランを引き、判定できないものは無視する
+ * （誤って free に落とさない。解約確定は customer.subscription.deleted 側が担う）。
+ */
+export function subscriptionUpdatedEvent(
+  sub: {
+    status?: string | null;
+    metadata?: Record<string, string> | null;
+    items?: { data?: { price?: { id?: string | null } | null }[] | null } | null;
+  },
+  prices: { priceNext: string; pricePro: string },
+): BillingEvent {
+  const userId = sub.metadata?.userId;
+  if (!userId) return { type: "ignored" };
+  if (sub.status !== "active" && sub.status !== "trialing") return { type: "ignored" };
+  const priceId = sub.items?.data?.[0]?.price?.id;
+  const plan = priceId === prices.pricePro ? "pro" : priceId === prices.priceNext ? "next" : null;
+  return plan ? { type: "subscribed", userId, plan } : { type: "ignored" };
+}
+
 export class StripeBillingGateway implements BillingGateway {
   constructor(private readonly config: StripeBillingConfig) {}
 
@@ -76,8 +97,31 @@ export class StripeBillingGateway implements BillingGateway {
         const userId = subscription.metadata?.userId;
         return userId ? { type: "unsubscribed", userId } : { type: "ignored" };
       }
+      // Billing Portal でのプラン変更（next↔pro）を反映する。
+      case "customer.subscription.updated":
+        return subscriptionUpdatedEvent(event.data.object, this.config);
       default:
         return { type: "ignored" };
     }
+  }
+
+  async createPortalSession(params: {
+    userId: string;
+    returnUrl: string;
+  }): Promise<{ url: string } | null> {
+    const stripe = await this.client();
+    // 顧客IDは保存しない設計のため、サブスクの metadata.userId から逆引きする。
+    const found = await stripe.subscriptions.search({
+      query: `metadata["userId"]:"${params.userId}"`,
+      limit: 10,
+    });
+    const active = found.data.find((s) => s.status === "active" || s.status === "trialing");
+    if (!active) return null;
+    const customer = typeof active.customer === "string" ? active.customer : active.customer.id;
+    const session = await stripe.billingPortal.sessions.create({
+      customer,
+      return_url: params.returnUrl,
+    });
+    return { url: session.url };
   }
 }

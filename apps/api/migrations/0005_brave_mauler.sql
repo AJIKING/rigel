@@ -1,0 +1,2 @@
+ALTER TABLE `users` ADD `appstore_original_transaction_id` text;--> statement-breakpoint
+CREATE UNIQUE INDEX `users_appstore_original_transaction_id_unique` ON `users` (`appstore_original_transaction_id`);

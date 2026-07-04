@@ -17,6 +17,7 @@ function toDomain(row: UserRow): User {
     handle: row.handle,
     displayName: row.displayName,
     profilePublic: row.profilePublic,
+    appStoreOriginalTransactionId: row.appStoreOriginalTransactionId,
   });
 }
 
@@ -38,6 +39,15 @@ export class DrizzleUserRepository implements UserRepository {
     return row ? toDomain(row) : null;
   }
 
+  async findByAppStoreOriginalTransactionId(originalTransactionId: string): Promise<User | null> {
+    const row = await this.db
+      .select()
+      .from(users)
+      .where(eq(users.appStoreOriginalTransactionId, originalTransactionId))
+      .get();
+    return row ? toDomain(row) : null;
+  }
+
   async save(user: User): Promise<void> {
     const p = user.toProps();
     const values = {
@@ -49,6 +59,7 @@ export class DrizzleUserRepository implements UserRepository {
       profilePublic: p.profilePublic,
       analysisCountThisMonth: p.analysisCountThisMonth,
       countResetAt: p.countResetAt,
+      appStoreOriginalTransactionId: p.appStoreOriginalTransactionId,
     };
     await this.db
       .insert(users)
@@ -62,6 +73,7 @@ export class DrizzleUserRepository implements UserRepository {
           profilePublic: p.profilePublic,
           analysisCountThisMonth: p.analysisCountThisMonth,
           countResetAt: p.countResetAt,
+          appStoreOriginalTransactionId: p.appStoreOriginalTransactionId,
         },
       });
   }

@@ -8,6 +8,8 @@ export interface UserRepository {
   findByGoogleSub(googleSub: string): Promise<User | null>;
   /** 公開ハンドルで検索（別ユーザーページ用）。 */
   findByHandle(handle: string): Promise<User | null>;
+  /** App Store サブスクの元トランザクションIDで検索（IAP の更新/失効通知用）。 */
+  findByAppStoreOriginalTransactionId(originalTransactionId: string): Promise<User | null>;
   /** 新規作成・更新の両方（upsert）。 */
   save(user: User): Promise<void>;
   /** アカウント削除（ユーザー行）。 */

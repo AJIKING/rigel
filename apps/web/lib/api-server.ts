@@ -37,5 +37,6 @@ export const {
   analyze,
   updateProfile,
   createCheckout,
+  createPortal,
   deleteAccount,
 } = serverClient;

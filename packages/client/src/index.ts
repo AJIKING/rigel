@@ -142,6 +142,19 @@ export interface ApiClient {
     token: string,
     params: { plan: PaidPlan; successUrl: string; cancelUrl: string },
   ): Promise<CheckoutResult>;
+  /**
+   * 決済ポータル（プラン変更・解約・支払い方法の管理）のURLを得る。加入中ユーザー専用。
+   * 未加入(404)・課金未設定(501)などは ok:false（status 付き）。
+   */
+  createPortal(token: string, params: { returnUrl: string }): Promise<CheckoutResult>;
+  /**
+   * IAP（App Store）購入の引き換え。StoreKit 2 の署名済みトランザクション(JWS)を送り、
+   * 検証が通ればプランが反映される。失敗は status（+ reason）付きで ok:false。
+   */
+  redeemAppStorePurchase(
+    token: string,
+    params: { jws: string },
+  ): Promise<{ ok: true; plan: PaidPlan } | { ok: false; status: number; reason?: string }>;
   /** 牌譜の公開範囲を切り替える（所有者のみ）。成否を返す。 */
   setVisibility(
     token: string,
@@ -292,6 +305,31 @@ export function createApiClient(baseUrl: string, fetchImpl?: typeof fetch): ApiC
       if (!res.ok) return { ok: false, status: res.status };
       const d = (await res.json()) as { url: string };
       return { ok: true, url: d.url };
+    },
+
+    async createPortal(token, params) {
+      const res = await doFetch(`${baseUrl}/billing/portal`, {
+        method: "POST",
+        headers: { ...bearer(token), "content-type": "application/json" },
+        body: JSON.stringify(params),
+      });
+      if (!res.ok) return { ok: false, status: res.status };
+      const d = (await res.json()) as { url: string };
+      return { ok: true, url: d.url };
+    },
+
+    async redeemAppStorePurchase(token, params) {
+      const res = await doFetch(`${baseUrl}/billing/appstore/redeem`, {
+        method: "POST",
+        headers: { ...bearer(token), "content-type": "application/json" },
+        body: JSON.stringify(params),
+      });
+      if (!res.ok) {
+        const d = (await res.json().catch(() => null)) as { reason?: string } | null;
+        return { ok: false, status: res.status, reason: d?.reason };
+      }
+      const d = (await res.json()) as { plan: PaidPlan };
+      return { ok: true, plan: d.plan };
     },
 
     async setVisibility(token, logId, visibility) {

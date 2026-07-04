@@ -50,3 +50,23 @@ curl https://rigel-api.plaria.workers.dev/health   # {"ok":true}
 
 ローカルでの手元確認・個別の `wrangler secret put` 等は
 リポジトリ直下の運用メモ（CLAUDE.md / 過去手順）も参照。
+
+## IAP（App Store / iOS 課金）の外部設定
+
+コード側は実装済み（`/billing/appstore/redeem`・`/billing/appstore/notifications`、
+検証は Apple Root CA G3 固定 + x5c チェーン検証。設定は `wrangler.toml` の
+`APPLE_BUNDLE_ID` / `APPSTORE_PRODUCT_NEXT` / `APPSTORE_PRODUCT_PRO`）。
+公開前に App Store Connect で以下の手作業が必要:
+
+1. **サブスク商品の登録**: 自動更新サブスクリプションを2つ作成。
+   productId は **`rigel.next.monthly`（¥624 相当 Tier）/ `rigel.pro.monthly`（¥1,924 相当 Tier）**。
+   ※ `wrangler.toml` と `apps/mobile/lib/iap.ts` の PRODUCT_IDS と完全一致させる。
+2. **Server Notifications V2 の URL 設定**: App Store Connect → App → App 情報 →
+   「App Store サーバ通知」→ Production/Sandbox とも
+   `https://rigel-api.plaria.workers.dev/billing/appstore/notifications`（V2 を選択）。
+3. **Sandbox テスター**でエンドツーエンド確認:
+   購入 → `/me` の plan 反映 →（Sandbox の高速更新で）DID_RENEW / EXPIRED の反映。
+4. mobile は **EAS dev build 必須**（expo-iap はネイティブモジュール。Expo Go では動かない）。
+
+注意: D1 マイグレーション `0005`（users.appstore_original_transaction_id）が
+デプロイ時に適用される（Actions の migrate ステップ）。

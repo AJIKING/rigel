@@ -31,4 +31,12 @@ export interface BillingGateway {
   createCheckoutSession(params: CheckoutParams): Promise<{ url: string }>;
   /** Webhook ペイロードを署名検証し、正規化したイベントにする。検証失敗は例外。 */
   parseEvent(payload: string, signature: string): Promise<BillingEvent>;
+  /**
+   * 決済ポータル（プラン変更・解約・支払い方法の管理）のURLを作る。
+   * その userId のサブスクリプションが見つからなければ null。
+   */
+  createPortalSession(params: {
+    userId: string;
+    returnUrl: string;
+  }): Promise<{ url: string } | null>;
 }

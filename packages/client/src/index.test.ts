@@ -146,6 +146,55 @@ describe("createApiClient", () => {
     expect(body).toContain('"pro"');
   });
 
+  it("createPortal は returnUrl を送って決済ポータルURLを返す（未加入404は ok:false）", async () => {
+    const ok = createApiClient(
+      "https://api.test",
+      fakeFetch2((url, init) => {
+        expect(url).toBe("https://api.test/billing/portal");
+        expect(String(init?.body ?? "")).toContain("https://app/settings");
+        return json({ url: "https://stripe.test/portal/abc" });
+      }),
+    );
+    expect(await ok.createPortal("tok", { returnUrl: "https://app/settings" })).toEqual({
+      ok: true,
+      url: "https://stripe.test/portal/abc",
+    });
+
+    const nf = createApiClient(
+      "https://api.test",
+      fakeFetch(() => new Response("nf", { status: 404 })),
+    );
+    expect(await nf.createPortal("tok", { returnUrl: "https://app/settings" })).toEqual({
+      ok: false,
+      status: 404,
+    });
+  });
+
+  it("redeemAppStorePurchase は JWS を送ってプランを返す（失敗は status+reason）", async () => {
+    const ok = createApiClient(
+      "https://api.test",
+      fakeFetch2((url, init) => {
+        expect(url).toBe("https://api.test/billing/appstore/redeem");
+        expect(String(init?.body ?? "")).toContain("signed-jws");
+        return json({ ok: true, plan: "pro" });
+      }),
+    );
+    expect(await ok.redeemAppStorePurchase("tok", { jws: "signed-jws" })).toEqual({
+      ok: true,
+      plan: "pro",
+    });
+
+    const ng = createApiClient(
+      "https://api.test",
+      fakeFetch(() => json({ ok: false, reason: "invalid_transaction" }, 400)),
+    );
+    expect(await ng.redeemAppStorePurchase("tok", { jws: "bad" })).toEqual({
+      ok: false,
+      status: 400,
+      reason: "invalid_transaction",
+    });
+  });
+
   it("createCheckout は課金未設定(501)で ok:false", async () => {
     const client = createApiClient(
       "https://api.test",

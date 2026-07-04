@@ -4,7 +4,12 @@ import { checkoutErrorMessage, planLabel, planMonthlyPrice, type PaidPlan } from
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { createCheckoutAction, deleteAccountAction, updateProfileAction } from "../../app/actions";
+import {
+  createCheckoutAction,
+  createPortalAction,
+  deleteAccountAction,
+  updateProfileAction,
+} from "../../app/actions";
 import { useAuth } from "../../lib/auth-context";
 import { AppHeader } from "../AppHeader";
 import s from "./account.module.css";
@@ -76,14 +81,27 @@ export function SettingsShell() {
     await updateProfileAction({ profilePublic: next }).catch(() => {});
   }
 
+  /** 加入中のプラン変更・解約は Stripe Billing Portal で行う。
+   *  Checkout の作り直しは別サブスクを追加してしまい二重課金になる（api 側でも 409 で拒否）。 */
+  async function openPortal() {
+    const res = await createPortalAction({ returnUrl: `${window.location.origin}/settings` });
+    if (res.ok) window.location.href = res.url;
+    else {
+      setSave(
+        res.status === 404 ? "加入中のプランが見つかりませんでした" : "ポータルを開けませんでした",
+      );
+      setPlanOpen(false);
+    }
+  }
+
   async function onPickPlan(target: Plan) {
     if (target === plan) return;
-    if (target === "free") {
-      setSave("プランの解約は決済ポータルから行えます（準備中）");
-      setTimeout(() => setSave("idle"), 2400);
-      setPlanOpen(false);
+    // 加入中（有料プラン）はアップ/ダウングレード・解約ともポータルへ。
+    if (plan !== "free") {
+      await openPortal();
       return;
     }
+    if (target === "free") return; // free ユーザーが free を選ぶことは無い（current で無効化済み）
     const origin = window.location.origin;
     const res = await createCheckoutAction({
       plan: target as PaidPlan,

@@ -8,6 +8,7 @@ vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
 // Server Action は server-only を辿るためモック（未ログインなので呼ばれない）。
 vi.mock("../../app/actions", () => ({
   createCheckoutAction: vi.fn(),
+  createPortalAction: vi.fn(),
   deleteAccountAction: vi.fn(),
   updateProfileAction: vi.fn(),
 }));

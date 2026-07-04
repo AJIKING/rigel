@@ -5,6 +5,7 @@ import { type Kifu, type Seat } from "@rigel/schema";
 import {
   analyze,
   createCheckout,
+  createPortal,
   createEmptyKifu,
   createGame,
   deleteAccount,
@@ -78,6 +79,11 @@ export async function createCheckoutAction(params: {
   cancelUrl: string;
 }) {
   return createCheckout(await requireToken(), params);
+}
+
+/** 決済ポータル（プラン変更・解約）。加入中ユーザー専用。 */
+export async function createPortalAction(params: { returnUrl: string }) {
+  return createPortal(await requireToken(), params);
 }
 
 export async function deleteAccountAction() {

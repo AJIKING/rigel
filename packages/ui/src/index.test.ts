@@ -113,6 +113,9 @@ describe("checkoutErrorMessage", () => {
     expect(checkoutErrorMessage(501)).toMatch(/準備中/);
     expect(checkoutErrorMessage(500)).toBe("開始できませんでした。");
   });
+  it("409（加入中）は決済ポータルへ案内する", () => {
+    expect(checkoutErrorMessage(409)).toMatch(/ポータル/);
+  });
 });
 
 describe("プラン表示", () => {

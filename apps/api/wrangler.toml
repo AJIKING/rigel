@@ -35,3 +35,7 @@ ALLOWED_ORIGINS = "https://rigel.plaria.co.jp"
 # サブスクの価格ID（公開値・秘密ではない）。RIGEL Next=¥480 / RIGEL Pro=¥1480。
 STRIPE_PRICE_NEXT = "price_1TnGLeLYWvIdYJVUk7f9jGUk"
 STRIPE_PRICE_PRO = "price_1TnGN3LYWvIdYJVUvg6fCymx"
+# IAP（iOS / App Store）。商品IDは App Store Connect の登録と mobile 側 PRODUCT_IDS に一致させる。
+APPLE_BUNDLE_ID = "jp.co.plaria.rigel"
+APPSTORE_PRODUCT_NEXT = "rigel.next.monthly"
+APPSTORE_PRODUCT_PRO = "rigel.pro.monthly"

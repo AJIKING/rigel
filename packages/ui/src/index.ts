@@ -104,9 +104,12 @@ export function analyzeErrorMessage(status: number, reason?: string): string {
   }
 }
 
-/** 課金 Checkout 開始に失敗したときの日本語メッセージ（web/mobile 共通）。501=未設定。 */
+/** 課金 Checkout 開始に失敗したときの日本語メッセージ（web/mobile 共通）。
+ *  501=未設定、409=加入中（変更・解約は決済ポータルで行う）。 */
 export function checkoutErrorMessage(status: number): string {
-  return status === 501 ? "課金は準備中です。" : "開始できませんでした。";
+  if (status === 501) return "課金は準備中です。";
+  if (status === 409) return "プランの変更・解約は決済ポータルから行えます。";
+  return "開始できませんでした。";
 }
 
 // ------------------------------------------------------------

@@ -4,3 +4,14 @@
 import mockSafeAreaContext from "react-native-safe-area-context/jest/mock";
 
 jest.mock("react-native-safe-area-context", () => mockSafeAreaContext);
+
+// expo-iap はネイティブモジュール（dev build 必須）。テストでは未接続のスタブにする。
+jest.mock("expo-iap", () => ({
+  useIAP: () => ({
+    connected: false,
+    subscriptions: [],
+    fetchProducts: jest.fn(),
+    requestPurchase: jest.fn(),
+    finishTransaction: jest.fn(),
+  }),
+}));

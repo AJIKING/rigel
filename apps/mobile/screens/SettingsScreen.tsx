@@ -6,14 +6,35 @@ import {
   type PaidPlan,
   type Plan,
 } from "@rigel/ui";
+import { useIAP, type Purchase } from "expo-iap";
 import { useEffect, useState } from "react";
-import { Linking, Pressable, StyleSheet, Switch, Text, TextInput, View } from "react-native";
+import {
+  Linking,
+  Platform,
+  Pressable,
+  StyleSheet,
+  Switch,
+  Text,
+  TextInput,
+  View,
+} from "react-native";
 import Svg, { Circle, Path } from "react-native-svg";
 import { AppBar } from "../components/AppBar";
 import { PlanSheet } from "../components/PlanSheet";
-import { createCheckout, deleteAccount, updateProfile } from "../lib/api";
+import {
+  createCheckout,
+  createPortal,
+  deleteAccount,
+  redeemAppStorePurchase,
+  updateProfile,
+} from "../lib/api";
 import { useAuth } from "../lib/auth";
+import { IAP_PRODUCT_IDS, IAP_SKUS } from "../lib/iap";
 import { colors, radius } from "../lib/theme";
+
+// 決済（外部ブラウザ）から戻る先。web の設定ページ（本番ドメイン）。
+// TODO(deep-link): アプリへ直接戻すならユニバーサルリンク/カスタムスキームを設定する。
+const BILLING_RETURN_URL = "https://rigel.plaria.co.jp/settings";
 
 // アプリは App Store（アプリ内課金）経由の販売のため、手数料込み価格を表示する。
 function priceLabel(plan: Plan): string {
@@ -39,6 +60,37 @@ export function SettingsScreen() {
 
   const plan: Plan = user?.plan ?? "free";
   const targets = token ? upgradeTargets(plan) : [];
+
+  // IAP（App Store）。iOS の実売はアプリ内課金で行う（外部決済リンクは審査で不可）。
+  // 購入成立は onPurchaseSuccess で受け、JWS を api で検証してからトランザクションを閉じる。
+  const { connected, fetchProducts, requestPurchase, finishTransaction } = useIAP({
+    onPurchaseSuccess: (purchase) => void onIapPurchase(purchase),
+    onPurchaseError: (e) => {
+      // ユーザーキャンセルはノイズなので黙る。それ以外だけ知らせる。
+      if (!/cancel/i.test(String(e.code ?? ""))) setNote("購入に失敗しました");
+    },
+  });
+
+  useEffect(() => {
+    if (connected && Platform.OS === "ios") {
+      void fetchProducts({ skus: IAP_SKUS, type: "subs" });
+    }
+  }, [connected, fetchProducts]);
+
+  /** 購入成立 → api で JWS を検証しプラン反映 → 成功したときだけトランザクションを閉じる。 */
+  async function onIapPurchase(purchase: Purchase) {
+    if (!token) return;
+    const jws = purchase.purchaseToken ?? "";
+    const res = await redeemAppStorePurchase(token, { jws });
+    if (res.ok) {
+      await finishTransaction({ purchase, isConsumable: false });
+      setNote(`プランを ${planLabel(res.plan)} に変更しました`);
+      void refresh();
+    } else {
+      // 未 finish のまま残せば、次回起動時などに再度 onPurchaseSuccess が来て再試行できる。
+      setNote("購入の検証に失敗しました。時間をおいて再度お試しください");
+    }
+  }
 
   async function onSaveProfile() {
     if (!token) return;
@@ -68,21 +120,59 @@ export function SettingsScreen() {
     }
   }
 
-  // シートで選んだプランを購入する。
-  // TODO(IAP): App Store 審査要件上、実売はアプリ内課金（StoreKit）へ移行する。
-  // ライブラリ選定（expo-iap 等）は要承認のため、それまでは既存の Checkout を開く。
+  // シートで選んだプランを購入する（free → 有料の新規加入のみ。加入中は onOpenPortal）。
+  // iOS は IAP（App Store）で購入。それ以外（Android/dev）は Play Billing 対応まで暫定で
+  // Stripe Checkout を開く。
   async function onSelectPlan(plan: PaidPlan) {
     setPlanOpen(false);
     if (!token) return;
     setNote(null);
+
+    if (Platform.OS === "ios") {
+      try {
+        // 結果は onPurchaseSuccess / onPurchaseError で受ける。
+        await requestPurchase({
+          request: {
+            apple: {
+              sku: IAP_PRODUCT_IDS[plan],
+              // 検証前に自動で閉じない（api の検証が通ってから finishTransaction する）。
+              andDangerouslyFinishTransactionAutomatically: false,
+            },
+          },
+          type: "subs",
+        });
+      } catch {
+        // キャンセル等は onPurchaseError 側で処理される。
+      }
+      return;
+    }
+
     try {
       const res = await createCheckout(token, {
         plan,
-        successUrl: "https://rigel.app/ok",
-        cancelUrl: "https://rigel.app/ng",
+        successUrl: BILLING_RETURN_URL,
+        cancelUrl: BILLING_RETURN_URL,
       });
       if (res.ok) await Linking.openURL(res.url);
       else setNote(checkoutErrorMessage(res.status));
+    } catch {
+      setNote("通信に失敗しました。");
+    }
+  }
+
+  // 加入中のプラン変更・解約は決済ポータルで行う（Checkout の作り直しは二重課金になる）。
+  async function onOpenPortal() {
+    if (!token) return;
+    setNote(null);
+    try {
+      const res = await createPortal(token, { returnUrl: BILLING_RETURN_URL });
+      if (res.ok) await Linking.openURL(res.url);
+      else
+        setNote(
+          res.status === 404
+            ? "加入中のプランが見つかりませんでした"
+            : "ポータルを開けませんでした",
+        );
     } catch {
       setNote("通信に失敗しました。");
     }
@@ -147,7 +237,7 @@ export function SettingsScreen() {
               <Text style={styles.planName}>{planLabel(plan)}</Text>
               <Text style={styles.planPrice}>{priceLabel(plan)}</Text>
             </View>
-            {targets.length > 0 ? (
+            {token && plan === "free" && targets.length > 0 ? (
               <Pressable
                 onPress={() => setPlanOpen(true)}
                 accessibilityRole="button"
@@ -155,6 +245,16 @@ export function SettingsScreen() {
                 hitSlop={10}
               >
                 <Text style={styles.go}>変更 ›</Text>
+              </Pressable>
+            ) : null}
+            {token && plan !== "free" ? (
+              <Pressable
+                onPress={() => void onOpenPortal()}
+                accessibilityRole="button"
+                accessibilityLabel="プランを管理"
+                hitSlop={10}
+              >
+                <Text style={styles.go}>管理 ›</Text>
               </Pressable>
             ) : null}
           </View>
