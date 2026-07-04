@@ -5,6 +5,7 @@
 // （@rigel/* はワークスペースの packages/ 実体＝node_modules 外なので常に変換される。）
 module.exports = {
   preset: "jest-expo",
+  setupFiles: ["./jest.setup.js"],
   transformIgnorePatterns: [
     "node_modules/.pnpm/(?!(react-native|@react-native|expo|@expo|@react-navigation))",
   ],

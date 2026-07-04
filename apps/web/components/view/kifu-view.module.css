@@ -712,7 +712,7 @@
     gap: 4px;
   }
   .khAct .iconbtn {
-    padding: 9px;
+    padding: 13px;
     gap: 0;
     font-size: 0;
   }
@@ -736,20 +736,45 @@
     align-items: center;
   }
 
-  /* 場ナビ: 最下部に固定。狭幅で自然に2段へ折り返す。 */
+  /* 場ナビ: 最下部に固定。狭幅で自然に2段へ折り返す。
+     タッチターゲットは 44px 以上を確保し、ボタン間の余白も広げる。 */
   .controlbar {
     position: sticky;
     bottom: 0;
     z-index: 20;
     margin-top: 0;
-    gap: 8px;
+    gap: 10px;
     border-radius: 0;
     border-left: 0;
     border-right: 0;
     border-bottom: 0;
-    padding: 8px 10px calc(8px + env(safe-area-inset-bottom));
+    padding: 10px 12px calc(12px + env(safe-area-inset-bottom));
     background: rgba(18, 20, 25, 0.96);
     backdrop-filter: blur(10px);
+  }
+  .cgrp {
+    gap: 8px;
+  }
+  .cbtn {
+    width: 48px;
+    height: 44px;
+  }
+  .cbtn svg {
+    width: 18px;
+    height: 18px;
+  }
+  .ctog {
+    height: 44px;
+    padding: 0 16px;
+    font-size: 13.5px;
+  }
+  .clabel {
+    min-width: 72px;
+    padding: 10px 8px;
+    font-size: 14px;
+  }
+  .csel {
+    padding: 10px 24px 10px 10px;
   }
 
   /* 情報: 右パネルではなく下からのシート。「情報」ボタン（noSide トグル）で開閉。 */

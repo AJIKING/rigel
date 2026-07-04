@@ -1,11 +1,13 @@
 import type { Tile as TileCode } from "@rigel/schema";
-import { tileFace } from "@rigel/ui";
-import { StyleSheet, Text, View, type ViewStyle } from "react-native";
+import { tileAssetName, tileLabel } from "@rigel/ui";
+import { Image, StyleSheet, Text, View, type ViewStyle } from "react-native";
 import { colors } from "../lib/theme";
+import { TILE_FRONT, TILE_IMAGES } from "./tile-images";
 
 /**
- * コンパクトな牌フェイス（回転卓の河・手牌用）。OSS 画像ではなくグリフ描画で軽量に。
- * 数牌は「数字＋スート記号」、字牌はグリフ中央、裏向きは緑背。
+ * 1牌の表示（OSS 画像 = FluffyStuff/riichi-mahjong-tiles, CC0）。回転卓・和了手で共通に使う。
+ * Front の上にシンボル画像を重ねる。サイズは w/h 指定（盤面サイズ比から算出）。
+ * back=裏向き（象牙の裏）、riichi=横向き、tsumogiri=薄く。読めない牌は Front に「?」。
  */
 export function MiniTile({
   code,
@@ -22,45 +24,48 @@ export function MiniTile({
   riichi?: boolean;
   tsumogiri?: boolean;
 }) {
-  const box: ViewStyle = { width: w, height: h, borderRadius: Math.max(1, w * 0.1) };
+  const box: ViewStyle = {
+    width: w,
+    height: h,
+    borderRadius: Math.max(1, w * 0.1),
+    transform: riichi ? [{ rotate: "90deg" }] : undefined,
+    opacity: tsumogiri ? 0.72 : 1,
+  };
 
   if (back) {
-    return <View style={[styles.tile, styles.back, box]} />;
+    return <View style={[styles.back, box]} />;
   }
 
-  const face = tileFace(code ?? null);
-  const num = face.kind === "number" ? String(face.red ? 5 : face.rank) : null;
-  const fontSize = h * 0.46;
-
+  const symbol = code ? TILE_IMAGES[tileAssetName(code)] : undefined;
   return (
-    <View style={[styles.tile, box, tsumogiri && styles.tsumogiri, riichi && styles.riichi]}>
-      {face.kind === "unknown" ? (
-        <Text style={[styles.glyph, { color: colors.w45, fontSize }]}>?</Text>
-      ) : face.kind === "honor" ? (
-        <Text style={[styles.glyph, { color: face.color, fontSize: h * 0.5 }]}>{face.glyph}</Text>
+    <View style={[styles.tile, box]} accessibilityLabel={tileLabel(code ?? null)}>
+      <Image source={TILE_FRONT} style={styles.img} resizeMode="contain" />
+      {symbol !== undefined ? (
+        <Image source={symbol} style={[styles.img, styles.overlay]} resizeMode="contain" />
       ) : (
-        <>
-          <Text style={[styles.num, { color: face.color, fontSize: fontSize * 1.02 }]}>{num}</Text>
-          <Text style={[styles.suit, { color: face.color, fontSize: fontSize * 0.62 }]}>
-            {face.glyph}
-          </Text>
-        </>
+        <Text style={[styles.unknown, { fontSize: h * 0.5, lineHeight: h }]}>?</Text>
       )}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  tile: {
+  tile: { backgroundColor: colors.bone, overflow: "hidden" },
+  img: { width: "100%", height: "100%" },
+  overlay: { position: "absolute", top: 0, left: 0 },
+  back: {
     backgroundColor: colors.bone,
-    alignItems: "center",
-    justifyContent: "center",
-    overflow: "hidden",
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.boneEdge,
   },
-  back: { backgroundColor: colors.emLite },
-  tsumogiri: { opacity: 0.72 },
-  riichi: { transform: [{ rotate: "90deg" }] },
-  glyph: { fontWeight: "800", includeFontPadding: false },
-  num: { fontWeight: "800", includeFontPadding: false },
-  suit: { fontWeight: "800", includeFontPadding: false, marginTop: -2 },
+  unknown: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    width: "100%",
+    height: "100%",
+    textAlign: "center",
+    color: colors.w45,
+    fontWeight: "700",
+  },
 });

@@ -96,4 +96,21 @@ describe("KifuViewer", () => {
     fireEvent.click(screen.getByLabelText("1手進む"));
     expect(screen.getByText("立直")).toBeTruthy();
   });
+
+  it("局名は配列位置ではなく局順(seq)から出す（公開サブセット）", () => {
+    // seq 1 と 3 だけ公開された半荘。配列位置(gi)基準だと2局目が「東二局」に化ける。
+    const d = detail([kifu(), kifu()]);
+    d.logs[1]!.seq = 3;
+    renderViewer(d);
+    fireEvent.click(screen.getAllByLabelText("次の局")[0]!);
+    expect(screen.getAllByText("東三局").length).toBeGreaterThan(0);
+    expect(screen.queryAllByText("東二局").length).toBe(0);
+  });
+
+  it("本場は牌譜の実データを表示する（ハードコードしない）", () => {
+    renderViewer(detail([makeKifu({}, { meta: { dealer: "east", honba: 2 } })]));
+    // 卓中央・サイドパネルとも実データ（2本場）。ハードコードの「0本場」が残っていないこと。
+    expect(screen.getAllByText("2本場").length).toBeGreaterThanOrEqual(2);
+    expect(screen.queryByText("0本場")).toBeNull();
+  });
 });

@@ -74,11 +74,11 @@ function WinBlock({ agari, kifu, dealer }: { agari: Agari; kifu: Kifu; dealer: S
 
       <View style={styles.hand}>
         {hand.map((h, i) => (
-          <MiniTile key={i} code={h.tile} w={20} h={28} />
+          <MiniTile key={i} code={h.tile} w={26} h={36} />
         ))}
         {agari.winTile ? (
           <View style={styles.winTile}>
-            <MiniTile code={agari.winTile} w={20} h={28} />
+            <MiniTile code={agari.winTile} w={26} h={36} />
           </View>
         ) : null}
       </View>

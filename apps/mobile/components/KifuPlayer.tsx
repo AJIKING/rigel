@@ -3,6 +3,7 @@ import type { Kifu, Seat } from "@rigel/schema";
 import { buildRiverPlayback, revealCounts, roundName, windOf, SEAT_ORDER } from "@rigel/ui";
 import { useEffect, useMemo, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Svg, { Path, Rect } from "react-native-svg";
 import { colors, radius } from "../lib/theme";
 import { AgariSheet } from "./AgariSheet";
@@ -34,7 +35,8 @@ export function KifuPlayer({
   isPublic?: boolean;
   initialIndex?: number;
 }) {
-  const { width } = useWindowDimensions();
+  const { width, height } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
   const [gi, setGi] = useState(initialIndex);
   const [reveal, setReveal] = useState(-1); // -1 = 全表示
   const [showHands, setShowHands] = useState(false);
@@ -68,7 +70,8 @@ export function KifuPlayer({
   const roundLabel = roundName(Math.max(0, log.seq - 1));
   const showAgari = atEnd && kifu.agari.length > 0 && !agariClosed;
   const curJunme = revealed[dealer];
-  const boardSize = Math.min(width - 24, 340);
+  // 卓は横幅いっぱいまで拡大（上限は大画面向けの保険）。縦は上部バー＋場ナビ分を控えて溢れを防ぐ。
+  const boardSize = Math.max(240, Math.min(width - 8, height - 240, 520));
 
   function switchLog(i: number) {
     setGi(i);
@@ -115,8 +118,8 @@ export function KifuPlayer({
         />
       </View>
 
-      {/* 場ナビ */}
-      <View style={styles.nav}>
+      {/* 場ナビ（ホームインジケータ等の safe-area ぶん下余白を足す） */}
+      <View style={[styles.nav, { paddingBottom: Math.max(20, insets.bottom + 12) }]}>
         <View style={styles.navrow}>
           <Group>
             <NavBtn
@@ -314,7 +317,7 @@ type NavIconName = "prevLog" | "nextLog" | "prevJunme" | "nextJunme" | "stepPrev
 /** 場ナビのボタンアイコン（局送り=先頭バー付き三角、巡送り=二連三角、1手=三角）。 */
 function NavIcon({ name, color }: { name: NavIconName; color: string }) {
   return (
-    <Svg width={16} height={16} viewBox="0 0 24 24">
+    <Svg width={20} height={20} viewBox="0 0 24 24">
       {name === "prevLog" && <Rect x={5} y={5} width={2.4} height={14} rx={1} fill={color} />}
       {name === "nextLog" && <Rect x={16.6} y={5} width={2.4} height={14} rx={1} fill={color} />}
       <Path d={NAV_ICON_PATH[name]} fill={color} />
@@ -339,17 +342,18 @@ const styles = StyleSheet.create({
   subText: { color: colors.w45, fontSize: 11 },
   pub: { color: colors.accent, fontSize: 11, fontWeight: "700" },
   dot: { width: 3, height: 3, borderRadius: 1.5, backgroundColor: colors.w45, marginHorizontal: 6 },
-  ib: { width: 40, height: 40, alignItems: "center", justifyContent: "center" },
-  stage: { flex: 1, alignItems: "center", justifyContent: "center", padding: 6 },
+  ib: { width: 44, height: 44, alignItems: "center", justifyContent: "center" },
+  stage: { flex: 1, alignItems: "center", justifyContent: "center", padding: 2 },
   nav: {
-    paddingHorizontal: 12,
-    paddingTop: 10,
-    paddingBottom: 12,
+    paddingHorizontal: 14,
+    paddingTop: 14,
+    paddingBottom: 20,
+    gap: 10,
     backgroundColor: colors.chrome,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: colors.line,
   },
-  navrow: { flexDirection: "row", alignItems: "center", gap: 8 },
+  navrow: { flexDirection: "row", alignItems: "center", gap: 10 },
   group: {
     flexDirection: "row",
     alignItems: "center",
@@ -360,13 +364,13 @@ const styles = StyleSheet.create({
     overflow: "hidden",
   },
   glab: { flex: 1, alignItems: "center" },
-  glabMain: { color: "#fff", fontWeight: "800", fontSize: 13 },
-  glabSub: { color: colors.w45, fontSize: 9, fontWeight: "700", marginTop: -1 },
-  navbtn: { width: 40, height: 40, alignItems: "center", justifyContent: "center" },
+  glabMain: { color: "#fff", fontWeight: "800", fontSize: 15 },
+  glabSub: { color: colors.w45, fontSize: 10, fontWeight: "700", marginTop: -1 },
+  navbtn: { width: 52, height: 52, alignItems: "center", justifyContent: "center" },
   navbtnDisabled: { opacity: 0.5 },
   tog: {
-    height: 40,
-    paddingHorizontal: 12,
+    height: 52,
+    paddingHorizontal: 18,
     borderRadius: radius.base,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: colors.line,
@@ -375,7 +379,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   togOn: { backgroundColor: colors.accentSoft, borderColor: colors.accent },
-  togText: { color: colors.w70, fontWeight: "800", fontSize: 12 },
+  togText: { color: colors.w70, fontWeight: "800", fontSize: 13.5 },
   togTextOn: { color: colors.accent },
   sheet: {
     position: "absolute",

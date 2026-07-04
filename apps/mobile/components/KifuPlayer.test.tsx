@@ -29,7 +29,7 @@ const kifuWithAgari = (): Kifu =>
     },
   );
 
-/** 東家(親)の河に發(6z)・中(7z)の2枚。河の巡送り/1手送りの表示切替を字牌グリフで検証する。 */
+/** 東家(親)の河に發(6z)・中(7z)の2枚。河の巡送り/1手送りの表示切替を牌ラベルで検証する。 */
 const kifuTwoDiscards = (): Kifu =>
   makeKifu({
     east: {
@@ -93,35 +93,35 @@ describe("KifuPlayer", () => {
 
   it("1手戻る/1手進むで河の末尾の牌が隠れて/戻る", () => {
     render(<KifuPlayer logs={[log(1, kifuTwoDiscards())]} />);
-    // 初期は全表示：發(1打目)も中(2打目)も見える。
-    expect(screen.getByText("發")).toBeTruthy();
-    expect(screen.getByText("中")).toBeTruthy();
+    // 初期は全表示：發(1打目)も中(2打目)も見える（OSS 牌画像のラベルで検証）。
+    expect(screen.getByLabelText("發")).toBeTruthy();
+    expect(screen.getByLabelText("中")).toBeTruthy();
     // 1手戻ると末尾(中)が隠れる。
     fireEvent.press(screen.getByLabelText("1手戻る"));
-    expect(screen.getByText("發")).toBeTruthy();
-    expect(screen.queryByText("中")).toBeNull();
+    expect(screen.getByLabelText("發")).toBeTruthy();
+    expect(screen.queryByLabelText("中")).toBeNull();
     // 1手進むと戻る。
     fireEvent.press(screen.getByLabelText("1手進む"));
-    expect(screen.getByText("中")).toBeTruthy();
+    expect(screen.getByLabelText("中")).toBeTruthy();
   });
 
   it("前の巡目/次の巡目で表示が巡単位で戻る/進む", () => {
     render(<KifuPlayer logs={[log(1, kifuTwoDiscards())]} />);
-    expect(screen.getByText("中")).toBeTruthy();
+    expect(screen.getByLabelText("中")).toBeTruthy();
     // 親の打牌ごとに1巡なので、前の巡目で末尾(中)が隠れる。
     fireEvent.press(screen.getByLabelText("前の巡目"));
-    expect(screen.queryByText("中")).toBeNull();
+    expect(screen.queryByLabelText("中")).toBeNull();
     fireEvent.press(screen.getByLabelText("次の巡目"));
-    expect(screen.getByText("中")).toBeTruthy();
+    expect(screen.getByLabelText("中")).toBeTruthy();
   });
 
   it("手牌トグルで相手の手牌が表(牌)/裏に切り替わる", () => {
     render(<KifuPlayer logs={[log(1, kifuOppHand())]} />);
     // 既定は相手手牌を裏向き（發は出ない）。
-    expect(screen.queryByText("發")).toBeNull();
+    expect(screen.queryByLabelText("發")).toBeNull();
     fireEvent.press(screen.getByText("手牌"));
-    expect(screen.getByText("發")).toBeTruthy();
+    expect(screen.getByLabelText("發")).toBeTruthy();
     fireEvent.press(screen.getByText("手牌"));
-    expect(screen.queryByText("發")).toBeNull();
+    expect(screen.queryByLabelText("發")).toBeNull();
   });
 });

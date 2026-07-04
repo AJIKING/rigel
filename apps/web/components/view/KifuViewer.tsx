@@ -106,10 +106,17 @@ export function KifuViewer({ detail, gameId }: { detail: PublicGameDetail; gameI
     return () => window.removeEventListener("keydown", onEsc);
   }, []);
 
-  // スマホ幅では情報シートは初期状態で閉じておく（卓を最大化するため）。
+  // スマホ幅の検知（卓のフィット余白と情報シートの初期開閉に使う）。
+  const [narrow, setNarrow] = useState(false);
   useEffect(() => {
-    if (typeof window.matchMedia === "function" && window.matchMedia("(max-width: 640px)").matches)
-      setSideOpen(false);
+    if (typeof window.matchMedia !== "function") return;
+    const mq = window.matchMedia("(max-width: 640px)");
+    // スマホ幅では情報シートは初期状態で閉じておく（卓を最大化するため）。
+    if (mq.matches) setSideOpen(false);
+    const apply = () => setNarrow(mq.matches);
+    apply();
+    mq.addEventListener("change", apply);
+    return () => mq.removeEventListener("change", apply);
   }, []);
 
   const log = detail.logs[gi];
@@ -140,9 +147,9 @@ export function KifuViewer({ detail, gameId }: { detail: PublicGameDetail; gameI
     if (!atEnd) setAgariClosed(false);
   }, [atEnd]);
 
-  // board fit
+  // board fit（スマホは .main の実パディングに合わせ余白を最小化し、卓を画面幅いっぱいに）
   const mainRef = useRef<HTMLDivElement>(null);
-  const scale = useBoardScale(mainRef, fs ? 32 : 48, [sideOpen]);
+  const scale = useBoardScale(mainRef, fs ? 32 : narrow ? 12 : 48, [sideOpen]);
 
   function switchLog(i: number) {
     setGi(i);
@@ -161,7 +168,9 @@ export function KifuViewer({ detail, gameId }: { detail: PublicGameDetail; gameI
       </Shell>
     );
 
-  const round = roundName(gi);
+  // 局名は配列位置(gi)ではなく牌譜の実際の局順(seq)から出す。公開ビューアは公開局の
+  // サブセットを渡すため、gi 基準だと「東一局」からの通し番号になり誤ラベルになる。
+  const round = roundName(Math.max(0, log.seq - 1));
   const authorName = detail.owner.handle ?? detail.owner.id.slice(0, 6);
   const curJunme = revealed[dealer];
   const resultLabel =
@@ -264,7 +273,7 @@ export function KifuViewer({ detail, gameId }: { detail: PublicGameDetail; gameI
               <div className={s.table} style={{ transform: `scale(${scale})` }}>
                 <div className={s.center} data-center>
                   <div className={s.rd}>
-                    {round} <span className={s.hb}>0本場</span>
+                    {round} <span className={s.hb}>{kifu.meta.honba}本場</span>
                   </div>
                 </div>
                 {SLOTS.map(({ cam, cls }) => {
@@ -341,7 +350,7 @@ export function KifuViewer({ detail, gameId }: { detail: PublicGameDetail; gameI
                 >
                   {detail.logs.map((l, i) => (
                     <option key={l.id} value={i}>
-                      {roundName(i)}
+                      {roundName(Math.max(0, l.seq - 1))}
                     </option>
                   ))}
                 </select>
@@ -464,7 +473,7 @@ export function KifuViewer({ detail, gameId }: { detail: PublicGameDetail; gameI
                           className={`${s.ritem} ${i === gi ? s.on : ""}`}
                           onClick={() => switchLog(i)}
                         >
-                          {roundName(i)} <small>第{l.seq}局</small>
+                          {roundName(Math.max(0, l.seq - 1))} <small>第{l.seq}局</small>
                         </button>
                       ))}
                     </div>
