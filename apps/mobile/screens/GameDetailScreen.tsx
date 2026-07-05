@@ -5,7 +5,8 @@ import { useCallback, useState } from "react";
 import { FlatList, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { CenterState } from "../components/CenterState";
 import { DangerButton } from "../components/DangerButton";
-import { createEmptyKifu, deleteGame, updateGame } from "../lib/api";
+import { RulesSheet } from "../components/editor/RulesSheet";
+import { createEmptyKifu, deleteGame, updateGame, updateGameRules } from "../lib/api";
 import { useAuth } from "../lib/auth";
 import { confirmDestructive } from "../lib/confirm";
 import { fmtDate } from "../lib/format";
@@ -25,6 +26,7 @@ export function GameDetailScreen() {
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleDraft, setTitleDraft] = useState("");
   const [savingTitle, setSavingTitle] = useState(false);
+  const [rulesOpen, setRulesOpen] = useState(false);
 
   // 編集・局追加/削除から戻ったとき一覧を最新化する（静かに再取得）。
   useFocusEffect(
@@ -47,7 +49,9 @@ export function GameDetailScreen() {
       if (res.ok) nav.navigate("Edit", { gameId, logId: res.logId });
       else
         setNote(
-          res.status === 403 ? "保存上限に達しています（有料プランへ）" : "追加に失敗しました",
+          res.status === 403
+            ? "無料プランの下書きは5件までです（有料プランで無制限）。"
+            : "追加に失敗しました。",
         );
     } catch {
       setNote("通信に失敗しました");
@@ -70,6 +74,16 @@ export function GameDetailScreen() {
       setEditingTitle(false);
       refetch();
     } else setNote("名称の変更に失敗しました");
+  }
+
+  /** 半荘のルールを保存する（配下の全局に反映。局ごとには持たない）。 */
+  function onSaveRules(rules: Parameters<typeof updateGameRules>[2]) {
+    if (!token) return;
+    setRulesOpen(false);
+    setNote(null);
+    updateGameRules(token, gameId, rules)
+      .then((res) => (res.ok ? refetch() : setNote("ルールの保存に失敗しました")))
+      .catch(() => setNote("通信に失敗しました"));
   }
 
   /** 半荘を配下の全局ごと削除する（確認ダイアログつき。成功で一覧へ戻る）。 */
@@ -145,6 +159,14 @@ export function GameDetailScreen() {
           >
             <Text style={styles.addBtnText}>{adding ? "追加中…" : "＋ 局を追加"}</Text>
           </Pressable>
+          <Pressable
+            style={styles.rulesBtn}
+            onPress={() => setRulesOpen(true)}
+            accessibilityRole="button"
+            accessibilityLabel="ルール設定"
+          >
+            <Text style={styles.rulesBtnText}>⚙ ルール設定</Text>
+          </Pressable>
           <View style={styles.delWrap}>
             <DangerButton label="半荘を削除" onPress={onDeleteGame} />
           </View>
@@ -182,6 +204,13 @@ export function GameDetailScreen() {
           );
         }}
       />
+      {rulesOpen && detail.logs[0] ? (
+        <RulesSheet
+          rules={detail.logs[0].kifu.rules}
+          onSave={onSaveRules}
+          onClose={() => setRulesOpen(false)}
+        />
+      ) : null}
     </View>
   );
 }
@@ -215,6 +244,16 @@ const styles = StyleSheet.create({
   },
   addBtnOff: { opacity: 0.6 },
   addBtnText: { color: colors.accent, fontWeight: "800", fontSize: 13 },
+  rulesBtn: {
+    marginLeft: 8,
+    paddingVertical: 9,
+    paddingHorizontal: 14,
+    borderRadius: 8,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.line,
+    backgroundColor: colors.chrome2,
+  },
+  rulesBtnText: { color: colors.w70, fontWeight: "700", fontSize: 12.5 },
   delWrap: { marginLeft: "auto" },
   note: { color: colors.vermilion, fontSize: 12, marginTop: 8 },
   card: {

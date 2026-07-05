@@ -116,6 +116,8 @@ export function SettingsShell() {
   }
 
   async function onDelete() {
+    // 有料プラン契約中は削除不可（解約が先）。サーバ側でも 403 で弾く。
+    if (plan !== "free") return;
     if (!delArm) {
       setDelArm(true);
       setTimeout(() => setDelArm(false), 3000);
@@ -224,10 +226,24 @@ export function SettingsShell() {
             >
               ログアウト
             </button>
-            <button className={`${s.btn} ${s.danger}`} onClick={() => void onDelete()}>
+            <button
+              className={`${s.btn} ${s.danger}`}
+              onClick={() => void onDelete()}
+              disabled={plan !== "free"}
+              title={
+                plan !== "free"
+                  ? "有料プラン契約中は削除できません（先に解約してください）"
+                  : undefined
+              }
+            >
               {delArm ? "もう一度押すと削除されます" : "アカウントを削除"}
             </button>
           </div>
+          {plan !== "free" ? (
+            <p style={{ color: "var(--w45)", fontSize: 12, marginTop: 8 }}>
+              有料プラン契約中はアカウントを削除できません。先に料金プランを解約してください。
+            </p>
+          ) : null}
         </section>
       </div>
 

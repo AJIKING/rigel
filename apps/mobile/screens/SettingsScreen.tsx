@@ -173,6 +173,8 @@ export function SettingsScreen() {
   }
 
   async function onDelete() {
+    // 有料プラン契約中は削除不可（解約が先）。サーバ側でも 403 で弾く。
+    if (plan !== "free") return;
     if (!delArm) {
       setDelArm(true);
       setTimeout(() => setDelArm(false), 3000);
@@ -181,6 +183,8 @@ export function SettingsScreen() {
     if (token) {
       const res = await deleteAccount(token);
       if (res.ok) signOut();
+      else if (res.status === 403) setNote("有料プラン契約中はアカウントを削除できません。");
+      else setNote("削除に失敗しました。");
     }
   }
 
@@ -277,12 +281,22 @@ export function SettingsScreen() {
               <Chevron />
             </Item>
           </Pressable>
-          <Pressable onPress={() => void onDelete()}>
-            <Item icon={<IconTrash danger />} last>
-              <Text style={[styles.itemTitle, { color: colors.vermilion }]}>
-                {delArm ? "もう一度押すと削除されます" : "アカウントを削除"}
-              </Text>
-              <Chevron danger />
+          <Pressable onPress={() => void onDelete()} disabled={plan !== "free"}>
+            <Item icon={<IconTrash danger={plan === "free"} />} last>
+              <View style={{ flex: 1 }}>
+                <Text
+                  style={[
+                    styles.itemTitle,
+                    { color: plan === "free" ? colors.vermilion : colors.w45 },
+                  ]}
+                >
+                  {delArm ? "もう一度押すと削除されます" : "アカウントを削除"}
+                </Text>
+                {plan !== "free" ? (
+                  <Text style={styles.itemSub}>有料プラン契約中は不可（先に解約してください）</Text>
+                ) : null}
+              </View>
+              {plan === "free" ? <Chevron danger /> : null}
             </Item>
           </Pressable>
         </Group>

@@ -122,12 +122,15 @@ export class CreateEmptyKifu {
     }
 
     const existing = await gameLogs.listByGame(game.id);
+    // ルールは半荘単位。既存局があればそのルールを引き継ぐ（局ごとにバラけさせない）。
+    const kifu = emptyKifu(now().toISOString(), params.cameraBottomSeat, params.meta);
+    if (existing[0]) kifu.rules = existing[0].kifu.rules;
     const log: GameLog = {
       id: newId(),
       userId: params.userId,
       gameId: game.id,
       seq: existing.length + 1,
-      kifu: emptyKifu(now().toISOString(), params.cameraBottomSeat, params.meta),
+      kifu,
       visibility: "private",
       status: "draft",
       createdAt: now(),

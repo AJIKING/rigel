@@ -79,7 +79,7 @@ export function KifuPlayer({
 
   const roundLabel = roundNameForSeq(log.seq);
   const showAgari = atEnd && kifu.agari.length > 0 && !agariClosed;
-  const curJunme = revealed[dealer];
+  const curJunme = Math.max(1, revealed[dealer]); // 巡目は最小1（0巡を出さない）
   // 卓は横幅いっぱいまで拡大（上限は大画面向けの保険）。縦は上部バー(全画面時は無し)＋場ナビ分を控える。
   const boardSize = Math.max(240, Math.min(width - 8, height - (fs ? 150 : 240), 520));
 

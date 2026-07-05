@@ -171,7 +171,7 @@ export function KifuViewer({ detail, gameId }: { detail: PublicGameDetail; gameI
 
   const round = roundNameForSeq(log.seq);
   const authorName = detail.owner.handle ?? detail.owner.id.slice(0, 6);
-  const curJunme = revealed[dealer];
+  const curJunme = Math.max(1, revealed[dealer]); // 巡目は最小1（0巡を出さない）
   // 和了（ロン/ツモ）のときだけ裏ドラを出す（リーチ和了で意味を持つため）。
   const isWin = kifu.result === "ron" || kifu.result === "tsumo";
 

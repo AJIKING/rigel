@@ -92,19 +92,21 @@ export function cameraLabel(cam: CameraSeat): string {
   return CAMERA_LABELS[cam];
 }
 
-/** /analyze の HTTP ステータスを日本語メッセージに（撮影フロー共通）。 */
+/** /analyze の HTTP ステータスを日本語メッセージに（撮影フロー共通）。
+ *  reason は API が返す文字列。人向けの説明文（日本語・記号入り）はそのまま出すが、
+ *  機械コード（英小文字と _ のみ、例: user_not_found）はユーザーに見せず一般文言にする。 */
 export function analyzeErrorMessage(status: number, reason?: string): string {
   switch (status) {
     case 401:
       return "ログインが必要です。";
     case 402:
-      return "今月の無料枠を使い切りました。";
+      return "今月の解析回数の上限に達しました。プランのアップグレードで増やせます。";
     case 404:
       return "指定した半荘が見つかりません。";
     case 502:
       return "解析に失敗しました。少し待って再度お試しください。";
     default:
-      return reason ?? "保存に失敗しました。";
+      return reason && !/^[a-z_]+$/.test(reason) ? reason : "解析に失敗しました。";
   }
 }
 

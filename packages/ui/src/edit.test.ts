@@ -107,6 +107,23 @@ describe("addMeld / removeMeld", () => {
     const zi = addMeld(kifu(), "south", "chi", "7z");
     expect(zi.seats.south.melds[0]?.tiles.map((t) => t.tile)).toEqual(["7z", "7z", "7z"]);
   });
+  it("鳴くと手牌を末尾から減らす（ポン/チー=2・大明槓=3・暗槓=4・加槓=1）", () => {
+    const hand = ["1m", "2m", "3m", "4m", "5m"];
+    const withHand = () => kifu({ south: { hand: hand.map((t) => ({ tile: t, confidence: 1 })) } });
+    expect(addMeld(withHand(), "south", "pon", "9p").seats.south.hand.map((t) => t.tile)).toEqual([
+      "1m",
+      "2m",
+      "3m",
+    ]); // 5 - 2
+    expect(addMeld(withHand(), "south", "chi", "9p").seats.south.hand).toHaveLength(3); // -2
+    expect(addMeld(withHand(), "south", "kan_open", "9p").seats.south.hand).toHaveLength(2); // -3
+    expect(addMeld(withHand(), "south", "kan_closed", "9p").seats.south.hand).toHaveLength(1); // -4
+    expect(addMeld(withHand(), "south", "kan_added", "9p").seats.south.hand).toHaveLength(4); // -1
+  });
+  it("手牌が足りなくても0未満にはしない", () => {
+    const one = kifu({ south: { hand: [{ tile: "1m", confidence: 1 }] } });
+    expect(addMeld(one, "south", "pon", "9p").seats.south.hand).toHaveLength(0);
+  });
   it("鳴きを丸ごと取り除く", () => {
     const k = addMeld(addMeld(kifu(), "south", "pon", "5p"), "south", "pon", "6p");
     const next = removeMeld(k, "south", 0);

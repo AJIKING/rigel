@@ -2,6 +2,7 @@
 // 他人の半荘・不存在はどちらも not_found（存在を漏らさない）。空白は除去し 80字以内。
 
 import type { GameRepository } from "../domain/game/game.repository";
+import { findOwnedGame } from "./owned-game";
 
 const TITLE_MAX = 80;
 
@@ -17,8 +18,8 @@ export class UpdateGame {
   }): Promise<UpdateGameResult> {
     const title = params.title.trim();
     if (title.length > TITLE_MAX) return { ok: false, reason: "invalid" };
-    const game = await this.games.findById(params.gameId);
-    if (!game || game.userId !== params.userId) return { ok: false, reason: "not_found" };
+    const game = await findOwnedGame(this.games, params.gameId, params.userId);
+    if (!game) return { ok: false, reason: "not_found" };
     await this.games.save({ ...game, title });
     return { ok: true };
   }

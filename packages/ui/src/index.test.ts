@@ -100,12 +100,16 @@ describe("cameraLabel", () => {
 
 describe("analyzeErrorMessage", () => {
   it("ステータスごとにメッセージを返す", () => {
-    expect(analyzeErrorMessage(402)).toMatch(/無料枠/);
+    expect(analyzeErrorMessage(402)).toMatch(/上限/);
     expect(analyzeErrorMessage(502)).toMatch(/解析に失敗/);
   });
-  it("既定は reason かフォールバック", () => {
-    expect(analyzeErrorMessage(400, "bad")).toBe("bad");
-    expect(analyzeErrorMessage(400)).toBe("保存に失敗しました。");
+  it("既定は人向けの reason（日本語・記号入り）はそのまま出す", () => {
+    expect(analyzeErrorMessage(400, "河の写真が必要です")).toBe("河の写真が必要です");
+    expect(analyzeErrorMessage(400)).toBe("解析に失敗しました。");
+  });
+  it("機械コードの reason はユーザーに見せず一般文言にする", () => {
+    expect(analyzeErrorMessage(400, "user_not_found")).toBe("解析に失敗しました。");
+    expect(analyzeErrorMessage(400, "game_not_found")).toBe("解析に失敗しました。");
   });
 });
 

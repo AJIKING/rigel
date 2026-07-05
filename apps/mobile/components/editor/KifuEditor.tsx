@@ -32,7 +32,6 @@ import { BoardTable } from "../BoardTable";
 import { AgariForm } from "./AgariForm";
 import { DrawForm } from "./DrawForm";
 import { MiniTile } from "../MiniTile";
-import { RulesSheet } from "./RulesSheet";
 import { Segment } from "../Segment";
 import { Stepper } from "../Stepper";
 import { TilePickerSheet } from "./TilePickerSheet";
@@ -80,7 +79,6 @@ export function KifuEditor({
   const [seat, setSeat] = useState<Seat>(initialKifu.cameraBottomSeat ?? "east");
   const [picker, setPicker] = useState<Picker>(null);
   const [status, setStatus] = useState<KifuStatus>(initialStatus);
-  const [rulesOpen, setRulesOpen] = useState(false);
   // 盤面（席ごと）/ 手順（タイムライン）の編集モード。web の 盤面/手順 タブと同等。
   const [mode, setMode] = useState<"board" | "timeline">("board");
   // 盤面プレビュー（編集を即時反映。席タップで編集対象を切替）。
@@ -166,7 +164,15 @@ export function KifuEditor({
     setPicker(null);
   }
 
-  const editingDiscard = picker?.kind === "edit-river" ? (board.river[picker.index] ?? null) : null;
+  // リーチ/ツモ切りを編集する対象の河インデックス。
+  // edit-river はその牌、add-river は直前に追加した末尾牌（追加しながら切り方を編集できる）。
+  const discardIndex =
+    picker?.kind === "edit-river"
+      ? picker.index
+      : picker?.kind === "add-river"
+        ? board.river.length - 1
+        : -1;
+  const editingDiscard = discardIndex >= 0 ? (board.river[discardIndex] ?? null) : null;
 
   const pickerTitle = !picker
     ? ""
@@ -202,20 +208,8 @@ export function KifuEditor({
           />
         </View>
 
-        {/* 局情報: 最終巡目・本場・供託 */}
+        {/* 局情報: 本場・供託 */}
         <View style={styles.metaBox}>
-          <Stepper
-            label="最終巡目"
-            unit="巡"
-            value={kifu.meta.junme}
-            min={1}
-            max={30}
-            onChange={(v) =>
-              mutate((d) => {
-                d.meta.junme = v;
-              })
-            }
-          />
           <Stepper
             label="本場"
             unit="本場"
@@ -264,13 +258,7 @@ export function KifuEditor({
               </Pressable>
             </View>
           </View>
-          <Pressable
-            style={styles.rulesBtn}
-            onPress={() => setRulesOpen(true)}
-            accessibilityRole="button"
-          >
-            <Text style={styles.rulesBtnText}>⚙ ルール設定</Text>
-          </Pressable>
+          {/* ルールは局ごとに持たず半荘単位。編集は半荘詳細画面（局一覧）で行う。 */}
         </View>
 
         {/* 盤面プレビュー（編集を即時反映。席タップで編集対象を切替） */}
@@ -484,31 +472,18 @@ export function KifuEditor({
           onPick={onPick}
           onDelete={onDelete}
           onToggleRiichi={() => {
-            if (picker.kind !== "edit-river" || !editingDiscard) return;
-            setKifu(setDiscardFlags(kifu, seat, picker.index, { riichi: !editingDiscard.riichi }));
+            if (discardIndex < 0 || !editingDiscard) return;
+            setKifu(setDiscardFlags(kifu, seat, discardIndex, { riichi: !editingDiscard.riichi }));
           }}
           onToggleTsumogiri={() => {
-            if (picker.kind !== "edit-river" || !editingDiscard) return;
+            if (discardIndex < 0 || !editingDiscard) return;
             setKifu(
-              setDiscardFlags(kifu, seat, picker.index, {
+              setDiscardFlags(kifu, seat, discardIndex, {
                 tsumogiri: !editingDiscard.tsumogiri,
               }),
             );
           }}
           onClose={() => setPicker(null)}
-        />
-      ) : null}
-
-      {rulesOpen ? (
-        <RulesSheet
-          rules={kifu.rules}
-          onSave={(r) => {
-            mutate((d) => {
-              d.rules = r;
-            });
-            setRulesOpen(false);
-          }}
-          onClose={() => setRulesOpen(false)}
         />
       ) : null}
     </View>
@@ -553,16 +528,6 @@ const styles = StyleSheet.create({
     padding: 12,
     marginTop: 4,
   },
-  rulesBtn: {
-    alignSelf: "flex-start",
-    paddingVertical: 8,
-    paddingHorizontal: 14,
-    borderRadius: radius.base,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.line,
-    backgroundColor: colors.chrome2,
-  },
-  rulesBtnText: { color: colors.w70, fontWeight: "700", fontSize: 12.5 },
   segRow: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 4 },
   tabRow: { flexDirection: "row", marginTop: 4 },
   prevHead: { flexDirection: "row", alignItems: "baseline", gap: 10, marginTop: 6 },

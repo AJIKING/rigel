@@ -11,11 +11,16 @@ import { validKifu } from "../test-support/kifu";
 import { DeleteAccount, GetPublicProfile, UpdateProfile } from "./profile.usecase";
 
 const NOW = new Date("2026-06-29T00:00:00.000Z");
-function mkUser(id: string, handle: string | null, profilePublic = true): User {
+function mkUser(
+  id: string,
+  handle: string | null,
+  profilePublic = true,
+  plan: "free" | "next" | "pro" = "free",
+): User {
   return new User({
     id,
     googleSub: `sub-${id}`,
-    plan: "free",
+    plan,
     analysisCountThisMonth: 0,
     countResetAt: firstOfNextMonthUtc(NOW),
     handle,
@@ -120,5 +125,18 @@ describe("DeleteAccount", () => {
     expect(await users.findById("u2")).not.toBeNull(); // 他人は残る
     expect(gameLogs.saved.map((l) => l.id)).toEqual(["l2"]);
     expect(await games.findById("g1")).toBeNull();
+  });
+
+  it("有料プラン契約中は削除できない（解約が先。データは消さない）", async () => {
+    const users = new InMemoryUserRepository([mkUser("u1", "x", true, "pro")]);
+    const games = new InMemoryGameRepository([game("g1", "u1")]);
+    const gameLogs = new InMemoryGameLogRepository();
+    await gameLogs.save(log("l1", "u1", "g1", "public"));
+
+    const r = await new DeleteAccount(users, games, gameLogs).execute("u1");
+
+    expect(r).toEqual({ ok: false, reason: "paid_plan" });
+    expect(await users.findById("u1")).not.toBeNull(); // ユーザーもデータも残る
+    expect(await games.findById("g1")).not.toBeNull();
   });
 });

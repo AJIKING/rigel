@@ -36,6 +36,7 @@ export const {
   deleteKifu,
   deleteGame,
   updateGame,
+  updateGameRules,
   updateProfile,
   deleteAccount,
 } = client;

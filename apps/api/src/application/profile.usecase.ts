@@ -100,12 +100,17 @@ export class DeleteAccount {
     private readonly gameLogs: GameLogRepository,
   ) {}
 
-  async execute(userId: string): Promise<{ ok: boolean }> {
+  async execute(userId: string): Promise<DeleteAccountResult> {
     const user = await this.users.findById(userId);
-    if (!user) return { ok: false };
+    if (!user) return { ok: false, reason: "not_found" };
+    // 有料プラン契約中は削除させない（サブスクを止めないまま消えると請求が残るため）。
+    // 解約して free に戻してから削除する導線にする。
+    if (user.plan !== "free") return { ok: false, reason: "paid_plan" };
     await this.gameLogs.deleteByUser(userId);
     await this.games.deleteByUser(userId);
     await this.users.deleteById(userId);
     return { ok: true };
   }
 }
+
+export type DeleteAccountResult = { ok: true } | { ok: false; reason: "not_found" | "paid_plan" };

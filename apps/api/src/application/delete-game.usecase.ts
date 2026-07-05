@@ -3,6 +3,7 @@
 
 import type { GameRepository } from "../domain/game/game.repository";
 import type { GameLogRepository } from "../domain/kifu/game-log.repository";
+import { findOwnedGame } from "./owned-game";
 
 export type DeleteGameResult = { ok: true } | { ok: false; reason: "not_found" };
 
@@ -13,8 +14,8 @@ export class DeleteGame {
   ) {}
 
   async execute(params: { userId: string; gameId: string }): Promise<DeleteGameResult> {
-    const game = await this.games.findById(params.gameId);
-    if (!game || game.userId !== params.userId) return { ok: false, reason: "not_found" };
+    const game = await findOwnedGame(this.games, params.gameId, params.userId);
+    if (!game) return { ok: false, reason: "not_found" };
     await this.gameLogs.deleteByGame(params.gameId);
     await this.games.deleteById(params.gameId);
     return { ok: true };

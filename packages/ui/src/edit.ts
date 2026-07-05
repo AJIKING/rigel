@@ -101,7 +101,18 @@ function tileShape(type: MeldAddType): MeldPick {
   return type === "chi" ? "chi" : type === "pon" ? "pon" : "kan";
 }
 
-/** 鳴きを追加する（from は盤面編集では不明のため null。カンは種別を指定可）。 */
+/** 鳴きで手牌から出る枚数（残りは他家の捨て牌/既存の鳴き）。ポン/チー=2、大明槓=3、
+ *  暗槓=4、加槓=1（既存ポンに1枚足す）。手牌＋鳴きが増えすぎないよう手牌を減らす。 */
+function handTilesUsed(type: MeldAddType): number {
+  const t = storedMeldType(type);
+  if (t === "kan_closed") return 4;
+  if (t === "kan_open") return 3;
+  if (t === "kan_added") return 1;
+  return 2; // chi / pon
+}
+
+/** 鳴きを追加する（from は盤面編集では不明のため null。カンは種別を指定可）。
+ *  鳴いた枚数ぶん手牌を末尾から減らす（手牌＋鳴きの合計が増えすぎないように）。 */
 export function addMeld(kifu: Kifu, seat: Seat, type: MeldAddType, tile: Tile): Kifu {
   const d = clone(kifu);
   d.seats[seat].melds.push({
@@ -109,6 +120,8 @@ export function addMeld(kifu: Kifu, seat: Seat, type: MeldAddType, tile: Tile): 
     tiles: meldTiles(tileShape(type), tile).map((t) => ({ tile: t, confidence: 1 })),
     from: null,
   });
+  const hand = d.seats[seat].hand;
+  hand.splice(Math.max(0, hand.length - handTilesUsed(type))); // 末尾から鳴いた枚数を除く
   return KifuSchema.parse(d);
 }
 

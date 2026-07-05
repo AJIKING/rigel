@@ -5,7 +5,7 @@
 // AppContainer 経由でユースケースに委譲する。Hono を使う。
 // ============================================================
 
-import { CameraSeatSchema, KifuSchema, SeatSchema } from "@rigel/schema";
+import { CameraSeatSchema, KifuSchema, RulesSchema, SeatSchema } from "@rigel/schema";
 import { Hono, type Context, type MiddlewareHandler } from "hono";
 import { cors } from "hono/cors";
 import type { AppContainer } from "../../composition-root";
@@ -175,15 +175,27 @@ export function createApp(): Hono<AppEnv> {
   app.patch("/games/:id", requireAuth, async (c) => {
     const body = await c.req.json<{ title?: unknown }>().catch(() => ({}) as { title?: unknown });
     if (typeof body.title !== "string") return c.json({ error: "title required" }, 400);
-    const result = await c
-      .get("container")
-      .updateGame.execute({
-        userId: c.get("userId")!,
-        gameId: c.req.param("id"),
-        title: body.title,
-      });
+    const result = await c.get("container").updateGame.execute({
+      userId: c.get("userId")!,
+      gameId: c.req.param("id"),
+      title: body.title,
+    });
     if (!result.ok)
       return c.json({ error: result.reason }, result.reason === "invalid" ? 400 : 404);
+    return c.json({ ok: true });
+  });
+
+  // 半荘のルール変更（配下の全局に反映）。所有者のみ。ルールは局ごとに持たず半荘で共有する。
+  app.patch("/games/:id/rules", requireAuth, async (c) => {
+    const body = (await c.req.json().catch(() => null)) as { rules?: unknown } | null;
+    const parsed = RulesSchema.safeParse(body?.rules);
+    if (!parsed.success) return c.json({ error: "invalid rules" }, 400);
+    const result = await c.get("container").updateGameRules.execute({
+      userId: c.get("userId")!,
+      gameId: c.req.param("id"),
+      rules: parsed.data,
+    });
+    if (!result.ok) return c.json({ error: "not found" }, 404);
     return c.json({ ok: true });
   });
 
@@ -238,9 +250,12 @@ export function createApp(): Hono<AppEnv> {
   });
 
   // アカウント削除（自分の牌譜・半荘・ユーザーをカスケード削除）。
+  // 有料プラン契約中は不可（先に解約して free に戻す必要がある）。
   app.delete("/me", requireAuth, async (c) => {
     const result = await c.get("container").deleteAccount.execute(c.get("userId")!);
-    if (!result.ok) return c.json({ error: "not found" }, 404);
+    if (!result.ok) {
+      return c.json({ error: result.reason }, result.reason === "paid_plan" ? 403 : 404);
+    }
     return c.json({ ok: true });
   });
 

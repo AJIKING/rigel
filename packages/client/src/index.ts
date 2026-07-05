@@ -5,7 +5,7 @@
 // fetch は注入可能（テスト用）。型(DTO)もここに集約して両アプリの drift を防ぐ。
 // ============================================================
 
-import type { Kifu, Seat } from "@rigel/schema";
+import type { Kifu, Rules, Seat } from "@rigel/schema";
 
 /** 作成時に渡せる局メタ（本場/供託/ドラ/最終巡目）。記録のみ・点数計算はしない。 */
 export type KifuMetaInput = Partial<Pick<Kifu["meta"], "honba" | "kyotaku" | "dora" | "junme">>;
@@ -172,6 +172,12 @@ export interface ApiClient {
     token: string,
     gameId: string,
     input: { title: string },
+  ): Promise<{ ok: boolean; status: number }>;
+  /** 半荘のルールを変更する（配下の全局に反映。所有者のみ）。成否を返す。 */
+  updateGameRules(
+    token: string,
+    gameId: string,
+    rules: Rules,
   ): Promise<{ ok: boolean; status: number }>;
   /** 新しい半荘を「空の初局」つきで作る（手動入力の起点）。成功で gameId/logId を返す。 */
   createGame(
@@ -372,6 +378,15 @@ export function createApiClient(baseUrl: string, fetchImpl?: typeof fetch): ApiC
         method: "PATCH",
         headers: { ...bearer(token), "content-type": "application/json" },
         body: JSON.stringify(input),
+      });
+      return { ok: res.ok, status: res.status };
+    },
+
+    async updateGameRules(token, gameId, rules) {
+      const res = await doFetch(`${baseUrl}/games/${gameId}/rules`, {
+        method: "PATCH",
+        headers: { ...bearer(token), "content-type": "application/json" },
+        body: JSON.stringify({ rules }),
       });
       return { ok: res.ok, status: res.status };
     },

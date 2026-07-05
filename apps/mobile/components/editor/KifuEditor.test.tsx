@@ -125,19 +125,24 @@ describe("KifuEditor（モバイル編集画面）", () => {
     expect(saved.seats.east.river[0]).toMatchObject({ tile: "5p", riichi: true });
   });
 
-  it("局情報メタ（本場/供託/最終巡目）を増やして保存できる", () => {
+  it("局情報メタ（本場/供託）を増やして保存できる", () => {
     const onSave = jest.fn();
     render(<KifuEditor initialKifu={makeKifu()} seq={1} initialStatus="draft" onSave={onSave} />);
     fireEvent.press(screen.getByLabelText("本場を増やす"));
     fireEvent.press(screen.getByLabelText("本場を増やす"));
     fireEvent.press(screen.getByLabelText("供託を増やす"));
-    fireEvent.press(screen.getByLabelText("最終巡目を増やす"));
 
     fireEvent.press(screen.getByText("保存"));
     const saved = onSave.mock.calls[0]![0] as Kifu;
     expect(saved.meta.honba).toBe(2);
     expect(saved.meta.kyotaku).toBe(1);
-    expect(saved.meta.junme).toBe(2); // 既定1 + 1
+  });
+
+  it("最終巡目の入力は表示しない（モバイルでは不要）", () => {
+    render(
+      <KifuEditor initialKifu={makeKifu()} seq={1} initialStatus="draft" onSave={jest.fn()} />,
+    );
+    expect(screen.queryByLabelText("最終巡目を増やす")).toBeNull();
   });
 
   it("裏ドラを選んで保存できる", () => {
@@ -256,15 +261,11 @@ describe("KifuEditor（モバイル編集画面）", () => {
     expect(saved.timeline).toHaveLength(1);
   });
 
-  it("ルール設定で赤ドラを各2枚にして保存できる", () => {
-    const onSave = jest.fn();
-    render(<KifuEditor initialKifu={makeKifu()} seq={1} initialStatus="draft" onSave={onSave} />);
-    fireEvent.press(screen.getByText(/ルール設定/));
-    fireEvent.press(screen.getByText("各2枚")); // 赤ドラ=各2枚
-    fireEvent.press(screen.getByLabelText("ルールを保存")); // シートを閉じる
-    fireEvent.press(screen.getByText("保存")); // エディタの保存
-    const saved = onSave.mock.calls[0]![0] as Kifu;
-    expect(saved.rules.aka).toBe("2");
+  it("ルール設定は編集画面には出さない（半荘単位で局一覧から編集する）", () => {
+    render(
+      <KifuEditor initialKifu={makeKifu()} seq={1} initialStatus="draft" onSave={jest.fn()} />,
+    );
+    expect(screen.queryByText(/ルール設定/)).toBeNull();
   });
 
   it("カンは種別（暗槓）を選んで追加できる", () => {
