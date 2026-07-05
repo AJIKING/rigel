@@ -169,3 +169,11 @@
     padding: 0 14px 96px;
   }
 }
+
+/* 保存上限（半荘単位）の使用数表示。 */
+.quota {
+  margin: 8px 0 0;
+  color: var(--w45);
+  font-size: 12px;
+  font-weight: 700;
+}

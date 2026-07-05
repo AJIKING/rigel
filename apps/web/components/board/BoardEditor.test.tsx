@@ -7,7 +7,7 @@ import { type GameDetail } from "../../lib/api";
 vi.mock("../../app/actions", () => ({
   getGameAction: vi.fn(),
   updateKifuAction: vi.fn(),
-  setVisibilityAction: vi.fn(),
+  setGameVisibilityAction: vi.fn(),
   deleteKifuAction: vi.fn(),
   analyzeAction: vi.fn(),
   createEmptyKifuAction: vi.fn(),
@@ -16,7 +16,12 @@ vi.mock("../../app/actions", () => ({
   updateProfileAction: vi.fn(),
   createCheckoutAction: vi.fn(),
   deleteAccountAction: vi.fn(),
+  updateGameAction: vi.fn(),
+  updateGameRulesAction: vi.fn(),
+  deleteGameAction: vi.fn(),
 }));
+// next/navigation の useRouter をスタブ（半荘削除後の遷移で使う）。
+vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
 
 import { BoardEditor } from "./BoardEditor";
 

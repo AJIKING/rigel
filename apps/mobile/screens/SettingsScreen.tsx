@@ -12,7 +12,6 @@ import { Linking, Platform, Pressable, StyleSheet, Text, TextInput, View } from 
 import Svg, { Circle, Path } from "react-native-svg";
 import { AppBar } from "../components/AppBar";
 import { PlanSheet } from "../components/PlanSheet";
-import { Toggle } from "../components/Toggle";
 import {
   createCheckout,
   createPortal,
@@ -37,7 +36,6 @@ export function SettingsScreen() {
   const { user, token, signOut, refresh } = useAuth();
   const [handle, setHandle] = useState("");
   const [displayName, setDisplayName] = useState("");
-  const [profilePublic, setProfilePublic] = useState(true);
   const [note, setNote] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [delArm, setDelArm] = useState(false);
@@ -47,7 +45,6 @@ export function SettingsScreen() {
     if (!user) return;
     setHandle(user.handle ?? "");
     setDisplayName(user.displayName ?? "");
-    setProfilePublic(user.profilePublic ?? true);
   }, [user]);
 
   const plan: Plan = user?.plan ?? "free";
@@ -97,19 +94,6 @@ export function SettingsScreen() {
     } else if (res.status === 409) setNote("そのIDは既に使われています");
     else if (res.status === 400) setNote("IDは英数字とアンダースコア3〜20文字です");
     else setNote("保存に失敗しました");
-  }
-
-  async function onTogglePublic(next: boolean) {
-    setProfilePublic(next);
-    if (!token) return;
-    // 保存に失敗したらトグルを元に戻す（プライバシー設定が未保存のまま見えてしまうのを防ぐ）。
-    try {
-      const res = await updateProfile(token, { profilePublic: next });
-      if (!res.ok) throw new Error(String(res.status));
-    } catch {
-      setProfilePublic(!next);
-      setNote("公開設定の保存に失敗しました");
-    }
   }
 
   // シートで選んだプランを購入する（free → 有料の新規加入のみ。加入中は onOpenPortal）。
@@ -258,21 +242,6 @@ export function SettingsScreen() {
           </View>
         </Group>
 
-        <SectionTitle>公開設定</SectionTitle>
-        <Group>
-          <Item icon={<IconGlobe />} last>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.itemTitle}>プロフィールを公開する</Text>
-              <Text style={styles.itemSub}>公開牌譜からプロフィールを表示</Text>
-            </View>
-            <Toggle
-              value={profilePublic}
-              onChange={(v) => void onTogglePublic(v)}
-              a11yLabel="プロフィールを公開する"
-            />
-          </Item>
-        </Group>
-
         <SectionTitle>アカウント</SectionTitle>
         <Group>
           <Pressable onPress={() => signOut()}>
@@ -377,14 +346,6 @@ function IconLines() {
   return (
     <Svg width={17} height={17} viewBox="0 0 24 24">
       <Path d="M4 7h16M4 12h16M4 17h10" {...stroke()} />
-    </Svg>
-  );
-}
-function IconGlobe() {
-  return (
-    <Svg width={17} height={17} viewBox="0 0 24 24">
-      <Circle cx={12} cy={12} r={9} {...stroke()} />
-      <Path d="M3 12h18M12 3c3 3 3 15 0 18M12 3c-3 3-3 15 0 18" {...stroke()} />
     </Svg>
   );
 }

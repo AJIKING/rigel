@@ -130,11 +130,9 @@ export function KifuPlayer({
               <ShareIcon color={colors.w70} />
             </IconButton>
           ) : null}
+          {/* 手牌表示は下の場ナビ「手牌」トグルに一本化（目のアイコンは廃止＝機能重複の解消）。 */}
           <IconButton label="全画面" onPress={() => setFs(true)}>
             <ExpandIcon color={colors.w70} />
-          </IconButton>
-          <IconButton label="手牌表示" onPress={() => setShowHands((v) => !v)}>
-            <EyeIcon color={showHands ? colors.accent : colors.w70} />
           </IconButton>
         </View>
       )}
@@ -230,7 +228,6 @@ export function KifuPlayer({
                 v={`手牌${kifu.seats[seat].hand.length}枚 / 河${kifu.seats[seat].river.length}`}
               />
             ))}
-            <Text style={styles.muted}>点数は記録しません（打点は牌姿から計算）。</Text>
           </ScrollView>
         </BottomSheet>
       ) : null}
@@ -336,20 +333,6 @@ function IconButton({
 }
 
 /* ---------- アイコン ---------- */
-function EyeIcon({ color }: { color: string }) {
-  return (
-    <Svg width={21} height={21} viewBox="0 0 24 24" fill="none">
-      <Path
-        d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"
-        stroke={color}
-        strokeWidth={1.9}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      <Path d="M12 15a3 3 0 100-6 3 3 0 000 6z" stroke={color} strokeWidth={1.9} />
-    </Svg>
-  );
-}
 function ShareIcon({ color }: { color: string }) {
   return (
     <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
@@ -472,5 +455,4 @@ const styles = StyleSheet.create({
   kvK: { color: colors.w70, fontSize: 13 },
   kvV: { color: colors.white, fontSize: 13, fontWeight: "700" },
   kvTiles: { flexDirection: "row", gap: 4 },
-  muted: { color: colors.w45, fontSize: 11, paddingTop: 8 },
 });

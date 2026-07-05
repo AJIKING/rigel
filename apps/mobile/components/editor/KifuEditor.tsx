@@ -1,21 +1,17 @@
-import {
-  AgariSchema,
-  SeatSchema,
-  type Agari,
-  type Kifu,
-  type Seat,
-  type Tile,
-} from "@rigel/schema";
+import { SeatSchema, type Kifu, type Seat, type Tile } from "@rigel/schema";
 import type { KifuStatus } from "@rigel/client";
 import {
   addHandTile,
   addMeld,
   addRiverTile,
+  applyResultMode,
   applyTileEdit,
+  deriveWinResult,
   mutateKifu,
   removeHandTile,
   removeMeld,
   removeRiverTile,
+  resultModeOf,
   roundNameForSeq,
   seatLabel,
   setDiscardFlags,
@@ -23,6 +19,7 @@ import {
   SEAT_ORDER,
   type MeldAddType,
   type PickerSuit,
+  type ResultMode,
 } from "@rigel/ui";
 import { useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from "react-native";
@@ -100,35 +97,11 @@ export function KifuEditor({
     setKifu(mutateKifu(kifu, fn));
   }
 
-  // 結果モード: なし / 和了 / 流局。result(ロン/ツモ) は和了者ごとの from から導出する。
-  const resultMode: "none" | "win" | "draw" =
-    kifu.result === "draw" ? "draw" : kifu.agari.length > 0 ? "win" : "none";
+  // 結果モード（なし/和了/流局）の導出・切替は @rigel/ui の共有ロジック（web と同一挙動）。
+  const resultMode = resultModeOf(kifu);
 
-  /** 和了配列から result(ロン/ツモ) を導出（放銃者ありがあればロン、無ければツモ）。 */
-  function deriveWinResult(agari: Agari[]): "ron" | "tsumo" | null {
-    if (agari.length === 0) return null;
-    return agari.some((a) => a.from !== null) ? "ron" : "tsumo";
-  }
-
-  /** 結果モードの切替。和了は既定の和了1件、流局は聴牌者を空で開始、なしは全消し。 */
-  function setResult(r: "none" | "win" | "draw") {
-    mutate((draft) => {
-      if (r === "none") {
-        draft.result = null;
-        draft.agari = [];
-        draft.tenpai = [];
-      } else if (r === "draw") {
-        draft.result = "draw";
-        draft.agari = [];
-      } else {
-        // 和了。既存が無ければツモ和了1件を作る。
-        if (draft.agari.length === 0) {
-          draft.agari = [AgariSchema.parse({ winner: dealer, from: null })];
-        }
-        draft.result = deriveWinResult(draft.agari);
-        draft.tenpai = [];
-      }
-    });
+  function setResult(r: ResultMode) {
+    setKifu(applyResultMode(kifu, r, dealer));
   }
 
   function onPick(code: Tile) {

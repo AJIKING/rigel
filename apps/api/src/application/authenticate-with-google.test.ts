@@ -21,6 +21,7 @@ function makeUsecase(
   users: InMemoryUserRepository,
   sub: string,
   identity?: Partial<GoogleIdentity>,
+  randomHandle = "randomuser",
 ) {
   let n = 0;
   return new AuthenticateWithGoogle({
@@ -29,6 +30,7 @@ function makeUsecase(
     session: fakeSession,
     now: () => NOW,
     newId: () => `user-${++n}`,
+    randomHandle: () => randomHandle,
   });
 }
 
@@ -44,23 +46,32 @@ describe("AuthenticateWithGoogle", () => {
     expect(users.size).toBe(1);
   });
 
-  it("初回は表示名(Google名)と公開ID(handle=メールのローカル部)を既定で設定する", async () => {
+  it("初回は Google 情報を使わずランダムな handle/表示名を設定する", async () => {
     const users = new InMemoryUserRepository();
     const result = await makeUsecase(users, "g1", {
       email: "rin-riichi@example.com",
       name: "リン",
     }).execute({ idToken: "id" });
 
-    expect(result.user.displayName).toBe("リン");
-    expect(result.user.handle).toBe("rin_riichi"); // 記号は _ に整形
+    // Google の name/メールは使わない。ランダム handle を割り当て、表示名も同じにする。
+    expect(result.user.handle).toBe("randomuser");
+    expect(result.user.displayName).toBe("randomuser");
+    expect(result.user.displayName).not.toBe("リン");
+  });
+
+  it("email は運用のため保存する（handle/表示名には使わない）", async () => {
+    const users = new InMemoryUserRepository();
+    const result = await makeUsecase(users, "g1", { email: "abuse@example.com" }).execute({
+      idToken: "id",
+    });
+    expect(result.user.email).toBe("abuse@example.com");
+    expect(result.user.handle).not.toContain("abuse");
   });
 
   it("handle が既に使われていたら連番を足して一意にする", async () => {
     const users = new InMemoryUserRepository();
-    await makeUsecase(users, "g1", { email: "taro@example.com" }).execute({ idToken: "id" });
-    const second = await makeUsecase(users, "g2", { email: "taro@example.com" }).execute({
-      idToken: "id",
-    });
+    await makeUsecase(users, "g1", undefined, "taro").execute({ idToken: "id" });
+    const second = await makeUsecase(users, "g2", undefined, "taro").execute({ idToken: "id" });
 
     expect(second.user.handle).toBe("taro2");
   });

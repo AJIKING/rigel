@@ -29,7 +29,6 @@ export const {
   analyze,
   updateKifu,
   createCheckout,
-  setVisibility,
   deleteKifu,
   createGame,
   createEmptyKifu,

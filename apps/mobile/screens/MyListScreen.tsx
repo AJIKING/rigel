@@ -44,19 +44,19 @@ export function MyListScreen() {
     });
   }
 
-  // 作成可能件数と現在の件数（非公開complete・下書きは別枠。free=各5 / 有料=無制限）。
+  // 作成可能数と現在数。上限は「半荘」単位（非公開complete・下書きは別枠。free=各5 / 有料=無制限）。
   const limits = planKifuLimits(user?.plan ?? "free");
-  const draftUsed = games.reduce((n, g) => n + g.draftCount, 0);
-  const privateUsed = games.reduce((n, g) => n + (g.kyokuCount - g.publicCount - g.draftCount), 0);
+  const draftUsed = games.filter((g) => g.draftCount > 0).length;
+  const privateUsed = games.filter((g) => g.kyokuCount - g.publicCount - g.draftCount > 0).length;
   const quota = (used: number, limit: number | null) =>
-    limit === null ? `${used}件（無制限）` : `${used} / ${limit}件`;
+    limit === null ? `${used}（無制限）` : `${used} / ${limit}半荘`;
   // 上限に達したら警告色（これ以上は作成/保存できないため）。
   const atLimit = (used: number, limit: number | null) => limit !== null && used >= limit;
 
   return (
     <View style={styles.root}>
       <AppBar title="マイ牌譜" />
-      <Toolbar sort="新着" />
+      <Toolbar />
       {loading ? (
         <CenterState loading />
       ) : games.length === 0 ? (

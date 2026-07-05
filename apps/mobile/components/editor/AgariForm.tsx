@@ -1,13 +1,13 @@
 import { AgariSchema, totalHan, type Agari, type Kifu, type Seat } from "@rigel/schema";
 import {
   agariDeltas,
+  payText,
   scoreAgari,
   windOf,
   yakuByGroup,
   yakuHan,
   SEAT_ORDER,
   YAKU_CATALOG,
-  type HandScore,
 } from "@rigel/ui";
 import { useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
@@ -21,14 +21,6 @@ import { TilePickerSheet } from "./TilePickerSheet";
 const FU_OPTIONS = [20, 25, 30, 40, 50, 60, 70, 80, 90, 100, 110];
 const YAKU_GROUPS = yakuByGroup();
 const CATALOG_BY_NAME = new Map(YAKU_CATALOG.map((y) => [y.name, y]));
-
-/** payment を人が読める文字列に（web AgariEditor と同じ表記）。 */
-function payText(score: HandScore): string {
-  const p = score.payment;
-  if ("ron" in p) return `${p.ron}点`;
-  if ("each" in p) return `${p.each}点オール`;
-  return `子${p.fromNonDealer} / 親${p.fromDealer}`;
-}
 
 /**
  * 和了（アガリ）の入力フォーム（モバイル）。和了者・放銃者・リーチ・和了牌・符・

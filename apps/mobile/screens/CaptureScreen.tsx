@@ -1,10 +1,10 @@
-import { useNavigation } from "@react-navigation/native";
+import { useNavigation, useRoute, type RouteProp } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { SeatSchema, type Seat } from "@rigel/schema";
-import { analyzeErrorMessage, cameraLabel, seatLabel } from "@rigel/ui";
+import { analyzeErrorMessage, cameraLabel, seatLabel, LIMIT_MESSAGES } from "@rigel/ui";
 import { useState } from "react";
 import { Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
-import { analyze, createGame } from "../lib/api";
+import { analyze, createEmptyKifu, createGame } from "../lib/api";
 import { useAuth } from "../lib/auth";
 import type { RootStackParamList } from "../lib/navigation";
 import { pickImage, type PickedImage as Picked } from "../lib/pick-image";
@@ -16,6 +16,8 @@ const CAMS = ["bottom", "right", "top", "left"] as const;
 
 export function CaptureScreen() {
   const nav = useNavigation<Nav>();
+  // gameId があれば既存半荘への局追加（半荘詳細の「＋局を追加」から来る）。
+  const gameId = useRoute<RouteProp<RootStackParamList, "Capture">>().params?.gameId;
   const { token } = useAuth();
   const [seat, setSeat] = useState<Seat>("east");
   const [river, setRiver] = useState<Picked | null>(null);
@@ -25,7 +27,7 @@ export function CaptureScreen() {
   const [error, setError] = useState<string | null>(null);
   const busy = submitting || creating;
 
-  /** 写真なしの手入力作成。空の初局つき半荘を作って編集画面へ。 */
+  /** 写真なしの手入力作成。既存半荘には局を足し、無ければ新しい半荘を作って編集画面へ。 */
   async function onCreateManual() {
     if (!token) {
       setError("ログインが必要です。");
@@ -34,8 +36,12 @@ export function CaptureScreen() {
     setError(null);
     setCreating(true);
     try {
-      const res = await createGame(token, seat);
+      const res = gameId
+        ? await createEmptyKifu(token, gameId, seat)
+        : await createGame(token, seat);
       if (res.ok) nav.navigate("Edit", { gameId: res.gameId, logId: res.logId });
+      else if (res.status === 409) setError(LIMIT_MESSAGES.gameFull);
+      else if (res.status === 403) setError(LIMIT_MESSAGES.draftGames);
       else setError("作成に失敗しました。");
     } catch {
       setError("通信に失敗しました。");
@@ -71,6 +77,7 @@ export function CaptureScreen() {
       // RN の FormData はファイルを {uri,name,type} で受け取る（DOM 型に合わせて cast）。
       form.append("river", river as unknown as Blob);
       form.append("cameraBottomSeat", seat);
+      if (gameId) form.append("gameId", gameId); // 既存半荘への局追加
       for (const cam of CAMS) {
         const f = hands[cam];
         if (f) form.append(`hand_${cam}`, f as unknown as Blob);
@@ -90,6 +97,9 @@ export function CaptureScreen() {
 
   return (
     <ScrollView style={styles.root} contentContainerStyle={styles.container}>
+      {gameId ? (
+        <Text style={styles.addNote}>この半荘に局を追加します（写真解析 または 手入力）。</Text>
+      ) : null}
       <Text style={styles.label}>手前（カメラ手前）の席</Text>
       <View style={styles.seatRow}>
         {SeatSchema.options.map((s) => (
@@ -164,6 +174,7 @@ export function CaptureScreen() {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.bg },
   container: { padding: 16, gap: 10 },
+  addNote: { color: colors.accent, fontSize: 12.5, fontWeight: "700" },
   label: { color: colors.w70, fontSize: 13, marginTop: 6 },
   seatRow: { flexDirection: "row", gap: 8 },
   seatBtn: {

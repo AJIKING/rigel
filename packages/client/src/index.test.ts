@@ -216,18 +216,6 @@ describe("createApiClient", () => {
     expect(result).toEqual({ ok: false, status: 501 });
   });
 
-  it("setVisibility は PATCH /kifu/:id/visibility して成否を返す", async () => {
-    let method = "";
-    const client = createApiClient("https://api.test", ((url: string, init?: RequestInit) => {
-      method = init?.method ?? "GET";
-      expect(String(url)).toBe("https://api.test/kifu/l1/visibility");
-      return Promise.resolve(json({ ok: true }));
-    }) as unknown as typeof fetch);
-    const result = await client.setVisibility("tok", "l1", "public");
-    expect(method).toBe("PATCH");
-    expect(result.ok).toBe(true);
-  });
-
   it("deleteKifu は DELETE /kifu/:id して成否を返す", async () => {
     let method = "";
     const client = createApiClient("https://api.test", ((url: string, init?: RequestInit) => {
@@ -249,6 +237,19 @@ describe("createApiClient", () => {
     }) as unknown as typeof fetch);
     const result = await client.deleteGame("tok", "g1");
     expect(method).toBe("DELETE");
+    expect(result.ok).toBe(true);
+  });
+
+  it("setGameVisibility は PATCH /games/:id/visibility して成否を返す", async () => {
+    let body = "";
+    const client = createApiClient("https://api.test", ((url: string, init?: RequestInit) => {
+      body = String(init?.body ?? "");
+      expect(String(url)).toBe("https://api.test/games/g1/visibility");
+      expect(init?.method).toBe("PATCH");
+      return Promise.resolve(json({ ok: true }));
+    }) as unknown as typeof fetch);
+    const result = await client.setGameVisibility("tok", "g1", "public");
+    expect(JSON.parse(body)).toEqual({ visibility: "public" });
     expect(result.ok).toBe(true);
   });
 

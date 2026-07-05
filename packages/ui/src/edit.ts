@@ -7,7 +7,14 @@
 // 河の order 連番を壊さないこと（削除時は 1..n に振り直す）。
 // ============================================================
 
-import { KifuSchema, type Kifu, type Seat, type Tile } from "@rigel/schema";
+import {
+  AgariSchema,
+  KifuSchema,
+  type Agari,
+  type Kifu,
+  type Seat,
+  type Tile,
+} from "@rigel/schema";
 
 function clone(k: Kifu): Kifu {
   return JSON.parse(JSON.stringify(k)) as Kifu;
@@ -21,6 +28,43 @@ export function mutateKifu(kifu: Kifu, fn: (draft: Kifu) => void): Kifu {
   const d = clone(kifu);
   fn(d);
   return KifuSchema.parse(d);
+}
+
+// ------------------------------------------------------------
+// 結果（なし/和了/流局）モード。web/mobile の編集画面が同じ導出・切替を使う。
+// result(ron/tsumo) は和了者ごとの from から導出する（単一の真実源は agari 配列）。
+// ------------------------------------------------------------
+
+export type ResultMode = "none" | "win" | "draw";
+
+/** 現在の結果モード。draw が最優先、和了があれば win、どちらも無ければ none。 */
+export function resultModeOf(kifu: Kifu): ResultMode {
+  return kifu.result === "draw" ? "draw" : kifu.agari.length > 0 ? "win" : "none";
+}
+
+/** 和了配列から result(ロン/ツモ) を導出（放銃者ありが1件でもあればロン、無ければツモ）。 */
+export function deriveWinResult(agari: Agari[]): "ron" | "tsumo" | null {
+  if (agari.length === 0) return null;
+  return agari.some((a) => a.from !== null) ? "ron" : "tsumo";
+}
+
+/** 結果モードの切替を適用した新しい Kifu を返す。
+ *  和了: 既存が無ければツモ和了1件を作る / 流局: 和了を消し聴牌入力へ / なし: 全消し。 */
+export function applyResultMode(kifu: Kifu, mode: ResultMode, dealer: Seat): Kifu {
+  return mutateKifu(kifu, (d) => {
+    if (mode === "none") {
+      d.result = null;
+      d.agari = [];
+      d.tenpai = [];
+    } else if (mode === "draw") {
+      d.result = "draw";
+      d.agari = [];
+    } else {
+      if (d.agari.length === 0) d.agari = [AgariSchema.parse({ winner: dealer, from: null })];
+      d.result = deriveWinResult(d.agari);
+      d.tenpai = [];
+    }
+  });
 }
 
 /** 手牌に1枚追加する（確定扱い）。 */

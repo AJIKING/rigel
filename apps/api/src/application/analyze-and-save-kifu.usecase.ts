@@ -17,12 +17,13 @@ import type { AnalysisInput, Analyzer } from "../domain/kifu/analyzer";
 import type { GameLog } from "../domain/kifu/game-log";
 import type { GameLogRepository } from "../domain/kifu/game-log.repository";
 import type { UserRepository } from "../domain/user/user.repository";
+import { MAX_LOGS_PER_GAME } from "./create-empty-kifu.usecase";
 
 export type AnalyzeResult =
   | { ok: true; gameLog: GameLog; gameId: string }
   | {
       ok: false;
-      reason: "user_not_found" | "quota_exceeded" | "game_not_found";
+      reason: "user_not_found" | "quota_exceeded" | "game_not_found" | "game_full";
     };
 
 export interface AnalyzeDeps {
@@ -61,6 +62,10 @@ export class AnalyzeAndSaveKifu {
     if (params.gameId) {
       game = await games.findById(params.gameId);
       if (!game || game.userId !== user.id) return { ok: false, reason: "game_not_found" };
+      // 1半荘30局まで（解析前に弾いて無駄な課金を避ける）。
+      if ((await gameLogs.listByGame(game.id)).length >= MAX_LOGS_PER_GAME) {
+        return { ok: false, reason: "game_full" };
+      }
     }
 
     // 画像 → 牌譜ドラフト（Analyzer 内で Zod 検証済みのものが返る契約）。
@@ -78,8 +83,8 @@ export class AnalyzeAndSaveKifu {
       gameId: game.id,
       seq: existing.length + 1,
       kifu,
-      // 新規牌譜は既定で非公開・下書き。公開/編集済は所有者が明示的に切り替える。
-      visibility: "private",
+      // 公開範囲は半荘単位（既存局があれば引き継ぐ）。新規半荘は非公開・下書きで開始。
+      visibility: existing[0]?.visibility ?? "private",
       status: "draft",
       createdAt: now(),
     };

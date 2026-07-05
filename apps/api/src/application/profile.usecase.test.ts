@@ -11,12 +11,7 @@ import { validKifu } from "../test-support/kifu";
 import { DeleteAccount, GetPublicProfile, UpdateProfile } from "./profile.usecase";
 
 const NOW = new Date("2026-06-29T00:00:00.000Z");
-function mkUser(
-  id: string,
-  handle: string | null,
-  profilePublic = true,
-  plan: "free" | "next" | "pro" = "free",
-): User {
+function mkUser(id: string, handle: string | null, plan: "free" | "next" | "pro" = "free"): User {
   return new User({
     id,
     googleSub: `sub-${id}`,
@@ -25,7 +20,6 @@ function mkUser(
     countResetAt: firstOfNextMonthUtc(NOW),
     handle,
     displayName: handle ?? "",
-    profilePublic,
   });
 }
 const game = (id: string, userId: string): Game => ({ id, userId, title: id, createdAt: NOW });
@@ -41,19 +35,17 @@ const log = (id: string, userId: string, gameId: string, vis: "public" | "privat
 });
 
 describe("UpdateProfile", () => {
-  it("ハンドル/表示名/公開を更新する", async () => {
+  it("ハンドル/表示名を更新する", async () => {
     const users = new InMemoryUserRepository([mkUser("u1", null)]);
     const r = await new UpdateProfile(users).execute({
       userId: "u1",
       handle: "rin_riichi",
       displayName: "りん",
-      profilePublic: false,
     });
     expect(r).toEqual({ ok: true });
     const u = await users.findById("u1");
     expect(u?.handle).toBe("rin_riichi");
     expect(u?.displayName).toBe("りん");
-    expect(u?.profilePublic).toBe(false);
   });
 
   it("不正なハンドルは invalid_handle", async () => {
@@ -99,13 +91,13 @@ describe("GetPublicProfile", () => {
     expect(p?.id).toBe("u1");
   });
 
-  it("非公開プロフィールは null", async () => {
-    const users = new InMemoryUserRepository([mkUser("u1", "hidden", false)]);
+  it("存在しないユーザーは null", async () => {
+    const users = new InMemoryUserRepository([mkUser("u1", "kuro_2p")]);
     const p = await new GetPublicProfile(
       users,
       new InMemoryGameRepository(),
       new InMemoryGameLogRepository(),
-    ).execute("hidden");
+    ).execute("nobody");
     expect(p).toBeNull();
   });
 });
@@ -128,7 +120,7 @@ describe("DeleteAccount", () => {
   });
 
   it("有料プラン契約中は削除できない（解約が先。データは消さない）", async () => {
-    const users = new InMemoryUserRepository([mkUser("u1", "x", true, "pro")]);
+    const users = new InMemoryUserRepository([mkUser("u1", "x", "pro")]);
     const games = new InMemoryGameRepository([game("g1", "u1")]);
     const gameLogs = new InMemoryGameLogRepository();
     await gameLogs.save(log("l1", "u1", "g1", "public"));

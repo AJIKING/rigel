@@ -162,6 +162,12 @@
   background: var(--chrome-3);
   border: 1px solid var(--line-2);
 }
+/* 下書きを含む半荘（注意色）。mobile の warn バッジと同じ役割。 */
+.badge.draft {
+  color: var(--vermilion);
+  background: color-mix(in srgb, var(--vermilion) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--vermilion) 45%, transparent);
+}
 .cmeta {
   display: flex;
   align-items: center;

@@ -25,7 +25,7 @@ const PLAN_CARDS: {
   reco?: boolean;
   feats: string[];
 }[] = [
-  { key: "free", feats: ["公開牌譜の保存 無制限", "非公開の保存 5件まで", "AI再現 なし"] },
+  { key: "free", feats: ["公開牌譜の保存 無制限", "非公開の半荘 5つまで", "AI再現 なし"] },
   {
     key: "next",
     reco: true,
@@ -40,7 +40,6 @@ export function SettingsShell() {
 
   const [handle, setHandle] = useState("");
   const [displayName, setDisplayName] = useState("");
-  const [profilePublic, setProfilePublic] = useState(true);
   const [save, setSave] = useState<"idle" | "saving" | "saved" | string>("idle");
   const [planOpen, setPlanOpen] = useState(false);
   const [delArm, setDelArm] = useState(false);
@@ -50,7 +49,6 @@ export function SettingsShell() {
     if (!user) return;
     setHandle(user.handle ?? "");
     setDisplayName(user.displayName ?? "");
-    setProfilePublic(user.profilePublic ?? true);
   }, [user]);
 
   if (authLoading) return <Shell>{<p style={{ color: "#888", padding: 24 }}>…</p>}</Shell>;
@@ -67,18 +65,13 @@ export function SettingsShell() {
 
   async function onSaveProfile() {
     setSave("saving");
-    const res = await updateProfileAction({ handle, displayName, profilePublic });
+    const res = await updateProfileAction({ handle, displayName });
     if (res.ok) {
       setSave("saved");
       setTimeout(() => setSave("idle"), 1600);
     } else if (res.status === 409) setSave("そのIDは既に使われています");
     else if (res.status === 400) setSave("IDは英数字とアンダースコア3〜20文字です");
     else setSave("保存に失敗しました");
-  }
-
-  async function onTogglePublic(next: boolean) {
-    setProfilePublic(next);
-    await updateProfileAction({ profilePublic: next }).catch(() => {});
   }
 
   /** 加入中のプラン変更・解約は Stripe Billing Portal で行う。
@@ -191,28 +184,6 @@ export function SettingsShell() {
             <button className={`${s.btn} ${s.ghost}`} onClick={() => setPlanOpen(true)}>
               プラン変更
             </button>
-          </div>
-        </section>
-
-        {/* 公開設定 */}
-        <section className={s.panel}>
-          <h2>公開設定</h2>
-          <div className={s.field}>
-            <div>
-              <span className={s.flabel}>プロフィールを公開する</span>
-              <div className={s.fhint}>他のユーザーがあなたの公開牌譜を一覧で見られます。</div>
-            </div>
-            <label className={s.switch}>
-              <input
-                type="checkbox"
-                checked={profilePublic}
-                onChange={(e) => void onTogglePublic(e.target.checked)}
-                aria-label="プロフィールを公開する"
-              />
-              <span className={s.track}>
-                <span className={s.knob} />
-              </span>
-            </label>
           </div>
         </section>
 

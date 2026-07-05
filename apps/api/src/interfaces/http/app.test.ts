@@ -88,9 +88,9 @@ describe("HTTP app (Hono)", () => {
     expect(res.status).toBe(400);
   });
 
-  it("PATCH /kifu/:id/visibility はトークン無しで 401", async () => {
+  it("PATCH /games/:id/visibility はトークン無しで 401（公開範囲は半荘単位）", async () => {
     const res = await app.request(
-      "/kifu/l1/visibility",
+      "/games/g1/visibility",
       {
         method: "PATCH",
         headers: { "content-type": "application/json" },
@@ -101,10 +101,10 @@ describe("HTTP app (Hono)", () => {
     expect(res.status).toBe(401);
   });
 
-  it("PATCH /kifu/:id/visibility は不正な値を 400", async () => {
+  it("PATCH /games/:id/visibility は不正な値を 400", async () => {
     const token = await new JwtSessionService({ secret: "test-secret" }).issue("u1");
     const res = await app.request(
-      "/kifu/l1/visibility",
+      "/games/g1/visibility",
       {
         method: "PATCH",
         headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },

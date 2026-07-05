@@ -1,10 +1,12 @@
-import { Pressable, StyleSheet, Text, View, type DimensionValue } from "react-native";
+import { useRef } from "react";
+import { PanResponder, Pressable, StyleSheet, Text, View, type DimensionValue } from "react-native";
 import { colors, radius } from "../lib/theme";
 
 /**
  * 下からのシート共通枠（PlanSheet / AgariSheet / KifuPlayer の情報シート）。
  * backdrop=true なら背景を暗くしてタップで閉じる。false のときは overlay が
- * 下の UI へのタップを塞がないよう box-none にする。grabber=つまみ（タップで閉じる）。
+ * 下の UI へのタップを塞がないよう box-none にする。
+ * grabber=つまみ（タップ、または下スワイプで閉じる）。
  */
 export function BottomSheet({
   onClose,
@@ -19,6 +21,18 @@ export function BottomSheet({
   backdrop?: boolean;
   grabber?: boolean;
 }) {
+  // つまみを下にスワイプしたら閉じる（PanResponder は RN 標準。新規依存なし）。
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+  const pan = useRef(
+    PanResponder.create({
+      onMoveShouldSetPanResponder: (_, g) => g.dy > 8 && Math.abs(g.dy) > Math.abs(g.dx) * 1.5,
+      onPanResponderRelease: (_, g) => {
+        if (g.dy > 50) onCloseRef.current();
+      },
+    }),
+  ).current;
+
   return (
     <View style={styles.overlay} pointerEvents={backdrop ? "auto" : "box-none"}>
       {backdrop ? (
@@ -26,7 +40,12 @@ export function BottomSheet({
       ) : null}
       <View style={[styles.card, { maxHeight }]}>
         {grabber ? (
-          <Pressable style={styles.handle} onPress={onClose} accessibilityLabel="シートを閉じる">
+          <Pressable
+            style={styles.handle}
+            onPress={onClose}
+            accessibilityLabel="シートを閉じる"
+            {...pan.panHandlers}
+          >
             <View style={styles.grabber} />
           </Pressable>
         ) : null}

@@ -1,12 +1,14 @@
 import { useFocusEffect, useNavigation, useRoute, type RouteProp } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import { collectReviewItems, roundNameForSeq } from "@rigel/ui";
+import type { Visibility } from "@rigel/client";
+import { collectReviewItems, roundNameForSeq, LIMIT_MESSAGES } from "@rigel/ui";
 import { useCallback, useState } from "react";
 import { FlatList, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { CenterState } from "../components/CenterState";
 import { DangerButton } from "../components/DangerButton";
 import { RulesSheet } from "../components/editor/RulesSheet";
-import { createEmptyKifu, deleteGame, updateGame, updateGameRules } from "../lib/api";
+import { Segment } from "../components/Segment";
+import { deleteGame, setGameVisibility, updateGame, updateGameRules } from "../lib/api";
 import { useAuth } from "../lib/auth";
 import { confirmDestructive } from "../lib/confirm";
 import { fmtDate } from "../lib/format";
@@ -21,12 +23,13 @@ export function GameDetailScreen() {
   const { gameId } = useRoute<RouteProp<RootStackParamList, "GameDetail">>().params;
   const { token } = useAuth();
   const { loading, detail, refetch } = useGame(gameId);
-  const [adding, setAdding] = useState(false);
   const [note, setNote] = useState<string | null>(null);
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleDraft, setTitleDraft] = useState("");
   const [savingTitle, setSavingTitle] = useState(false);
   const [rulesOpen, setRulesOpen] = useState(false);
+  // 公開範囲は半荘単位。楽観更新（失敗で戻す）。null のうちは局の値を使う。
+  const [vis, setVis] = useState<Visibility | null>(null);
 
   // 編集・局追加/削除から戻ったとき一覧を最新化する（静かに再取得）。
   useFocusEffect(
@@ -38,26 +41,21 @@ export function GameDetailScreen() {
   if (loading) return <CenterState loading />;
   if (!detail) return <CenterState message="半荘が見つかりませんでした。" />;
 
-  // 新しい局は既存局と同じ手前席で作る（無ければ東）。作成後その局の編集画面へ。
-  const bottomSeat = detail.logs[0]?.kifu.cameraBottomSeat ?? "east";
-  async function onAddKyoku() {
-    if (!token || adding) return;
-    setAdding(true);
+  const visibility: Visibility = vis ?? detail.logs[0]?.visibility ?? "private";
+
+  /** 半荘の公開範囲を切り替える（配下の全局に反映）。 */
+  async function onToggleVis(next: Visibility) {
+    if (!token || next === visibility) return;
     setNote(null);
-    try {
-      const res = await createEmptyKifu(token, gameId, bottomSeat);
-      if (res.ok) nav.navigate("Edit", { gameId, logId: res.logId });
-      else
-        setNote(
-          res.status === 403
-            ? "無料プランの下書きは5件までです（有料プランで無制限）。"
-            : "追加に失敗しました。",
-        );
-    } catch {
-      setNote("通信に失敗しました");
-    } finally {
-      setAdding(false);
-    }
+    setVis(next);
+    const res = await setGameVisibility(token, gameId, next).catch(() => ({
+      ok: false,
+      status: 0,
+    }));
+    if (!res.ok) {
+      setVis(visibility);
+      setNote(res.status === 403 ? LIMIT_MESSAGES.privateGames : "公開設定の保存に失敗しました");
+    } else refetch();
   }
 
   /** 半荘名の変更を保存する（所有者のみ）。成功で一覧を最新化。 */
@@ -149,15 +147,27 @@ export function GameDetailScreen() {
         <Text style={styles.date}>
           {fmtDate(detail.game.createdAt)} ／ {detail.logs.length} 局
         </Text>
+        {/* 公開/非公開は半荘単位（配下の全局に反映）。 */}
+        <View style={styles.visRow}>
+          <Segment
+            options={
+              [
+                ["private", "非公開"],
+                ["public", "公開"],
+              ] as const
+            }
+            value={visibility}
+            onChange={(v) => void onToggleVis(v)}
+          />
+        </View>
         <View style={styles.headActions}>
           <Pressable
-            style={[styles.addBtn, adding && styles.addBtnOff]}
-            disabled={adding}
-            onPress={() => void onAddKyoku()}
+            style={styles.addBtn}
+            onPress={() => nav.navigate("Capture", { gameId })}
             accessibilityRole="button"
             accessibilityLabel="局を追加"
           >
-            <Text style={styles.addBtnText}>{adding ? "追加中…" : "＋ 局を追加"}</Text>
+            <Text style={styles.addBtnText}>＋ 局を追加</Text>
           </Pressable>
           <Pressable
             style={styles.rulesBtn}
@@ -233,6 +243,7 @@ const styles = StyleSheet.create({
   titleSave: { color: colors.accent, fontWeight: "800", fontSize: 13 },
   titleCancel: { color: colors.w45, fontWeight: "700", fontSize: 13 },
   date: { color: colors.w45, fontSize: 12, marginTop: 2 },
+  visRow: { marginTop: 10, alignSelf: "flex-start" },
   headActions: { flexDirection: "row", marginTop: 10 },
   addBtn: {
     paddingVertical: 9,
@@ -242,7 +253,6 @@ const styles = StyleSheet.create({
     borderColor: colors.accent,
     backgroundColor: colors.accentSoft,
   },
-  addBtnOff: { opacity: 0.6 },
   addBtnText: { color: colors.accent, fontWeight: "800", fontSize: 13 },
   rulesBtn: {
     marginLeft: 8,

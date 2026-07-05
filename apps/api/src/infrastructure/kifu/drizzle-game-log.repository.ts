@@ -1,7 +1,7 @@
 // infrastructure/kifu — GameLogRepository の Drizzle/D1 実装。
 
 import { KifuSchema } from "@rigel/schema";
-import { and, asc, count, desc, eq } from "drizzle-orm";
+import { and, asc, countDistinct, desc, eq, ne } from "drizzle-orm";
 import type { GameLog, KifuStatus, Visibility } from "../../domain/kifu/game-log";
 import type { GameLogRepository } from "../../domain/kifu/game-log.repository";
 import type { Db } from "../db/client";
@@ -75,28 +75,40 @@ export class DrizzleGameLogRepository implements GameLogRepository {
     return rows.map(toDomain);
   }
 
-  async countByUserAndStatus(userId: string, status: KifuStatus): Promise<number> {
+  async countGamesByUserAndStatus(
+    userId: string,
+    status: KifuStatus,
+    excludeGameId?: string,
+  ): Promise<number> {
     const row = await this.db
-      .select({ n: count() })
+      .select({ n: countDistinct(gameLogs.gameId) })
       .from(gameLogs)
-      .where(and(eq(gameLogs.userId, userId), eq(gameLogs.status, status)))
+      .where(
+        and(
+          eq(gameLogs.userId, userId),
+          eq(gameLogs.status, status),
+          excludeGameId ? ne(gameLogs.gameId, excludeGameId) : undefined,
+        ),
+      )
       .get();
     return row?.n ?? 0;
   }
 
-  async countByUserVisibilityStatus(
+  async countGamesByUserVisibilityStatus(
     userId: string,
     visibility: Visibility,
     status: KifuStatus,
+    excludeGameId?: string,
   ): Promise<number> {
     const row = await this.db
-      .select({ n: count() })
+      .select({ n: countDistinct(gameLogs.gameId) })
       .from(gameLogs)
       .where(
         and(
           eq(gameLogs.userId, userId),
           eq(gameLogs.visibility, visibility),
           eq(gameLogs.status, status),
+          excludeGameId ? ne(gameLogs.gameId, excludeGameId) : undefined,
         ),
       )
       .get();

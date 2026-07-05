@@ -43,8 +43,9 @@ Gemini が正しく読むための**前処理（4分割＋正立）・出力ス�
 3. **スキーマが背骨。** 牌譜スキーマ（Zod）を全層が共有する。**AI 出力は使う前に必ず `*.parse()` で検証**し、検証を通っていない生レスポンスを下流に流さない。
 4. **AI に推測させない。** 読めない牌は推測で埋めず `tile: null` + `confidence: 0` でスロットを残す（枚数・`order` 連番を壊さない）。全牌に confidence を持たせ、低い牌は人手修正に回す。
 5. **`[決定]` と `[未確定]` を取り違えない。** 設計ドキュメントの `[未確定]`（例: `toAbsoluteSeat` の回転方向、Agentic Vision の要否）を勝手に確定して実装を進めない。要実機検証は検証してから本実装し、結論を設計ドキュメントに反映する。
-6. **課金は成功時のみ。** 枠は **Gemini 呼び出し回数**で数え、解析が**成功したときだけ実呼び出し数ぶん加算**（`recordGeminiCalls`）。失敗時は消費させない。プラン別枠（free20/next100/pro320）と private 上限（free4・有料無制限）を壊さない。
-7. **画像を保存しない。** 撮影画像は永続化しない（保存するのは解析後の `Kifu` JSON のみ）。プライバシー・ストレージ両面の前提。**牌譜には公開範囲（public/private・既定 private）があり、private は所有者のみ閲覧可。**
+6. **課金は成功時のみ。** 枠は **Gemini 呼び出し回数**で数え、解析が**成功したときだけ実呼び出し数ぶん加算**（`recordGeminiCalls`）。失敗時は消費させない。プラン別枠（free0/next100/pro320）と保存上限（**半荘単位**: 非公開 free5・下書き free5・有料無制限、1半荘30局まで）を壊さない。
+7. **画像を保存しない。** 撮影画像は永続化しない（保存するのは解析後の `Kifu` JSON のみ）。プライバシー・ストレージ両面の前提。**公開範囲（public/private・既定 private）とルールは半荘単位**（局ごとに持たず、変更は配下の全局へ一括反映・新局は引き継ぎ）。private は所有者のみ閲覧可。
+7-2. **個人情報は外に出さない。** 初回登録のプロフィール（handle/表示名）は **Google 情報を使わずランダム生成**。email は緊急・不正調査の運用のためだけに DB 保存し、**API レスポンスには絶対に含めない**。プロフィールの非公開機能は無い（常に公開）。
 8. **勝手に増やさない・固定しない。** 新ライブラリ/外部サービスは理由とともに提案し承認を得る。**Gemini のモデル名はハードコードせず**、AI Studio で現行の対応モデルを確認して使う。
 9. **破壊的・外向きの操作は確認する。** `git push`、外部API送信、ファイル削除・上書きは、明示の許可なく実行しない。
 10. **再現性。** 「動いた」と言うときは、実際に通したテスト／コマンドの出力を添える。憶測で完了報告しない。
@@ -98,7 +99,7 @@ rigel/
     │   ├── src/domain/            #   user / game / kifu(GameLog,Analyzer) / auth / analysis(原子化ポート)
     │   ├── src/application/       #   Analyze/Update/Get/List Kifu, Games, Authenticate…
     │   ├── src/infrastructure/    #   drizzle 各repo / gemini パイプライン / auth(jose) / analysis(D1 batch)
-    │   ├── src/interfaces/http/   #   Hono アプリ（/auth/google /me /games /kifu /analyze …）
+    │   ├── src/interfaces/http/   #   Hono アプリ（app.ts=横断MW、routes/=account/games/kifu/billing）
     │   ├── src/eval/              #   AI精度の指標（accuracy.ts）
     │   └── drizzle.config.ts / migrations/  #   D1 マイグレーション
     ├── web/     web               # Next.js (App Router)。/capture /kifu(一覧マイページ/公開) /kifu/[gameId]/[logId](盤面エディタ) /settings /u/[handle] /login

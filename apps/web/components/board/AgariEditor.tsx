@@ -1,11 +1,12 @@
 import { AgariSchema, totalHan, type Agari, type Kifu, type Seat } from "@rigel/schema";
 import {
   agariDeltas,
+  notenDeltas,
+  payText,
   scoreAgari,
   yakuByGroup,
   yakuHan,
   YAKU_CATALOG,
-  type HandScore,
 } from "@rigel/ui";
 import { useState } from "react";
 import { SEAT_ORDER, windOf } from "../../lib/board";
@@ -43,14 +44,6 @@ function SeatSeg({
       </div>
     </div>
   );
-}
-
-/** payment を人が読める文字列に。 */
-function payText(score: HandScore): string {
-  const p = score.payment;
-  if ("ron" in p) return `${p.ron}点`;
-  if ("each" in p) return `${p.each}点オール`;
-  return `子${p.fromNonDealer} / 親${p.fromDealer}`;
 }
 
 /** 和了1件の入力。和了者・種別・放銃者・リーチ・和了牌・役・符・ドラ枚数を入力し打点を表示。 */
@@ -266,11 +259,9 @@ export function AgariEditor({
     onChange([...agaris, AgariSchema.parse({ winner, from })]);
   };
 
-  // 2件目以降はダブロン/トリプルロン許可が要る。ツモの後には足せない。
-  const first = agaris[0];
-  const isRon = !first || first.from !== null;
-  const max = kifu.rules.tripleRon ? 3 : kifu.rules.doubleRon ? 2 : 1;
-  const canAdd = isRon && agaris.length < max;
+  // 複数和了はロン（頭ハネ無効）のときのみ。ルール設定に依らず最大3人まで（mobile と同一）。
+  const allRon = agaris.length > 0 && agaris.every((a) => a.from !== null);
+  const canAdd = agaris.length === 0 || (allRon && agaris.length < 3);
 
   return (
     <div>
@@ -308,6 +299,57 @@ export function AgariEditor({
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+/**
+ * 流局の入力（聴牌者の選択）。不聴罰符（計3000点）の受け渡しをプレビューする。
+ * 点数は牌姿から出せないため聴牌者だけ記録し、罰符は席数から算出（mobile DrawForm と同等）。
+ */
+export function DrawEditor({
+  tenpai,
+  dealer,
+  onChange,
+}: {
+  tenpai: Seat[];
+  dealer: Seat;
+  onChange: (tenpai: Seat[]) => void;
+}) {
+  const set = new Set(tenpai);
+  const deltas = notenDeltas(tenpai);
+  return (
+    <div>
+      <div className={s.field}>
+        <span className={s.label}>聴牌</span>
+        <div className={s.seg} role="group" aria-label="聴牌者">
+          {SEAT_ORDER.map((seat) => (
+            <button
+              key={seat}
+              className={set.has(seat) ? s.on : ""}
+              onClick={() =>
+                onChange(set.has(seat) ? tenpai.filter((x) => x !== seat) : [...tenpai, seat])
+              }
+            >
+              {windOf(seat, dealer)}家
+            </button>
+          ))}
+        </div>
+      </div>
+      <div className={s.result}>
+        <div className={s.pay}>不聴罰符（計3000点）の受け渡し</div>
+        <div className={s.deltas}>
+          {SEAT_ORDER.map((seat) => (
+            <div className={s.drow} key={seat}>
+              <span>{windOf(seat, dealer)}家</span>
+              <span className={deltas[seat] >= 0 ? s.plus : s.minus}>
+                {deltas[seat] >= 0 ? "+" : ""}
+                {deltas[seat]}
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }

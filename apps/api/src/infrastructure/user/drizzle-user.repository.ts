@@ -14,9 +14,9 @@ function toDomain(row: UserRow): User {
     plan: row.plan,
     analysisCountThisMonth: row.analysisCountThisMonth,
     countResetAt: row.countResetAt,
+    email: row.email,
     handle: row.handle,
     displayName: row.displayName,
-    profilePublic: row.profilePublic,
     appStoreOriginalTransactionId: row.appStoreOriginalTransactionId,
   });
 }
@@ -53,10 +53,10 @@ export class DrizzleUserRepository implements UserRepository {
     const values = {
       id: p.id,
       googleSub: p.googleSub,
+      email: p.email,
       plan: p.plan,
       handle: p.handle,
       displayName: p.displayName,
-      profilePublic: p.profilePublic,
       analysisCountThisMonth: p.analysisCountThisMonth,
       countResetAt: p.countResetAt,
       appStoreOriginalTransactionId: p.appStoreOriginalTransactionId,
@@ -67,10 +67,10 @@ export class DrizzleUserRepository implements UserRepository {
       .onConflictDoUpdate({
         target: users.id,
         set: {
+          email: p.email,
           plan: p.plan,
           handle: p.handle,
           displayName: p.displayName,
-          profilePublic: p.profilePublic,
           analysisCountThisMonth: p.analysisCountThisMonth,
           countResetAt: p.countResetAt,
           appStoreOriginalTransactionId: p.appStoreOriginalTransactionId,

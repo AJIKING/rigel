@@ -9,13 +9,19 @@ export interface GameLogRepository {
   listByUser(userId: string): Promise<GameLog[]>;
   /** 半荘内の局一覧（seq 昇順）。 */
   listByGame(gameId: string): Promise<GameLog[]>;
-  /** ユーザーの、指定した編集状態の牌譜数（下書き上限の判定に使う）。 */
-  countByUserAndStatus(userId: string, status: KifuStatus): Promise<number>;
-  /** ユーザーの、指定した公開範囲×編集状態の牌譜数（非公開上限= private×complete の判定）。 */
-  countByUserVisibilityStatus(
+  /** ユーザーの、指定した編集状態の局を含む「半荘数」（下書き上限は半荘単位で判定）。
+   *  excludeGameId はその半荘を数えない（既にカウント済みの半荘内の操作を上限で阻まない）。 */
+  countGamesByUserAndStatus(
+    userId: string,
+    status: KifuStatus,
+    excludeGameId?: string,
+  ): Promise<number>;
+  /** ユーザーの、指定した公開範囲×編集状態の局を含む「半荘数」（非公開上限= private×complete）。 */
+  countGamesByUserVisibilityStatus(
     userId: string,
     visibility: Visibility,
     status: KifuStatus,
+    excludeGameId?: string,
   ): Promise<number>;
   /** 公開フィード用の牌譜を新しい順に返す（visibility=public かつ status=complete。limit で上限）。 */
   listPublic(limit: number): Promise<GameLog[]>;

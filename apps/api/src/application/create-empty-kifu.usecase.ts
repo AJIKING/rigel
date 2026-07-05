@@ -12,9 +12,12 @@ import type { UserRepository } from "../domain/user/user.repository";
 /** 作成時に焼き込める局メタ（写真に写らない情報。記録のみ・点数計算はしない）。 */
 export type EmptyKifuMeta = Partial<Kifu["meta"]>;
 
+/** 1半荘あたりに追加できる局(牌譜)の上限（全体機能）。 */
+export const MAX_LOGS_PER_GAME = 30;
+
 export type CreateEmptyResult =
   | { ok: true; gameId: string; logId: string }
-  | { ok: false; reason: "game_not_found" | "draft_limit" };
+  | { ok: false; reason: "game_not_found" | "draft_limit" | "game_full" };
 
 /** 手動作成の下敷き牌（1m→字牌の自然順・赤ドラ除く。34種）。 */
 const TILE_SEQUENCE = [
@@ -105,12 +108,18 @@ export class CreateEmptyKifu {
     if (params.gameId && (!game || game.userId !== params.userId)) {
       return { ok: false, reason: "game_not_found" };
     }
+    // 1半荘30局まで（既存半荘への追加時）。
+    if (game && (await gameLogs.listByGame(game.id)).length >= MAX_LOGS_PER_GAME) {
+      return { ok: false, reason: "game_full" };
+    }
 
-    // 新規は下書き(draft)で作るので、下書き上限で判定する（非公開上限とは別枠）。
+    // 下書き上限は「半荘数」で判定する（局ではなく）。既存半荘への局追加は
+    // 半荘数を増やさないので、上限に達していても既存半荘の中では追加できる。
     if (
-      await isOverLimit(users, params.userId, draftLimit, () =>
-        gameLogs.countByUserAndStatus(params.userId, "draft"),
-      )
+      !game &&
+      (await isOverLimit(users, params.userId, draftLimit, () =>
+        gameLogs.countGamesByUserAndStatus(params.userId, "draft"),
+      ))
     ) {
       return { ok: false, reason: "draft_limit" };
     }
@@ -122,7 +131,7 @@ export class CreateEmptyKifu {
     }
 
     const existing = await gameLogs.listByGame(game.id);
-    // ルールは半荘単位。既存局があればそのルールを引き継ぐ（局ごとにバラけさせない）。
+    // ルール・公開範囲は半荘単位。既存局があれば引き継ぐ（局ごとにバラけさせない）。
     const kifu = emptyKifu(now().toISOString(), params.cameraBottomSeat, params.meta);
     if (existing[0]) kifu.rules = existing[0].kifu.rules;
     const log: GameLog = {
@@ -131,7 +140,7 @@ export class CreateEmptyKifu {
       gameId: game.id,
       seq: existing.length + 1,
       kifu,
-      visibility: "private",
+      visibility: existing[0]?.visibility ?? "private",
       status: "draft",
       createdAt: now(),
     };

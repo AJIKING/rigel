@@ -116,7 +116,8 @@ export function BoardTable({
             onPress={onSeatPress ? () => onSeatPress(seat) : undefined}
             accessibilityLabel={onSeatPress ? `${wind}家を選択` : undefined}
           >
-            <View style={styles.river}>
+            {/* 河が空でも高さを確保して手牌を外側へ押し出す（左右席の手牌が中央で被るのを防ぐ）。 */}
+            <View style={[styles.river, { minHeight: rtHt * 1.6 }]}>
               {chunk(river, 6).map((row, ri) => (
                 <View key={ri} style={styles.rrow}>
                   {row.map((d, ci) => (

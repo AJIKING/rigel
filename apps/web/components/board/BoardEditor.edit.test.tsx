@@ -10,7 +10,7 @@ import { type GameDetail } from "../../lib/api";
 const h = vi.hoisted(() => ({
   getGameAction: vi.fn(),
   updateKifuAction: vi.fn(),
-  setVisibilityAction: vi.fn(),
+  setGameVisibilityAction: vi.fn(),
   deleteKifuAction: vi.fn(),
   analyzeAction: vi.fn(),
   createEmptyKifuAction: vi.fn(),
@@ -19,8 +19,13 @@ const h = vi.hoisted(() => ({
   updateProfileAction: vi.fn(),
   createCheckoutAction: vi.fn(),
   deleteAccountAction: vi.fn(),
+  updateGameAction: vi.fn(),
+  updateGameRulesAction: vi.fn(),
+  deleteGameAction: vi.fn(),
 }));
 vi.mock("../../app/actions", () => h);
+// next/navigation の useRouter をスタブ（半荘削除後の遷移で使う）。
+vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
 
 import { BoardEditor } from "./BoardEditor";
 
@@ -52,7 +57,7 @@ function makeDetail(logs: { id: string }[]): GameDetail {
 
 beforeEach(() => {
   h.updateKifuAction.mockReset().mockResolvedValue({ ok: true, status: 200 });
-  h.setVisibilityAction.mockReset().mockResolvedValue({ ok: true, status: 200 });
+  h.setGameVisibilityAction.mockReset().mockResolvedValue({ ok: true, status: 200 });
   h.deleteKifuAction.mockReset().mockResolvedValue({ ok: true, status: 200 });
   h.getGameAction.mockReset().mockResolvedValue(makeDetail([{ id: "l1" }]));
 });
@@ -74,11 +79,25 @@ describe("BoardEditor 編集操作", () => {
     expect(kifu.seats.east.hand.map((t) => t.tile)).toEqual(["1m"]);
   });
 
-  it("公開範囲を「公開」に切り替えると setVisibilityAction を呼ぶ", async () => {
+  it("公開に切り替えると半荘単位の setGameVisibilityAction を呼ぶ（局単位では選ばない）", async () => {
     render(<BoardEditor initialDetail={makeDetail([{ id: "l1" }])} gameId="g1" logId="l1" />);
     fireEvent.click(await screen.findByRole("button", { name: "公開" }));
-    await waitFor(() => expect(h.setVisibilityAction).toHaveBeenCalledWith("l1", "public"));
+    await waitFor(() => expect(h.setGameVisibilityAction).toHaveBeenCalledWith("g1", "public"));
     expect(await screen.findByText(/公開ページを見る/)).toBeTruthy();
+  });
+
+  it("結果を流局にして聴牌者を選ぶと result=draw と tenpai が保存される", async () => {
+    render(<BoardEditor initialDetail={makeDetail([{ id: "l1" }])} gameId="g1" logId="l1" />);
+    // 結果アコーディオンは初期状態で開いている。
+    fireEvent.click(within(await screen.findByRole("group", { name: "結果" })).getByText("流局"));
+    fireEvent.click(within(screen.getByRole("group", { name: "聴牌者" })).getByText("東家"));
+
+    fireEvent.click(screen.getByRole("button", { name: "保存" }));
+    await waitFor(() => expect(h.updateKifuAction).toHaveBeenCalled());
+    const [, kifu] = h.updateKifuAction.mock.calls[0] as [string, Kifu];
+    expect(kifu.result).toBe("draw");
+    expect(kifu.tenpai).toEqual(["east"]);
+    expect(kifu.agari).toHaveLength(0);
   });
 
   it("局が1つだけなら削除ボタンは無効", async () => {

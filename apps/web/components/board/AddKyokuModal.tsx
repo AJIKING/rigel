@@ -1,6 +1,6 @@
 "use client";
 
-import { analyzeErrorMessage, cameraLabel, seatLabel } from "@rigel/ui";
+import { analyzeErrorMessage, cameraLabel, seatLabel, LIMIT_MESSAGES } from "@rigel/ui";
 import { SeatSchema, type CameraSeat, type Seat, type Tile } from "@rigel/schema";
 import { useState } from "react";
 import { analyzeAction, createEmptyKifuAction, createGameAction } from "../../app/actions";
@@ -37,10 +37,9 @@ export function AddKyokuModal({
   const [hands, setHands] = useState<Partial<Record<CameraSeat, File>>>({});
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  // 手動入力で焼き込む局メタ（本場/供託/最終巡目/ドラ）。記録のみ・点数計算はしない。
+  // 手動入力で焼き込む局メタ（本場/供託/ドラ）。記録のみ・点数計算はしない。
   const [honba, setHonba] = useState(0);
   const [kyotaku, setKyotaku] = useState(0);
-  const [junme, setJunme] = useState(1);
   const [dora, setDora] = useState<Tile | null>(null);
 
   async function onAnalyze() {
@@ -70,7 +69,7 @@ export function AddKyokuModal({
     setBusy(true);
     setError(null);
     try {
-      const meta = { honba, kyotaku, junme, dora };
+      const meta = { honba, kyotaku, dora };
       const result = gameId
         ? await createEmptyKifuAction(gameId, seat, meta)
         : await createGameAction(seat, meta);
@@ -79,7 +78,11 @@ export function AddKyokuModal({
         return;
       }
       setError(
-        result.status === 403 ? "非公開の保存上限に達しています。" : "作成できませんでした。",
+        result.status === 409
+          ? LIMIT_MESSAGES.gameFull
+          : result.status === 403
+            ? LIMIT_MESSAGES.draftGames
+            : "作成できませんでした。",
       );
     } catch {
       setError("通信に失敗しました。");
@@ -178,7 +181,6 @@ export function AddKyokuModal({
           </div>
         ) : (
           <div className={s.modalBody}>
-            <Stepper label="最終巡目" unit="巡" value={junme} min={1} max={30} set={setJunme} />
             <Stepper label="本場" unit="本場" value={honba} min={0} max={19} set={setHonba} />
             <Stepper label="供託" unit="本" value={kyotaku} min={0} max={9} set={setKyotaku} />
             <div className={s.steprow}>

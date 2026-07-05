@@ -7,7 +7,6 @@
 
 import type { GoogleTokenVerifier } from "../domain/auth/google-token-verifier";
 import type { SessionService } from "../domain/auth/session";
-import { defaultDisplayName, defaultHandleBase } from "../domain/user/default-profile";
 import { User } from "../domain/user/user";
 import type { UserRepository } from "../domain/user/user.repository";
 
@@ -29,6 +28,8 @@ export interface AuthenticateDeps {
   session: SessionService;
   now: () => Date;
   newId: () => string;
+  /** 初回プロフィールのランダムな handle 素（Google 情報は使わない）。HANDLE_RE を満たす英数字。 */
+  randomHandle: () => string;
 }
 
 export interface AuthenticateResult {
@@ -42,20 +43,22 @@ export class AuthenticateWithGoogle {
   constructor(private readonly deps: AuthenticateDeps) {}
 
   async execute(params: { idToken: string }): Promise<AuthenticateResult> {
-    const { users, verifier, session, now, newId } = this.deps;
+    const { users, verifier, session, now, newId, randomHandle } = this.deps;
 
     const identity = await verifier.verify(params.idToken);
 
     let user = await users.findByGoogleSub(identity.sub);
     let created = false;
     if (!user) {
-      // 初回は表示名と公開ID(handle)に既定値を入れておく（設定画面に出す）。handle は一意化する。
-      const handle = await uniqueHandle(users, defaultHandleBase(identity));
+      // 表示名・公開IDは Google 情報を使わずランダム値を割り当てる（設定画面で変更可）。
+      // email は運用（緊急時・不正アカウント調査）のためだけに保存する（API には出さない）。
+      const handle = await uniqueHandle(users, randomHandle());
       user = User.create({
         id: newId(),
         googleSub: identity.sub,
         now: now(),
-        displayName: defaultDisplayName(identity),
+        email: identity.email,
+        displayName: handle,
         handle,
       });
       await users.save(user);

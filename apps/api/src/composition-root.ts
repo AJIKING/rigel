@@ -13,6 +13,7 @@ import { DeleteGame } from "./application/delete-game.usecase";
 import { DeleteKifu } from "./application/delete-kifu.usecase";
 import { UpdateGame } from "./application/update-game.usecase";
 import { UpdateGameRules } from "./application/update-game-rules.usecase";
+import { UpdateGameVisibility } from "./application/update-game-visibility.usecase";
 import { GetGameWithLogs } from "./application/get-game-with-logs.usecase";
 import { GetKifu } from "./application/get-kifu.usecase";
 import { GetPublicGameDetail } from "./application/get-public-game-detail.usecase";
@@ -25,7 +26,6 @@ import { ListGames } from "./application/list-games.usecase";
 import { ListMyGamesWithCounts, ListPublicGames } from "./application/list-game-cards.usecase";
 import { DeleteAccount, GetPublicProfile, UpdateProfile } from "./application/profile.usecase";
 import { ListKifu } from "./application/list-kifu.usecase";
-import { SetKifuVisibility } from "./application/set-kifu-visibility.usecase";
 import { StartCheckout } from "./application/start-checkout.usecase";
 import { UpdateKifu } from "./application/update-kifu.usecase";
 import type { SessionService } from "./domain/auth/session";
@@ -51,11 +51,11 @@ export interface AppContainer {
   getKifu: GetKifu;
   listKifu: ListKifu;
   updateKifu: UpdateKifu;
-  setKifuVisibility: SetKifuVisibility;
   deleteKifu: DeleteKifu;
   deleteGame: DeleteGame;
   updateGame: UpdateGame;
   updateGameRules: UpdateGameRules;
+  updateGameVisibility: UpdateGameVisibility;
   createEmptyKifu: CreateEmptyKifu;
   listGames: ListGames;
   listMyGamesWithCounts: ListMyGamesWithCounts;
@@ -93,6 +93,8 @@ export function buildContainer(env: Env): AppContainer {
   // 副作用（時刻・ID生成）の供給は1か所に集約してユースケースへ注入する。
   const now = () => new Date();
   const newId = () => crypto.randomUUID();
+  // 初回プロフィールのランダム handle（Google 情報は使わない）。英数字・11文字で HANDLE_RE を満たす。
+  const randomHandle = () => "u" + crypto.randomUUID().replace(/-/g, "").slice(0, 10);
 
   const analyzer = new GeminiAnalyzer({
     client: new HttpGeminiClient({
@@ -147,11 +149,11 @@ export function buildContainer(env: Env): AppContainer {
     getKifu: new GetKifu(gameLogs),
     listKifu: new ListKifu(gameLogs),
     updateKifu: new UpdateKifu(gameLogs, users),
-    setKifuVisibility: new SetKifuVisibility(gameLogs, users),
     deleteKifu: new DeleteKifu(gameLogs),
     deleteGame: new DeleteGame(gamesRepo, gameLogs),
     updateGame: new UpdateGame(gamesRepo),
     updateGameRules: new UpdateGameRules(gamesRepo, gameLogs),
+    updateGameVisibility: new UpdateGameVisibility(gamesRepo, gameLogs, users),
     createEmptyKifu: new CreateEmptyKifu({ games: gamesRepo, gameLogs, users, now, newId }),
     listGames: new ListGames(gamesRepo),
     listMyGamesWithCounts: new ListMyGamesWithCounts(gamesRepo, gameLogs),
@@ -164,6 +166,7 @@ export function buildContainer(env: Env): AppContainer {
       session,
       now,
       newId,
+      randomHandle,
     }),
     getUser: new GetUser(users),
     updateProfile: new UpdateProfile(users),

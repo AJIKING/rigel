@@ -23,8 +23,6 @@ export interface AuthUser {
   handle?: string | null;
   /** 表示名。 */
   displayName?: string;
-  /** プロフィール公開フラグ。 */
-  profilePublic?: boolean;
   /** 当月の Gemini 呼び出し上限（/me のみ。auth レスポンスには無い場合あり）。 */
   monthlyCallQuota?: number;
   /** 当月の残り呼び出し回数。 */
@@ -157,12 +155,6 @@ export interface ApiClient {
     token: string,
     params: { jws: string },
   ): Promise<{ ok: true; plan: PaidPlan } | { ok: false; status: number; reason?: string }>;
-  /** 牌譜の公開範囲を切り替える（所有者のみ）。成否を返す。 */
-  setVisibility(
-    token: string,
-    logId: string,
-    visibility: Visibility,
-  ): Promise<{ ok: boolean; status: number }>;
   /** 牌譜（局）を削除する（所有者のみ）。成否を返す。 */
   deleteKifu(token: string, logId: string): Promise<{ ok: boolean; status: number }>;
   /** 半荘を配下の全局ごと削除する（所有者のみ）。成否を返す。 */
@@ -178,6 +170,12 @@ export interface ApiClient {
     token: string,
     gameId: string,
     rules: Rules,
+  ): Promise<{ ok: boolean; status: number }>;
+  /** 半荘の公開範囲を変更する（配下の全局に反映。所有者のみ）。成否を返す。 */
+  setGameVisibility(
+    token: string,
+    gameId: string,
+    visibility: Visibility,
   ): Promise<{ ok: boolean; status: number }>;
   /** 新しい半荘を「空の初局」つきで作る（手動入力の起点）。成功で gameId/logId を返す。 */
   createGame(
@@ -195,7 +193,7 @@ export interface ApiClient {
   /** プロフィール（handle/表示名/公開）を更新する。handle 重複は status 409。 */
   updateProfile(
     token: string,
-    update: { handle?: string; displayName?: string; profilePublic?: boolean },
+    update: { handle?: string; displayName?: string },
   ): Promise<{ ok: boolean; status: number }>;
   /** 別ユーザーの公開プロフィール（handle か id）。見つからなければ null。認証不要。 */
   getPublicProfile(idOrHandle: string): Promise<PublicProfile | null>;
@@ -348,15 +346,6 @@ export function createApiClient(baseUrl: string, fetchImpl?: typeof fetch): ApiC
       return { ok: true, plan: d.plan };
     },
 
-    async setVisibility(token, logId, visibility) {
-      const res = await doFetch(`${baseUrl}/kifu/${logId}/visibility`, {
-        method: "PATCH",
-        headers: { ...bearer(token), "content-type": "application/json" },
-        body: JSON.stringify({ visibility }),
-      });
-      return { ok: res.ok, status: res.status };
-    },
-
     async deleteKifu(token, logId) {
       const res = await doFetch(`${baseUrl}/kifu/${logId}`, {
         method: "DELETE",
@@ -387,6 +376,15 @@ export function createApiClient(baseUrl: string, fetchImpl?: typeof fetch): ApiC
         method: "PATCH",
         headers: { ...bearer(token), "content-type": "application/json" },
         body: JSON.stringify({ rules }),
+      });
+      return { ok: res.ok, status: res.status };
+    },
+
+    async setGameVisibility(token, gameId, visibility) {
+      const res = await doFetch(`${baseUrl}/games/${gameId}/visibility`, {
+        method: "PATCH",
+        headers: { ...bearer(token), "content-type": "application/json" },
+        body: JSON.stringify({ visibility }),
       });
       return { ok: res.ok, status: res.status };
     },

@@ -16,7 +16,7 @@ function SearchIcon() {
  * 一覧の操作バー（検索・並べ替え・セグメント）。
  * 見た目の配置のみ（セグメントはタップ選択できるが絞り込みは未配線）。
  */
-export function Toolbar({ sort = "新着", segments }: { sort?: string; segments?: string[] }) {
+export function Toolbar({ segments }: { segments?: string[] }) {
   const [active, setActive] = useState(0);
   return (
     <View>
@@ -29,9 +29,6 @@ export function Toolbar({ sort = "新着", segments }: { sort?: string; segments
             placeholderTextColor={colors.w45}
           />
         </View>
-        <Pressable style={styles.filter}>
-          <Text style={styles.filterText}>{sort} ▾</Text>
-        </Pressable>
       </View>
       {segments && segments.length > 0 ? (
         <View style={styles.segrow}>
@@ -68,15 +65,6 @@ const styles = StyleSheet.create({
     paddingVertical: 9,
   },
   input: { flex: 1, color: colors.white, fontSize: 13, padding: 0 },
-  filter: {
-    justifyContent: "center",
-    backgroundColor: colors.chrome2,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.line,
-    borderRadius: radius.base,
-    paddingHorizontal: 11,
-  },
-  filterText: { color: colors.w70, fontWeight: "700", fontSize: 12.5 },
   segrow: { flexDirection: "row", gap: 7, paddingHorizontal: 16, paddingBottom: 12 },
   seg: {
     backgroundColor: colors.chrome2,

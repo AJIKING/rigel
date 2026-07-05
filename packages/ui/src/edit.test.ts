@@ -4,12 +4,15 @@ import {
   addHandTile,
   addMeld,
   addRiverTile,
+  applyResultMode,
+  deriveWinResult,
   meldTiles,
   mutateKifu,
   NUMS,
   removeHandTile,
   removeMeld,
   removeRiverTile,
+  resultModeOf,
   setDiscardFlags,
   SUITS,
 } from "./edit";
@@ -38,6 +41,55 @@ describe("mutateKifu（複製→変更→Zod再検証の共通ヘルパ）", () 
         d.meta.honba = -1;
       }),
     ).toThrow();
+  });
+});
+
+describe("結果モード（resultModeOf / deriveWinResult / applyResultMode）", () => {
+  it("resultModeOf: draw 優先、和了があれば win、無ければ none", () => {
+    expect(resultModeOf(kifu())).toBe("none");
+    expect(resultModeOf(mutateKifu(kifu(), (d) => void (d.result = "draw")))).toBe("draw");
+    const win = applyResultMode(kifu(), "win", "east");
+    expect(resultModeOf(win)).toBe("win");
+  });
+
+  it("deriveWinResult: 放銃者ありが1件でもあればロン、無ければツモ", () => {
+    expect(deriveWinResult([])).toBeNull();
+    const tsumo = { winner: "east", from: null } as never;
+    const ron = { winner: "south", from: "west" } as never;
+    expect(deriveWinResult([tsumo])).toBe("tsumo");
+    expect(deriveWinResult([ron, tsumo])).toBe("ron");
+  });
+
+  it("applyResultMode(win): 和了が無ければ親のツモ和了1件を作り result を導出", () => {
+    const next = applyResultMode(kifu(), "win", "south");
+    expect(next.agari).toHaveLength(1);
+    expect(next.agari[0]).toMatchObject({ winner: "south", from: null });
+    expect(next.result).toBe("tsumo");
+    expect(next.tenpai).toEqual([]);
+  });
+
+  it("applyResultMode(draw): 和了を消して draw にする（聴牌入力は保持）", () => {
+    const win = applyResultMode(kifu(), "win", "east");
+    const next = applyResultMode(
+      mutateKifu(win, (d) => void (d.tenpai = ["east"])),
+      "draw",
+      "east",
+    );
+    expect(next.result).toBe("draw");
+    expect(next.agari).toEqual([]);
+    expect(next.tenpai).toEqual(["east"]);
+  });
+
+  it("applyResultMode(none): 結果・和了・聴牌をすべて消す", () => {
+    const draw = applyResultMode(kifu(), "draw", "east");
+    const next = applyResultMode(
+      mutateKifu(draw, (d) => void (d.tenpai = ["east"])),
+      "none",
+      "east",
+    );
+    expect(next.result).toBeNull();
+    expect(next.agari).toEqual([]);
+    expect(next.tenpai).toEqual([]);
   });
 });
 

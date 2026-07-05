@@ -16,11 +16,11 @@ export type Plan = "free" | "next" | "pro";
 // Free は AI再現なし（枠0）。AI再現は Next 以上。
 export const MONTHLY_CALL_QUOTA: Record<Plan, number> = { free: 0, next: 100, pro: 320 };
 
-/** プランごとの private(非公開)かつ complete(編集済) 牌譜の保存上限。null は無制限。
- *  下書き(draft)はこの上限に数えない（別枠 = DRAFT_LIMIT）。 */
+/** プランごとの private(非公開)かつ complete(編集済) の保存上限（半荘数で数える）。
+ *  null は無制限。下書き(draft)はこの上限に数えない（別枠 = DRAFT_LIMIT）。 */
 export const PRIVATE_KIFU_LIMIT: Record<Plan, number | null> = { free: 5, next: null, pro: null };
 
-/** プランごとの下書き(draft)保存上限。null は無制限（有料）。非公開上限とは別枠。 */
+/** プランごとの下書き(draft)保存上限（半荘数で数える）。null は無制限（有料）。非公開上限とは別枠。 */
 export const DRAFT_LIMIT: Record<Plan, number | null> = { free: 5, next: null, pro: null };
 
 /** プランの月間呼び出し上限。 */
@@ -45,12 +45,13 @@ export interface UserProps {
   analysisCountThisMonth: number;
   /** この時刻を過ぎたら当月カウントをリセットする（= 次のリセット境界）。 */
   countResetAt: Date;
+  /** Google アカウントのメール。緊急時・不正アカウント調査の運用のためだけに保存し、
+   *  API では絶対にレスポンスしない（外部に出さない）。取得できなければ null。 */
+  email?: string | null;
   /** 公開ハンドル(@xxx。共有URLに使う)。未設定は null。一意。 */
   handle?: string | null;
   /** 表示名（他ユーザーに見える名前）。 */
   displayName?: string;
-  /** プロフィール(公開牌譜の一覧)を他ユーザーに見せるか。 */
-  profilePublic?: boolean;
   /** App Store サブスクの元トランザクションID（IAP 購入者のみ。更新/失効通知の照合キー）。 */
   appStoreOriginalTransactionId?: string | null;
 }
@@ -58,7 +59,6 @@ export interface UserProps {
 export interface ProfileUpdate {
   handle?: string | null;
   displayName?: string;
-  profilePublic?: boolean;
 }
 
 /** now を含む月の翌月1日(UTC)を返す。12月は自動的に翌年1月へ繰り上がる。 */
@@ -72,9 +72,9 @@ export class User {
   private _plan: Plan;
   private _count: number;
   private _countResetAt: Date;
+  private _email: string | null;
   private _handle: string | null;
   private _displayName: string;
-  private _profilePublic: boolean;
   private _appStoreOriginalTransactionId: string | null;
 
   constructor(props: UserProps) {
@@ -83,18 +83,20 @@ export class User {
     this._plan = props.plan;
     this._count = props.analysisCountThisMonth;
     this._countResetAt = props.countResetAt;
+    this._email = props.email ?? null;
     this._handle = props.handle ?? null;
     this._displayName = props.displayName ?? "";
-    this._profilePublic = props.profilePublic ?? true;
     this._appStoreOriginalTransactionId = props.appStoreOriginalTransactionId ?? null;
   }
 
   /** 新規ユーザー（Google認証の sub 紐付け）。無料プランで作成する。
-   *  初回は表示名(displayName)と公開ID(handle)に既定値を入れておく（設定画面に出す）。 */
+   *  表示名(displayName)/公開ID(handle)は Google 情報を使わずランダム値を入れる（設定画面で変更可）。
+   *  email は運用のためだけに保存する（API には出さない）。 */
   static create(params: {
     id: string;
     googleSub: string;
     now: Date;
+    email?: string | null;
     displayName?: string;
     handle?: string | null;
   }): User {
@@ -104,6 +106,7 @@ export class User {
       plan: "free",
       analysisCountThisMonth: 0,
       countResetAt: firstOfNextMonthUtc(params.now),
+      email: params.email ?? null,
       displayName: params.displayName,
       handle: params.handle ?? null,
     });
@@ -121,15 +124,15 @@ export class User {
     return this._displayName;
   }
 
-  get profilePublic(): boolean {
-    return this._profilePublic;
+  /** メール（運用専用。API レスポンスには絶対に含めない）。 */
+  get email(): string | null {
+    return this._email;
   }
 
   /** プロフィールを更新する（指定された項目だけ反映）。handle の検証はアプリ層。 */
   updateProfile(update: ProfileUpdate): void {
     if (update.handle !== undefined) this._handle = update.handle;
     if (update.displayName !== undefined) this._displayName = update.displayName;
-    if (update.profilePublic !== undefined) this._profilePublic = update.profilePublic;
   }
 
   get analysisCountThisMonth(): number {
@@ -193,9 +196,9 @@ export class User {
       plan: this._plan,
       analysisCountThisMonth: this._count,
       countResetAt: this._countResetAt,
+      email: this._email,
       handle: this._handle,
       displayName: this._displayName,
-      profilePublic: this._profilePublic,
       appStoreOriginalTransactionId: this._appStoreOriginalTransactionId,
     };
   }

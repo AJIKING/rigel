@@ -21,7 +21,6 @@ export class UpdateProfile {
     userId: string;
     handle?: string | null;
     displayName?: string;
-    profilePublic?: boolean;
   }): Promise<UpdateProfileResult> {
     const user = await this.users.findById(params.userId);
     if (!user) return { ok: false, reason: "not_found" };
@@ -36,11 +35,7 @@ export class UpdateProfile {
       }
     }
 
-    user.updateProfile({
-      handle,
-      displayName: params.displayName,
-      profilePublic: params.profilePublic,
-    });
+    user.updateProfile({ handle, displayName: params.displayName });
     await this.users.save(user);
     return { ok: true };
   }
@@ -61,11 +56,11 @@ export class GetPublicProfile {
     private readonly gameLogs: GameLogRepository,
   ) {}
 
-  /** handle 優先で解決し、無ければ id で探す。非公開プロフィールは null。 */
+  /** handle 優先で解決し、無ければ id で探す。存在しなければ null（プロフィールは常に公開）。 */
   async execute(idOrHandle: string): Promise<PublicProfile | null> {
     const user =
       (await this.users.findByHandle(idOrHandle)) ?? (await this.users.findById(idOrHandle));
-    if (!user || !user.profilePublic) return null;
+    if (!user) return null;
 
     const userGames = await this.games.listByUser(user.id);
     const cards: PublicGameCard[] = [];
@@ -78,7 +73,6 @@ export class GetPublicProfile {
         cards.push({
           id: g.id,
           ownerId: user.id,
-          // GetPublicProfile は profilePublic を通過済みなので著者名を出す。
           ownerHandle: user.handle,
           ownerName: user.displayName || null,
           title: g.title,

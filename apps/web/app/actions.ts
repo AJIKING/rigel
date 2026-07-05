@@ -1,7 +1,7 @@
 "use server";
 
 import { type KifuMetaInput, type KifuStatus } from "@rigel/client";
-import { type Kifu, type Seat } from "@rigel/schema";
+import { type Kifu, type Rules, type Seat } from "@rigel/schema";
 import {
   analyze,
   createCheckout,
@@ -9,9 +9,12 @@ import {
   createEmptyKifu,
   createGame,
   deleteAccount,
+  deleteGame,
   deleteKifu,
   getMyGames,
-  setVisibility,
+  setGameVisibility,
+  updateGame,
+  updateGameRules,
   updateKifu,
   updateProfile,
 } from "../lib/api-server";
@@ -41,8 +44,24 @@ export async function updateKifuAction(logId: string, kifu: Kifu, status?: KifuS
   return updateKifu(await requireToken(), logId, kifu, status);
 }
 
-export async function setVisibilityAction(logId: string, visibility: "public" | "private") {
-  return setVisibility(await requireToken(), logId, visibility);
+/** 半荘の公開範囲を変更（配下の全局に反映）。公開/非公開は半荘単位で決める。 */
+export async function setGameVisibilityAction(gameId: string, visibility: "public" | "private") {
+  return setGameVisibility(await requireToken(), gameId, visibility);
+}
+
+/** 半荘のルールを変更（配下の全局に反映）。ルールは局ごとに持たず半荘で共有する。 */
+export async function updateGameRulesAction(gameId: string, rules: Rules) {
+  return updateGameRules(await requireToken(), gameId, rules);
+}
+
+/** 半荘名を変更する（所有者のみ）。 */
+export async function updateGameAction(gameId: string, input: { title: string }) {
+  return updateGame(await requireToken(), gameId, input);
+}
+
+/** 半荘を配下の全局ごと削除する（所有者のみ）。 */
+export async function deleteGameAction(gameId: string) {
+  return deleteGame(await requireToken(), gameId);
 }
 
 export async function deleteKifuAction(logId: string) {
@@ -65,11 +84,7 @@ export async function analyzeAction(form: FormData) {
   return analyze(await requireToken(), form);
 }
 
-export async function updateProfileAction(update: {
-  handle?: string;
-  displayName?: string;
-  profilePublic?: boolean;
-}) {
+export async function updateProfileAction(update: { handle?: string; displayName?: string }) {
   return updateProfile(await requireToken(), update);
 }
 

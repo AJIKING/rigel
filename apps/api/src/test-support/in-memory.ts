@@ -80,22 +80,37 @@ export class InMemoryGameLogRepository implements GameLogRepository {
     );
   }
 
-  countByUserAndStatus(userId: string, status: KifuStatus): Promise<number> {
-    return Promise.resolve(
-      this.saved.filter((g) => g.userId === userId && g.status === status).length,
+  countGamesByUserAndStatus(
+    userId: string,
+    status: KifuStatus,
+    excludeGameId?: string,
+  ): Promise<number> {
+    const games = new Set(
+      this.saved
+        .filter((g) => g.userId === userId && g.status === status && g.gameId !== excludeGameId)
+        .map((g) => g.gameId),
     );
+    return Promise.resolve(games.size);
   }
 
-  countByUserVisibilityStatus(
+  countGamesByUserVisibilityStatus(
     userId: string,
     visibility: Visibility,
     status: KifuStatus,
+    excludeGameId?: string,
   ): Promise<number> {
-    return Promise.resolve(
-      this.saved.filter(
-        (g) => g.userId === userId && g.visibility === visibility && g.status === status,
-      ).length,
+    const games = new Set(
+      this.saved
+        .filter(
+          (g) =>
+            g.userId === userId &&
+            g.visibility === visibility &&
+            g.status === status &&
+            g.gameId !== excludeGameId,
+        )
+        .map((g) => g.gameId),
     );
+    return Promise.resolve(games.size);
   }
 
   listPublic(limit: number): Promise<GameLog[]> {

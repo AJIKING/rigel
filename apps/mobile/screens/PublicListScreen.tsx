@@ -21,7 +21,7 @@ export function PublicListScreen() {
   return (
     <View style={styles.root}>
       <AppBar title="公開牌譜" />
-      <Toolbar sort="新着" segments={["新着", "人気", "今週"]} />
+      <Toolbar segments={["新着", "人気", "今週"]} />
       {loading ? (
         <CenterState loading />
       ) : games.length === 0 ? (

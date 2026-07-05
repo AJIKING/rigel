@@ -11,6 +11,7 @@ import {
   needsReview,
   planKifuLimits,
   planLabel,
+  LIMIT_MESSAGES,
   planMonthlyPrice,
   planMonthlyPriceAppStore,
   RED_TILE_COLOR,
@@ -144,6 +145,11 @@ describe("プラン表示", () => {
     expect(planKifuLimits("free")).toEqual({ private: 5, draft: 5 });
     expect(planKifuLimits("next")).toEqual({ private: null, draft: null });
     expect(planKifuLimits("pro")).toEqual({ private: null, draft: null });
+  });
+  it("LIMIT_MESSAGES は上限値（半荘5・30局）を含む共通文言", () => {
+    expect(LIMIT_MESSAGES.privateGames).toContain("半荘は5つまで");
+    expect(LIMIT_MESSAGES.draftGames).toContain("下書き半荘は5つまで");
+    expect(LIMIT_MESSAGES.gameFull).toBe("1半荘は30局までです。");
   });
   it("visibilityLabel", () => {
     expect(visibilityLabel("public")).toBe("公開");

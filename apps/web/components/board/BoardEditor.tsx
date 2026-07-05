@@ -1,20 +1,33 @@
 "use client";
 
 import { toAbsoluteSeat, type CameraSeat, type Kifu, type Seat, type Tile } from "@rigel/schema";
-import { applyTileEdit, mutateKifu, visibilityLabel, type TileLocation } from "@rigel/ui";
+import {
+  applyResultMode,
+  applyTileEdit,
+  deriveWinResult,
+  mutateKifu,
+  resultModeOf,
+  visibilityLabel,
+  LIMIT_MESSAGES,
+  type TileLocation,
+} from "@rigel/ui";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useCallback, useRef, useState } from "react";
 import {
+  deleteGameAction,
   deleteKifuAction,
   getGameAction,
-  setVisibilityAction,
+  setGameVisibilityAction,
+  updateGameAction,
+  updateGameRulesAction,
   updateKifuAction,
 } from "../../app/actions";
 import { type GameDetail, type GameLog } from "../../lib/api";
 import { SEAT_ORDER, meldTiles, popAnchor, roundName, windOf, type Suit } from "../../lib/board";
 import { useBoardScale } from "../../lib/use-board-scale";
 import { AddKyokuModal } from "./AddKyokuModal";
-import { AgariEditor } from "./AgariEditor";
+import { AgariEditor, DrawEditor } from "./AgariEditor";
 import { BoardTable } from "./BoardTable";
 import { RulesDialog } from "./RulesDialog";
 import { Stepper } from "./Stepper";
@@ -168,6 +181,7 @@ interface EditorProps {
 
 function Editor(p: EditorProps) {
   const { detail, idx, log, kifu, setKifu, gameId } = p;
+  const router = useRouter();
   const bottomSeat: Seat = kifu.cameraBottomSeat ?? "east";
   const dealer: Seat = kifu.meta.dealer ?? bottomSeat;
 
@@ -206,6 +220,7 @@ function Editor(p: EditorProps) {
   const [vis, setVis] = useState(log.visibility);
   const [visBusy, setVisBusy] = useState(false);
   const [hanchanName, setHanchanName] = useState(detail.game.title || "");
+  const [delGameArm, setDelGameArm] = useState(false);
   const [dateInput, setDateInput] = useState(
     new Date(detail.game.createdAt).toISOString().slice(0, 10),
   );
@@ -336,19 +351,36 @@ function Editor(p: EditorProps) {
     if (res.ok) {
       setTimeout(() => setSave("idle"), 1500);
     } else if (res.status === 403) {
-      setSaveErr(
-        status === "complete"
-          ? "非公開の保存上限に達しています（公開にするか、有料プランへ）。"
-          : "無料プランの下書きは5件までです（編集済にするか、有料プランへ）。",
-      );
+      setSaveErr(status === "complete" ? LIMIT_MESSAGES.privateGames : LIMIT_MESSAGES.draftGames);
     } else {
       setSaveErr("保存に失敗しました。");
     }
   }
+  /** 半荘名を保存する（入力欄の blur で呼ぶ。未変更なら何もしない）。 */
+  async function saveHanchanName() {
+    const title = hanchanName.trim();
+    if (title === (detail.game.title || "")) return;
+    const res = await updateGameAction(gameId, { title }).catch(() => ({ ok: false, status: 0 }));
+    if (!res.ok) setSaveErr("半荘名の保存に失敗しました。");
+  }
+
+  /** 半荘を配下の全局ごと削除する（2度押しで確定＝誤操作防止）。成功で一覧へ戻る。 */
+  async function onDeleteGame() {
+    if (!delGameArm) {
+      setDelGameArm(true);
+      setTimeout(() => setDelGameArm(false), 3000);
+      return;
+    }
+    const res = await deleteGameAction(gameId).catch(() => ({ ok: false, status: 0 }));
+    if (res.ok) router.push("/kifu");
+    else setSaveErr("半荘の削除に失敗しました。");
+  }
+
+  /** 公開/非公開は半荘単位（配下の全局に一括反映）。局ごとには選ばない。 */
   async function toggleVis(next: "public" | "private") {
     if (next === vis || visBusy) return;
     setVisBusy(true);
-    const res = await setVisibilityAction(log.id, next).catch(() => ({ ok: false, status: 0 }));
+    const res = await setGameVisibilityAction(gameId, next).catch(() => ({ ok: false, status: 0 }));
     if (res.ok) setVis(next);
     setVisBusy(false);
   }
@@ -621,7 +653,7 @@ function Editor(p: EditorProps) {
               )}
             </section>
 
-            {/* 和了 */}
+            {/* 結果（なし/和了/流局）。導出・切替は @rigel/ui の共有ロジック（mobile と同一挙動）。 */}
             <section className={s.navsec}>
               <button
                 className={`${s.accHead} ${open.agari ? s.accHeadOpen : ""}`}
@@ -631,19 +663,53 @@ function Editor(p: EditorProps) {
                 <svg className={s.arr} viewBox="0 0 12 12">
                   <path d="M4 2l5 4-5 4" />
                 </svg>
-                和了
+                結果
               </button>
               {open.agari && (
                 <div className={s.accBody}>
-                  <AgariEditor
-                    kifu={kifu}
-                    dealer={dealer}
-                    onChange={(agaris) =>
-                      mutate((d) => {
-                        d.agari = agaris;
-                      })
-                    }
-                  />
+                  <div className={s.field}>
+                    <div className={s.seg} role="group" aria-label="結果">
+                      {(
+                        [
+                          ["none", "なし"],
+                          ["win", "和了"],
+                          ["draw", "流局"],
+                        ] as const
+                      ).map(([mode, label]) => (
+                        <button
+                          key={mode}
+                          aria-pressed={resultModeOf(kifu) === mode}
+                          onClick={() => setKifu(applyResultMode(kifu, mode, dealer))}
+                        >
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  {resultModeOf(kifu) === "win" && (
+                    <AgariEditor
+                      kifu={kifu}
+                      dealer={dealer}
+                      onChange={(agaris) =>
+                        mutate((d) => {
+                          d.agari = agaris;
+                          // result(ロン/ツモ) は和了配列から導出して常に同期する。
+                          d.result = deriveWinResult(agaris);
+                        })
+                      }
+                    />
+                  )}
+                  {resultModeOf(kifu) === "draw" && (
+                    <DrawEditor
+                      tenpai={kifu.tenpai}
+                      dealer={dealer}
+                      onChange={(tenpai) =>
+                        mutate((d) => {
+                          d.tenpai = tenpai;
+                        })
+                      }
+                    />
+                  )}
                 </div>
               )}
             </section>
@@ -712,7 +778,12 @@ function Editor(p: EditorProps) {
                 <div className={s.accBody}>
                   <div className={s.field}>
                     <label>半荘名</label>
-                    <input value={hanchanName} onChange={(e) => setHanchanName(e.target.value)} />
+                    <input
+                      value={hanchanName}
+                      aria-label="半荘名"
+                      onChange={(e) => setHanchanName(e.target.value)}
+                      onBlur={() => void saveHanchanName()}
+                    />
                   </div>
                   <div className={s.field}>
                     <label>日付</label>
@@ -766,6 +837,12 @@ function Editor(p: EditorProps) {
                   <p className={s.visNote}>
                     公開すると共有URLで誰でも閲覧できます（{visibilityLabel(vis)}）。
                   </p>
+                  <button
+                    className={`${s.delkyoku} ${delGameArm ? s.arm : ""}`}
+                    onClick={() => void onDeleteGame()}
+                  >
+                    {delGameArm ? "もう一度押して削除" : "この半荘を削除（全局）"}
+                  </button>
                 </div>
               )}
             </section>
@@ -813,6 +890,12 @@ function Editor(p: EditorProps) {
           rules={kifu.rules}
           onClose={() => setRulesOpen(false)}
           onSave={(r) => {
+            // ルールは半荘単位（配下の全局へ一括反映）。ローカル表示も同期する。
+            void updateGameRulesAction(gameId, r)
+              .then((res) => {
+                if (!res.ok) setSaveErr("ルールの保存に失敗しました。");
+              })
+              .catch(() => setSaveErr("通信に失敗しました。"));
             mutate((d) => {
               d.rules = r;
             });

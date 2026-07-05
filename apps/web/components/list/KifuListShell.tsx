@@ -1,6 +1,6 @@
 "use client";
 
-import { authorLabel } from "@rigel/ui";
+import { authorLabel, planKifuLimits } from "@rigel/ui";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
@@ -60,6 +60,15 @@ export function KifuListShell({ view }: { view: "mine" | "public" }) {
     return arr;
   }, [mine, mineStatus, mineSort, mineQ, favs]);
 
+  // 保存上限（半荘単位）の使用数。非公開(complete)と下書きは別枠（mobile と同じ算出）。
+  const limits = planKifuLimits(user?.plan ?? "free");
+  const draftUsed = (mine ?? []).filter((c) => c.draftCount > 0).length;
+  const privateUsed = (mine ?? []).filter(
+    (c) => c.kyokuCount - c.publicCount - c.draftCount > 0,
+  ).length;
+  const quotaText = (used: number, limit: number | null) =>
+    limit === null ? `${used}（無制限）` : `${used} / ${limit}半荘`;
+
   const pubView = useMemo(() => {
     let arr = (pub ?? []).slice();
     if (pubQ)
@@ -97,6 +106,14 @@ export function KifuListShell({ view }: { view: "mine" | "public" }) {
                   <span>記録した局</span>
                 </div>
               </div>
+              {/* 作成可能数と現在数（半荘単位。free=各5 / 有料=無制限）。mobile と同一表示。 */}
+              {user ? (
+                <p className={s.quota}>
+                  非公開 {quotaText(privateUsed, limits.private)}
+                  <span className={gc.sep}>·</span>
+                  下書き {quotaText(draftUsed, limits.draft)}
+                </p>
+              ) : null}
             </div>
 
             <div className={s.toolbar}>
@@ -170,11 +187,19 @@ export function KifuListShell({ view }: { view: "mine" | "public" }) {
                     key={c.id}
                     title={c.title || "（無題の半荘）"}
                     badge={
-                      c.publicCount > 0 ? (
-                        <span className={`${gc.badge} ${gc.pub}`}>公開</span>
-                      ) : (
-                        <span className={`${gc.badge} ${gc.priv}`}>非公開</span>
-                      )
+                      <>
+                        {c.publicCount > 0 ? (
+                          <span className={`${gc.badge} ${gc.pub}`}>公開</span>
+                        ) : (
+                          <span className={`${gc.badge} ${gc.priv}`}>非公開</span>
+                        )}
+                        {/* 下書きが1局でもあれば注意色、無ければ編集済（mobile と同一表示）。 */}
+                        {c.draftCount > 0 ? (
+                          <span className={`${gc.badge} ${gc.draft}`}>下書き{c.draftCount}</span>
+                        ) : (
+                          <span className={`${gc.badge} ${gc.priv}`}>編集済</span>
+                        )}
+                      </>
                     }
                     meta={
                       <>

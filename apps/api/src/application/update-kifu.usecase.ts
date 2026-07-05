@@ -30,24 +30,34 @@ export class UpdateKifu {
     if (!log || log.userId !== params.userId) return { ok: false, reason: "not_found" };
     const status = params.status ?? log.status;
 
-    // complete → draft: 下書き上限（無料）。
+    // 上限は「半荘数」で判定する（局ではなく）。当該局の半荘は除外して数える
+    // （その半荘は既にカウント済み or この操作でカウント入りするため、
+    //   同じ半荘内の状態遷移が上限に阻まれないように）。
+    const gameId = log.gameId ?? undefined;
+
+    // complete → draft: 下書き半荘上限（無料）。
     if (
       status === "draft" &&
       log.status === "complete" &&
       (await isOverLimit(this.users, params.userId, draftLimit, () =>
-        this.gameLogs.countByUserAndStatus(params.userId, "draft"),
+        this.gameLogs.countGamesByUserAndStatus(params.userId, "draft", gameId),
       ))
     ) {
       return { ok: false, reason: "draft_limit" };
     }
 
-    // draft → complete かつ private: 非公開上限（無料。complete×private のみ数える）。
+    // draft → complete かつ private: 非公開半荘上限（無料。complete×private のみ数える）。
     if (
       status === "complete" &&
       log.status !== "complete" &&
       log.visibility === "private" &&
       (await isOverLimit(this.users, params.userId, privateKifuLimit, () =>
-        this.gameLogs.countByUserVisibilityStatus(params.userId, "private", "complete"),
+        this.gameLogs.countGamesByUserVisibilityStatus(
+          params.userId,
+          "private",
+          "complete",
+          gameId,
+        ),
       ))
     ) {
       return { ok: false, reason: "private_limit" };

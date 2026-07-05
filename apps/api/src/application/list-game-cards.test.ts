@@ -11,7 +11,7 @@ import { validKifu } from "../test-support/kifu";
 import { ListMyGamesWithCounts, ListPublicGames } from "./list-game-cards.usecase";
 
 const NOW = new Date("2026-06-29T00:00:00.000Z");
-function mkUser(id: string, handle: string | null, profilePublic = true): User {
+function mkUser(id: string, handle: string | null): User {
   return new User({
     id,
     googleSub: `sub-${id}`,
@@ -20,7 +20,6 @@ function mkUser(id: string, handle: string | null, profilePublic = true): User {
     countResetAt: firstOfNextMonthUtc(NOW),
     handle,
     displayName: handle ?? "名無し",
-    profilePublic,
   });
 }
 
@@ -93,18 +92,18 @@ describe("ListPublicGames", () => {
     expect(g1.ownerName).toBe("kuro");
   });
 
-  it("プロフィール非公開の著者は名前を伏せる（ownerHandle/ownerName は null）", async () => {
+  it("著者名は常に出す（プロフィール非公開機能は廃止）", async () => {
     const games = new InMemoryGameRepository([game("g1", "u1", "20")]);
-    const users = new InMemoryUserRepository([mkUser("u1", "kuro", false)]);
+    const users = new InMemoryUserRepository([mkUser("u1", "kuro")]);
     const gameLogs = new InMemoryGameLogRepository();
     await gameLogs.save(log("l1", "u1", "g1", "public"));
 
     const cards = await new ListPublicGames(games, gameLogs, users).execute();
 
     const g1 = cards.find((c) => c.id === "g1")!;
-    expect(g1.ownerId).toBe("u1"); // 牌譜自体は公開なので出る
-    expect(g1.ownerHandle).toBeNull();
-    expect(g1.ownerName).toBeNull();
+    expect(g1.ownerId).toBe("u1");
+    expect(g1.ownerHandle).toBe("kuro");
+    expect(g1.ownerName).toBe("kuro");
   });
 
   it("公開局が無ければ空", async () => {

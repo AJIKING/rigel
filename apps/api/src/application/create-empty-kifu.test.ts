@@ -102,13 +102,53 @@ describe("CreateEmptyKifu", () => {
     expect(result).toEqual({ ok: false, reason: "game_not_found" });
   });
 
-  it("無料の下書き上限(5)を超えると draft_limit（作成は draft）", async () => {
-    const { uc, gameLogs } = make({ games: [game("g1", "u1")] });
-    for (let i = 0; i < 5; i++)
+  it("1半荘30局を超えると game_full（有料=下書き無制限でも局数で頭打ち）", async () => {
+    const { uc, gameLogs } = make({ games: [game("g1", "u1")], plan: "pro" });
+    for (let i = 0; i < 30; i++)
       await uc.execute({ userId: "u1", gameId: "g1", cameraBottomSeat: "east" });
     const result = await uc.execute({ userId: "u1", gameId: "g1", cameraBottomSeat: "east" });
+    expect(result).toEqual({ ok: false, reason: "game_full" });
+    expect(gameLogs.saved).toHaveLength(30);
+  });
+
+  it("無料の下書き上限は半荘数(5)で判定。新規半荘の6つ目は draft_limit", async () => {
+    const { uc, gameLogs } = make({ games: [] });
+    for (let i = 0; i < 5; i++) await uc.execute({ userId: "u1", cameraBottomSeat: "east" });
+    const result = await uc.execute({ userId: "u1", cameraBottomSeat: "east" });
     expect(result).toEqual({ ok: false, reason: "draft_limit" });
     expect(gameLogs.saved).toHaveLength(5);
     expect(gameLogs.saved.every((l) => l.status === "draft")).toBe(true);
+  });
+
+  it("上限でも既存半荘への局追加は通る（半荘数が増えないため）", async () => {
+    const { uc, gameLogs } = make({ games: [] });
+    const first = await uc.execute({ userId: "u1", cameraBottomSeat: "east" });
+    if (!first.ok) throw new Error("setup failed");
+    for (let i = 0; i < 4; i++) await uc.execute({ userId: "u1", cameraBottomSeat: "east" });
+    // 下書き半荘は5つ（上限）。既存半荘 first.gameId への局追加はできる。
+    const result = await uc.execute({
+      userId: "u1",
+      gameId: first.gameId,
+      cameraBottomSeat: "east",
+    });
+    expect(result.ok).toBe(true);
+    expect(gameLogs.saved).toHaveLength(6);
+  });
+
+  it("既存半荘に局を足すと公開範囲を引き継ぐ（半荘単位の公開設定）", async () => {
+    const { uc, gameLogs } = make({ games: [] });
+    const first = await uc.execute({ userId: "u1", cameraBottomSeat: "east" });
+    if (!first.ok) throw new Error("setup failed");
+    // 半荘を公開に切り替えた状態を作る。
+    const log0 = await gameLogs.findById(first.logId);
+    await gameLogs.save({ ...log0!, visibility: "public" });
+
+    const second = await uc.execute({
+      userId: "u1",
+      gameId: first.gameId,
+      cameraBottomSeat: "east",
+    });
+    if (!second.ok) throw new Error("add failed");
+    expect((await gameLogs.findById(second.logId))?.visibility).toBe("public");
   });
 });

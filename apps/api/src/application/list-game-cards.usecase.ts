@@ -89,11 +89,10 @@ export class ListPublicGames {
       const cached = ownerCache.get(userId);
       if (cached) return cached;
       const user = await this.users.findById(userId);
-      // プロフィール非公開の著者は名前を伏せる（牌譜自体の公開とは別軸）。
-      const author =
-        user && user.profilePublic
-          ? { handle: user.handle ?? null, name: user.displayName || null }
-          : { handle: null, name: null };
+      // プロフィールは常に公開。著者名（handle/表示名）を出す。
+      const author = user
+        ? { handle: user.handle ?? null, name: user.displayName || null }
+        : { handle: null, name: null };
       ownerCache.set(userId, author);
       return author;
     };

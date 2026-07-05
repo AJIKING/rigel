@@ -1,13 +1,12 @@
 import { useNavigation, useRoute, type RouteProp } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import type { Visibility } from "@rigel/client";
+import { LIMIT_MESSAGES } from "@rigel/ui";
 import { useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { CenterState } from "../components/CenterState";
 import { DangerButton } from "../components/DangerButton";
 import { KifuEditor } from "../components/editor/KifuEditor";
-import { Segment } from "../components/Segment";
-import { deleteKifu, setVisibility, updateKifu } from "../lib/api";
+import { deleteKifu, updateKifu } from "../lib/api";
 import { useAuth } from "../lib/auth";
 import { confirmDestructive } from "../lib/confirm";
 import type { RootStackParamList } from "../lib/navigation";
@@ -16,7 +15,8 @@ import { useGame } from "../lib/use-kifu-data";
 
 type Nav = NativeStackNavigationProp<RootStackParamList, "Edit">;
 
-/** 牌譜の編集画面（手入力）。取得・保存・公開範囲・局削除を担い、編集本体は KifuEditor。 */
+/** 牌譜の編集画面（手入力）。取得・保存・局削除を担い、編集本体は KifuEditor。
+ *  公開/非公開は局ごとに選ばず半荘単位（半荘詳細画面で切り替える）。 */
 export function EditScreen() {
   const { gameId, logId } = useRoute<RouteProp<RootStackParamList, "Edit">>().params;
   const nav = useNavigation<Nav>();
@@ -24,26 +24,12 @@ export function EditScreen() {
   const { loading, detail } = useGame(gameId);
   const [saving, setSaving] = useState(false);
   const [note, setNote] = useState<string | null>(null);
-  // 公開範囲は楽観更新（失敗で戻す）。null のうちは牌譜の値を使う。
-  const [vis, setVis] = useState<Visibility | null>(null);
 
   if (loading) return <CenterState loading />;
   const log = detail?.logs.find((l) => l.id === logId);
   if (!detail || !log) return <CenterState message="牌譜が見つかりませんでした。" />;
 
-  const visibility: Visibility = vis ?? log.visibility;
   const canDelete = detail.logs.length > 1;
-
-  async function onToggleVis(next: Visibility) {
-    if (!token || next === visibility) return;
-    setNote(null);
-    setVis(next);
-    const res = await setVisibility(token, logId, next).catch(() => ({ ok: false, status: 0 }));
-    if (!res.ok) {
-      setVis(visibility);
-      setNote("公開設定の保存に失敗しました");
-    }
-  }
 
   function onDelete() {
     if (!token || !canDelete) return;
@@ -69,11 +55,7 @@ export function EditScreen() {
       .then((res) => {
         if (res.ok) setNote("保存しました");
         else if (res.status === 403)
-          setNote(
-            status === "complete"
-              ? "非公開の保存上限に達しています（有料プランへ）"
-              : "無料プランの下書きは5件までです",
-          );
+          setNote(status === "complete" ? LIMIT_MESSAGES.privateGames : LIMIT_MESSAGES.draftGames);
         else setNote("保存に失敗しました");
       })
       .catch(() => setNote("通信に失敗しました"))
@@ -83,18 +65,7 @@ export function EditScreen() {
   return (
     <View style={styles.root}>
       <View style={styles.toolbar}>
-        <View style={styles.visWrap}>
-          <Segment
-            options={
-              [
-                ["private", "非公開"],
-                ["public", "公開"],
-              ] as const
-            }
-            value={visibility}
-            onChange={(v) => void onToggleVis(v)}
-          />
-        </View>
+        <Text style={styles.title}>{detail.game.title || "（無題の半荘）"}</Text>
         <DangerButton
           label="削除"
           a11yLabel="この局を削除"
@@ -123,7 +94,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingTop: 10,
   },
-  visWrap: { flex: 1 },
+  title: { flex: 1, color: colors.w70, fontSize: 13, fontWeight: "700" },
   note: {
     color: colors.accent,
     fontSize: 12.5,

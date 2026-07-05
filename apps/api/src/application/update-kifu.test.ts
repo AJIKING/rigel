@@ -65,18 +65,34 @@ describe("UpdateKifu", () => {
     expect(result).toEqual({ ok: false, reason: "not_found" });
   });
 
-  it("無料: complete→draft で下書き上限(5)を超えると draft_limit", async () => {
-    const drafts = Array.from({ length: 5 }, (_, i) => log(`d${i}`, "u1", { status: "draft" }));
-    const { uc } = make([log("l1", "u1", { status: "complete" }), ...drafts]);
+  it("無料: 下書き半荘が上限(5)のとき、別半荘の complete→draft は draft_limit", async () => {
+    // 上限は半荘数で数える。下書きを含む半荘が5つある状態で、6つ目の半荘を下書き化しようとする。
+    const drafts = Array.from({ length: 5 }, (_, i) =>
+      log(`d${i}`, "u1", { gameId: `gd${i}`, status: "draft" }),
+    );
+    const { uc } = make([log("l1", "u1", { gameId: "gx", status: "complete" }), ...drafts]);
     const result = await uc.execute({ userId: "u1", logId: "l1", kifu: edited, status: "draft" });
     expect(result).toEqual({ ok: false, reason: "draft_limit" });
   });
 
-  it("無料: draft→complete かつ private で非公開上限(5)を超えると private_limit", async () => {
-    const privs = Array.from({ length: 5 }, (_, i) =>
-      log(`p${i}`, "u1", { visibility: "private", status: "complete" }),
+  it("無料: 上限でも同じ半荘内の complete→draft は通る（半荘数が増えないため）", async () => {
+    // gd0 は既に下書きを含む半荘。その中の complete 局を draft にしても半荘数は変わらない。
+    const drafts = Array.from({ length: 5 }, (_, i) =>
+      log(`d${i}`, "u1", { gameId: `gd${i}`, status: "draft" }),
     );
-    const { uc } = make([log("l1", "u1", { visibility: "private", status: "draft" }), ...privs]);
+    const { uc } = make([log("l1", "u1", { gameId: "gd0", status: "complete" }), ...drafts]);
+    const result = await uc.execute({ userId: "u1", logId: "l1", kifu: edited, status: "draft" });
+    expect(result).toEqual({ ok: true });
+  });
+
+  it("無料: 非公開半荘が上限(5)のとき、別半荘の draft→complete(private) は private_limit", async () => {
+    const privs = Array.from({ length: 5 }, (_, i) =>
+      log(`p${i}`, "u1", { gameId: `gp${i}`, visibility: "private", status: "complete" }),
+    );
+    const { uc } = make([
+      log("l1", "u1", { gameId: "gx", visibility: "private", status: "draft" }),
+      ...privs,
+    ]);
     const result = await uc.execute({
       userId: "u1",
       logId: "l1",

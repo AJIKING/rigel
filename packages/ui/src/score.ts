@@ -110,6 +110,14 @@ export function scoreAgari(agari: Agari, dealer: Seat | null, rules: Rules): Han
   );
 }
 
+/** payment を人が読める文字列に（web/mobile の和了フォームで共用）。 */
+export function payText(score: HandScore): string {
+  const p = score.payment;
+  if ("ron" in p) return `${p.ron}点`;
+  if ("each" in p) return `${p.each}点オール`;
+  return `子${p.fromNonDealer} / 親${p.fromDealer}`;
+}
+
 /** Kifu の全和了（ダブロン等は複数）の打点。 */
 export function kifuScores(kifu: Kifu): HandScore[] {
   return kifu.agari.map((a) => scoreAgari(a, kifu.meta.dealer, kifu.rules));

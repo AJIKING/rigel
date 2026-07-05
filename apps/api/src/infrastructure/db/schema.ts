@@ -17,6 +17,9 @@ export const users = sqliteTable("users", {
   id: text("id").primaryKey(),
   /** Google認証の sub（一意）。 */
   googleSub: text("google_sub").notNull().unique(),
+  /** Google アカウントのメール。緊急時・不正アカウント調査の運用のためだけに保存する。
+   *  API では絶対にレスポンスしない（アプリ層の JSON 整形に含めない）。 */
+  email: text("email"),
   /** 課金プラン（free / next=RIGEL Next / pro=RIGEL Pro）。 */
   plan: text("plan", { enum: ["free", "next", "pro"] })
     .notNull()
@@ -25,8 +28,6 @@ export const users = sqliteTable("users", {
   handle: text("handle").unique(),
   /** 表示名（他ユーザーに見える名前）。 */
   displayName: text("display_name").notNull().default(""),
-  /** プロフィールを公開するか（公開牌譜の一覧を他ユーザーに見せる）。 */
-  profilePublic: integer("profile_public", { mode: "boolean" }).notNull().default(true),
   /** 当月の Gemini 呼び出し回数（解析成功時のみ、実呼び出し数を加算）。 */
   analysisCountThisMonth: integer("analysis_count_this_month").notNull().default(0),
   /** この時刻を過ぎたら当月カウントをリセットする（次のリセット境界）。 */

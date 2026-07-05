@@ -32,11 +32,11 @@ export const {
   createEmptyKifu,
   redeemAppStorePurchase,
   updateKifu,
-  setVisibility,
   deleteKifu,
   deleteGame,
   updateGame,
   updateGameRules,
+  setGameVisibility,
   updateProfile,
   deleteAccount,
 } = client;
