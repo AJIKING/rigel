@@ -1,5 +1,5 @@
 import { toAbsoluteSeat, type CameraSeat, type Kifu, type Seat } from "@rigel/schema";
-import { chunk, windOf } from "@rigel/ui";
+import { chunk, seatResult, windOf } from "@rigel/ui";
 import { Pressable, StyleSheet, Text, View, type ViewStyle } from "react-native";
 import { colors } from "../lib/theme";
 import { MiniTile } from "./MiniTile";
@@ -55,13 +55,19 @@ export function BoardTable({
 }) {
   const B = size;
   const rt = B * GEO.riverTileW;
-  const rtH = rt * GEO.tileAspect;
   const ht = B * GEO.handTileW;
-  const htH = ht * GEO.tileAspect;
   const seatW = B * GEO.seatW;
   const seatH = B * GEO.seatH;
   const off = B * GEO.seatOffset;
   const center = B / 2;
+  const GAP = 1.5;
+
+  /** n 枚が幅 avail に収まる 1 牌の幅を返す（既定サイズを上限、最小 7px）。
+   *  牌数が多いほど縮めて重なり・はみ出しを防ぐ（牌が収まらない場合のサイズ調整）。 */
+  const fitTileW = (base: number, n: number, avail: number, extra = 0): number => {
+    if (n <= 0) return base;
+    return Math.max(7, Math.min(base, (avail - (n - 1) * GAP - extra) / n));
+  };
 
   const seatPos: Record<CameraSeat, { cx: number; cy: number }> = {
     bottom: { cx: center, cy: center + off },
@@ -91,6 +97,17 @@ export function BoardTable({
 
         const hand = isBottom || showHands;
         const selected = selectedSeat === seat;
+
+        // 河は6枚/段。最長段（最大6枚）が席幅の 70% に収まる牌サイズにする。
+        const riverCols = Math.min(6, Math.max(1, river.length));
+        const rtW = fitTileW(rt, riverCols, seatW * 0.7);
+        const rtHt = rtW * GEO.tileAspect;
+        // 手牌＋鳴きは1列。総枚数が席幅の 92% に収まる牌サイズにする（重なり・はみ出し防止）。
+        const meldTileCount = board.melds.reduce((n, m) => n + m.tiles.length, 0);
+        const handUnits = board.hand.length + meldTileCount;
+        const htW = fitTileW(ht, handUnits, seatW * 0.92, board.melds.length * 4);
+        const htHt = htW * GEO.tileAspect;
+
         return (
           <Pressable
             key={cam}
@@ -106,8 +123,8 @@ export function BoardTable({
                     <MiniTile
                       key={ci}
                       code={d.tile}
-                      w={rt}
-                      h={rtH}
+                      w={rtW}
+                      h={rtHt}
                       riichi={d.riichi}
                       tsumogiri={d.tsumogiri}
                     />
@@ -120,15 +137,20 @@ export function BoardTable({
               <Text style={styles.nm} numberOfLines={1}>
                 {name}
               </Text>
+              {seatResult(kifu.agari, seat) ? (
+                <Text style={[styles.sc, seatResult(kifu.agari, seat) === "放銃" && styles.scLose]}>
+                  {seatResult(kifu.agari, seat)}
+                </Text>
+              ) : null}
             </View>
             <View style={styles.hand}>
               {board.hand.map((h, hi) => (
-                <MiniTile key={hi} code={hand ? h.tile : null} w={ht} h={htH} back={!hand} />
+                <MiniTile key={hi} code={hand ? h.tile : null} w={htW} h={htHt} back={!hand} />
               ))}
               {board.melds.map((m, mi) => (
                 <View key={`m${mi}`} style={styles.meld}>
                   {m.tiles.map((t, ti) => (
-                    <MiniTile key={ti} code={t.tile} w={ht} h={htH} />
+                    <MiniTile key={ti} code={t.tile} w={htW} h={htHt} />
                   ))}
                 </View>
               ))}
@@ -138,9 +160,14 @@ export function BoardTable({
       })}
 
       <View style={styles.center} pointerEvents="none">
-        <Text style={styles.round}>{roundLabel}</Text>
+        <View style={styles.roundRow}>
+          <Text style={styles.round}>{roundLabel}</Text>
+          {kifu.meta.honba > 0 ? <Text style={styles.sub}>{kifu.meta.honba}本場</Text> : null}
+        </View>
+        {kifu.meta.kyotaku > 0 ? <Text style={styles.sub}>供託 {kifu.meta.kyotaku}本</Text> : null}
         {kifu.meta.dora ? (
           <View style={styles.dora}>
+            <Text style={styles.doraLbl}>ドラ</Text>
             <MiniTile code={kifu.meta.dora} w={B * 0.05} h={B * 0.07} />
           </View>
         ) : null}
@@ -165,8 +192,9 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     backgroundColor: "rgba(255,158,69,0.08)",
   },
-  river: { flexDirection: "column", alignItems: "center", gap: 1.5, maxWidth: "70%" },
-  rrow: { flexDirection: "row", gap: 1.5 },
+  // 河は左詰めで段を積む（実際の河のように左上から並ぶ）。
+  river: { flexDirection: "column", alignItems: "flex-start", gap: 1.5, maxWidth: "72%" },
+  rrow: { flexDirection: "row", justifyContent: "flex-start", gap: 1.5 },
   plate: { flexDirection: "row", alignItems: "center", gap: 4 },
   wd: {
     color: "#fff",
@@ -179,9 +207,20 @@ const styles = StyleSheet.create({
   },
   wdWin: { backgroundColor: colors.accent, color: "#16181d" },
   nm: { color: "rgba(255,255,255,0.9)", fontSize: 10, fontWeight: "700", maxWidth: 90 },
+  sc: {
+    color: colors.accent,
+    fontSize: 9.5,
+    fontWeight: "800",
+    backgroundColor: "rgba(0,0,0,0.28)",
+    borderRadius: 2,
+    paddingHorizontal: 4,
+    overflow: "hidden",
+  },
+  scLose: { color: colors.vermilion },
   hand: { flexDirection: "row", gap: 1.5, alignItems: "flex-end" },
   meld: { flexDirection: "row", gap: 1, marginLeft: 4 },
-  center: { position: "absolute", left: 0, right: 0, top: "44%", alignItems: "center" },
+  center: { position: "absolute", left: 0, right: 0, top: "40%", alignItems: "center", gap: 2 },
+  roundRow: { flexDirection: "row", alignItems: "baseline", gap: 6 },
   round: {
     color: "#fff",
     fontWeight: "800",
@@ -189,5 +228,19 @@ const styles = StyleSheet.create({
     textShadowColor: "rgba(0,0,0,0.5)",
     textShadowRadius: 4,
   },
-  dora: { flexDirection: "row", gap: 3, justifyContent: "center", marginTop: 4 },
+  sub: {
+    color: "rgba(255,255,255,0.9)",
+    fontWeight: "700",
+    fontSize: 10.5,
+    textShadowColor: "rgba(0,0,0,0.5)",
+    textShadowRadius: 4,
+  },
+  dora: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 3 },
+  doraLbl: {
+    color: "rgba(255,255,255,0.9)",
+    fontWeight: "700",
+    fontSize: 9.5,
+    textShadowColor: "rgba(0,0,0,0.5)",
+    textShadowRadius: 4,
+  },
 });

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { type PublicGameDetail } from "../../lib/api";
 import { useAuth } from "../../lib/auth-context";
+import { resultLabel } from "@rigel/ui";
 import {
   SEAT_ORDER,
   buildRiverPlayback,
@@ -171,14 +172,6 @@ export function KifuViewer({ detail, gameId }: { detail: PublicGameDetail; gameI
   const round = roundNameForSeq(log.seq);
   const authorName = detail.owner.handle ?? detail.owner.id.slice(0, 6);
   const curJunme = revealed[dealer];
-  const resultLabel =
-    kifu.result === "ron"
-      ? "ロン"
-      : kifu.result === "tsumo"
-        ? "ツモ"
-        : kifu.result === "draw"
-          ? "流局"
-          : "—";
   // 和了（ロン/ツモ）のときだけ裏ドラを出す（リーチ和了で意味を持つため）。
   const isWin = kifu.result === "ron" || kifu.result === "tsumo";
 
@@ -509,7 +502,7 @@ export function KifuViewer({ detail, gameId }: { detail: PublicGameDetail; gameI
               <DoraRow label="ドラ" code={kifu.meta.dora} />
               <div className={s.irow}>
                 <span>結果</span>
-                <b>{resultLabel}</b>
+                <b>{resultLabel(kifu.result)}</b>
               </div>
               {isWin && <DoraRow label="裏ドラ" code={kifu.meta.uraDora} />}
               <p className={s.muted}>点数は記録しません。</p>

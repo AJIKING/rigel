@@ -4,10 +4,19 @@ import { Image, StyleSheet, Text, View, type ViewStyle } from "react-native";
 import { colors } from "../lib/theme";
 import { TILE_FRONT, TILE_IMAGES } from "./tile-images";
 
+// 牌を少し浮かせる立体感（web の box-shadow 近似。RN は gradient/inset 影が無いので影のみ）。
+const RAISED = {
+  shadowColor: "#000",
+  shadowOpacity: 0.28,
+  shadowRadius: 2,
+  shadowOffset: { width: 0, height: 1 },
+  elevation: 2,
+} as const;
+
 /**
  * 1牌の表示（OSS 画像 = FluffyStuff/riichi-mahjong-tiles, CC0）。回転卓・和了手で共通に使う。
  * Front の上にシンボル画像を重ねる。サイズは w/h 指定（盤面サイズ比から算出）。
- * back=裏向き（象牙の裏）、riichi=横向き、tsumogiri=薄く。読めない牌は Front に「?」。
+ * back=裏向き（緑の伏せ牌）、riichi=横向き、tsumogiri=グレーがけ、読めない牌は Front に「?」。
  */
 export function MiniTile({
   code,
@@ -29,11 +38,20 @@ export function MiniTile({
     height: h,
     borderRadius: Math.max(1, w * 0.1),
     transform: riichi ? [{ rotate: "90deg" }] : undefined,
-    opacity: tsumogiri ? 0.72 : 1,
   };
 
   if (back) {
-    return <View style={[styles.back, box]} />;
+    // 裏向き（伏せ牌）: 緑地＋内枠（web の .tile.back を近似）。
+    return (
+      <View style={[styles.back, box]}>
+        <View
+          style={[
+            styles.backInner,
+            { top: h * 0.18, bottom: h * 0.18, left: w * 0.26, right: w * 0.26 },
+          ]}
+        />
+      </View>
+    );
   }
 
   const symbol = code ? TILE_IMAGES[tileAssetName(code)] : undefined;
@@ -45,18 +63,29 @@ export function MiniTile({
       ) : (
         <Text style={[styles.unknown, { fontSize: h * 0.5, lineHeight: h }]}>?</Text>
       )}
+      {/* ツモ切りは色を抜いて手出しと一目で区別（web の grayscale 近似）。 */}
+      {tsumogiri ? <View style={styles.scrim} pointerEvents="none" /> : null}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  tile: { backgroundColor: colors.bone, overflow: "hidden" },
+  tile: { backgroundColor: colors.bone, overflow: "hidden", ...RAISED },
   img: { width: "100%", height: "100%" },
   overlay: { position: "absolute", top: 0, left: 0 },
+  scrim: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(86,90,88,0.42)" },
   back: {
-    backgroundColor: colors.bone,
+    backgroundColor: colors.em,
+    overflow: "hidden",
+    alignItems: "center",
+    justifyContent: "center",
+    ...RAISED,
+  },
+  backInner: {
+    position: "absolute",
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.boneEdge,
+    borderColor: "rgba(255,255,255,0.22)",
+    borderRadius: 1,
   },
   unknown: {
     position: "absolute",

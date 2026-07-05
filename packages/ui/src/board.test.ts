@@ -3,9 +3,11 @@ import { describe, expect, it } from "vitest";
 import {
   buildRiverPlayback,
   chunk,
+  resultLabel,
   revealCounts,
   roundName,
   roundNameForSeq,
+  seatResult,
   windOf,
 } from "./board";
 
@@ -53,6 +55,31 @@ describe("roundNameForSeq", () => {
   it("不正な seq(0以下) は東一局に丸める", () => {
     expect(roundNameForSeq(0)).toBe("東一局");
     expect(roundNameForSeq(-2)).toBe("東一局");
+  });
+});
+
+describe("resultLabel", () => {
+  it("結果コードを日本語ラベルに（未設定は —）", () => {
+    expect(resultLabel("ron")).toBe("ロン");
+    expect(resultLabel("tsumo")).toBe("ツモ");
+    expect(resultLabel("draw")).toBe("流局");
+    expect(resultLabel(null)).toBe("—");
+    expect(resultLabel(undefined)).toBe("—");
+  });
+});
+
+describe("seatResult", () => {
+  const ron = { winner: "east", from: "south" } as never;
+  const tsumo = { winner: "west", from: null } as never;
+  it("和了者はロン/ツモ、放銃者は放銃、無関係は空", () => {
+    const agari = [ron, tsumo];
+    expect(seatResult(agari, "east")).toBe("ロン");
+    expect(seatResult(agari, "west")).toBe("ツモ");
+    expect(seatResult(agari, "south")).toBe("放銃"); // ron の from
+    expect(seatResult(agari, "north")).toBe("");
+  });
+  it("和了が無ければ全席 空", () => {
+    expect(seatResult([], "east")).toBe("");
   });
 });
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { toAbsoluteSeat, type CameraSeat, type Kifu, type Seat, type Tile } from "@rigel/schema";
-import { needsReview, type TileLocation } from "@rigel/ui";
+import { needsReview, seatResult, type TileLocation } from "@rigel/ui";
 import { chunk, windOf } from "../../lib/board";
 import { fkey, fmtPts, type Selection } from "./shared";
 import { BoardTile, DoraGlyph } from "./tiles";
@@ -36,14 +36,6 @@ export interface BoardTableProps {
 /** 卓の見た目（中央情報＋4席の河/ネームプレート/手牌/鳴き）。閲覧ではなく編集用で、牌クリックで編集を開く。 */
 export function BoardTable(p: BoardTableProps) {
   const { kifu, bottomSeat, dealer, sel, flashKey, names, showPoints, points } = p;
-
-  // 席の結果表示（和了はネームプレートに出す）。agari（配列）が単一の真実源。
-  const seatResult = (seat: Seat): string => {
-    const won = kifu.agari.find((a) => a.winner === seat);
-    if (won) return won.from ? "ロン" : "ツモ";
-    if (kifu.agari.some((a) => a.from === seat)) return "放銃";
-    return "";
-  };
 
   return (
     <div className={s.main} ref={p.mainRef}>
@@ -124,7 +116,9 @@ export function BoardTable(p: BoardTableProps) {
                 <div className={`${s.nameplate} ${win ? s.win : ""}`}>
                   <span className={s.wd}>{wind}</span>
                   <span className={s.nm}>{names[seat] || `${wind}家`}</span>
-                  {seatResult(seat) && <span className={s.sc}>{seatResult(seat)}</span>}
+                  {seatResult(kifu.agari, seat) && (
+                    <span className={s.sc}>{seatResult(kifu.agari, seat)}</span>
+                  )}
                   {showPoints && (
                     <span
                       style={{

@@ -1,7 +1,10 @@
 // @rigel/ui — 盤面表示の共有ヘルパ（プラットフォーム非依存）。
 // web/mobile 両ビューアが同じ「席の自風・局名・河の巡送り」ロジックを共有する。
 
-import type { Kifu, Seat } from "@rigel/schema";
+import type { Agari, Kifu, Seat } from "@rigel/schema";
+
+/** 局結果コード（スキーマの ResultSchema と一致。型が未エクスポートのためここで定義）。 */
+export type KifuResult = "ron" | "tsumo" | "draw";
 
 /** 絶対席の座順（下家方向）。 */
 export const SEAT_ORDER: Seat[] = ["east", "south", "west", "north"];
@@ -25,6 +28,19 @@ export function roundName(index: number): string {
  */
 export function roundNameForSeq(seq: number): string {
   return roundName(Math.max(0, seq - 1));
+}
+
+/** 局結果コードの日本語ラベル（未設定は —）。web/mobile のビューアで共用。 */
+export function resultLabel(result: KifuResult | null | undefined): string {
+  return result === "ron" ? "ロン" : result === "tsumo" ? "ツモ" : result === "draw" ? "流局" : "—";
+}
+
+/** 席のネームプレートに出す結果（和了→ロン/ツモ、放銃→放銃、無関係→空）。agari が単一の真実源。 */
+export function seatResult(agari: Agari[], seat: Seat): "ロン" | "ツモ" | "放銃" | "" {
+  const won = agari.find((a) => a.winner === seat);
+  if (won) return won.from ? "ロン" : "ツモ";
+  if (agari.some((a) => a.from === seat)) return "放銃";
+  return "";
 }
 
 /** 配列を n 個ずつに分割。 */

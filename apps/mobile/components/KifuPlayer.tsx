@@ -1,8 +1,23 @@
 import type { GameLog } from "@rigel/client";
 import type { Kifu, Seat } from "@rigel/schema";
-import { buildRiverPlayback, revealCounts, roundNameForSeq, windOf, SEAT_ORDER } from "@rigel/ui";
+import {
+  buildRiverPlayback,
+  resultLabel,
+  revealCounts,
+  roundNameForSeq,
+  windOf,
+  SEAT_ORDER,
+} from "@rigel/ui";
 import { useEffect, useMemo, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from "react-native";
+import {
+  Pressable,
+  ScrollView,
+  Share,
+  StyleSheet,
+  Text,
+  useWindowDimensions,
+  View,
+} from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Svg, { Path, Rect } from "react-native-svg";
 import { colors, radius } from "../lib/theme";
@@ -10,12 +25,7 @@ import { AgariSheet } from "./AgariSheet";
 import { BoardTable } from "./BoardTable";
 import { BottomSheet } from "./BottomSheet";
 import { CenterState } from "./CenterState";
-
-const RESULT_LABEL: Record<string, string> = {
-  ron: "ロン",
-  tsumo: "ツモ",
-  draw: "流局",
-};
+import { MiniTile } from "./MiniTile";
 
 /** 半荘（局の並び）の読み取り専用プレイヤー。局送り・巡送り・1手送り・手牌トグル・情報・和了。 */
 export function KifuPlayer({
@@ -43,6 +53,7 @@ export function KifuPlayer({
   const [showHands, setShowHands] = useState(false);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [agariClosed, setAgariClosed] = useState(false);
+  const [fs, setFs] = useState(false); // 全画面（上部バーを畳んで卓を最大化）
 
   const log = logs[gi];
   const kifu: Kifu | undefined = log?.kifu;
@@ -69,8 +80,8 @@ export function KifuPlayer({
   const roundLabel = roundNameForSeq(log.seq);
   const showAgari = atEnd && kifu.agari.length > 0 && !agariClosed;
   const curJunme = revealed[dealer];
-  // 卓は横幅いっぱいまで拡大（上限は大画面向けの保険）。縦は上部バー＋場ナビ分を控えて溢れを防ぐ。
-  const boardSize = Math.max(240, Math.min(width - 8, height - 240, 520));
+  // 卓は横幅いっぱいまで拡大（上限は大画面向けの保険）。縦は上部バー(全画面時は無し)＋場ナビ分を控える。
+  const boardSize = Math.max(240, Math.min(width - 8, height - (fs ? 150 : 240), 520));
 
   function switchLog(i: number) {
     setGi(i);
@@ -78,30 +89,55 @@ export function KifuPlayer({
     setAgariClosed(false);
   }
 
+  // 公開牌譜の共有（web 公開ページ /k/:gameId を OS 共有シートで）。
+  async function onShare() {
+    const url = `https://rigel.plaria.co.jp/k/${log.gameId}`;
+    await Share.share({ message: `${title || roundLabel}\n${url}`, url }).catch(() => {});
+  }
+
   return (
     <View style={styles.root}>
-      {/* 上部バー */}
-      <View style={styles.vbar}>
-        <View style={styles.ttl}>
-          <Text style={styles.title} numberOfLines={1}>
-            {title || roundLabel}
-          </Text>
-          <View style={styles.sub}>
-            {isPublic ? <Text style={styles.pub}>公開</Text> : null}
-            {isPublic ? <Dot /> : null}
-            {authorLabel ? (
-              <>
-                <Text style={styles.subText}>{authorLabel}</Text>
-                <Dot />
-              </>
-            ) : null}
-            <Text style={styles.subText}>{logs.length}局</Text>
+      {/* 上部バー（全画面時は畳む） */}
+      {fs ? (
+        <Pressable
+          style={[styles.fsExit, { top: insets.top + 6 }]}
+          onPress={() => setFs(false)}
+          accessibilityRole="button"
+          accessibilityLabel="全画面を終了"
+        >
+          <ExpandIcon color={colors.accent} exit />
+        </Pressable>
+      ) : (
+        <View style={styles.vbar}>
+          <View style={styles.ttl}>
+            <Text style={styles.title} numberOfLines={1}>
+              {title || roundLabel}
+            </Text>
+            <View style={styles.sub}>
+              {isPublic ? <Text style={styles.pub}>公開</Text> : null}
+              {isPublic ? <Dot /> : null}
+              {authorLabel ? (
+                <>
+                  <Text style={styles.subText}>{authorLabel}</Text>
+                  <Dot />
+                </>
+              ) : null}
+              <Text style={styles.subText}>{logs.length}局</Text>
+            </View>
           </View>
+          {isPublic ? (
+            <IconButton label="共有" onPress={() => void onShare()}>
+              <ShareIcon color={colors.w70} />
+            </IconButton>
+          ) : null}
+          <IconButton label="全画面" onPress={() => setFs(true)}>
+            <ExpandIcon color={colors.w70} />
+          </IconButton>
+          <IconButton label="手牌表示" onPress={() => setShowHands((v) => !v)}>
+            <EyeIcon color={showHands ? colors.accent : colors.w70} />
+          </IconButton>
         </View>
-        <IconButton label="手牌表示" onPress={() => setShowHands((v) => !v)}>
-          <EyeIcon color={showHands ? colors.accent : colors.w70} />
-        </IconButton>
-      </View>
+      )}
 
       {/* 盤面 */}
       <View style={styles.stage}>
@@ -177,9 +213,15 @@ export function KifuPlayer({
           <ScrollView contentContainerStyle={styles.sheetBody}>
             <Text style={styles.h3}>局情報</Text>
             <KV k="親" v={`${windOf(dealer, dealer)}家`} />
-            <KV k="ドラ" v={kifu.meta.dora ? "あり" : "—"} />
+            <View style={styles.kv}>
+              <Text style={styles.kvK}>ドラ / 裏</Text>
+              <View style={styles.kvTiles}>
+                <MiniTile code={kifu.meta.dora} w={20} h={28} />
+                <MiniTile code={kifu.meta.uraDora} w={20} h={28} />
+              </View>
+            </View>
             <KV k="本場 / 供託" v={`${kifu.meta.honba}本場 / ${kifu.meta.kyotaku}`} />
-            <KV k="結果" v={RESULT_LABEL[kifu.result ?? ""] ?? "—"} />
+            <KV k="結果" v={resultLabel(kifu.result)} />
             <Text style={styles.h3}>各家</Text>
             {SEAT_ORDER.map((seat) => (
               <KV
@@ -308,6 +350,36 @@ function EyeIcon({ color }: { color: string }) {
     </Svg>
   );
 }
+function ShareIcon({ color }: { color: string }) {
+  return (
+    <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
+      <Path
+        d="M18 5a3 3 0 100 .01M6 12a3 3 0 100 .01M18 19a3 3 0 100 .01M8.6 13.5l6.8 4M15.4 6.5l-6.8 4"
+        stroke={color}
+        strokeWidth={1.9}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </Svg>
+  );
+}
+function ExpandIcon({ color, exit = false }: { color: string; exit?: boolean }) {
+  return (
+    <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
+      <Path
+        d={
+          exit
+            ? "M9 4H4v5M20 9V4h-5M9 20H4v-5M15 20h5v-5"
+            : "M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"
+        }
+        stroke={color}
+        strokeWidth={2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </Svg>
+  );
+}
 type NavIconName = "prevLog" | "nextLog" | "prevJunme" | "nextJunme" | "stepPrev" | "stepNext";
 
 /** 場ナビのボタンアイコン（局送り=先頭バー付き三角、巡送り=二連三角、1手=三角）。 */
@@ -339,6 +411,17 @@ const styles = StyleSheet.create({
   pub: { color: colors.accent, fontSize: 11, fontWeight: "700" },
   dot: { width: 3, height: 3, borderRadius: 1.5, backgroundColor: colors.w45, marginHorizontal: 6 },
   ib: { width: 44, height: 44, alignItems: "center", justifyContent: "center" },
+  fsExit: {
+    position: "absolute",
+    right: 10,
+    zIndex: 10,
+    width: 40,
+    height: 40,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 20,
+    backgroundColor: "rgba(0,0,0,0.35)",
+  },
   stage: { flex: 1, alignItems: "center", justifyContent: "center", padding: 2 },
   nav: {
     paddingHorizontal: 14,
@@ -388,5 +471,6 @@ const styles = StyleSheet.create({
   },
   kvK: { color: colors.w70, fontSize: 13 },
   kvV: { color: colors.white, fontSize: 13, fontWeight: "700" },
+  kvTiles: { flexDirection: "row", gap: 4 },
   muted: { color: colors.w45, fontSize: 11, paddingTop: 8 },
 });
