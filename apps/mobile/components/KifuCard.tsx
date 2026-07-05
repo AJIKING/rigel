@@ -46,6 +46,7 @@ export function KifuCard({
   metaParts,
   fav = false,
   onPress,
+  onLongPress,
 }: {
   title: string;
   /** 先頭に並べるバッジ（例: 公開/非公開、下書きN/編集済）。 */
@@ -54,9 +55,11 @@ export function KifuCard({
   metaParts: string[];
   fav?: boolean;
   onPress?: () => void;
+  /** 長押し（例: 削除メニュー）。 */
+  onLongPress?: () => void;
 }) {
   return (
-    <Pressable style={styles.card} onPress={onPress}>
+    <Pressable style={styles.card} onPress={onPress} onLongPress={onLongPress} delayLongPress={350}>
       <TileChip size={64} center="dot" />
       <View style={styles.main}>
         <Text style={styles.title} numberOfLines={2}>

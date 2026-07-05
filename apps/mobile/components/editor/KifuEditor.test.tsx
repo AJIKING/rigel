@@ -160,14 +160,16 @@ describe("KifuEditor（モバイル編集画面）", () => {
     expect(onSave.mock.calls[0]![1]).toBe("complete");
   });
 
-  it("結果をロンにして役を選ぶと、agari と result が保存される", () => {
+  it("結果を和了→ロンにして役を選ぶと、agari と result が保存される", () => {
     const onSave = jest.fn();
     render(<KifuEditor initialKifu={makeKifu()} seq={1} initialStatus="draft" onSave={onSave} />);
+    fireEvent.press(screen.getByText(/プレビュー/)); // 卓上の結果表示と重複しないよう畳む
     // 既定は結果なし → 和了フォームは出ない。
     expect(screen.queryByText("和了者")).toBeNull();
 
-    fireEvent.press(screen.getByText("ロン"));
+    fireEvent.press(screen.getByText("和了"));
     expect(screen.getByText("和了者")).toBeTruthy();
+    fireEvent.press(screen.getByText("ロン")); // 種別トグルをロンに
     fireEvent.press(screen.getByText(/^立直/)); // 役チップ（立直 1飜。ダブル立直と区別）
 
     fireEvent.press(screen.getByText("保存"));
@@ -178,19 +180,48 @@ describe("KifuEditor（モバイル編集画面）", () => {
     expect(saved.agari[0]?.from).not.toBeNull(); // ロンは放銃者を持つ
   });
 
-  it("結果をツモに切り替えると from が null になり、なしに戻すと和了が消える", () => {
+  it("和了は既定ツモ、なしに戻すと和了が消える", () => {
     const onSave = jest.fn();
     render(<KifuEditor initialKifu={makeKifu()} seq={1} initialStatus="draft" onSave={onSave} />);
-    fireEvent.press(screen.getByText("ツモ"));
+    fireEvent.press(screen.getByText(/プレビュー/));
+    fireEvent.press(screen.getByText("和了"));
     fireEvent.press(screen.getByText("保存"));
     let saved = onSave.mock.calls[0]![0] as Kifu;
-    expect(saved.result).toBe("tsumo");
+    expect(saved.result).toBe("tsumo"); // 既定はツモ（放銃者なし）
     expect(saved.agari[0]?.from).toBeNull();
 
     fireEvent.press(screen.getByText("なし"));
     fireEvent.press(screen.getByText("保存"));
     saved = onSave.mock.calls[1]![0] as Kifu;
     expect(saved.result).toBeNull();
+    expect(saved.agari).toHaveLength(0);
+  });
+
+  it("和了をロンにすると和了者を追加できる（複数和了）", () => {
+    const onSave = jest.fn();
+    render(<KifuEditor initialKifu={makeKifu()} seq={1} initialStatus="draft" onSave={onSave} />);
+    fireEvent.press(screen.getByText(/プレビュー/));
+    fireEvent.press(screen.getByText("和了"));
+    fireEvent.press(screen.getByText("ロン")); // ロンにすると複数追加可能
+    fireEvent.press(screen.getByText("＋ 和了者を追加"));
+
+    fireEvent.press(screen.getByText("保存"));
+    const saved = onSave.mock.calls[0]![0] as Kifu;
+    expect(saved.agari).toHaveLength(2);
+    expect(saved.agari.every((a) => a.from !== null)).toBe(true);
+  });
+
+  it("流局で聴牌者を選ぶと result=draw と tenpai が保存される", () => {
+    const onSave = jest.fn();
+    render(<KifuEditor initialKifu={makeKifu()} seq={1} initialStatus="draft" onSave={onSave} />);
+    fireEvent.press(screen.getByText(/プレビュー/));
+    fireEvent.press(screen.getByText("流局"));
+    fireEvent.press(screen.getByText("東家 不聴")); // 親=東を聴牌に
+
+    fireEvent.press(screen.getByText("保存"));
+    const saved = onSave.mock.calls[0]![0] as Kifu;
+    expect(saved.result).toBe("draw");
+    expect(saved.tenpai).toEqual(["east"]);
     expect(saved.agari).toHaveLength(0);
   });
 

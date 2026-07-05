@@ -167,6 +167,12 @@ export interface ApiClient {
   deleteKifu(token: string, logId: string): Promise<{ ok: boolean; status: number }>;
   /** 半荘を配下の全局ごと削除する（所有者のみ）。成否を返す。 */
   deleteGame(token: string, gameId: string): Promise<{ ok: boolean; status: number }>;
+  /** 半荘名を変更する（所有者のみ）。成否を返す。 */
+  updateGame(
+    token: string,
+    gameId: string,
+    input: { title: string },
+  ): Promise<{ ok: boolean; status: number }>;
   /** 新しい半荘を「空の初局」つきで作る（手動入力の起点）。成功で gameId/logId を返す。 */
   createGame(
     token: string,
@@ -357,6 +363,15 @@ export function createApiClient(baseUrl: string, fetchImpl?: typeof fetch): ApiC
       const res = await doFetch(`${baseUrl}/games/${gameId}`, {
         method: "DELETE",
         headers: bearer(token),
+      });
+      return { ok: res.ok, status: res.status };
+    },
+
+    async updateGame(token, gameId, input) {
+      const res = await doFetch(`${baseUrl}/games/${gameId}`, {
+        method: "PATCH",
+        headers: { ...bearer(token), "content-type": "application/json" },
+        body: JSON.stringify(input),
       });
       return { ok: res.ok, status: res.status };
     },

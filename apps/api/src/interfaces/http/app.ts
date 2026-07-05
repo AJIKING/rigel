@@ -171,6 +171,22 @@ export function createApp(): Hono<AppEnv> {
     return c.json(detail);
   });
 
+  // 半荘名の変更。所有者のみ。body: { title }。
+  app.patch("/games/:id", requireAuth, async (c) => {
+    const body = await c.req.json<{ title?: unknown }>().catch(() => ({}) as { title?: unknown });
+    if (typeof body.title !== "string") return c.json({ error: "title required" }, 400);
+    const result = await c
+      .get("container")
+      .updateGame.execute({
+        userId: c.get("userId")!,
+        gameId: c.req.param("id"),
+        title: body.title,
+      });
+    if (!result.ok)
+      return c.json({ error: result.reason }, result.reason === "invalid" ? 400 : 404);
+    return c.json({ ok: true });
+  });
+
   // 半荘の削除（配下の全局ごと）。所有者のみ。
   app.delete("/games/:id", requireAuth, async (c) => {
     const result = await c

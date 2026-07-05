@@ -35,6 +35,7 @@ export const {
   setVisibility,
   deleteKifu,
   deleteGame,
+  updateGame,
   updateProfile,
   deleteAccount,
 } = client;

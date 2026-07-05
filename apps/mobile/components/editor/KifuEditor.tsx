@@ -30,6 +30,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { colors, radius } from "../../lib/theme";
 import { BoardTable } from "../BoardTable";
 import { AgariForm } from "./AgariForm";
+import { DrawForm } from "./DrawForm";
 import { MiniTile } from "../MiniTile";
 import { RulesSheet } from "./RulesSheet";
 import { Segment } from "../Segment";
@@ -101,24 +102,33 @@ export function KifuEditor({
     setKifu(mutateKifu(kifu, fn));
   }
 
-  /** 結果（なし/ロン/ツモ/流局）の切替。ロン/ツモは和了エントリを整え、それ以外は消す。 */
-  function setResult(r: "none" | "ron" | "tsumo" | "draw") {
+  // 結果モード: なし / 和了 / 流局。result(ロン/ツモ) は和了者ごとの from から導出する。
+  const resultMode: "none" | "win" | "draw" =
+    kifu.result === "draw" ? "draw" : kifu.agari.length > 0 ? "win" : "none";
+
+  /** 和了配列から result(ロン/ツモ) を導出（放銃者ありがあればロン、無ければツモ）。 */
+  function deriveWinResult(agari: Agari[]): "ron" | "tsumo" | null {
+    if (agari.length === 0) return null;
+    return agari.some((a) => a.from !== null) ? "ron" : "tsumo";
+  }
+
+  /** 結果モードの切替。和了は既定の和了1件、流局は聴牌者を空で開始、なしは全消し。 */
+  function setResult(r: "none" | "win" | "draw") {
     mutate((draft) => {
-      if (r === "none" || r === "draw") {
-        draft.result = r === "none" ? null : "draw";
+      if (r === "none") {
+        draft.result = null;
         draft.agari = [];
-      } else if (r === "tsumo") {
-        draft.result = "tsumo";
-        const base: Agari = draft.agari[0] ?? AgariSchema.parse({ winner: dealer, from: null });
-        draft.agari = [AgariSchema.parse({ ...base, from: null })]; // ツモは1件・放銃者なし
+        draft.tenpai = [];
+      } else if (r === "draw") {
+        draft.result = "draw";
+        draft.agari = [];
       } else {
-        draft.result = "ron";
-        const list: Agari[] = draft.agari.length
-          ? draft.agari
-          : [AgariSchema.parse({ winner: dealer, from: null })];
-        draft.agari = list.map((a) =>
-          AgariSchema.parse({ ...a, from: a.from ?? SEAT_ORDER.find((s) => s !== a.winner)! }),
-        );
+        // 和了。既存が無ければツモ和了1件を作る。
+        if (draft.agari.length === 0) {
+          draft.agari = [AgariSchema.parse({ winner: dealer, from: null })];
+        }
+        draft.result = deriveWinResult(draft.agari);
+        draft.tenpai = [];
       }
     });
   }
@@ -175,31 +185,9 @@ export function KifuEditor({
   return (
     <View style={styles.root}>
       <ScrollView contentContainerStyle={styles.body}>
-        {/* 局メタ: 局名・ドラ・裏ドラ */}
+        {/* 局メタ: 局名 */}
         <View style={styles.metaRow}>
           <Text style={styles.round}>{roundNameForSeq(seq)}</Text>
-          <View style={styles.doraWrap}>
-            <View style={styles.doraCol}>
-              <Text style={styles.doraLbl}>ドラ</Text>
-              <Pressable
-                onPress={() => setPicker({ kind: "dora" })}
-                accessibilityRole="button"
-                accessibilityLabel="ドラを選ぶ"
-              >
-                <MiniTile code={kifu.meta.dora} w={26} h={36} />
-              </Pressable>
-            </View>
-            <View style={styles.doraCol}>
-              <Text style={styles.doraLbl}>裏</Text>
-              <Pressable
-                onPress={() => setPicker({ kind: "uradora" })}
-                accessibilityRole="button"
-                accessibilityLabel="裏ドラを選ぶ"
-              >
-                <MiniTile code={kifu.meta.uraDora} w={26} h={36} />
-              </Pressable>
-            </View>
-          </View>
         </View>
         <View style={styles.segRow}>
           <Text style={styles.metaLabel}>親</Text>
@@ -252,6 +240,30 @@ export function KifuEditor({
               })
             }
           />
+          {/* ドラ・裏ドラ（供託の下）。 */}
+          <View style={styles.doraRow}>
+            <Text style={styles.doraRowLabel}>ドラ / 裏ドラ</Text>
+            <View style={styles.doraCol}>
+              <Text style={styles.doraLbl}>ドラ</Text>
+              <Pressable
+                onPress={() => setPicker({ kind: "dora" })}
+                accessibilityRole="button"
+                accessibilityLabel="ドラを選ぶ"
+              >
+                <MiniTile code={kifu.meta.dora} w={26} h={36} />
+              </Pressable>
+            </View>
+            <View style={styles.doraCol}>
+              <Text style={styles.doraLbl}>裏</Text>
+              <Pressable
+                onPress={() => setPicker({ kind: "uradora" })}
+                accessibilityRole="button"
+                accessibilityLabel="裏ドラを選ぶ"
+              >
+                <MiniTile code={kifu.meta.uraDora} w={26} h={36} />
+              </Pressable>
+            </View>
+          </View>
           <Pressable
             style={styles.rulesBtn}
             onPress={() => setRulesOpen(true)}
@@ -397,27 +409,38 @@ export function KifuEditor({
           </>
         )}
 
-        {/* 結果・和了（点数は保存せず役/符から計算＝打点プレビュー） */}
+        {/* 結果（なし / 和了 / 流局）。点数は保存せず役・符・聴牌から計算＝プレビュー。 */}
         <SectionLabel>結果</SectionLabel>
         <Segment
           options={
             [
               ["none", "なし"],
-              ["ron", "ロン"],
-              ["tsumo", "ツモ"],
+              ["win", "和了"],
               ["draw", "流局"],
             ] as const
           }
-          value={kifu.result ?? "none"}
+          value={resultMode}
           onChange={setResult}
         />
-        {kifu.result === "ron" || kifu.result === "tsumo" ? (
+        {resultMode === "win" ? (
           <AgariForm
             kifu={kifu}
             dealer={dealer}
             onChange={(agaris) =>
               mutate((d) => {
                 d.agari = agaris;
+                d.result = deriveWinResult(agaris);
+              })
+            }
+          />
+        ) : null}
+        {resultMode === "draw" ? (
+          <DrawForm
+            tenpai={kifu.tenpai}
+            dealer={dealer}
+            onChange={(tenpai) =>
+              mutate((d) => {
+                d.tenpai = tenpai;
               })
             }
           />
@@ -516,7 +539,8 @@ const styles = StyleSheet.create({
   body: { padding: 14, paddingBottom: 24, gap: 8 },
   metaRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   round: { color: colors.white, fontSize: 17, fontWeight: "800" },
-  doraWrap: { flexDirection: "row", alignItems: "flex-end", gap: 12 },
+  doraRow: { flexDirection: "row", alignItems: "flex-end", gap: 14 },
+  doraRowLabel: { color: colors.w70, fontSize: 13, flex: 1 },
   doraCol: { alignItems: "center", gap: 3 },
   doraLbl: { color: colors.w45, fontSize: 10, fontWeight: "700" },
   metaLabel: { color: colors.w45, fontSize: 12, fontWeight: "700", width: 24 },

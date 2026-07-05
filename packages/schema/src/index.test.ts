@@ -222,7 +222,13 @@ describe("KifuSchema（牌譜1件の最終検証）", () => {
     const kifu = KifuSchema.parse(legacy);
     expect(kifu.rules).toEqual(RULE_PRESETS.mleague);
     expect(kifu.agari).toEqual([]);
+    expect(kifu.tenpai).toEqual([]); // 未指定は空（流局の聴牌者）
     expect(kifu.meta).toMatchObject({ uraDora: null, kyotaku: 0, dora: null, junme: 1, honba: 1 });
+  });
+
+  it("tenpai は聴牌者の席配列を保持する（流局の点数計算用）", () => {
+    const kifu = KifuSchema.parse({ ...minimalKifu, result: "draw", tenpai: ["east", "south"] });
+    expect(kifu.tenpai).toEqual(["east", "south"]);
   });
 });
 

@@ -315,6 +315,10 @@ export const KifuSchema = z.object({
     .preprocess((v) => (Array.isArray(v) ? v : v == null ? [] : [v]), z.array(AgariSchema))
     .default([]),
 
+  /** 流局時の聴牌者（席の絶対位置）。不聴罰符の受け渡し計算に使う（点数は牌姿から
+   *  出せないため聴牌者だけ記録し、罰符3000は席数から算出）。和了局・未入力は空配列。 */
+  tenpai: z.array(SeatSchema).default([]),
+
   /** 解析時の読み取り困難メモ（グレア・ブレ・見切れ等）。AIのnotesを引き継ぐ。 */
   readingNotes: z.string().default(""),
 

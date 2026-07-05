@@ -125,6 +125,15 @@ export type PaidPlan = "next" | "pro";
 const PLAN_LABELS: Record<Plan, string> = { free: "Free", next: "Next", pro: "Pro" };
 const PLAN_MONTHLY_PRICE: Record<Plan, number> = { free: 0, next: 480, pro: 1480 };
 
+// 牌譜(局)の保存上限。api 側 PRIVATE_KIFU_LIMIT / DRAFT_LIMIT と一致させる（null=無制限）。
+const PRIVATE_KIFU_LIMIT: Record<Plan, number | null> = { free: 5, next: null, pro: null };
+const DRAFT_KIFU_LIMIT: Record<Plan, number | null> = { free: 5, next: null, pro: null };
+
+/** プランごとの牌譜(局)保存上限。非公開(complete)と下書きは別枠。null=無制限。 */
+export function planKifuLimits(plan: Plan): { private: number | null; draft: number | null } {
+  return { private: PRIVATE_KIFU_LIMIT[plan], draft: DRAFT_KIFU_LIMIT[plan] };
+}
+
 /** プランの表示名。 */
 export function planLabel(plan: Plan): string {
   return PLAN_LABELS[plan];

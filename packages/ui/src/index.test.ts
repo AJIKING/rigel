@@ -9,6 +9,7 @@ import {
   collectReviewItems,
   describeTile,
   needsReview,
+  planKifuLimits,
   planLabel,
   planMonthlyPrice,
   planMonthlyPriceAppStore,
@@ -134,6 +135,11 @@ describe("プラン表示", () => {
     expect(upgradeTargets("free")).toEqual(["next", "pro"]);
     expect(upgradeTargets("next")).toEqual(["pro"]);
     expect(upgradeTargets("pro")).toEqual([]);
+  });
+  it("planKifuLimits は free=各5・有料=無制限(null)", () => {
+    expect(planKifuLimits("free")).toEqual({ private: 5, draft: 5 });
+    expect(planKifuLimits("next")).toEqual({ private: null, draft: null });
+    expect(planKifuLimits("pro")).toEqual({ private: null, draft: null });
   });
   it("visibilityLabel", () => {
     expect(visibilityLabel("public")).toBe("公開");

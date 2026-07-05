@@ -15,6 +15,7 @@ import { colors, radius } from "../../lib/theme";
 import { Chip } from "../Chip";
 import { MiniTile } from "../MiniTile";
 import { Stepper } from "../Stepper";
+import { SeatDeltas } from "./SeatDeltas";
 import { TilePickerSheet } from "./TilePickerSheet";
 
 const FU_OPTIONS = [20, 25, 30, 40, 50, 60, 70, 80, 90, 100, 110];
@@ -46,10 +47,9 @@ export function AgariForm({
   const agaris = kifu.agari;
   const deltas = agariDeltas(kifu);
 
-  const first = agaris[0];
-  const isRon = !first || first.from !== null;
-  const max = kifu.rules.tripleRon ? 3 : kifu.rules.doubleRon ? 2 : 1;
-  const canAdd = isRon && agaris.length < max && agaris.length > 0;
+  // 複数和了はロン（頭ハネ無効）のときのみ。ルール設定に依らず最大3人まで追加できる。
+  const allRon = agaris.length > 0 && agaris.every((a) => a.from !== null);
+  const canAdd = allRon && agaris.length < 3;
 
   function addAgari() {
     const used = new Set(agaris.map((a) => a.winner));
@@ -75,23 +75,11 @@ export function AgariForm({
 
       {canAdd ? (
         <Pressable style={styles.addBtn} onPress={addAgari} accessibilityRole="button">
-          <Text style={styles.addBtnText}>＋ 和了を追加（ダブロン）</Text>
+          <Text style={styles.addBtnText}>＋ 和了者を追加</Text>
         </Pressable>
       ) : null}
 
-      {agaris.length > 0 ? (
-        <View style={styles.deltas}>
-          {SEAT_ORDER.map((seat) => (
-            <View key={seat} style={styles.deltaCell}>
-              <Text style={styles.deltaName}>{windOf(seat, dealer)}家</Text>
-              <Text style={[styles.deltaVal, deltas[seat] >= 0 ? styles.plus : styles.minus]}>
-                {deltas[seat] >= 0 ? "+" : ""}
-                {deltas[seat].toLocaleString()}
-              </Text>
-            </View>
-          ))}
-        </View>
-      ) : null}
+      {agaris.length > 0 ? <SeatDeltas deltas={deltas} dealer={dealer} /> : null}
     </View>
   );
 }
@@ -154,6 +142,38 @@ function AgariEntry({
         onPick={(seat) => patch({ winner: seat })}
         dealer={dealer}
       />
+      {/* 和了種別（ツモ=放銃者なし / ロン=放銃者を選ぶ）。 */}
+      <View style={styles.row}>
+        <Text style={styles.label}>種別</Text>
+        <View style={styles.seg}>
+          {(
+            [
+              ["tsumo", "ツモ"],
+              ["ron", "ロン"],
+            ] as const
+          ).map(([k, lbl]) => {
+            const on = k === "tsumo" ? agari.from === null : agari.from !== null;
+            return (
+              <Pressable
+                key={k}
+                style={[styles.segBtn, on && styles.segOn]}
+                onPress={() =>
+                  patch({
+                    from:
+                      k === "tsumo"
+                        ? null
+                        : (agari.from ?? SEAT_ORDER.find((s) => s !== agari.winner)!),
+                  })
+                }
+                accessibilityRole="button"
+                accessibilityState={{ selected: on }}
+              >
+                <Text style={[styles.segText, on && styles.segTextOn]}>{lbl}</Text>
+              </Pressable>
+            );
+          })}
+        </View>
+      </View>
       {agari.from !== null ? (
         <SeatRow
           label="放銃者"
@@ -374,18 +394,4 @@ const styles = StyleSheet.create({
     borderColor: colors.line,
   },
   addBtnText: { color: colors.accent, fontWeight: "700", fontSize: 13 },
-  deltas: { flexDirection: "row", gap: 6, marginTop: 8 },
-  deltaCell: {
-    flex: 1,
-    backgroundColor: colors.chrome2,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.line,
-    borderRadius: radius.sm,
-    paddingVertical: 8,
-    alignItems: "center",
-  },
-  deltaName: { color: colors.w45, fontSize: 10, marginBottom: 3 },
-  deltaVal: { fontWeight: "800", fontSize: 12.5 },
-  plus: { color: colors.emLite },
-  minus: { color: colors.vermilion },
 });

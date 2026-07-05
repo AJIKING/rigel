@@ -52,6 +52,19 @@ export function agariDeltas(kifu: Kifu): SeatDeltas {
   return d;
 }
 
+/** 流局の不聴罰符（テンパイ料）による点棒移動。聴牌者の合計 +3000 を分け、
+ *  不聴者が合計 3000 を分けて払う。全員聴牌/全員不聴（0 or 4 人）は移動なし。 */
+export function notenDeltas(tenpai: Seat[]): SeatDeltas {
+  const d = zero();
+  const set = new Set(tenpai);
+  const n = set.size;
+  if (n === 0 || n === 4) return d;
+  const gain = 3000 / n; // 聴牌者1人あたりの受取
+  const pay = 3000 / (4 - n); // 不聴者1人あたりの支払い
+  for (const s of SEATS) d[s] = set.has(s) ? gain : -pay;
+  return d;
+}
+
 /** 開始点（rules.start）から各局の増減を積んだ持ち点。 */
 export function standings(kifus: Kifu[], rules: Rules): SeatDeltas {
   const start = Number(rules.start);

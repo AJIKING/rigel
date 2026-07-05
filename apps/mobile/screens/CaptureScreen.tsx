@@ -21,7 +21,9 @@ export function CaptureScreen() {
   const [river, setRiver] = useState<Picked | null>(null);
   const [hands, setHands] = useState<Partial<Record<(typeof CAMS)[number], Picked>>>({});
   const [submitting, setSubmitting] = useState(false);
+  const [creating, setCreating] = useState(false); // 手入力作成。解析(submitting)とは独立。
   const [error, setError] = useState<string | null>(null);
+  const busy = submitting || creating;
 
   /** 写真なしの手入力作成。空の初局つき半荘を作って編集画面へ。 */
   async function onCreateManual() {
@@ -30,7 +32,7 @@ export function CaptureScreen() {
       return;
     }
     setError(null);
-    setSubmitting(true);
+    setCreating(true);
     try {
       const res = await createGame(token, seat);
       if (res.ok) nav.navigate("Edit", { gameId: res.gameId, logId: res.logId });
@@ -38,7 +40,7 @@ export function CaptureScreen() {
     } catch {
       setError("通信に失敗しました。");
     } finally {
-      setSubmitting(false);
+      setCreating(false);
     }
   }
 
@@ -129,23 +131,31 @@ export function CaptureScreen() {
       {error ? <Text style={styles.error}>{error}</Text> : null}
 
       <Pressable
-        disabled={submitting || !river}
+        disabled={busy || !river}
         onPress={() => void onSubmit()}
-        style={[styles.submit, (submitting || !river) && styles.submitDisabled]}
+        style={[styles.submit, (busy || !river) && styles.submitDisabled]}
+        accessibilityRole="button"
       >
         <Text style={styles.submitText}>
           {submitting ? "解析中…（少し時間がかかります）" : "解析して保存"}
         </Text>
       </Pressable>
 
+      {/* 解析とは別導線。区切りを置いて誤タップ・状態の取り違えを防ぐ。 */}
+      <View style={styles.orRow}>
+        <View style={styles.orLine} />
+        <Text style={styles.orText}>または</Text>
+        <View style={styles.orLine} />
+      </View>
+
       {/* 写真なしの手入力作成（空の初局を作って編集画面へ）。 */}
       <Pressable
-        disabled={submitting}
+        disabled={busy}
         onPress={() => void onCreateManual()}
-        style={[styles.manual, submitting && styles.submitDisabled]}
+        style={[styles.manual, busy && styles.submitDisabled]}
         accessibilityRole="button"
       >
-        <Text style={styles.manualText}>写真なしで作成（手入力）</Text>
+        <Text style={styles.manualText}>{creating ? "作成中…" : "写真なしで作成（手入力）"}</Text>
       </Pressable>
     </ScrollView>
   );
@@ -196,15 +206,17 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginTop: 8,
   },
-  submitDisabled: { backgroundColor: colors.chrome3 },
+  submitDisabled: { backgroundColor: colors.chrome3, opacity: 0.6 },
   submitText: { color: "#16181d", fontSize: 15, fontWeight: "700" },
+  orRow: { flexDirection: "row", alignItems: "center", gap: 10, marginVertical: 8 },
+  orLine: { flex: 1, height: StyleSheet.hairlineWidth, backgroundColor: colors.line },
+  orText: { color: colors.w45, fontSize: 11, fontWeight: "700" },
   manual: {
     borderWidth: 1,
     borderColor: colors.line,
     borderRadius: 8,
     padding: 13,
     alignItems: "center",
-    marginTop: 2,
   },
   manualText: { color: colors.accent, fontSize: 14, fontWeight: "700" },
 });

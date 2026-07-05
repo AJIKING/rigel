@@ -145,11 +145,11 @@ export const RULES_FORM: RuleGroup[] = [
   },
 ];
 
-/** ルールプリセットの選択肢（RULE_PRESETS のキーと表示名）。 */
+/** ルールプリセットの選択肢（RULE_PRESETS のキーと表示名）。
+ *  フリーはカスタムと実質同義のため一覧には出さない（RULE_PRESETS には残す）。 */
 export const RULE_PRESET_OPTIONS: readonly { key: PresetKey; label: string }[] = [
   { key: "mleague", label: "Mリーグ" },
   { key: "tenhou", label: "天鳳" },
-  { key: "free", label: "フリー" },
 ];
 
 /** 現在のルールが一致するプリセットのキー（無ければ "custom"）。 */

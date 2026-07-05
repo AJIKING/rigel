@@ -252,6 +252,21 @@ describe("createApiClient", () => {
     expect(result.ok).toBe(true);
   });
 
+  it("updateGame は PATCH /games/:id して成否を返す", async () => {
+    let method = "";
+    let body = "";
+    const client = createApiClient("https://api.test", ((url: string, init?: RequestInit) => {
+      method = init?.method ?? "GET";
+      body = String(init?.body ?? "");
+      expect(String(url)).toBe("https://api.test/games/g1");
+      return Promise.resolve(json({ ok: true }));
+    }) as unknown as typeof fetch);
+    const result = await client.updateGame("tok", "g1", { title: "新名称" });
+    expect(method).toBe("PATCH");
+    expect(JSON.parse(body)).toEqual({ title: "新名称" });
+    expect(result.ok).toBe(true);
+  });
+
   it("createEmptyKifu は POST /games/:id/kifu して logId を返す", async () => {
     const client = createApiClient(
       "https://api.test",
