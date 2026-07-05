@@ -1,6 +1,6 @@
 import { toAbsoluteSeat, type CameraSeat, type Kifu, type Seat } from "@rigel/schema";
 import { chunk, windOf } from "@rigel/ui";
-import { StyleSheet, Text, View, type ViewStyle } from "react-native";
+import { Pressable, StyleSheet, Text, View, type ViewStyle } from "react-native";
 import { colors } from "../lib/theme";
 import { MiniTile } from "./MiniTile";
 
@@ -25,7 +25,9 @@ const GEO = {
   tileAspect: 1.4, // 牌の高さ/幅
 } as const;
 
-/** 回転卓（読み取り専用）。カメラ相対の4席を各辺に配置し内向きに回転する。 */
+/** 回転卓。カメラ相対の4席を各辺に配置し内向きに回転する。
+ *  既定は読み取り専用（ビューア）。onSeatPress を渡すと席がタップ可能になり、
+ *  selectedSeat の席をハイライトする（エディタのプレビュー用）。 */
 export function BoardTable({
   kifu,
   bottomSeat,
@@ -35,6 +37,8 @@ export function BoardTable({
   showHands,
   ownerName,
   size = 330,
+  selectedSeat,
+  onSeatPress,
 }: {
   kifu: Kifu;
   bottomSeat: Seat;
@@ -44,6 +48,10 @@ export function BoardTable({
   showHands: boolean;
   ownerName?: string | null;
   size?: number;
+  /** 編集対象としてハイライトする席（エディタのプレビュー用）。 */
+  selectedSeat?: Seat;
+  /** 席タップ時のコールバック。指定時のみ席が押せる。 */
+  onSeatPress?: (seat: Seat) => void;
 }) {
   const B = size;
   const rt = B * GEO.riverTileW;
@@ -82,8 +90,15 @@ export function BoardTable({
         };
 
         const hand = isBottom || showHands;
+        const selected = selectedSeat === seat;
         return (
-          <View key={cam} style={[seatStyle, styles.seat]}>
+          <Pressable
+            key={cam}
+            style={[seatStyle, styles.seat, selected && styles.seatSel]}
+            disabled={!onSeatPress}
+            onPress={onSeatPress ? () => onSeatPress(seat) : undefined}
+            accessibilityLabel={onSeatPress ? `${wind}家を選択` : undefined}
+          >
             <View style={styles.river}>
               {chunk(river, 6).map((row, ri) => (
                 <View key={ri} style={styles.rrow}>
@@ -118,7 +133,7 @@ export function BoardTable({
                 </View>
               ))}
             </View>
-          </View>
+          </Pressable>
         );
       })}
 
@@ -143,6 +158,13 @@ const styles = StyleSheet.create({
     borderColor: "rgba(255,255,255,0.08)",
   },
   seat: { alignItems: "center", justifyContent: "center", gap: 4 },
+  // エディタのプレビューで編集対象の席を示すハイライト。
+  seatSel: {
+    borderWidth: 1,
+    borderColor: colors.accent,
+    borderRadius: 8,
+    backgroundColor: "rgba(255,158,69,0.08)",
+  },
   river: { flexDirection: "column", alignItems: "center", gap: 1.5, maxWidth: "70%" },
   rrow: { flexDirection: "row", gap: 1.5 },
   plate: { flexDirection: "row", alignItems: "center", gap: 4 },

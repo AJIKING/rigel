@@ -74,13 +74,15 @@ export interface GameDetail {
   logs: GameLog[];
 }
 
-/** マイページの半荘カード（局数・公開数つき）。 */
+/** マイページの半荘カード（局数・公開数・下書き数つき）。 */
 export interface MyGameCard {
   id: string;
   title: string;
   createdAt: string;
   kyokuCount: number;
   publicCount: number;
+  /** 下書き(draft)の局数（0 なら全局が編集済）。 */
+  draftCount: number;
 }
 
 /** 公開牌譜フィードの半荘カード。 */
@@ -163,6 +165,8 @@ export interface ApiClient {
   ): Promise<{ ok: boolean; status: number }>;
   /** 牌譜（局）を削除する（所有者のみ）。成否を返す。 */
   deleteKifu(token: string, logId: string): Promise<{ ok: boolean; status: number }>;
+  /** 半荘を配下の全局ごと削除する（所有者のみ）。成否を返す。 */
+  deleteGame(token: string, gameId: string): Promise<{ ok: boolean; status: number }>;
   /** 新しい半荘を「空の初局」つきで作る（手動入力の起点）。成功で gameId/logId を返す。 */
   createGame(
     token: string,
@@ -343,6 +347,14 @@ export function createApiClient(baseUrl: string, fetchImpl?: typeof fetch): ApiC
 
     async deleteKifu(token, logId) {
       const res = await doFetch(`${baseUrl}/kifu/${logId}`, {
+        method: "DELETE",
+        headers: bearer(token),
+      });
+      return { ok: res.ok, status: res.status };
+    },
+
+    async deleteGame(token, gameId) {
+      const res = await doFetch(`${baseUrl}/games/${gameId}`, {
         method: "DELETE",
         headers: bearer(token),
       });

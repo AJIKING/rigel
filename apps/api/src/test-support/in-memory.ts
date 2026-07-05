@@ -113,6 +113,13 @@ export class InMemoryGameLogRepository implements GameLogRepository {
     return Promise.resolve();
   }
 
+  deleteByGame(gameId: string): Promise<void> {
+    for (let i = this.saved.length - 1; i >= 0; i--) {
+      if (this.saved[i]!.gameId === gameId) this.saved.splice(i, 1);
+    }
+    return Promise.resolve();
+  }
+
   deleteByUser(userId: string): Promise<void> {
     for (let i = this.saved.length - 1; i >= 0; i--) {
       if (this.saved[i]!.userId === userId) this.saved.splice(i, 1);
@@ -138,6 +145,11 @@ export class InMemoryGameRepository implements GameRepository {
 
   save(game: Game): Promise<void> {
     this.byId.set(game.id, game);
+    return Promise.resolve();
+  }
+
+  deleteById(id: string): Promise<void> {
+    this.byId.delete(id);
     return Promise.resolve();
   }
 

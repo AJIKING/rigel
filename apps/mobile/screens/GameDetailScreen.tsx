@@ -4,8 +4,10 @@ import { collectReviewItems, roundNameForSeq } from "@rigel/ui";
 import { useCallback, useState } from "react";
 import { FlatList, Pressable, StyleSheet, Text, View } from "react-native";
 import { CenterState } from "../components/CenterState";
-import { createEmptyKifu } from "../lib/api";
+import { DangerButton } from "../components/DangerButton";
+import { createEmptyKifu, deleteGame } from "../lib/api";
 import { useAuth } from "../lib/auth";
+import { confirmDestructive } from "../lib/confirm";
 import { fmtDate } from "../lib/format";
 import { colors } from "../lib/theme";
 import type { RootStackParamList } from "../lib/navigation";
@@ -51,6 +53,20 @@ export function GameDetailScreen() {
     }
   }
 
+  /** 半荘を配下の全局ごと削除する（確認ダイアログつき。成功で一覧へ戻る）。 */
+  function onDeleteGame() {
+    if (!token) return;
+    confirmDestructive({
+      title: "この半荘を削除しますか？",
+      message: "配下のすべての局が削除され、元に戻せません。",
+      onConfirm: () => {
+        deleteGame(token, gameId)
+          .then((res) => (res.ok ? nav.goBack() : setNote("削除に失敗しました")))
+          .catch(() => setNote("通信に失敗しました"));
+      },
+    });
+  }
+
   return (
     <View style={styles.container}>
       <View style={styles.head}>
@@ -68,6 +84,9 @@ export function GameDetailScreen() {
           >
             <Text style={styles.addBtnText}>{adding ? "追加中…" : "＋ 局を追加"}</Text>
           </Pressable>
+          <View style={styles.delWrap}>
+            <DangerButton label="半荘を削除" onPress={onDeleteGame} />
+          </View>
         </View>
         {note ? <Text style={styles.note}>{note}</Text> : null}
       </View>
@@ -125,6 +144,7 @@ const styles = StyleSheet.create({
   },
   addBtnOff: { opacity: 0.6 },
   addBtnText: { color: colors.accent, fontWeight: "800", fontSize: 13 },
+  delWrap: { marginLeft: "auto" },
   note: { color: colors.vermilion, fontSize: 12, marginTop: 8 },
   card: {
     flexDirection: "row",

@@ -8,19 +8,11 @@ import {
 } from "@rigel/ui";
 import { useIAP, type Purchase } from "expo-iap";
 import { useEffect, useState } from "react";
-import {
-  Linking,
-  Platform,
-  Pressable,
-  StyleSheet,
-  Switch,
-  Text,
-  TextInput,
-  View,
-} from "react-native";
+import { Linking, Platform, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import Svg, { Circle, Path } from "react-native-svg";
 import { AppBar } from "../components/AppBar";
 import { PlanSheet } from "../components/PlanSheet";
+import { Toggle } from "../components/Toggle";
 import {
   createCheckout,
   createPortal,
@@ -269,12 +261,10 @@ export function SettingsScreen() {
               <Text style={styles.itemTitle}>プロフィールを公開する</Text>
               <Text style={styles.itemSub}>公開牌譜からプロフィールを表示</Text>
             </View>
-            <Switch
+            <Toggle
               value={profilePublic}
-              onValueChange={(v) => void onTogglePublic(v)}
-              trackColor={{ false: colors.chrome3, true: colors.accent }}
-              thumbColor="#fff"
-              accessibilityLabel="プロフィールを公開する"
+              onChange={(v) => void onTogglePublic(v)}
+              a11yLabel="プロフィールを公開する"
             />
           </Item>
         </Group>

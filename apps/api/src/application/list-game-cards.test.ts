@@ -60,6 +60,17 @@ describe("ListMyGamesWithCounts", () => {
     expect(g1.kyokuCount).toBe(2);
     expect(g1.publicCount).toBe(1);
   });
+
+  it("下書きの局数（draftCount）を返す（一覧で下書き/編集済を出すため）", async () => {
+    const games = new InMemoryGameRepository([game("g1", "u1", "20")]);
+    const gameLogs = new InMemoryGameLogRepository();
+    await gameLogs.save({ ...log("l1", "u1", "g1", "private"), status: "draft" });
+    await gameLogs.save({ ...log("l2", "u1", "g1", "private"), status: "draft" });
+    await gameLogs.save(log("l3", "u1", "g1", "private")); // complete
+
+    const cards = await new ListMyGamesWithCounts(games, gameLogs).execute("u1");
+    expect(cards[0]?.draftCount).toBe(2);
+  });
 });
 
 describe("ListPublicGames", () => {

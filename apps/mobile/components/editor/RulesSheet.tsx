@@ -1,11 +1,12 @@
 import { RULE_PRESETS, type Rules } from "@rigel/schema";
 import { matchPreset, RULES_FORM, RULE_PRESET_OPTIONS } from "@rigel/ui";
 import { useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Switch, Text, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { colors, radius } from "../../lib/theme";
 import { BottomSheet } from "../BottomSheet";
 import { Chip } from "../Chip";
 import { Segment } from "../Segment";
+import { Toggle } from "../Toggle";
 
 /**
  * 半荘ルールの設定シート（web RulesDialog と同等）。プリセットで一括、
@@ -45,32 +46,35 @@ export function RulesSheet({
         {RULES_FORM.map((g) => (
           <View key={g.title} style={styles.group}>
             <Text style={styles.groupTitle}>{g.title}</Text>
-            {g.rows.map((row) => (
-              <View key={row.key} style={styles.row}>
-                <View style={styles.rowLabel}>
-                  <Text style={styles.rt}>{row.title}</Text>
-                  <Text style={styles.rd}>{row.desc}</Text>
-                </View>
-                {row.kind === "toggle" ? (
-                  <Switch
-                    value={draft[row.key]}
-                    onValueChange={(v) => setDraft((d) => ({ ...d, [row.key]: v }))}
-                    trackColor={{ false: colors.chrome3, true: colors.accent }}
-                    thumbColor="#fff"
-                    accessibilityLabel={row.title}
-                  />
-                ) : (
-                  <View style={styles.segWrap}>
-                    <Segment
-                      options={row.options}
-                      value={String(draft[row.key])}
-                      onChange={(v) => setDraft((d) => ({ ...d, [row.key]: v }))}
-                      compact
-                    />
+            {g.rows.map((row) =>
+              row.kind === "toggle" ? (
+                // トグル行: ラベル + コンパクトなトグル（横幅を取らない）。
+                <View key={row.key} style={styles.row}>
+                  <View style={styles.rowLabel}>
+                    <Text style={styles.rt}>{row.title}</Text>
+                    <Text style={styles.rd}>{row.desc}</Text>
                   </View>
-                )}
-              </View>
-            ))}
+                  <Toggle
+                    value={draft[row.key]}
+                    onChange={(v) => setDraft((d) => ({ ...d, [row.key]: v }))}
+                    a11yLabel={row.title}
+                  />
+                </View>
+              ) : (
+                // 選択行: 幅が要るのでラベルの下にセグメントを全幅で置く（はみ出し防止）。
+                <View key={row.key} style={styles.rowCol}>
+                  <View style={styles.rowLabel}>
+                    <Text style={styles.rt}>{row.title}</Text>
+                    <Text style={styles.rd}>{row.desc}</Text>
+                  </View>
+                  <Segment
+                    options={row.options}
+                    value={String(draft[row.key])}
+                    onChange={(v) => setDraft((d) => ({ ...d, [row.key]: v }))}
+                  />
+                </View>
+              ),
+            )}
           </View>
         ))}
       </ScrollView>
@@ -107,10 +111,15 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: colors.line2,
   },
+  rowCol: {
+    gap: 8,
+    paddingVertical: 8,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.line2,
+  },
   rowLabel: { flex: 1 },
   rt: { color: colors.white, fontSize: 13.5, fontWeight: "700" },
   rd: { color: colors.w45, fontSize: 11, marginTop: 2 },
-  segWrap: { width: 170 },
   foot: { flexDirection: "row", gap: 10, marginTop: 14, justifyContent: "flex-end" },
   ghost: {
     paddingVertical: 11,

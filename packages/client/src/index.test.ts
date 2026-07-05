@@ -34,12 +34,20 @@ describe("createApiClient", () => {
       fakeFetch((url) => {
         expect(url).toBe("https://api.test/me/games");
         return json([
-          { id: "g1", title: "卓1", createdAt: "2026-06-28", kyokuCount: 8, publicCount: 2 },
+          {
+            id: "g1",
+            title: "卓1",
+            createdAt: "2026-06-28",
+            kyokuCount: 8,
+            publicCount: 2,
+            draftCount: 1,
+          },
         ]);
       }),
     );
     const cards = await client.getMyGames("tok");
     expect(cards[0]?.kyokuCount).toBe(8);
+    expect(cards[0]?.draftCount).toBe(1);
   });
 
   it("getPublicGames は認証なしで公開カードを返す", async () => {
@@ -228,6 +236,18 @@ describe("createApiClient", () => {
       return Promise.resolve(json({ ok: true }));
     }) as unknown as typeof fetch);
     const result = await client.deleteKifu("tok", "l1");
+    expect(method).toBe("DELETE");
+    expect(result.ok).toBe(true);
+  });
+
+  it("deleteGame は DELETE /games/:id して成否を返す", async () => {
+    let method = "";
+    const client = createApiClient("https://api.test", ((url: string, init?: RequestInit) => {
+      method = init?.method ?? "GET";
+      expect(String(url)).toBe("https://api.test/games/g1");
+      return Promise.resolve(json({ ok: true }));
+    }) as unknown as typeof fetch);
+    const result = await client.deleteGame("tok", "g1");
     expect(method).toBe("DELETE");
     expect(result.ok).toBe(true);
   });

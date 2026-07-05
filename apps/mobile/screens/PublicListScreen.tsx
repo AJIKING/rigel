@@ -41,7 +41,7 @@ export function PublicListScreen() {
             return (
               <KifuCard
                 title={item.title || "（無題の半荘）"}
-                badge={{ label: author, tone: "accent" }}
+                badges={[{ label: author, tone: "accent" }]}
                 metaParts={[relativeTime(item.createdAt), `${item.kyokuCount}局`]}
                 onPress={() =>
                   nav.navigate("PublicGame", { gameId: item.id, logId: item.firstLogId })

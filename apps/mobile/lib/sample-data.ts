@@ -69,6 +69,7 @@ export const sampleMyGames: MyGameCard[] = [
     createdAt: "2026-06-28T12:00:00.000Z",
     kyokuCount: 8,
     publicCount: 8,
+    draftCount: 0,
   },
   {
     id: "sample-2",
@@ -76,6 +77,7 @@ export const sampleMyGames: MyGameCard[] = [
     createdAt: "2026-06-27T21:00:00.000Z",
     kyokuCount: 12,
     publicCount: 0,
+    draftCount: 3,
   },
   {
     id: "sample-3",
@@ -83,6 +85,7 @@ export const sampleMyGames: MyGameCard[] = [
     createdAt: "2026-06-20T10:00:00.000Z",
     kyokuCount: 16,
     publicCount: 16,
+    draftCount: 0,
   },
 ];
 

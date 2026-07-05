@@ -15,6 +15,8 @@ export interface MyGameCard {
   kyokuCount: number;
   /** 公開している局数（0 より大きければ半荘は「公開」）。 */
   publicCount: number;
+  /** 下書き(draft)の局数（0 なら全局が編集済）。一覧の下書き/編集済表示に使う。 */
+  draftCount: number;
 }
 
 export interface PublicGameCard {
@@ -51,6 +53,7 @@ export class ListMyGamesWithCounts {
           // 公開として見えるのは編集済(complete)のみ。
           publicCount: logs.filter((l) => l.visibility === "public" && l.status === "complete")
             .length,
+          draftCount: logs.filter((l) => l.status === "draft").length,
         };
       }),
     );

@@ -2,14 +2,16 @@ import { useNavigation, useRoute, type RouteProp } from "@react-navigation/nativ
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import type { Visibility } from "@rigel/client";
 import { useState } from "react";
-import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 import { CenterState } from "../components/CenterState";
+import { DangerButton } from "../components/DangerButton";
 import { KifuEditor } from "../components/editor/KifuEditor";
 import { Segment } from "../components/Segment";
 import { deleteKifu, setVisibility, updateKifu } from "../lib/api";
 import { useAuth } from "../lib/auth";
+import { confirmDestructive } from "../lib/confirm";
 import type { RootStackParamList } from "../lib/navigation";
-import { colors, radius } from "../lib/theme";
+import { colors } from "../lib/theme";
 import { useGame } from "../lib/use-kifu-data";
 
 type Nav = NativeStackNavigationProp<RootStackParamList, "Edit">;
@@ -45,18 +47,15 @@ export function EditScreen() {
 
   function onDelete() {
     if (!token || !canDelete) return;
-    Alert.alert("この局を削除しますか？", "元に戻せません。", [
-      { text: "キャンセル", style: "cancel" },
-      {
-        text: "削除",
-        style: "destructive",
-        onPress: () => {
-          deleteKifu(token, logId)
-            .then((res) => (res.ok ? nav.goBack() : setNote("削除に失敗しました")))
-            .catch(() => setNote("通信に失敗しました"));
-        },
+    confirmDestructive({
+      title: "この局を削除しますか？",
+      message: "元に戻せません。",
+      onConfirm: () => {
+        deleteKifu(token, logId)
+          .then((res) => (res.ok ? nav.goBack() : setNote("削除に失敗しました")))
+          .catch(() => setNote("通信に失敗しました"));
       },
-    ]);
+    });
   }
 
   function onSave(
@@ -96,15 +95,12 @@ export function EditScreen() {
             onChange={(v) => void onToggleVis(v)}
           />
         </View>
-        <Pressable
-          style={[styles.delBtn, !canDelete && styles.delOff]}
+        <DangerButton
+          label="削除"
+          a11yLabel="この局を削除"
           disabled={!canDelete}
           onPress={onDelete}
-          accessibilityRole="button"
-          accessibilityLabel="この局を削除"
-        >
-          <Text style={[styles.delText, !canDelete && styles.delTextOff]}>削除</Text>
-        </Pressable>
+        />
       </View>
       {note ? <Text style={styles.note}>{note}</Text> : null}
       <KifuEditor
@@ -128,16 +124,6 @@ const styles = StyleSheet.create({
     paddingTop: 10,
   },
   visWrap: { flex: 1 },
-  delBtn: {
-    paddingVertical: 9,
-    paddingHorizontal: 16,
-    borderRadius: radius.base,
-    borderWidth: 1,
-    borderColor: colors.vermilion,
-  },
-  delOff: { borderColor: colors.line },
-  delText: { color: colors.vermilion, fontWeight: "800", fontSize: 13 },
-  delTextOff: { color: colors.w45 },
   note: {
     color: colors.accent,
     fontSize: 12.5,

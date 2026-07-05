@@ -6,8 +6,8 @@ import { TileChip } from "./TileChip";
 
 export interface CardBadge {
   label: string;
-  /** accent=オレンジ(公開/著者), muted=灰(非公開)。 */
-  tone: "accent" | "muted";
+  /** accent=オレンジ(公開/著者), muted=灰(非公開/編集済), warn=朱(下書きあり)。 */
+  tone: "accent" | "muted" | "warn";
 }
 
 function StarButton({ initial }: { initial: boolean }) {
@@ -33,16 +33,23 @@ function StarButton({ initial }: { initial: boolean }) {
   );
 }
 
-/** 牌譜一覧のカード（サムネイル + タイトル + メタ + お気に入り）。 */
+const BADGE_STYLE: Record<CardBadge["tone"], object> = {
+  accent: { color: colors.accent, fontSize: 11.5, fontWeight: "700" },
+  muted: { color: colors.w45, fontSize: 11.5 },
+  warn: { color: colors.vermilion, fontSize: 11.5, fontWeight: "700" },
+};
+
+/** 牌譜一覧のカード（サムネイル + タイトル + バッジ列 + メタ + お気に入り）。 */
 export function KifuCard({
   title,
-  badge,
+  badges = [],
   metaParts,
   fav = false,
   onPress,
 }: {
   title: string;
-  badge?: CardBadge;
+  /** 先頭に並べるバッジ（例: 公開/非公開、下書きN/編集済）。 */
+  badges?: CardBadge[];
   /** バッジ以降のメタ（例: ["3分前","8局"]）。 */
   metaParts: string[];
   fav?: boolean;
@@ -56,14 +63,12 @@ export function KifuCard({
           {title}
         </Text>
         <View style={styles.meta}>
-          {badge ? (
-            <>
-              <Text style={badge.tone === "accent" ? styles.badgeAccent : styles.badgeMuted}>
-                {badge.label}
-              </Text>
+          {badges.map((b) => (
+            <View key={b.label} style={styles.metaItem}>
+              <Text style={BADGE_STYLE[b.tone]}>{b.label}</Text>
               <View style={styles.dotsep} />
-            </>
-          ) : null}
+            </View>
+          ))}
           {metaParts.map((p, i) => (
             <View key={p + i} style={styles.metaItem}>
               {i > 0 ? <View style={styles.dotsep} /> : null}
@@ -92,8 +97,6 @@ const styles = StyleSheet.create({
   meta: { flexDirection: "row", alignItems: "center", flexWrap: "wrap" },
   metaItem: { flexDirection: "row", alignItems: "center" },
   metaText: { color: colors.w45, fontSize: 11.5 },
-  badgeAccent: { color: colors.accent, fontSize: 11.5, fontWeight: "700" },
-  badgeMuted: { color: colors.w45, fontSize: 11.5 },
   dotsep: {
     width: 3,
     height: 3,

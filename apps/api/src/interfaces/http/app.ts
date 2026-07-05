@@ -171,6 +171,15 @@ export function createApp(): Hono<AppEnv> {
     return c.json(detail);
   });
 
+  // 半荘の削除（配下の全局ごと）。所有者のみ。
+  app.delete("/games/:id", requireAuth, async (c) => {
+    const result = await c
+      .get("container")
+      .deleteGame.execute({ userId: c.get("userId")!, gameId: c.req.param("id") });
+    if (!result.ok) return c.json({ error: "not found" }, 404);
+    return c.json({ ok: true });
+  });
+
   // 半荘詳細（半荘 + 局一覧）。所有者のみ。
   app.get("/games/:id", requireAuth, async (c) => {
     const detail = await c.get("container").getGameWithLogs.execute(c.req.param("id"));

@@ -32,7 +32,7 @@ export function MyListScreen() {
       {loading ? (
         <CenterState loading />
       ) : games.length === 0 ? (
-        <CenterState message="まだ半荘がありません。卓を撮影して記録してください。" />
+        <CenterState message="まだ半荘がありません。作成タブから撮影、または手入力で記録できます。" />
       ) : (
         <FlatList
           data={games}
@@ -46,11 +46,15 @@ export function MyListScreen() {
           renderItem={({ item }) => (
             <KifuCard
               title={item.title || "（無題の半荘）"}
-              badge={
+              badges={[
                 item.publicCount > 0
                   ? { label: "公開", tone: "accent" }
-                  : { label: "非公開", tone: "muted" }
-              }
+                  : { label: "非公開", tone: "muted" },
+                // 下書きが1局でもあれば注意色で示し、無ければ編集済。
+                item.draftCount > 0
+                  ? { label: `下書き${item.draftCount}`, tone: "warn" }
+                  : { label: "編集済", tone: "muted" },
+              ]}
               metaParts={[relativeTime(item.createdAt), `${item.kyokuCount}局`]}
               onPress={() => nav.navigate("GameDetail", { gameId: item.id })}
             />

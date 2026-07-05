@@ -9,6 +9,7 @@
 import { AnalyzeAndSaveKifu } from "./application/analyze-and-save-kifu.usecase";
 import { AuthenticateWithGoogle } from "./application/authenticate-with-google.usecase";
 import { CreateEmptyKifu } from "./application/create-empty-kifu.usecase";
+import { DeleteGame } from "./application/delete-game.usecase";
 import { DeleteKifu } from "./application/delete-kifu.usecase";
 import { GetGameWithLogs } from "./application/get-game-with-logs.usecase";
 import { GetKifu } from "./application/get-kifu.usecase";
@@ -50,6 +51,7 @@ export interface AppContainer {
   updateKifu: UpdateKifu;
   setKifuVisibility: SetKifuVisibility;
   deleteKifu: DeleteKifu;
+  deleteGame: DeleteGame;
   createEmptyKifu: CreateEmptyKifu;
   listGames: ListGames;
   listMyGamesWithCounts: ListMyGamesWithCounts;
@@ -143,6 +145,7 @@ export function buildContainer(env: Env): AppContainer {
     updateKifu: new UpdateKifu(gameLogs, users),
     setKifuVisibility: new SetKifuVisibility(gameLogs, users),
     deleteKifu: new DeleteKifu(gameLogs),
+    deleteGame: new DeleteGame(gamesRepo, gameLogs),
     createEmptyKifu: new CreateEmptyKifu({ games: gamesRepo, gameLogs, users, now, newId }),
     listGames: new ListGames(gamesRepo),
     listMyGamesWithCounts: new ListMyGamesWithCounts(gamesRepo, gameLogs),

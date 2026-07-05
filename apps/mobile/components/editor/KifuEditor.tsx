@@ -25,9 +25,10 @@ import {
   type PickerSuit,
 } from "@rigel/ui";
 import { useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { colors, radius } from "../../lib/theme";
+import { BoardTable } from "../BoardTable";
 import { AgariForm } from "./AgariForm";
 import { MiniTile } from "../MiniTile";
 import { RulesSheet } from "./RulesSheet";
@@ -81,10 +82,19 @@ export function KifuEditor({
   const [rulesOpen, setRulesOpen] = useState(false);
   // 盤面（席ごと）/ 手順（タイムライン）の編集モード。web の 盤面/手順 タブと同等。
   const [mode, setMode] = useState<"board" | "timeline">("board");
+  // 盤面プレビュー（編集を即時反映。席タップで編集対象を切替）。
+  const [previewOpen, setPreviewOpen] = useState(true);
   const insets = useSafeAreaInsets();
+  const { width } = useWindowDimensions();
 
   const dealer = kifu.meta.dealer ?? "east";
   const board = kifu.seats[seat];
+  /** 編集中の席の呼称（東家など）。見出しと席セグメントで使う。 */
+  const windName = (s: Seat) => `${windOf(s, dealer)}家`;
+  const previewSize = Math.max(240, Math.min(width - 28, 340));
+  const revealedAll = Object.fromEntries(
+    SEAT_ORDER.map((s) => [s, kifu.seats[s].river.length]),
+  ) as Record<Seat, number>;
 
   /** Kifu の不変更新（@rigel/ui の共有ヘルパ。web エディタと同じ流儀）。 */
   function mutate(fn: (draft: Kifu) => void) {
@@ -251,6 +261,34 @@ export function KifuEditor({
           </Pressable>
         </View>
 
+        {/* 盤面プレビュー（編集を即時反映。席タップで編集対象を切替） */}
+        <Pressable
+          style={styles.prevHead}
+          onPress={() => setPreviewOpen((v) => !v)}
+          accessibilityRole="button"
+        >
+          <Text style={styles.prevHeadText}>{previewOpen ? "▾" : "▸"} プレビュー</Text>
+          {previewOpen ? <Text style={styles.prevHint}>席をタップで編集対象を切替</Text> : null}
+        </Pressable>
+        {previewOpen ? (
+          <View style={styles.prevWrap}>
+            <BoardTable
+              kifu={kifu}
+              bottomSeat={kifu.cameraBottomSeat ?? "east"}
+              dealer={dealer}
+              roundLabel={roundNameForSeq(seq)}
+              revealed={revealedAll}
+              showHands
+              size={previewSize}
+              selectedSeat={mode === "board" ? seat : undefined}
+              onSeatPress={(s) => {
+                setSeat(s);
+                setMode("board");
+              }}
+            />
+          </View>
+        ) : null}
+
         {/* 盤面 / 手順 の編集モード切替 */}
         <View style={styles.tabRow}>
           <Segment
@@ -269,21 +307,20 @@ export function KifuEditor({
           <TimelineEditor kifu={kifu} dealer={dealer} onChange={setKifu} />
         ) : (
           <>
-            {/* 編集する席 */}
+            {/* 編集する席（呼称はプレビューの表記と同じ「◯家」） */}
             <View style={styles.segRow}>
               <Text style={styles.metaLabel}>席</Text>
               <Segment
-                options={SeatSchema.options.map(
-                  (s) => [s, `${seatLabel(s)}（${windOf(s, dealer)}家）`] as const,
-                )}
+                options={SeatSchema.options.map((s) => [s, windName(s)] as const)}
                 value={seat}
                 onChange={setSeat}
-                compact
               />
             </View>
 
             {/* 手牌 */}
-            <SectionLabel>手牌（{board.hand.length}枚）</SectionLabel>
+            <SectionLabel>
+              {windName(seat)}の手牌（{board.hand.length}枚）
+            </SectionLabel>
             <View style={styles.tiles}>
               {board.hand.map((t, i) => (
                 <Pressable
@@ -304,7 +341,9 @@ export function KifuEditor({
             </View>
 
             {/* 河 */}
-            <SectionLabel>河（{board.river.length}枚）</SectionLabel>
+            <SectionLabel>
+              {windName(seat)}の河（{board.river.length}枚）
+            </SectionLabel>
             <View style={styles.tiles}>
               {board.river.map((d, i) => (
                 <Pressable
@@ -325,7 +364,7 @@ export function KifuEditor({
             </View>
 
             {/* 鳴き */}
-            <SectionLabel>鳴き</SectionLabel>
+            <SectionLabel>{windName(seat)}の鳴き</SectionLabel>
             {board.melds.map((m, mi) => (
               <View key={`m${mi}`} style={styles.meldRow}>
                 <View style={styles.meldTiles}>
@@ -502,6 +541,10 @@ const styles = StyleSheet.create({
   rulesBtnText: { color: colors.w70, fontWeight: "700", fontSize: 12.5 },
   segRow: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 4 },
   tabRow: { flexDirection: "row", marginTop: 4 },
+  prevHead: { flexDirection: "row", alignItems: "baseline", gap: 10, marginTop: 6 },
+  prevHeadText: { color: colors.w70, fontSize: 12.5, fontWeight: "800" },
+  prevHint: { color: colors.w45, fontSize: 10.5 },
+  prevWrap: { alignItems: "center", marginTop: 6 },
   section: { color: colors.w45, fontSize: 12, fontWeight: "800", marginTop: 12 },
   tiles: { flexDirection: "row", flexWrap: "wrap", gap: 5, alignItems: "center" },
   add: {

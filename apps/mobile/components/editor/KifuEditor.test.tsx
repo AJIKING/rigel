@@ -23,6 +23,7 @@ describe("KifuEditor（モバイル編集画面）", () => {
   it("手牌に牌を追加して保存すると、その牌が onSave の Kifu に乗る", () => {
     const onSave = jest.fn();
     render(<KifuEditor initialKifu={makeKifu()} seq={1} initialStatus="draft" onSave={onSave} />);
+    fireEvent.press(screen.getByText(/プレビュー/)); // 牌ラベルの重複を避けるため畳む
     fireEvent.press(screen.getByLabelText("手牌に追加"));
     fireEvent.press(screen.getByLabelText("1萬"));
     // 追加ピッカーは連続入力のため開いたまま。閉じると手牌に 1萬 が表示される。
@@ -33,6 +34,45 @@ describe("KifuEditor（モバイル編集画面）", () => {
     expect(onSave).toHaveBeenCalledTimes(1);
     const saved = onSave.mock.calls[0]![0] as Kifu;
     expect(saved.seats.east.hand).toEqual([{ tile: "1m", confidence: 1 }]);
+  });
+
+  it("席セグメントで南家に切り替えると南家の手牌を編集できる（4人それぞれ編集可能）", () => {
+    const onSave = jest.fn();
+    render(<KifuEditor initialKifu={makeKifu()} seq={1} initialStatus="draft" onSave={onSave} />);
+    fireEvent.press(screen.getByRole("button", { name: "南家" })); // 席セグメント
+    // 見出しに編集中の席が明示される。
+    expect(screen.getByText(/南家の手牌/)).toBeTruthy();
+    fireEvent.press(screen.getByLabelText("手牌に追加"));
+    fireEvent.press(screen.getByLabelText("1萬"));
+    fireEvent.press(screen.getByText("閉じる"));
+
+    fireEvent.press(screen.getByText("保存"));
+    const saved = onSave.mock.calls[0]![0] as Kifu;
+    expect(saved.seats.south.hand.map((t) => t.tile)).toEqual(["1m"]);
+    expect(saved.seats.east.hand).toHaveLength(0);
+  });
+
+  it("プレビューの席をタップすると編集対象がその席に切り替わる", () => {
+    const onSave = jest.fn();
+    render(<KifuEditor initialKifu={makeKifu()} seq={1} initialStatus="draft" onSave={onSave} />);
+    // プレビューは既定で表示され、席タップで編集対象が変わる。
+    fireEvent.press(screen.getByLabelText("西家を選択"));
+    expect(screen.getByText(/西家の手牌/)).toBeTruthy();
+    fireEvent.press(screen.getByLabelText("手牌に追加"));
+    fireEvent.press(screen.getByLabelText("1萬"));
+    fireEvent.press(screen.getByText("閉じる"));
+
+    fireEvent.press(screen.getByText("保存"));
+    const saved = onSave.mock.calls[0]![0] as Kifu;
+    expect(saved.seats.west.hand).toHaveLength(1);
+  });
+
+  it("プレビューは折りたたみできる", () => {
+    const onSave = jest.fn();
+    render(<KifuEditor initialKifu={makeKifu()} seq={1} initialStatus="draft" onSave={onSave} />);
+    expect(screen.getByLabelText("東家を選択")).toBeTruthy();
+    fireEvent.press(screen.getByText(/プレビュー/));
+    expect(screen.queryByLabelText("東家を選択")).toBeNull();
   });
 
   it("手牌はピッカーを閉じずに連続で追加できる", () => {
@@ -60,6 +100,7 @@ describe("KifuEditor（モバイル編集画面）", () => {
         onSave={onSave}
       />,
     );
+    fireEvent.press(screen.getByText(/プレビュー/)); // 牌ラベルの重複を避けるため畳む
     fireEvent.press(screen.getByLabelText("發")); // 河の發をタップ → 編集シート
     fireEvent.press(screen.getByText("削除"));
     expect(screen.queryAllByLabelText("發")).toHaveLength(0);
@@ -75,6 +116,7 @@ describe("KifuEditor（モバイル編集画面）", () => {
     render(
       <KifuEditor initialKifu={riverKifu(["5p"])} seq={1} initialStatus="draft" onSave={onSave} />,
     );
+    fireEvent.press(screen.getByText(/プレビュー/)); // 牌ラベルの重複を避けるため畳む
     fireEvent.press(screen.getByLabelText("5筒"));
     fireEvent.press(screen.getByText("リーチ"));
 

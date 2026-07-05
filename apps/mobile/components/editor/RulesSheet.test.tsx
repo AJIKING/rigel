@@ -17,7 +17,7 @@ describe("RulesSheet（ルール設定シート）", () => {
     const onSave = jest.fn();
     render(<RulesSheet rules={defaults} onSave={onSave} onClose={jest.fn()} />);
     // 既定 kuitan=true → タップで false。
-    fireEvent(screen.getByLabelText("喰いタン"), "valueChange", false);
+    fireEvent.press(screen.getByLabelText("喰いタン"));
     fireEvent.press(screen.getByText("保存"));
     expect(onSave.mock.calls[0]![0].kuitan).toBe(false);
   });

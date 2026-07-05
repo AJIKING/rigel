@@ -35,6 +35,10 @@ export class DrizzleGameRepository implements GameRepository {
       .onConflictDoUpdate({ target: games.id, set: { title: game.title } });
   }
 
+  async deleteById(id: string): Promise<void> {
+    await this.db.delete(games).where(eq(games.id, id));
+  }
+
   async deleteByUser(userId: string): Promise<void> {
     await this.db.delete(games).where(eq(games.userId, userId));
   }

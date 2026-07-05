@@ -2,9 +2,10 @@ import type { Tile } from "@rigel/schema";
 import { NUMS, SUITS, type PickerSuit } from "@rigel/ui";
 import { useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
-import { colors, radius } from "../../lib/theme";
+import { colors } from "../../lib/theme";
 import { BottomSheet, SheetCloseButton } from "../BottomSheet";
 import { Chip } from "../Chip";
+import { DangerButton } from "../DangerButton";
 import { MiniTile } from "../MiniTile";
 import { Segment } from "../Segment";
 
@@ -65,15 +66,7 @@ export function TilePickerSheet({
               <Chip label="ツモ切り" on={discard.tsumogiri} onPress={() => onToggleTsumogiri?.()} />
             </>
           ) : null}
-          {canDelete ? (
-            <Pressable
-              style={styles.delete}
-              onPress={() => onDelete?.()}
-              accessibilityRole="button"
-            >
-              <Text style={styles.deleteText}>削除</Text>
-            </Pressable>
-          ) : null}
+          {canDelete ? <DangerButton label="削除" onPress={() => onDelete?.()} /> : null}
         </View>
       ) : null}
 
@@ -94,14 +87,4 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  delete: {
-    height: 44,
-    paddingHorizontal: 16,
-    borderRadius: radius.base,
-    borderWidth: 1,
-    borderColor: colors.vermilion,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  deleteText: { color: colors.vermilion, fontWeight: "800", fontSize: 13 },
 });

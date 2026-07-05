@@ -21,6 +21,8 @@ export interface GameLogRepository {
   listPublic(limit: number): Promise<GameLog[]>;
   /** 1件削除。 */
   deleteById(id: string): Promise<void>;
+  /** 半荘配下の全局を削除（半荘削除のカスケード）。 */
+  deleteByGame(gameId: string): Promise<void>;
   /** ユーザーの全牌譜を削除（アカウント削除のカスケード）。 */
   deleteByUser(userId: string): Promise<void>;
 }
