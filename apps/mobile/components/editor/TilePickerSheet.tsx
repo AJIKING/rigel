@@ -2,10 +2,11 @@ import type { Tile } from "@rigel/schema";
 import { NUMS, SUITS, type PickerSuit } from "@rigel/ui";
 import { useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
-import { colors, radius } from "../lib/theme";
-import { BottomSheet, SheetCloseButton } from "./BottomSheet";
-import { MiniTile } from "./MiniTile";
-import { Segment } from "./Segment";
+import { colors, radius } from "../../lib/theme";
+import { BottomSheet, SheetCloseButton } from "../BottomSheet";
+import { Chip } from "../Chip";
+import { MiniTile } from "../MiniTile";
+import { Segment } from "../Segment";
 
 /**
  * 牌ピッカー（下からのシート）。スート切替 + 牌グリッド。
@@ -60,16 +61,8 @@ export function TilePickerSheet({
         <View style={styles.actions}>
           {discard ? (
             <>
-              <ActionToggle
-                label="リーチ"
-                active={discard.riichi}
-                onPress={() => onToggleRiichi?.()}
-              />
-              <ActionToggle
-                label="ツモ切り"
-                active={discard.tsumogiri}
-                onPress={() => onToggleTsumogiri?.()}
-              />
+              <Chip label="リーチ" on={discard.riichi} onPress={() => onToggleRiichi?.()} />
+              <Chip label="ツモ切り" on={discard.tsumogiri} onPress={() => onToggleTsumogiri?.()} />
             </>
           ) : null}
           {canDelete ? (
@@ -89,46 +82,18 @@ export function TilePickerSheet({
   );
 }
 
-function ActionToggle({
-  label,
-  active,
-  onPress,
-}: {
-  label: string;
-  active: boolean;
-  onPress: () => void;
-}) {
-  return (
-    <Pressable
-      style={[styles.tog, active && styles.togOn]}
-      onPress={onPress}
-      accessibilityRole="button"
-      accessibilityState={{ selected: active }}
-    >
-      <Text style={[styles.togText, active && styles.togTextOn]}>{label}</Text>
-    </Pressable>
-  );
-}
-
 const styles = StyleSheet.create({
   title: { color: colors.white, fontSize: 15, fontWeight: "800", marginBottom: 10 },
   tabs: { flexDirection: "row", marginBottom: 10 },
   grid: { flexDirection: "row", flexWrap: "wrap", gap: 8, justifyContent: "center" },
   cell: { padding: 2 },
-  actions: { flexDirection: "row", gap: 8, marginTop: 14, justifyContent: "center" },
-  tog: {
-    height: 44,
-    paddingHorizontal: 16,
-    borderRadius: radius.base,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.line,
-    backgroundColor: colors.chrome2,
+  actions: {
+    flexDirection: "row",
+    gap: 8,
+    marginTop: 14,
     alignItems: "center",
     justifyContent: "center",
   },
-  togOn: { backgroundColor: colors.accentSoft, borderColor: colors.accent },
-  togText: { color: colors.w70, fontWeight: "800", fontSize: 13 },
-  togTextOn: { color: colors.accent },
   delete: {
     height: 44,
     paddingHorizontal: 16,

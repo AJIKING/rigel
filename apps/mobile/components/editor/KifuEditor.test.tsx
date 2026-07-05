@@ -25,13 +25,29 @@ describe("KifuEditor（モバイル編集画面）", () => {
     render(<KifuEditor initialKifu={makeKifu()} seq={1} initialStatus="draft" onSave={onSave} />);
     fireEvent.press(screen.getByLabelText("手牌に追加"));
     fireEvent.press(screen.getByLabelText("1萬"));
-    // ピッカーが閉じ、手牌に 1萬 が表示される。
+    // 追加ピッカーは連続入力のため開いたまま。閉じると手牌に 1萬 が表示される。
+    fireEvent.press(screen.getByText("閉じる"));
     expect(screen.getByLabelText("1萬")).toBeTruthy();
 
     fireEvent.press(screen.getByText("保存"));
     expect(onSave).toHaveBeenCalledTimes(1);
     const saved = onSave.mock.calls[0]![0] as Kifu;
     expect(saved.seats.east.hand).toEqual([{ tile: "1m", confidence: 1 }]);
+  });
+
+  it("手牌はピッカーを閉じずに連続で追加できる", () => {
+    const onSave = jest.fn();
+    render(<KifuEditor initialKifu={makeKifu()} seq={1} initialStatus="draft" onSave={onSave} />);
+    fireEvent.press(screen.getByLabelText("手牌に追加"));
+    fireEvent.press(screen.getByLabelText("1萬"));
+    fireEvent.press(screen.getByLabelText("2萬")); // 閉じずに続けてタップ
+    // タイトルに現在の枚数が出る（入力のフィードバック）。
+    expect(screen.getByText(/手牌に追加（2枚）/)).toBeTruthy();
+    fireEvent.press(screen.getByText("閉じる"));
+
+    fireEvent.press(screen.getByText("保存"));
+    const saved = onSave.mock.calls[0]![0] as Kifu;
+    expect(saved.seats.east.hand.map((t) => t.tile)).toEqual(["1m", "2m"]);
   });
 
   it("河の牌を削除すると order が振り直されて保存される", () => {

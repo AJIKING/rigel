@@ -1,6 +1,5 @@
-import type { Kifu } from "@rigel/schema";
 import { describe, expect, it } from "vitest";
-import { clone, fkey, fmtPts } from "./shared";
+import { fkey, fmtPts } from "./shared";
 
 describe("fkey", () => {
   it("河/手牌など meldIndex 無しは '-' で埋める", () => {
@@ -8,16 +7,6 @@ describe("fkey", () => {
   });
   it("鳴きは meldIndex を含めて一意になる", () => {
     expect(fkey({ seat: "south", area: "meld", meldIndex: 1, index: 2 })).toBe("south:meld:1:2");
-  });
-});
-
-describe("clone", () => {
-  it("ディープコピーで元を汚さない", () => {
-    const k = { meta: { honba: 0 }, seats: {} } as unknown as Kifu;
-    const c = clone(k);
-    c.meta.honba = 5;
-    expect(k.meta.honba).toBe(0);
-    expect(c).not.toBe(k);
   });
 });
 

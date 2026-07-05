@@ -13,6 +13,16 @@ function clone(k: Kifu): Kifu {
   return JSON.parse(JSON.stringify(k)) as Kifu;
 }
 
+/**
+ * 汎用の不変更新ヘルパ（複製 → 変更 → Zod 再検証）。web/mobile エディタの
+ * mutate はこれを使う。スキーマ違反になる変更は例外＝検証を通らない牌譜を返さない。
+ */
+export function mutateKifu(kifu: Kifu, fn: (draft: Kifu) => void): Kifu {
+  const d = clone(kifu);
+  fn(d);
+  return KifuSchema.parse(d);
+}
+
 /** 手牌に1枚追加する（確定扱い）。 */
 export function addHandTile(kifu: Kifu, seat: Seat, tile: Tile): Kifu {
   const d = clone(kifu);

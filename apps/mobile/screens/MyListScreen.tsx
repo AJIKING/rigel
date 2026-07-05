@@ -1,5 +1,6 @@
-import { useNavigation } from "@react-navigation/native";
+import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
+import { useCallback } from "react";
 import { FlatList, StyleSheet, Text, View } from "react-native";
 import { AppBar } from "../components/AppBar";
 import { CenterState } from "../components/CenterState";
@@ -15,7 +16,14 @@ type Nav = NativeStackNavigationProp<RootStackParamList, "Home">;
 /** マイ牌譜（自分の半荘一覧）。公開/非公開バッジ付き。 */
 export function MyListScreen() {
   const nav = useNavigation<Nav>();
-  const { loading, games, sample } = useMyGames();
+  const { loading, games, sample, refetch } = useMyGames();
+
+  // 撮影・編集から戻ったとき一覧を最新化する（静かに再取得）。
+  useFocusEffect(
+    useCallback(() => {
+      refetch();
+    }, [refetch]),
+  );
 
   return (
     <View style={styles.root}>

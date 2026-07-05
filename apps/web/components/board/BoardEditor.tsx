@@ -1,14 +1,7 @@
 "use client";
 
-import {
-  KifuSchema,
-  toAbsoluteSeat,
-  type CameraSeat,
-  type Kifu,
-  type Seat,
-  type Tile,
-} from "@rigel/schema";
-import { applyTileEdit, visibilityLabel, type TileLocation } from "@rigel/ui";
+import { toAbsoluteSeat, type CameraSeat, type Kifu, type Seat, type Tile } from "@rigel/schema";
+import { applyTileEdit, mutateKifu, visibilityLabel, type TileLocation } from "@rigel/ui";
 import Link from "next/link";
 import { useCallback, useRef, useState } from "react";
 import {
@@ -27,7 +20,7 @@ import { RulesDialog } from "./RulesDialog";
 import { Stepper } from "./Stepper";
 import { TimelineEditor } from "./TimelineEditor";
 import { TilePickerPopup, type KanType, type MeldType } from "./TilePickerPopup";
-import { clone, fkey, type Selection } from "./shared";
+import { fkey, type Selection } from "./shared";
 import { DoraGlyph } from "./tiles";
 import s from "./board-editor.module.css";
 
@@ -278,11 +271,9 @@ function Editor(p: EditorProps) {
     setTimeout(() => setFlashKey((c) => (c === k ? null : c)), 480);
   }
 
-  // Kifu を不変更新する共通ヘルパ（複製→変更→Zod 再検証→反映）。
+  // Kifu を不変更新する共通ヘルパ（@rigel/ui の mutateKifu = 複製→変更→Zod 再検証）。
   function mutate(fn: (draft: Kifu) => void) {
-    const draft = clone(kifu);
-    fn(draft);
-    setKifu(KifuSchema.parse(draft));
+    setKifu(mutateKifu(kifu, fn));
   }
 
   function applyTile(code: Tile) {

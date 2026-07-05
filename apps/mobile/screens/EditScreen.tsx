@@ -4,7 +4,7 @@ import type { Visibility } from "@rigel/client";
 import { useState } from "react";
 import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
 import { CenterState } from "../components/CenterState";
-import { KifuEditor } from "../components/KifuEditor";
+import { KifuEditor } from "../components/editor/KifuEditor";
 import { Segment } from "../components/Segment";
 import { deleteKifu, setVisibility, updateKifu } from "../lib/api";
 import { useAuth } from "../lib/auth";

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   getGame,
   getMyGames,
@@ -18,18 +18,22 @@ interface ResourceState<T> {
   error?: string;
 }
 
-/** 認証付きで取得するデータの共通フック（未ログインはサンプル、失敗時は empty）。 */
+/** 認証付きで取得するデータの共通フック（未ログインはサンプル、失敗時は empty）。
+ *  refetch() で静かに再取得できる（loading は初回のみ＝画面フォーカス時の更新でちらつかせない）。 */
 function useAuthedData<T>(
   fetcher: (token: string) => Promise<T>,
   fallback: { sample: T; empty: T },
   key: string,
-): ResourceState<T> {
+): ResourceState<T> & { refetch: () => void } {
   const { token, loading: authLoading } = useAuth();
   const [state, setState] = useState<ResourceState<T>>({
     loading: true,
     data: fallback.empty,
     sample: false,
   });
+  // refetch はこのカウンタを進めて effect を再実行させる。
+  const [tick, setTick] = useState(0);
+  const refetch = useCallback(() => setTick((t) => t + 1), []);
 
   useEffect(() => {
     if (authLoading) return;
@@ -55,9 +59,9 @@ function useAuthedData<T>(
     return () => {
       active = false;
     };
-  }, [token, authLoading, key]);
+  }, [token, authLoading, key, tick]);
 
-  return state;
+  return { ...state, refetch };
 }
 
 export function useMyGames() {
@@ -66,7 +70,13 @@ export function useMyGames() {
     { sample: sampleMyGames, empty: [] as MyGameCard[] },
     "my-games",
   );
-  return { loading: s.loading, games: s.data, sample: s.sample, error: s.error };
+  return {
+    loading: s.loading,
+    games: s.data,
+    sample: s.sample,
+    error: s.error,
+    refetch: s.refetch,
+  };
 }
 
 /** 公開牌譜フィード（認証不要・全ユーザーの公開半荘）。失敗時はサンプルを表示。 */
@@ -100,5 +110,11 @@ export function useGame(id: string) {
     { sample: sampleGameDetail, empty: null as GameDetail | null },
     id,
   );
-  return { loading: s.loading, detail: s.data, sample: s.sample, error: s.error };
+  return {
+    loading: s.loading,
+    detail: s.data,
+    sample: s.sample,
+    error: s.error,
+    refetch: s.refetch,
+  };
 }

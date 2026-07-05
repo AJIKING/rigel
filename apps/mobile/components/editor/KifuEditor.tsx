@@ -1,6 +1,5 @@
 import {
   AgariSchema,
-  KifuSchema,
   SeatSchema,
   type Agari,
   type Kifu,
@@ -13,6 +12,7 @@ import {
   addMeld,
   addRiverTile,
   applyTileEdit,
+  mutateKifu,
   removeHandTile,
   removeMeld,
   removeRiverTile,
@@ -26,12 +26,13 @@ import {
 } from "@rigel/ui";
 import { useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
-import { colors, radius } from "../lib/theme";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { colors, radius } from "../../lib/theme";
 import { AgariForm } from "./AgariForm";
-import { MiniTile } from "./MiniTile";
+import { MiniTile } from "../MiniTile";
 import { RulesSheet } from "./RulesSheet";
-import { Segment } from "./Segment";
-import { Stepper } from "./Stepper";
+import { Segment } from "../Segment";
+import { Stepper } from "../Stepper";
 import { TilePickerSheet } from "./TilePickerSheet";
 import { TimelineEditor } from "./TimelineEditor";
 
@@ -80,15 +81,14 @@ export function KifuEditor({
   const [rulesOpen, setRulesOpen] = useState(false);
   // 盤面（席ごと）/ 手順（タイムライン）の編集モード。web の 盤面/手順 タブと同等。
   const [mode, setMode] = useState<"board" | "timeline">("board");
+  const insets = useSafeAreaInsets();
 
   const dealer = kifu.meta.dealer ?? "east";
   const board = kifu.seats[seat];
 
-  /** Kifu の不変更新ヘルパ（複製 → 変更 → Zod 再検証。web エディタの mutate と同じ流儀）。 */
+  /** Kifu の不変更新（@rigel/ui の共有ヘルパ。web エディタと同じ流儀）。 */
   function mutate(fn: (draft: Kifu) => void) {
-    const draft = JSON.parse(JSON.stringify(kifu)) as Kifu;
-    fn(draft);
-    setKifu(KifuSchema.parse(draft));
+    setKifu(mutateKifu(kifu, fn));
   }
 
   /** 結果（なし/ロン/ツモ/流局）の切替。ロン/ツモは和了エントリを整え、それ以外は消す。 */
@@ -115,9 +115,16 @@ export function KifuEditor({
 
   function onPick(code: Tile) {
     if (!picker) return;
-    if (picker.kind === "add-hand") setKifu(addHandTile(kifu, seat, code));
-    else if (picker.kind === "add-river") setKifu(addRiverTile(kifu, seat, code));
-    else if (picker.kind === "add-meld") setKifu(addMeld(kifu, seat, picker.meld, code));
+    // 手牌/河への追加はピッカーを閉じず連続入力できるようにする（13枚の手入力を素早く）。
+    if (picker.kind === "add-hand") {
+      setKifu(addHandTile(kifu, seat, code));
+      return;
+    }
+    if (picker.kind === "add-river") {
+      setKifu(addRiverTile(kifu, seat, code));
+      return;
+    }
+    if (picker.kind === "add-meld") setKifu(addMeld(kifu, seat, picker.meld, code));
     else if (picker.kind === "edit-hand")
       setKifu(applyTileEdit(kifu, { seat, area: "hand", index: picker.index }, code));
     else if (picker.kind === "edit-river")
@@ -144,9 +151,9 @@ export function KifuEditor({
   const pickerTitle = !picker
     ? ""
     : picker.kind === "add-hand"
-      ? "手牌に追加"
+      ? `手牌に追加（${board.hand.length}枚）`
       : picker.kind === "add-river"
-        ? "河に追加"
+        ? `河に追加（${board.river.length}枚）`
         : picker.kind === "add-meld"
           ? `${MELD_LABELS.find((m) => m.type === picker.meld)?.label}を追加`
           : picker.kind === "dora"
@@ -378,8 +385,8 @@ export function KifuEditor({
         ) : null}
       </ScrollView>
 
-      {/* 保存バー */}
-      <View style={styles.saveBar}>
+      {/* 保存バー（ホームインジケータぶんの下余白を足す） */}
+      <View style={[styles.saveBar, { paddingBottom: Math.max(12, insets.bottom + 8) }]}>
         <Segment
           options={
             [

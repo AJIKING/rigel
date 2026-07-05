@@ -16,8 +16,8 @@ import {
 } from "@rigel/ui";
 import { useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
-import { colors, radius } from "../lib/theme";
-import { MiniTile } from "./MiniTile";
+import { colors, radius } from "../../lib/theme";
+import { MiniTile } from "../MiniTile";
 import { TilePickerSheet } from "./TilePickerSheet";
 
 const MELD_TYPES: MeldType[] = ["pon", "chi", "kan_open", "kan_closed", "kan_added"];

@@ -1,7 +1,7 @@
-import { useNavigation, useRoute, type RouteProp } from "@react-navigation/native";
+import { useFocusEffect, useNavigation, useRoute, type RouteProp } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import { collectReviewItems } from "@rigel/ui";
-import { useState } from "react";
+import { collectReviewItems, roundNameForSeq } from "@rigel/ui";
+import { useCallback, useState } from "react";
 import { FlatList, Pressable, StyleSheet, Text, View } from "react-native";
 import { CenterState } from "../components/CenterState";
 import { createEmptyKifu } from "../lib/api";
@@ -17,9 +17,16 @@ export function GameDetailScreen() {
   const nav = useNavigation<Nav>();
   const { gameId } = useRoute<RouteProp<RootStackParamList, "GameDetail">>().params;
   const { token } = useAuth();
-  const { loading, detail } = useGame(gameId);
+  const { loading, detail, refetch } = useGame(gameId);
   const [adding, setAdding] = useState(false);
   const [note, setNote] = useState<string | null>(null);
+
+  // 編集・局追加/削除から戻ったとき一覧を最新化する（静かに再取得）。
+  useFocusEffect(
+    useCallback(() => {
+      refetch();
+    }, [refetch]),
+  );
 
   if (loading) return <CenterState loading />;
   if (!detail) return <CenterState message="半荘が見つかりませんでした。" />;
@@ -76,7 +83,8 @@ export function GameDetailScreen() {
               onPress={() => nav.navigate("Board", { gameId, logId: item.id })}
             >
               <Text style={styles.localTitle}>
-                第 {item.seq} 局 <Text style={styles.result}>{item.kifu.result ?? "—"}</Text>
+                {roundNameForSeq(item.seq)}{" "}
+                <Text style={styles.result}>{item.kifu.result ?? "—"}</Text>
               </Text>
               <View style={styles.cardRight}>
                 {reviews > 0 ? (

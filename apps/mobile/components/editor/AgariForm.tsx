@@ -11,8 +11,10 @@ import {
 } from "@rigel/ui";
 import { useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
-import { colors, radius } from "../lib/theme";
-import { MiniTile } from "./MiniTile";
+import { colors, radius } from "../../lib/theme";
+import { Chip } from "../Chip";
+import { MiniTile } from "../MiniTile";
+import { Stepper } from "../Stepper";
 import { TilePickerSheet } from "./TilePickerSheet";
 
 const FU_OPTIONS = [20, 25, 30, 40, 50, 60, 70, 80, 90, 100, 110];
@@ -192,26 +194,32 @@ function AgariEntry({
         <Text style={styles.label}>符</Text>
         <View style={styles.fuWrap}>
           {FU_OPTIONS.map((fu) => (
-            <Pressable
-              key={fu}
-              style={[styles.chip, agari.fu === fu && styles.chipOn]}
-              onPress={() => patch({ fu })}
-              accessibilityRole="button"
-            >
-              <Text style={[styles.chipText, agari.fu === fu && styles.chipTextOn]}>{fu}</Text>
-            </Pressable>
+            <Chip key={fu} label={String(fu)} on={agari.fu === fu} onPress={() => patch({ fu })} />
           ))}
         </View>
       </View>
 
       {/* ドラ枚数 */}
-      <CountRow label="表ドラ" value={agari.dora} max={20} set={(v) => patch({ dora: v })} />
-      <CountRow label="赤ドラ" value={agari.aka} max={8} set={(v) => patch({ aka: v })} />
-      <CountRow
+      <Stepper
+        label="表ドラ"
+        unit="枚"
+        value={agari.dora}
+        max={20}
+        onChange={(v) => patch({ dora: v })}
+      />
+      <Stepper
+        label="赤ドラ"
+        unit="枚"
+        value={agari.aka}
+        max={8}
+        onChange={(v) => patch({ aka: v })}
+      />
+      <Stepper
         label="裏ドラ"
+        unit="枚"
         value={agari.ura}
         max={20}
-        set={(v) => riichiSet.has(agari.winner) && patch({ ura: v })}
+        onChange={(v) => riichiSet.has(agari.winner) && patch({ ura: v })}
       />
 
       {/* 役 */}
@@ -235,19 +243,14 @@ function AgariEntry({
                 {YAKU_GROUPS[group].map((y) => {
                   const h = yakuHan(y, winnerOpen);
                   const disabled = h === 0;
-                  const on = selectedYaku.has(y.name);
                   return (
-                    <Pressable
+                    <Chip
                       key={y.name}
-                      style={[styles.chip, on && styles.chipOn, disabled && styles.chipDisabled]}
+                      label={`${y.name} ${disabled ? "—" : `${h}飜`}`}
+                      on={selectedYaku.has(y.name)}
                       disabled={disabled}
                       onPress={() => toggleYaku(y.name)}
-                      accessibilityRole="button"
-                    >
-                      <Text style={[styles.chipText, on && styles.chipTextOn]}>
-                        {y.name} {disabled ? "—" : `${h}飜`}
-                      </Text>
-                    </Pressable>
+                    />
                   );
                 })}
               </View>
@@ -321,43 +324,6 @@ function SeatRow({
   );
 }
 
-function CountRow({
-  label,
-  value,
-  max,
-  set,
-}: {
-  label: string;
-  value: number;
-  max: number;
-  set: (v: number) => void;
-}) {
-  return (
-    <View style={styles.row}>
-      <Text style={styles.label}>{label}</Text>
-      <View style={styles.counter}>
-        <Pressable
-          style={styles.countBtn}
-          onPress={() => set(Math.max(0, value - 1))}
-          accessibilityRole="button"
-          accessibilityLabel={`${label}を減らす`}
-        >
-          <Text style={styles.countBtnText}>−</Text>
-        </Pressable>
-        <Text style={styles.countVal}>{value}枚</Text>
-        <Pressable
-          style={styles.countBtn}
-          onPress={() => set(Math.min(max, value + 1))}
-          accessibilityRole="button"
-          accessibilityLabel={`${label}を増やす`}
-        >
-          <Text style={styles.countBtnText}>＋</Text>
-        </Pressable>
-      </View>
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
   entry: {
     backgroundColor: colors.chrome,
@@ -387,31 +353,6 @@ const styles = StyleSheet.create({
   segText: { color: colors.w70, fontWeight: "800", fontSize: 12 },
   segTextOn: { color: colors.accent },
   fuWrap: { flexDirection: "row", flexWrap: "wrap", gap: 5, flex: 1 },
-  chip: {
-    paddingVertical: 7,
-    paddingHorizontal: 10,
-    borderRadius: radius.base,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.line,
-    backgroundColor: colors.chrome2,
-  },
-  chipOn: { backgroundColor: colors.accentSoft, borderColor: colors.accent },
-  chipDisabled: { opacity: 0.35 },
-  chipText: { color: colors.w70, fontWeight: "700", fontSize: 12 },
-  chipTextOn: { color: colors.accent },
-  counter: { flexDirection: "row", alignItems: "center", gap: 10 },
-  countBtn: {
-    width: 40,
-    height: 36,
-    alignItems: "center",
-    justifyContent: "center",
-    borderRadius: radius.base,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.line,
-    backgroundColor: colors.chrome2,
-  },
-  countBtnText: { color: colors.accent, fontWeight: "800", fontSize: 16 },
-  countVal: { color: colors.white, fontWeight: "700", fontSize: 13, minWidth: 40 },
   groupHead: { paddingVertical: 6 },
   groupTitle: { color: colors.w45, fontWeight: "800", fontSize: 12 },
   yakuGrid: { flexDirection: "row", flexWrap: "wrap", gap: 5 },

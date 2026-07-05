@@ -5,6 +5,7 @@ import {
   addMeld,
   addRiverTile,
   meldTiles,
+  mutateKifu,
   NUMS,
   removeHandTile,
   removeMeld,
@@ -21,6 +22,24 @@ function kifu(seats: Record<string, unknown> = {}): Kifu {
     seats: { east: {}, south: {}, west: {}, north: {}, ...seats },
   });
 }
+
+describe("mutateKifu（複製→変更→Zod再検証の共通ヘルパ）", () => {
+  it("変更した新しい Kifu を返し、元は不変", () => {
+    const k = kifu();
+    const next = mutateKifu(k, (d) => {
+      d.meta.honba = 3;
+    });
+    expect(next.meta.honba).toBe(3);
+    expect(k.meta.honba).toBe(0);
+  });
+  it("スキーマ違反になる変更は例外（検証を通らない牌譜を返さない）", () => {
+    expect(() =>
+      mutateKifu(kifu(), (d) => {
+        d.meta.honba = -1;
+      }),
+    ).toThrow();
+  });
+});
 
 describe("addHandTile / removeHandTile", () => {
   it("手牌に確定(confidence=1)で追加し、元は不変", () => {

@@ -2,9 +2,10 @@ import { RULE_PRESETS, type Rules } from "@rigel/schema";
 import { matchPreset, RULES_FORM, RULE_PRESET_OPTIONS } from "@rigel/ui";
 import { useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Switch, Text, View } from "react-native";
-import { colors, radius } from "../lib/theme";
-import { BottomSheet } from "./BottomSheet";
-import { Segment } from "./Segment";
+import { colors, radius } from "../../lib/theme";
+import { BottomSheet } from "../BottomSheet";
+import { Chip } from "../Chip";
+import { Segment } from "../Segment";
 
 /**
  * 半荘ルールの設定シート（web RulesDialog と同等）。プリセットで一括、
@@ -30,22 +31,14 @@ export function RulesSheet({
       {/* プリセット */}
       <View style={styles.presets}>
         {RULE_PRESET_OPTIONS.map((p) => (
-          <Pressable
+          <Chip
             key={p.key}
-            style={[styles.preset, active === p.key && styles.presetOn]}
+            label={p.label}
+            on={active === p.key}
             onPress={() => setDraft(RULE_PRESETS[p.key])}
-            accessibilityRole="button"
-          >
-            <Text style={[styles.presetText, active === p.key && styles.presetTextOn]}>
-              {p.label}
-            </Text>
-          </Pressable>
+          />
         ))}
-        <View style={[styles.preset, active === "custom" && styles.presetOn, styles.presetDim]}>
-          <Text style={[styles.presetText, active === "custom" && styles.presetTextOn]}>
-            カスタム
-          </Text>
-        </View>
+        <Chip label="カスタム" on={active === "custom"} disabled />
       </View>
 
       <ScrollView style={styles.body} contentContainerStyle={styles.bodyInner}>
@@ -102,18 +95,6 @@ export function RulesSheet({
 const styles = StyleSheet.create({
   title: { color: colors.white, fontSize: 15, fontWeight: "800", marginBottom: 10 },
   presets: { flexDirection: "row", flexWrap: "wrap", gap: 6, marginBottom: 8 },
-  preset: {
-    paddingVertical: 8,
-    paddingHorizontal: 14,
-    borderRadius: radius.base,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.line,
-    backgroundColor: colors.chrome2,
-  },
-  presetOn: { backgroundColor: colors.accentSoft, borderColor: colors.accent },
-  presetDim: { opacity: 0.7 },
-  presetText: { color: colors.w70, fontWeight: "800", fontSize: 12.5 },
-  presetTextOn: { color: colors.accent },
   body: { maxHeight: 420 },
   bodyInner: { gap: 14, paddingBottom: 4 },
   group: { gap: 4 },
