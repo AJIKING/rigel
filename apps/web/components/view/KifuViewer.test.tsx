@@ -107,6 +107,25 @@ describe("KifuViewer", () => {
     expect(screen.queryAllByText("東二局").length).toBe(0);
   });
 
+  it("配牌は理牌して表示する（保存順が乱れていても萬→筒→索→字の順）", () => {
+    const d = detail([
+      makeKifu({
+        east: {
+          hand: [
+            { tile: "1z", confidence: 1 },
+            { tile: "9s", confidence: 1 },
+            { tile: "1m", confidence: 1 },
+          ],
+        },
+      }),
+    ]);
+    const { container } = renderViewer(d);
+    const alts = Array.from(container.querySelectorAll('[data-tile="hand"] img'))
+      .map((img) => img.getAttribute("alt"))
+      .filter((alt) => alt); // Front.svg（alt=""）を除く
+    expect(alts).toEqual(["1萬", "9索", "東"]);
+  });
+
   it("本場は牌譜の実データを表示する（ハードコードしない）", () => {
     renderViewer(detail([makeKifu({}, { meta: { dealer: "east", honba: 2 } })]));
     // 卓中央・サイドパネルとも実データ（2本場）。ハードコードの「0本場」が残っていないこと。

@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { type PublicGameDetail } from "../../lib/api";
 import { useAuth } from "../../lib/auth-context";
-import { resultLabel } from "@rigel/ui";
+import { resultLabel, sortHandTiles } from "@rigel/ui";
 import {
   SEAT_ORDER,
   buildRiverPlayback,
@@ -272,6 +272,8 @@ export function KifuViewer({ detail, gameId }: { detail: PublicGameDetail; gameI
                   const board = kifu.seats[seat];
                   const wind = windOf(seat, dealer);
                   const back = hideOpp && seat !== bottomSeat;
+                  // 表示は理牌（保存順が乱れた既存データも萬→筒→索→字で見せる）。
+                  const handShown = sortHandTiles(board.hand);
                   const riverShown = board.river.slice(0, revealed[seat]);
                   const name =
                     seat === bottomSeat
@@ -300,8 +302,8 @@ export function KifuViewer({ detail, gameId }: { detail: PublicGameDetail; gameI
                       </div>
                       <div className={s.hand}>
                         {back
-                          ? board.hand.map((_, hi) => <ViewTile key={hi} back />)
-                          : board.hand.map((h, hi) => <ViewTile key={hi} code={h.tile} />)}
+                          ? handShown.map((_, hi) => <ViewTile key={hi} back />)
+                          : handShown.map((h, hi) => <ViewTile key={hi} code={h.tile} />)}
                         {board.melds.length > 0 && (
                           <div className={s.melds}>
                             {board.melds.map((md, mi) => (

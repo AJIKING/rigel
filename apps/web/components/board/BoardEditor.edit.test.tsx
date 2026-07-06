@@ -79,6 +79,49 @@ describe("BoardEditor 編集操作", () => {
     expect(kifu.seats.east.hand.map((t) => t.tile)).toEqual(["1m"]);
   });
 
+  it("配牌は牌を選ぶたびに理牌される（東→1萬の順に選んでも 1萬,東 で保存）", async () => {
+    render(<BoardEditor initialDetail={makeDetail([{ id: "l1" }])} gameId="g1" logId="l1" />);
+
+    // 1枚目: 字牌タブから東(1z)。
+    fireEvent.click(await screen.findByRole("button", { name: "東家の配牌に追加" }));
+    let dialog = screen.getByRole("dialog", { name: "牌を選ぶ" });
+    fireEvent.click(within(dialog).getByText("字"));
+    fireEvent.click(within(dialog).getByRole("button", { name: tileLabel("1z") }));
+    // 2枚目: 1萬。追加でピッカーは閉じるので開き直す。
+    fireEvent.click(screen.getByRole("button", { name: "東家の配牌に追加" }));
+    dialog = screen.getByRole("dialog", { name: "牌を選ぶ" });
+    fireEvent.click(within(dialog).getByRole("button", { name: tileLabel("1m") }));
+
+    fireEvent.click(screen.getByRole("button", { name: "保存" }));
+    await waitFor(() => expect(h.updateKifuAction).toHaveBeenCalled());
+    const [, kifu] = h.updateKifuAction.mock.calls[0] as [string, Kifu];
+    expect(kifu.seats.east.hand.map((t) => t.tile)).toEqual(["1m", "1z"]);
+  });
+
+  it("読み込んだ牌譜の配牌が乱れていても理牌して表示・保存する（AIドラフトの正規化）", async () => {
+    const d = makeDetail([{ id: "l1" }]);
+    d.logs[0]!.kifu = KifuSchema.parse({
+      ...makeKifu(),
+      seats: {
+        east: {
+          hand: [
+            { tile: "1z", confidence: 1 },
+            { tile: "1m", confidence: 1 },
+          ],
+        },
+        south: {},
+        west: {},
+        north: {},
+      },
+    });
+    render(<BoardEditor initialDetail={d} gameId="g1" logId="l1" />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "保存" }));
+    await waitFor(() => expect(h.updateKifuAction).toHaveBeenCalled());
+    const [, kifu] = h.updateKifuAction.mock.calls[0] as [string, Kifu];
+    expect(kifu.seats.east.hand.map((t) => t.tile)).toEqual(["1m", "1z"]);
+  });
+
   it("公開に切り替えると半荘単位の setGameVisibilityAction を呼ぶ（局単位では選ばない）", async () => {
     render(<BoardEditor initialDetail={makeDetail([{ id: "l1" }])} gameId="g1" logId="l1" />);
     fireEvent.click(await screen.findByRole("button", { name: "公開" }));

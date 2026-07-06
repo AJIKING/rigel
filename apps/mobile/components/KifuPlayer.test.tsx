@@ -115,6 +115,21 @@ describe("KifuPlayer", () => {
     expect(screen.getByLabelText("中")).toBeTruthy();
   });
 
+  it("手牌は理牌して表示する（保存順が乱れていても萬→筒→索→字の順）", () => {
+    // 手前(東)の手牌を 中(7z) → 1萬 の順で保存したデータ。表示は理牌される。
+    const k = makeKifu({
+      east: {
+        hand: [
+          { tile: "7z", confidence: 1 },
+          { tile: "1m", confidence: 1 },
+        ],
+      },
+    });
+    render(<KifuPlayer logs={[log(1, k)]} />);
+    const tiles = screen.getAllByLabelText(/^(1萬|中)$/);
+    expect(tiles.map((t) => t.props.accessibilityLabel)).toEqual(["1萬", "中"]);
+  });
+
   it("手牌トグルで相手の手牌が表(牌)/裏に切り替わる", () => {
     render(<KifuPlayer logs={[log(1, kifuOppHand())]} />);
     // 既定は相手手牌を裏向き（發は出ない）。

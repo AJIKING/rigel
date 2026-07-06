@@ -2,6 +2,7 @@
 
 import { toAbsoluteSeat, type CameraSeat, type Kifu, type Seat, type Tile } from "@rigel/schema";
 import {
+  addHandTile,
   applyResultMode,
   applyTileEdit,
   deriveWinResult,
@@ -9,6 +10,8 @@ import {
   removeDoraTile,
   resultModeOf,
   setDoraTile,
+  sortHandTiles,
+  sortKifuHands,
   visibilityLabel,
   LIMIT_MESSAGES,
   type TileLocation,
@@ -142,6 +145,22 @@ function Seg<T extends string>({
   );
 }
 
+/** 読み込んだ牌譜の配牌を理牌して状態に載せる（AIドラフト等の並び順を正規化）。
+ *  盤面の表示順＝データ順を保つことで、牌タップの index 編集を壊さない。 */
+function normalizeKifu(k: Kifu | null | undefined): Kifu | null {
+  return k ? sortKifuHands(k) : null;
+}
+
+/** 手牌修正後のフラッシュ位置。理牌で牌が動くので、applyTileEdit と同じ安定ソートを
+ *  元 index 付きで再現して「動いた先」を求める。 */
+function handIndexAfterEdit(kifu: Kifu, loc: TileLocation, code: Tile): number {
+  const edited = kifu.seats[loc.seat].hand.map((t, i) => ({
+    tile: i === loc.index ? code : t.tile,
+    i,
+  }));
+  return sortHandTiles(edited).findIndex((t) => t.i === loc.index);
+}
+
 /**
  * 盤面エディタ（クライアント）。認証・初期データ取得は Server Component
  * （app/kifu/[gameId]/[logId]/page.tsx）が Cookie セッションで済ませ、正規化済みの
@@ -162,7 +181,9 @@ export function BoardEditor({
     initialDetail.logs.findIndex((l) => l.id === logId),
   );
   const [idx, setIdx] = useState(startIdx);
-  const [kifu, setKifu] = useState<Kifu | null>(initialDetail.logs[startIdx]?.kifu ?? null);
+  const [kifu, setKifu] = useState<Kifu | null>(() =>
+    normalizeKifu(initialDetail.logs[startIdx]?.kifu),
+  );
 
   // 局の追加/削除後の再取得。Server Action が Cookie を読んで取り直す（正規化済み）。
   const reload = useCallback(
@@ -176,7 +197,7 @@ export function BoardEditor({
         nd.logs.findIndex((l) => l.id === want),
       );
       setIdx(i);
-      setKifu(nd.logs[i]?.kifu ?? null);
+      setKifu(normalizeKifu(nd.logs[i]?.kifu));
     },
     [gameId, logId],
   );
@@ -202,7 +223,7 @@ export function BoardEditor({
       gameId={gameId}
       onSwitch={(i) => {
         setIdx(i);
-        setKifu(detail.logs[i]?.kifu ?? null);
+        setKifu(normalizeKifu(detail.logs[i]?.kifu));
       }}
       reload={reload}
     />
@@ -339,9 +360,11 @@ function Editor(p: EditorProps) {
     }
     if (sel.kind === "add") {
       const { seat, area } = sel;
-      mutate((d) => {
-        if (area === "hand") d.seats[seat].hand.push({ tile: code, confidence: 1 });
-        else {
+      if (area === "hand") {
+        // 配牌への追加は理牌込みの共有純関数（mobile と同一挙動）。
+        setKifu(addHandTile(kifu, seat, code));
+      } else {
+        mutate((d) => {
           const river = d.seats[seat].river;
           river.push({
             order: river.length + 1,
@@ -350,8 +373,8 @@ function Editor(p: EditorProps) {
             tsumogiri: false,
             confidence: 1,
           });
-        }
-      });
+        });
+      }
       closePop();
       return;
     }
@@ -369,8 +392,10 @@ function Editor(p: EditorProps) {
       closePop();
       return;
     }
-    setKifu(applyTileEdit(kifu, sel.loc, code));
-    flash(sel.loc);
+    const loc = sel.loc;
+    setKifu(applyTileEdit(kifu, loc, code));
+    // 手牌は理牌で位置が動くので、動いた先を追ってフラッシュする。
+    flash(loc.area === "hand" ? { ...loc, index: handIndexAfterEdit(kifu, loc, code) } : loc);
     closePop();
   }
 

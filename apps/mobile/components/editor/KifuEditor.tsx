@@ -16,6 +16,7 @@ import {
   roundNameForSeq,
   seatLabel,
   setDiscardFlags,
+  sortKifuHands,
   windOf,
   SEAT_ORDER,
   type MeldAddType,
@@ -73,7 +74,8 @@ export function KifuEditor({
   saving?: boolean;
   onSave: (kifu: Kifu, seq: number) => void;
 }) {
-  const [kifu, setKifu] = useState(initialKifu);
+  // 読み込んだ配牌は理牌して載せる（AIドラフト等の正規化。表示順＝データ順で index 編集を壊さない）。
+  const [kifu, setKifu] = useState(() => sortKifuHands(initialKifu));
   const [seq, setSeq] = useState(initialSeq);
   const [seat, setSeat] = useState<Seat>(initialKifu.cameraBottomSeat ?? "east");
   const [picker, setPicker] = useState<Picker>(null);

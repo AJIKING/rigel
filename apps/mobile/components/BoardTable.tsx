@@ -1,5 +1,5 @@
 import { toAbsoluteSeat, type CameraSeat, type Kifu, type Seat } from "@rigel/schema";
-import { chunk, seatResult, windOf } from "@rigel/ui";
+import { chunk, seatResult, sortHandTiles, windOf } from "@rigel/ui";
 import { Pressable, StyleSheet, Text, View, type ViewStyle } from "react-native";
 import { colors } from "../lib/theme";
 import { MiniTile } from "./MiniTile";
@@ -145,7 +145,8 @@ export function BoardTable({
               ) : null}
             </View>
             <View style={styles.hand}>
-              {board.hand.map((h, hi) => (
+              {/* 表示は理牌（保存順が乱れた既存データも萬→筒→索→字で見せる）。 */}
+              {sortHandTiles(board.hand).map((h, hi) => (
                 <MiniTile key={hi} code={hand ? h.tile : null} w={htW} h={htHt} back={!hand} />
               ))}
               {board.melds.map((m, mi) => (

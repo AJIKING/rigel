@@ -36,6 +36,38 @@ describe("KifuEditor（モバイル編集画面）", () => {
     expect(saved.seats.east.hand).toEqual([{ tile: "1m", confidence: 1 }]);
   });
 
+  it("配牌は牌を選ぶたびに理牌される（東→1萬の順に選んでも 1萬,東 で保存）", () => {
+    const onSave = jest.fn();
+    render(<KifuEditor initialKifu={makeKifu()} initialSeq={1} onSave={onSave} />);
+    fireEvent.press(screen.getByText(/プレビュー/)); // 牌ラベルの重複を避けるため畳む
+    fireEvent.press(screen.getByLabelText("配牌に追加"));
+    fireEvent.press(screen.getByText("字")); // スートタブを字に切替
+    fireEvent.press(screen.getByLabelText("東"));
+    fireEvent.press(screen.getByText("萬")); // 戻して 1萬（ピッカーは開いたまま）
+    fireEvent.press(screen.getByLabelText("1萬"));
+    fireEvent.press(screen.getByText("閉じる"));
+
+    fireEvent.press(screen.getByText("保存"));
+    const saved = onSave.mock.calls[0]![0] as Kifu;
+    expect(saved.seats.east.hand.map((t) => t.tile)).toEqual(["1m", "1z"]);
+  });
+
+  it("読み込んだ配牌が乱れていても理牌して表示・保存する（AIドラフトの正規化）", () => {
+    const onSave = jest.fn();
+    const k = makeKifu({
+      east: {
+        hand: [
+          { tile: "1z", confidence: 1 },
+          { tile: "1m", confidence: 1 },
+        ],
+      },
+    });
+    render(<KifuEditor initialKifu={k} initialSeq={1} onSave={onSave} />);
+    fireEvent.press(screen.getByText("保存"));
+    const saved = onSave.mock.calls[0]![0] as Kifu;
+    expect(saved.seats.east.hand.map((t) => t.tile)).toEqual(["1m", "1z"]);
+  });
+
   it("席セグメントで南家に切り替えると南家の配牌を編集できる（4人それぞれ編集可能）", () => {
     const onSave = jest.fn();
     render(<KifuEditor initialKifu={makeKifu()} initialSeq={1} onSave={onSave} />);

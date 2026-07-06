@@ -15,6 +15,7 @@ import {
   type Seat,
   type Tile,
 } from "@rigel/schema";
+import { SEAT_ORDER } from "./board";
 
 function clone(k: Kifu): Kifu {
   return JSON.parse(JSON.stringify(k)) as Kifu;
@@ -89,10 +90,42 @@ export function removeDoraTile(kifu: Kifu, kind: DoraKind, index: number): Kifu 
   });
 }
 
-/** 手牌に1枚追加する（確定扱い）。 */
+// ------------------------------------------------------------
+// 理牌（手牌・配牌の並び順）。萬1-9 → 筒1-9 → 索1-9 → 東南西北白發中。
+// 手牌には order が無いので並べ替えだけでよい（河は order 時系列なので対象外）。
+// ------------------------------------------------------------
+
+const SUIT_SORT_ORDER: Record<string, number> = { m: 0, p: 1, s: 2, z: 3 };
+
+/** 理牌用の比較関数。赤5(0x)は同スートの5の直後、読めなかった牌(null)は末尾。 */
+export function compareTiles(a: Tile | null, b: Tile | null): number {
+  if (a === null || b === null) return (a === null ? 1 : 0) - (b === null ? 1 : 0);
+  const bySuit = (SUIT_SORT_ORDER[a[1]] ?? 9) - (SUIT_SORT_ORDER[b[1]] ?? 9);
+  if (bySuit !== 0) return bySuit;
+  const rank = (t: Tile) => (t[0] === "0" ? 5.5 : Number(t[0]));
+  return rank(a) - rank(b);
+}
+
+/** 手牌を理牌した新しい配列を返す（安定ソート＝confidence 等は牌ごとに保持、元は不変）。 */
+export function sortHandTiles<T extends { tile: Tile | null }>(hand: readonly T[]): T[] {
+  return [...hand].sort((x, y) => compareTiles(x.tile, y.tile));
+}
+
+/** 全席の手牌を理牌した新しい Kifu を返す（河・鳴きは変えない）。
+ *  エディタが牌譜を読み込むときの正規化に使う（表示順＝データ順を保ち index 編集を壊さない）。 */
+export function sortKifuHands(kifu: Kifu): Kifu {
+  return mutateKifu(kifu, (d) => {
+    for (const seat of SEAT_ORDER) {
+      d.seats[seat].hand = sortHandTiles(d.seats[seat].hand);
+    }
+  });
+}
+
+/** 手牌に1枚追加する（確定扱い）。追加のたびに理牌する。 */
 export function addHandTile(kifu: Kifu, seat: Seat, tile: Tile): Kifu {
   const d = clone(kifu);
   d.seats[seat].hand.push({ tile, confidence: 1 });
+  d.seats[seat].hand = sortHandTiles(d.seats[seat].hand);
   return KifuSchema.parse(d);
 }
 

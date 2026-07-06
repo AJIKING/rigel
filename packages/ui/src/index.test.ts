@@ -245,6 +245,15 @@ describe("applyTileEdit", () => {
     const next = applyTileEdit(kifuWithReviews, loc, "2m");
     expect(collectReviewItems(next)).toHaveLength(1);
   });
+
+  it("手牌の修正後は理牌される（河はそのまま）", () => {
+    // east.hand = [1m, 2m] の index 1 を 7z に → [1m, 7z] のまま…では並びが検証できないので
+    // index 0 を 7z にして末尾へ動くことを確認する。
+    const next = applyTileEdit(kifuWithReviews, { seat: "east", area: "hand", index: 0 }, "7z");
+    expect(next.seats.east.hand.map((t) => t.tile)).toEqual(["2m", "7z"]);
+    expect(next.seats.east.hand[1]).toMatchObject({ tile: "7z", confidence: 1 });
+    expect(next.seats.east.river.map((d) => d.tile)).toEqual([null]); // 河は不変
+  });
 });
 
 describe("authorLabel", () => {

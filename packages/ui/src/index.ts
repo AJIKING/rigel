@@ -14,6 +14,7 @@ import {
   type Seat,
   type Tile,
 } from "@rigel/schema";
+import { sortHandTiles } from "./edit";
 
 // 打点計算（han/fu + ルール → 支払い）。
 export * from "./score";
@@ -345,6 +346,7 @@ export function collectReviewItems(kifu: Kifu): ReviewItem[] {
 /**
  * 1牌を修正した新しい牌譜を返す（不変）。
  * 人が直したので confidence は 1（確定）にする。結果は KifuSchema で再検証する。
+ * 手牌の修正後は理牌する（河は order 時系列なので並べ替えない）。
  */
 export function applyTileEdit(kifu: Kifu, loc: TileLocation, tile: Tile | null): Kifu {
   const draft = JSON.parse(JSON.stringify(kifu)) as Kifu;
@@ -358,6 +360,7 @@ export function applyTileEdit(kifu: Kifu, loc: TileLocation, tile: Tile | null):
   if (target) {
     target.tile = tile;
     target.confidence = 1;
+    if (loc.area === "hand") board.hand = sortHandTiles(board.hand);
   }
   return KifuSchema.parse(draft);
 }

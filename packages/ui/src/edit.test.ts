@@ -5,6 +5,7 @@ import {
   addMeld,
   addRiverTile,
   applyResultMode,
+  compareTiles,
   deriveWinResult,
   meldTiles,
   mutateKifu,
@@ -16,6 +17,8 @@ import {
   resultModeOf,
   setDoraTile,
   setDiscardFlags,
+  sortHandTiles,
+  sortKifuHands,
   SUITS,
 } from "./edit";
 
@@ -124,10 +127,65 @@ describe("addHandTile / removeHandTile", () => {
     expect(next.seats.east.hand).toEqual([{ tile: "1m", confidence: 1 }]);
     expect(k.seats.east.hand).toHaveLength(0);
   });
+  it("追加のたびに理牌される（選んだ順ではなく牌種順に並ぶ）", () => {
+    let k = kifu();
+    for (const t of ["7z", "1p", "9m", "1z", "3s"] as const) k = addHandTile(k, "east", t);
+    expect(k.seats.east.hand.map((t) => t.tile)).toEqual(["9m", "1p", "3s", "1z", "7z"]);
+  });
   it("指定位置の手牌を取り除く", () => {
     const k = addHandTile(addHandTile(kifu(), "east", "1m"), "east", "2m");
     const next = removeHandTile(k, "east", 0);
     expect(next.seats.east.hand.map((t) => t.tile)).toEqual(["2m"]);
+  });
+});
+
+describe("理牌（compareTiles / sortHandTiles / sortKifuHands）", () => {
+  it("compareTiles: 萬1-9 → 筒1-9 → 索1-9 → 東南西北白發中 の順", () => {
+    const sorted = (["1z", "9s", "1p", "7z", "9m", "1m", "5z"] as const).slice().sort(compareTiles);
+    expect(sorted).toEqual(["1m", "9m", "1p", "9s", "1z", "5z", "7z"]);
+  });
+  it("compareTiles: 赤5(0x)は同スートの5の直後、null は末尾", () => {
+    expect(compareTiles("5m", "0m")).toBeLessThan(0);
+    expect(compareTiles("0m", "6m")).toBeLessThan(0);
+    expect(compareTiles(null, "9s")).toBeGreaterThan(0);
+    expect(compareTiles("7z", null)).toBeLessThan(0);
+    expect(compareTiles(null, null)).toBe(0);
+  });
+  it("sortHandTiles: confidence を牌ごと保ったまま並べ替えた新しい配列を返す（元は不変）", () => {
+    const hand = [
+      { tile: "1z" as const, confidence: 0.4 },
+      { tile: null, confidence: 0 },
+      { tile: "3m" as const, confidence: 1 },
+    ];
+    const sorted = sortHandTiles(hand);
+    expect(sorted.map((t) => t.tile)).toEqual(["3m", "1z", null]);
+    expect(sorted.map((t) => t.confidence)).toEqual([1, 0.4, 0]);
+    expect(hand.map((t) => t.tile)).toEqual(["1z", null, "3m"]); // 元は不変
+  });
+  it("sortKifuHands: 全席の手牌を理牌し、河（order 時系列）と鳴きは変えない", () => {
+    const k = kifu({
+      east: {
+        hand: [
+          { tile: "1z", confidence: 1 },
+          { tile: "1m", confidence: 1 },
+        ],
+        river: [
+          { order: 1, tile: "9s", confidence: 1 },
+          { order: 2, tile: "1s", confidence: 1 },
+        ],
+      },
+      south: {
+        hand: [
+          { tile: "0p", confidence: 1 },
+          { tile: "5p", confidence: 1 },
+        ],
+      },
+    });
+    const next = sortKifuHands(k);
+    expect(next.seats.east.hand.map((t) => t.tile)).toEqual(["1m", "1z"]);
+    expect(next.seats.south.hand.map((t) => t.tile)).toEqual(["5p", "0p"]);
+    expect(next.seats.east.river.map((d) => d.tile)).toEqual(["9s", "1s"]); // 河はそのまま
+    expect(k.seats.east.hand.map((t) => t.tile)).toEqual(["1z", "1m"]); // 元は不変
   });
 });
 
