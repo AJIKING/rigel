@@ -268,7 +268,9 @@ const styles = StyleSheet.create({
   titleSave: { color: colors.accent, fontWeight: "800", fontSize: 13 },
   titleCancel: { color: colors.w45, fontWeight: "700", fontSize: 13 },
   date: { color: colors.w45, fontSize: 12, marginTop: 2 },
-  visRow: { marginTop: 10, alignSelf: "flex-start" },
+  // Segment はボタンが flex:1 で「親の幅」に広がる設計。alignSelf:"flex-start"（内容幅に
+  // 縮むラッパー）に入れると幅がゼロに潰れて表示が崩れるため、幅を確保した行にする。
+  visRow: { marginTop: 10, flexDirection: "row", maxWidth: 240 },
   // ボタン3つは狭い画面・大きめ文字で1行に収まらないことがあるため折返しを許可する。
   headActions: {
     flexDirection: "row",

@@ -147,7 +147,7 @@ export function BoardTable(p: BoardTableProps) {
                         review={needsReview(h)}
                         selected={sel?.kind === "edit" && fkey(sel.loc) === fkey(loc)}
                         flash={flashKey === fkey(loc)}
-                        label={`${wind}家の手牌`}
+                        label={`${wind}家の配牌`}
                         onClick={(e) => p.onOpenEdit(e, loc, h.tile)}
                       />
                     );
@@ -156,7 +156,7 @@ export function BoardTable(p: BoardTableProps) {
                     <button
                       type="button"
                       className={`${s.tile} ${s.addslot}`}
-                      aria-label={`${wind}家の手牌に追加`}
+                      aria-label={`${wind}家の配牌に追加`}
                       onClick={(e) => p.onOpenAdd(e, seat, "hand")}
                     >
                       +

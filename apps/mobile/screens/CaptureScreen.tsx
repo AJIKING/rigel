@@ -1,7 +1,13 @@
 import { useNavigation, useRoute, type RouteProp } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { SeatSchema, type Seat } from "@rigel/schema";
-import { analyzeErrorMessage, cameraLabel, seatLabel, LIMIT_MESSAGES } from "@rigel/ui";
+import {
+  analyzeErrorMessage,
+  cameraLabel,
+  planCanAnalyze,
+  seatLabel,
+  LIMIT_MESSAGES,
+} from "@rigel/ui";
 import { useState } from "react";
 import { Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { analyze, createEmptyKifu, createGame } from "../lib/api";
@@ -18,7 +24,9 @@ export function CaptureScreen() {
   const nav = useNavigation<Nav>();
   // gameId があれば既存半荘への局追加（半荘詳細の「＋局を追加」から来る）。
   const gameId = useRoute<RouteProp<RootStackParamList, "Capture">>().params?.gameId;
-  const { token } = useAuth();
+  const { token, user } = useAuth();
+  // 写真からのAI再現は有料プランのみ（free は解析枠0）。フリーには写真入力を出さない。
+  const canAnalyze = planCanAnalyze(user?.plan ?? "free");
   const [seat, setSeat] = useState<Seat>("east");
   const [river, setRiver] = useState<Picked | null>(null);
   const [hands, setHands] = useState<Partial<Record<(typeof CAMS)[number], Picked>>>({});
@@ -98,7 +106,9 @@ export function CaptureScreen() {
   return (
     <ScrollView style={styles.root} contentContainerStyle={styles.container}>
       {gameId ? (
-        <Text style={styles.addNote}>この半荘に局を追加します（写真解析 または 手入力）。</Text>
+        <Text style={styles.addNote}>
+          この半荘に局を追加します{canAnalyze ? "（写真解析 または 手入力）" : "（手入力）"}。
+        </Text>
       ) : null}
       <Text style={styles.label}>手前（カメラ手前）の席</Text>
       <View style={styles.seatRow}>
@@ -113,60 +123,77 @@ export function CaptureScreen() {
         ))}
       </View>
 
-      <Text style={styles.label}>河（卓を上から1枚）*</Text>
-      <Pressable style={styles.pick} onPress={() => void pickInto(setRiver)}>
-        {river ? (
-          <Image source={{ uri: river.uri }} style={styles.thumb} />
-        ) : (
-          <Text style={styles.pickText}>河の写真を選ぶ</Text>
-        )}
-      </Pressable>
+      {/* 写真からのAI再現は有料プランのみ（free は枠0）。フリーには写真入力を出さない。 */}
+      {canAnalyze ? (
+        <>
+          <Text style={styles.label}>河（卓を上から1枚）*</Text>
+          <Pressable style={styles.pick} onPress={() => void pickInto(setRiver)}>
+            {river ? (
+              <Image source={{ uri: river.uri }} style={styles.thumb} />
+            ) : (
+              <Text style={styles.pickText}>河の写真を選ぶ</Text>
+            )}
+          </Pressable>
 
-      <Text style={styles.label}>各家の手牌（任意）</Text>
-      {CAMS.map((cam) => (
-        <Pressable
-          key={cam}
-          style={styles.handRow}
-          onPress={() => void pickInto((p) => setHands((h) => ({ ...h, [cam]: p })))}
-        >
-          <Text style={styles.handLabel}>{cameraLabel(cam)}</Text>
-          {hands[cam] ? (
-            <Image source={{ uri: hands[cam]?.uri }} style={styles.thumbSmall} />
-          ) : (
-            <Text style={styles.pickText}>選ぶ</Text>
-          )}
-        </Pressable>
-      ))}
+          <Text style={styles.label}>各家の手牌（任意）</Text>
+          {CAMS.map((cam) => (
+            <Pressable
+              key={cam}
+              style={styles.handRow}
+              onPress={() => void pickInto((p) => setHands((h) => ({ ...h, [cam]: p })))}
+            >
+              <Text style={styles.handLabel}>{cameraLabel(cam)}</Text>
+              {hands[cam] ? (
+                <Image source={{ uri: hands[cam]?.uri }} style={styles.thumbSmall} />
+              ) : (
+                <Text style={styles.pickText}>選ぶ</Text>
+              )}
+            </Pressable>
+          ))}
+        </>
+      ) : null}
 
       {error ? <Text style={styles.error}>{error}</Text> : null}
 
-      <Pressable
-        disabled={busy || !river}
-        onPress={() => void onSubmit()}
-        style={[styles.submit, (busy || !river) && styles.submitDisabled]}
-        accessibilityRole="button"
-      >
-        <Text style={styles.submitText}>
-          {submitting ? "解析中…（少し時間がかかります）" : "解析して保存"}
-        </Text>
-      </Pressable>
+      {canAnalyze ? (
+        <>
+          <Pressable
+            disabled={busy || !river}
+            onPress={() => void onSubmit()}
+            style={[styles.submit, (busy || !river) && styles.submitDisabled]}
+            accessibilityRole="button"
+          >
+            <Text style={styles.submitText}>
+              {submitting ? "解析中…（少し時間がかかります）" : "解析して保存"}
+            </Text>
+          </Pressable>
 
-      {/* 解析とは別導線。区切りを置いて誤タップ・状態の取り違えを防ぐ。 */}
-      <View style={styles.orRow}>
-        <View style={styles.orLine} />
-        <Text style={styles.orText}>または</Text>
-        <View style={styles.orLine} />
-      </View>
+          {/* 解析とは別導線。区切りを置いて誤タップ・状態の取り違えを防ぐ。 */}
+          <View style={styles.orRow}>
+            <View style={styles.orLine} />
+            <Text style={styles.orText}>または</Text>
+            <View style={styles.orLine} />
+          </View>
+        </>
+      ) : null}
 
-      {/* 写真なしの手入力作成（空の初局を作って編集画面へ）。 */}
+      {/* 写真なしの手入力作成（空の初局を作って編集画面へ）。フリーはこれが主ボタン。 */}
       <Pressable
         disabled={busy}
         onPress={() => void onCreateManual()}
-        style={[styles.manual, busy && styles.submitDisabled]}
+        style={[canAnalyze ? styles.manual : styles.submit, busy && styles.submitDisabled]}
         accessibilityRole="button"
       >
-        <Text style={styles.manualText}>{creating ? "作成中…" : "写真なしで作成（手入力）"}</Text>
+        <Text style={canAnalyze ? styles.manualText : styles.submitText}>
+          {creating ? "作成中…" : "手入力で作成"}
+        </Text>
       </Pressable>
+
+      {!canAnalyze ? (
+        <Text style={styles.upsell}>
+          写真からのAI再現（撮影→自動で牌譜化）は有料プラン（Next / Pro）で利用できます。
+        </Text>
+      ) : null}
     </ScrollView>
   );
 }
@@ -230,4 +257,5 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   manualText: { color: colors.accent, fontSize: 14, fontWeight: "700" },
+  upsell: { color: colors.w45, fontSize: 12, lineHeight: 17, marginTop: 6 },
 });

@@ -154,9 +154,34 @@ export function planLabel(plan: Plan): string {
   return PLAN_LABELS[plan];
 }
 
+/** プランごとの提供内容（料金プラン UI の説明。web のプランカード / mobile のプランシートで共用）。 */
+export const PLAN_FEATURES: Record<Plan, readonly string[]> = {
+  free: [
+    "公開牌譜の保存 無制限",
+    "非公開の半荘 5つまで",
+    "下書きの半荘 5つまで",
+    "写真からのAI再現 なし",
+  ],
+  next: ["Free の全機能", "非公開・下書きの保存 無制限", "写真からのAI再現 月100回相当"],
+  pro: ["Next の全機能", "写真からのAI再現 月320回相当"],
+};
+
 /** プランの月額（円）。 */
 export function planMonthlyPrice(plan: Plan): number {
   return PLAN_MONTHLY_PRICE[plan];
+}
+
+// 月間の AI 解析（Gemini 呼び出し）枠。api 側 MONTHLY_CALL_QUOTA と一致させる。
+const PLAN_MONTHLY_AI_QUOTA: Record<Plan, number> = { free: 0, next: 100, pro: 320 };
+
+/** プランの月間 AI 解析枠（呼び出し回数）。free は 0 = 写真からの再現は使えない。 */
+export function planMonthlyAiQuota(plan: Plan): number {
+  return PLAN_MONTHLY_AI_QUOTA[plan];
+}
+
+/** 写真からのAI再現を使えるプランか（解析枠が1以上）。撮影UIの出し分けに使う。 */
+export function planCanAnalyze(plan: Plan): boolean {
+  return PLAN_MONTHLY_AI_QUOTA[plan] > 0;
 }
 
 /** App Store 決済の手数料率（Apple の 30%）。IAP 経由の販売価格に上乗せする。 */

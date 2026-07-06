@@ -156,7 +156,7 @@ export function KifuEditor({
   const pickerTitle = !picker
     ? ""
     : picker.kind === "add-hand"
-      ? `手牌に追加（${board.hand.length}枚）`
+      ? `配牌に追加（${board.hand.length}枚）`
       : picker.kind === "add-river"
         ? `河に追加（${board.river.length}枚）`
         : picker.kind === "add-meld"
@@ -289,9 +289,9 @@ export function KifuEditor({
               />
             </View>
 
-            {/* 手牌 */}
+            {/* 配牌（編集では「手牌」ではなく「配牌」の文言に統一）。 */}
             <SectionLabel>
-              {windName(seat)}の手牌（{board.hand.length}枚）
+              {windName(seat)}の配牌（{board.hand.length}枚）
             </SectionLabel>
             <View style={styles.tiles}>
               {board.hand.map((t, i) => (
@@ -309,7 +309,7 @@ export function KifuEditor({
                   <MiniTile code={t.tile} w={30} h={42} />
                 </Pressable>
               ))}
-              <AddButton label="手牌に追加" onPress={() => setPicker({ kind: "add-hand" })} />
+              <AddButton label="配牌に追加" onPress={() => setPicker({ kind: "add-hand" })} />
             </View>
 
             {/* 河 */}

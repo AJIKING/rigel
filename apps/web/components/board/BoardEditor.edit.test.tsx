@@ -66,11 +66,11 @@ describe("BoardEditor 編集操作", () => {
   it("手牌に牌を追加して保存すると、その牌が updateKifuAction の Kifu に乗る", async () => {
     render(<BoardEditor initialDetail={makeDetail([{ id: "l1" }])} gameId="g1" logId="l1" />);
 
-    fireEvent.click(await screen.findByRole("button", { name: "東家の手牌に追加" }));
+    fireEvent.click(await screen.findByRole("button", { name: "東家の配牌に追加" }));
     const dialog = screen.getByRole("dialog", { name: "牌を選ぶ" });
     fireEvent.click(within(dialog).getByRole("button", { name: tileLabel("1m") }));
 
-    expect(await screen.findByRole("button", { name: "東家の手牌 を編集" })).toBeTruthy();
+    expect(await screen.findByRole("button", { name: "東家の配牌 を編集" })).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "保存" }));
 
     await waitFor(() => expect(h.updateKifuAction).toHaveBeenCalled());

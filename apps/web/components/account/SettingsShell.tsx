@@ -1,6 +1,12 @@
 "use client";
 
-import { checkoutErrorMessage, planLabel, planMonthlyPrice, type PaidPlan } from "@rigel/ui";
+import {
+  checkoutErrorMessage,
+  planLabel,
+  planMonthlyPrice,
+  PLAN_FEATURES,
+  type PaidPlan,
+} from "@rigel/ui";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -20,18 +26,11 @@ function priceLabel(plan: Plan): string {
   return plan === "free" ? "無料" : `¥${planMonthlyPrice(plan).toLocaleString()} / 月`;
 }
 
-const PLAN_CARDS: {
-  key: Plan;
-  reco?: boolean;
-  feats: string[];
-}[] = [
-  { key: "free", feats: ["公開牌譜の保存 無制限", "非公開の半荘 5つまで", "AI再現 なし"] },
-  {
-    key: "next",
-    reco: true,
-    feats: ["Free の全機能", "非公開の保存 無制限", "AI再現 月100回相当"],
-  },
-  { key: "pro", feats: ["Next の全機能", "AI再現 月320回相当"] },
+// 提供内容は @rigel/ui の PLAN_FEATURES（mobile のプランシートと共通）。
+const PLAN_CARDS: { key: Plan; reco?: boolean; feats: readonly string[] }[] = [
+  { key: "free", feats: PLAN_FEATURES.free },
+  { key: "next", reco: true, feats: PLAN_FEATURES.next },
+  { key: "pro", feats: PLAN_FEATURES.pro },
 ];
 
 export function SettingsShell() {

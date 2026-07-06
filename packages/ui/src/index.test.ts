@@ -9,9 +9,12 @@ import {
   collectReviewItems,
   describeTile,
   needsReview,
+  planCanAnalyze,
   planKifuLimits,
   planLabel,
+  planMonthlyAiQuota,
   LIMIT_MESSAGES,
+  PLAN_FEATURES,
   planMonthlyPrice,
   planMonthlyPriceAppStore,
   RED_TILE_COLOR,
@@ -140,6 +143,18 @@ describe("プラン表示", () => {
     expect(upgradeTargets("free")).toEqual(["next", "pro"]);
     expect(upgradeTargets("next")).toEqual(["pro"]);
     expect(upgradeTargets("pro")).toEqual([]);
+  });
+  it("planCanAnalyze: free は解析不可（枠0）、有料は可", () => {
+    expect(planCanAnalyze("free")).toBe(false);
+    expect(planCanAnalyze("next")).toBe(true);
+    expect(planCanAnalyze("pro")).toBe(true);
+    expect(planMonthlyAiQuota("next")).toBe(100);
+    expect(planMonthlyAiQuota("pro")).toBe(320);
+  });
+  it("PLAN_FEATURES は全プランに説明があり、上限は半荘単位の文言", () => {
+    expect(PLAN_FEATURES.free.some((f) => f.includes("半荘"))).toBe(true);
+    expect(PLAN_FEATURES.next.length).toBeGreaterThan(0);
+    expect(PLAN_FEATURES.pro.length).toBeGreaterThan(0);
   });
   it("planKifuLimits は free=各5・有料=無制限(null)", () => {
     expect(planKifuLimits("free")).toEqual({ private: 5, draft: 5 });
