@@ -5,7 +5,10 @@ import { useEffect, useRef, useState } from "react";
 import { useAuth } from "../lib/auth-context";
 import s from "./login.module.css";
 
-const CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
+// GIS の client_id は「単一のウェブアプリケーション ID」のみ。api の GOOGLE_CLIENT_ID
+// （カンマ区切りで web/iOS を許可）と取り違えてカンマ区切りを設定すると Google が
+// invalid_client を返すため、誤設定でも先頭の1つだけを使う。
+const CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID?.split(",")[0]?.trim();
 
 // Google Identity Services の最小型定義。
 interface GoogleId {
@@ -27,7 +30,9 @@ declare global {
 export function GoogleSignInButton() {
   const { signInWithGoogle } = useAuth();
   const ref = useRef<HTMLDivElement>(null);
-  const [ready, setReady] = useState(false);
+  // 利用規約→ログインなどクライアント遷移で戻ると、GIS スクリプトはロード済みで
+  // onLoad が再発火しない。マウント時に window.google が居れば即 ready にする。
+  const [ready, setReady] = useState(() => typeof window !== "undefined" && !!window.google);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -56,7 +61,8 @@ export function GoogleSignInButton() {
 
   return (
     <>
-      <Script src="https://accounts.google.com/gsi/client" onLoad={() => setReady(true)} />
+      {/* onReady はマウントごとに発火する（onLoad は初回ロードの1回だけ＝再訪でボタンが出ない）。 */}
+      <Script src="https://accounts.google.com/gsi/client" onReady={() => setReady(true)} />
       <div className={s.gwrap}>
         <div ref={ref} />
       </div>
