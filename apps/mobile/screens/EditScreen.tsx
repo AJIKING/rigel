@@ -1,5 +1,4 @@
 import { useRoute, type RouteProp } from "@react-navigation/native";
-import { LIMIT_MESSAGES } from "@rigel/ui";
 import { useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { CenterState } from "../components/CenterState";
@@ -23,20 +22,12 @@ export function EditScreen() {
   const log = detail?.logs.find((l) => l.id === logId);
   if (!detail || !log) return <CenterState message="牌譜が見つかりませんでした。" />;
 
-  function onSave(
-    kifu: Parameters<typeof updateKifu>[2],
-    status: Parameters<typeof updateKifu>[3],
-  ) {
+  function onSave(kifu: Parameters<typeof updateKifu>[2], seq: number) {
     if (!token) return;
     setSaving(true);
     setNote(null);
-    updateKifu(token, logId, kifu, status)
-      .then((res) => {
-        if (res.ok) setNote("保存しました");
-        else if (res.status === 403)
-          setNote(status === "complete" ? LIMIT_MESSAGES.privateGames : LIMIT_MESSAGES.draftGames);
-        else setNote("保存に失敗しました");
-      })
+    updateKifu(token, logId, kifu, seq)
+      .then((res) => setNote(res.ok ? "保存しました" : "保存に失敗しました"))
       .catch(() => setNote("通信に失敗しました"))
       .finally(() => setSaving(false));
   }
@@ -49,13 +40,7 @@ export function EditScreen() {
         </Text>
       </View>
       {note ? <Text style={styles.note}>{note}</Text> : null}
-      <KifuEditor
-        initialKifu={log.kifu}
-        seq={log.seq}
-        initialStatus={log.status}
-        saving={saving}
-        onSave={onSave}
-      />
+      <KifuEditor initialKifu={log.kifu} initialSeq={log.seq} saving={saving} onSave={onSave} />
     </View>
   );
 }

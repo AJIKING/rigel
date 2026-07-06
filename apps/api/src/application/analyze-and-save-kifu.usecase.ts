@@ -83,9 +83,9 @@ export class AnalyzeAndSaveKifu {
       gameId: game.id,
       seq: existing.length + 1,
       kifu,
-      // 公開範囲は半荘単位（既存局があれば引き継ぐ）。新規半荘は非公開・下書きで開始。
+      // 公開範囲・編集状態は半荘単位（既存局があれば引き継ぐ）。新規半荘は非公開・下書きで開始。
       visibility: existing[0]?.visibility ?? "private",
-      status: "draft",
+      status: existing[0]?.status ?? "draft",
       createdAt: now(),
     };
 

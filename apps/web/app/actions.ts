@@ -1,6 +1,7 @@
 "use server";
 
 import { type KifuMetaInput, type KifuStatus } from "@rigel/client";
+// KifuStatus は setGameStatusAction（半荘単位の下書き/編集済）で使う。
 import { type Kifu, type Rules, type Seat } from "@rigel/schema";
 import {
   analyze,
@@ -12,6 +13,7 @@ import {
   deleteGame,
   deleteKifu,
   getMyGames,
+  setGameStatus,
   setGameVisibility,
   updateGame,
   updateGameRules,
@@ -40,8 +42,13 @@ export async function getMyGamesAction() {
   return getMyGames(await requireToken());
 }
 
-export async function updateKifuAction(logId: string, kifu: Kifu, status?: KifuStatus) {
-  return updateKifu(await requireToken(), logId, kifu, status);
+export async function updateKifuAction(logId: string, kifu: Kifu, seq?: number) {
+  return updateKifu(await requireToken(), logId, kifu, seq);
+}
+
+/** 半荘の編集状態（下書き/編集済）を変更（配下の全局に反映）。半荘単位で決める。 */
+export async function setGameStatusAction(gameId: string, status: KifuStatus) {
+  return setGameStatus(await requireToken(), gameId, status);
 }
 
 /** 半荘の公開範囲を変更（配下の全局に反映）。公開/非公開は半荘単位で決める。 */
@@ -72,12 +79,13 @@ export async function createEmptyKifuAction(
   gameId: string,
   cameraBottomSeat: Seat,
   meta?: KifuMetaInput,
+  seq?: number,
 ) {
-  return createEmptyKifu(await requireToken(), gameId, cameraBottomSeat, meta);
+  return createEmptyKifu(await requireToken(), gameId, cameraBottomSeat, meta, seq);
 }
 
-export async function createGameAction(cameraBottomSeat: Seat, meta?: KifuMetaInput) {
-  return createGame(await requireToken(), cameraBottomSeat, meta);
+export async function createGameAction(cameraBottomSeat: Seat, meta?: KifuMetaInput, seq?: number) {
+  return createGame(await requireToken(), cameraBottomSeat, meta, seq);
 }
 
 export async function analyzeAction(form: FormData) {

@@ -1,6 +1,13 @@
 "use client";
 
-import { analyzeErrorMessage, cameraLabel, seatLabel, LIMIT_MESSAGES } from "@rigel/ui";
+import {
+  analyzeErrorMessage,
+  cameraLabel,
+  roundNameForSeq,
+  seatLabel,
+  LIMIT_MESSAGES,
+  MAX_SEQ,
+} from "@rigel/ui";
 import { SeatSchema, type CameraSeat, type Seat, type Tile } from "@rigel/schema";
 import { useState } from "react";
 import { analyzeAction, createEmptyKifuAction, createGameAction } from "../../app/actions";
@@ -41,6 +48,8 @@ export function AddKyokuModal({
   const [honba, setHonba] = useState(0);
   const [kyotaku, setKyotaku] = useState(0);
   const [dora, setDora] = useState<Tile | null>(null);
+  // 作成する局（東一局=1〜北四局=16）。半荘内の好きな局を1つだけ作れる。
+  const [seq, setSeq] = useState(1);
 
   async function onAnalyze() {
     if (!river) {
@@ -72,8 +81,8 @@ export function AddKyokuModal({
       // ドラは複数枚スキーマ（作成時は1枚だけ選べる。追加はエディタで）。
       const meta = { honba, kyotaku, dora: dora ? [dora] : [] };
       const result = gameId
-        ? await createEmptyKifuAction(gameId, seat, meta)
-        : await createGameAction(seat, meta);
+        ? await createEmptyKifuAction(gameId, seat, meta, seq)
+        : await createGameAction(seat, meta, seq);
       if (result.ok) {
         await onDone(result.logId, result.gameId);
         return;
@@ -182,6 +191,21 @@ export function AddKyokuModal({
           </div>
         ) : (
           <div className={s.modalBody}>
+            {/* 作成する局。半荘内の好きな局を1つだけ作れる（順番に縛られない）。 */}
+            <div className={s.steprow}>
+              <span className={s.stlabel}>作成する局</span>
+              <select
+                aria-label="作成する局"
+                value={seq}
+                onChange={(e) => setSeq(Number(e.target.value))}
+              >
+                {Array.from({ length: MAX_SEQ }, (_, i) => i + 1).map((n) => (
+                  <option key={n} value={n}>
+                    {roundNameForSeq(n)}
+                  </option>
+                ))}
+              </select>
+            </div>
             <Stepper label="本場" unit="本場" value={honba} min={0} max={19} set={setHonba} />
             <Stepper label="供託" unit="本" value={kyotaku} min={0} max={9} set={setKyotaku} />
             <div className={s.steprow}>

@@ -5,11 +5,13 @@ import {
   analyzeErrorMessage,
   cameraLabel,
   planCanAnalyze,
+  roundNameForSeq,
   seatLabel,
   LIMIT_MESSAGES,
 } from "@rigel/ui";
 import { useState } from "react";
 import { Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { RoundPicker } from "../components/RoundPicker";
 import { analyze, createEmptyKifu, createGame } from "../lib/api";
 import { useAuth } from "../lib/auth";
 import type { RootStackParamList } from "../lib/navigation";
@@ -28,6 +30,8 @@ export function CaptureScreen() {
   // 写真からのAI再現は有料プランのみ（free は解析枠0）。フリーには写真入力を出さない。
   const canAnalyze = planCanAnalyze(user?.plan ?? "free");
   const [seat, setSeat] = useState<Seat>("east");
+  // 作成する局（東一局=1〜北四局=16）。半荘内の好きな局を1つだけ作れる。
+  const [seq, setSeq] = useState(1);
   const [river, setRiver] = useState<Picked | null>(null);
   const [hands, setHands] = useState<Partial<Record<(typeof CAMS)[number], Picked>>>({});
   const [submitting, setSubmitting] = useState(false);
@@ -44,9 +48,10 @@ export function CaptureScreen() {
     setError(null);
     setCreating(true);
     try {
+      // 手入力の手前席は東固定（席は編集画面で自由に触れるため選択は不要）。
       const res = gameId
-        ? await createEmptyKifu(token, gameId, seat)
-        : await createGame(token, seat);
+        ? await createEmptyKifu(token, gameId, "east", undefined, seq)
+        : await createGame(token, "east", undefined, seq);
       if (res.ok) nav.navigate("Edit", { gameId: res.gameId, logId: res.logId });
       else if (res.status === 409) setError(LIMIT_MESSAGES.gameFull);
       else if (res.status === 403) setError(LIMIT_MESSAGES.draftGames);
@@ -110,22 +115,27 @@ export function CaptureScreen() {
           この半荘に局を追加します{canAnalyze ? "（写真解析 または 手入力）" : "（手入力）"}。
         </Text>
       ) : null}
-      <Text style={styles.label}>手前（カメラ手前）の席</Text>
-      <View style={styles.seatRow}>
-        {SeatSchema.options.map((s) => (
-          <Pressable
-            key={s}
-            onPress={() => setSeat(s)}
-            style={[styles.seatBtn, seat === s && styles.seatActive]}
-          >
-            <Text style={seat === s ? styles.seatActiveText : undefined}>{seatLabel(s)}</Text>
-          </Pressable>
-        ))}
-      </View>
+      {/* 作成する局（半荘内の好きな局を1つだけ作れる）。 */}
+      <Text style={styles.label}>作成する局（{roundNameForSeq(seq)}）</Text>
+      <RoundPicker value={seq} onChange={setSeq} />
 
       {/* 写真からのAI再現は有料プランのみ（free は枠0）。フリーには写真入力を出さない。 */}
       {canAnalyze ? (
         <>
+          {/* 席は写真の向き（相対→絶対変換）にだけ必要。手入力は東固定で選択不要。 */}
+          <Text style={styles.label}>撮影時に手前だった席</Text>
+          <View style={styles.seatRow}>
+            {SeatSchema.options.map((s) => (
+              <Pressable
+                key={s}
+                onPress={() => setSeat(s)}
+                style={[styles.seatBtn, seat === s && styles.seatActive]}
+              >
+                <Text style={seat === s ? styles.seatActiveText : undefined}>{seatLabel(s)}</Text>
+              </Pressable>
+            ))}
+          </View>
+
           <Text style={styles.label}>河（卓を上から1枚）*</Text>
           <Pressable style={styles.pick} onPress={() => void pickInto(setRiver)}>
             {river ? (

@@ -100,6 +100,8 @@ export class CreateEmptyKifu {
     cameraBottomSeat: Seat;
     /** 作成時に焼き込む局メタ（本場/供託/ドラ/最終巡目）。省略時は既定。 */
     meta?: EmptyKifuMeta;
+    /** 局順（東一局=1〜北四局=16）。省略時は既存の次の局。 */
+    seq?: number;
   }): Promise<CreateEmptyResult> {
     const { games, gameLogs, users, now, newId } = this.deps;
 
@@ -131,17 +133,18 @@ export class CreateEmptyKifu {
     }
 
     const existing = await gameLogs.listByGame(game.id);
-    // ルール・公開範囲は半荘単位。既存局があれば引き継ぐ（局ごとにバラけさせない）。
+    // ルール・公開範囲・編集状態は半荘単位。既存局があれば引き継ぐ（局ごとにバラけさせない）。
     const kifu = emptyKifu(now().toISOString(), params.cameraBottomSeat, params.meta);
     if (existing[0]) kifu.rules = existing[0].kifu.rules;
     const log: GameLog = {
       id: newId(),
       userId: params.userId,
       gameId: game.id,
-      seq: existing.length + 1,
+      // 局順は自由に選べる（東一局=1〜北四局=16）。省略時は既存の次。
+      seq: params.seq ?? existing.length + 1,
       kifu,
       visibility: existing[0]?.visibility ?? "private",
-      status: "draft",
+      status: existing[0]?.status ?? "draft",
       createdAt: now(),
     };
     await gameLogs.save(log);

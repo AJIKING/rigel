@@ -1,6 +1,6 @@
 import { useFocusEffect, useNavigation, useRoute, type RouteProp } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import type { Visibility } from "@rigel/client";
+import type { KifuStatus, Visibility } from "@rigel/client";
 import { collectReviewItems, resultLabel, roundNameForSeq, LIMIT_MESSAGES } from "@rigel/ui";
 import { useCallback, useState } from "react";
 import { FlatList, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
@@ -8,7 +8,14 @@ import { CenterState } from "../components/CenterState";
 import { DangerButton } from "../components/DangerButton";
 import { RulesSheet } from "../components/editor/RulesSheet";
 import { Segment } from "../components/Segment";
-import { deleteGame, deleteKifu, setGameVisibility, updateGame, updateGameRules } from "../lib/api";
+import {
+  deleteGame,
+  deleteKifu,
+  setGameStatus,
+  setGameVisibility,
+  updateGame,
+  updateGameRules,
+} from "../lib/api";
 import { useAuth } from "../lib/auth";
 import { confirmDestructive } from "../lib/confirm";
 import { fmtDate } from "../lib/format";
@@ -28,8 +35,9 @@ export function GameDetailScreen() {
   const [titleDraft, setTitleDraft] = useState("");
   const [savingTitle, setSavingTitle] = useState(false);
   const [rulesOpen, setRulesOpen] = useState(false);
-  // 公開範囲は半荘単位。楽観更新（失敗で戻す）。null のうちは局の値を使う。
+  // 公開範囲・編集状態は半荘単位。楽観更新（失敗で戻す）。null のうちは局の値を使う。
   const [vis, setVis] = useState<Visibility | null>(null);
+  const [stat, setStat] = useState<KifuStatus | null>(null);
 
   // 編集・局追加/削除から戻ったとき一覧を最新化する（静かに再取得）。
   useFocusEffect(
@@ -42,6 +50,25 @@ export function GameDetailScreen() {
   if (!detail) return <CenterState message="半荘が見つかりませんでした。" />;
 
   const visibility: Visibility = vis ?? detail.logs[0]?.visibility ?? "private";
+  const gameStatus: KifuStatus = stat ?? detail.logs[0]?.status ?? "draft";
+
+  /** 半荘の編集状態（下書き/編集済）を切り替える（配下の全局に反映）。 */
+  async function onToggleStatus(next: KifuStatus) {
+    if (!token || next === gameStatus) return;
+    setNote(null);
+    setStat(next);
+    const res = await setGameStatus(token, gameId, next).catch(() => ({ ok: false, status: 0 }));
+    if (!res.ok) {
+      setStat(gameStatus);
+      setNote(
+        res.status === 403
+          ? next === "draft"
+            ? LIMIT_MESSAGES.draftGames
+            : LIMIT_MESSAGES.privateGames
+          : "編集状態の保存に失敗しました",
+      );
+    } else refetch();
+  }
 
   /** 半荘の公開範囲を切り替える（配下の全局に反映）。 */
   async function onToggleVis(next: Visibility) {
@@ -161,7 +188,7 @@ export function GameDetailScreen() {
         <Text style={styles.date}>
           {fmtDate(detail.game.createdAt)} ／ {detail.logs.length} 局
         </Text>
-        {/* 公開/非公開は半荘単位（配下の全局に反映）。 */}
+        {/* 公開/非公開・下書き/編集済は半荘単位（配下の全局に反映）。 */}
         <View style={styles.visRow}>
           <Segment
             options={
@@ -172,6 +199,18 @@ export function GameDetailScreen() {
             }
             value={visibility}
             onChange={(v) => void onToggleVis(v)}
+          />
+        </View>
+        <View style={styles.visRow}>
+          <Segment
+            options={
+              [
+                ["draft", "下書き"],
+                ["complete", "編集済"],
+              ] as const
+            }
+            value={gameStatus}
+            onChange={(v) => void onToggleStatus(v)}
           />
         </View>
         <View style={styles.headActions}>

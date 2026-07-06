@@ -44,23 +44,22 @@ export function registerKifuRoutes(app: Hono<AppEnv>): void {
     return c.json({ ok: true });
   });
 
-  // 牌譜の修正を保存（所有者のみ）。body は Kifu JSON。
+  // 牌譜の修正を保存（所有者のみ）。body は { kifu, seq? }。
+  // 下書き/編集済は半荘単位（PATCH /games/:id/status）なのでここでは受けない。
   app.put("/kifu/:id", requireAuth, async (c) => {
-    // body は { kifu, status? }。旧クライアント互換で「body 自体が Kifu」も受ける。
+    // 旧クライアント互換で「body 自体が Kifu」も受ける。
     const body = (await c.req.json().catch(() => null)) as {
       kifu?: unknown;
-      status?: unknown;
+      seq?: unknown;
     } | null;
     const hasWrap = !!body && typeof body === "object" && "kifu" in body;
     const parsed = parseKifu(hasWrap ? body.kifu : body);
     if (!parsed.ok) return c.json({ ok: false, errors: parsed.errors }, 400);
-    const status =
-      body?.status === "draft" || body?.status === "complete" ? body.status : undefined;
     const result = await c.get("container").updateKifu.execute({
       userId: c.get("userId")!,
       logId: c.req.param("id"),
       kifu: parsed.kifu,
-      status,
+      seq: typeof body?.seq === "number" ? body.seq : undefined,
     });
     if (!result.ok) {
       if (result.reason === "not_found") return c.json({ error: "not found" }, 404);

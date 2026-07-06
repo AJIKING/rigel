@@ -1,69 +1,37 @@
 // application — UpdateKifu（保存済み牌譜の修正を反映）。
-// 人が確信度の低い牌を直した結果（Kifu）＋編集状態(status)を、所有者の局に上書き保存する。
-// 状態遷移で上限を判定する（complete→draft=下書き上限 / draft→complete かつ private=非公開上限）。
+// 人が確信度の低い牌を直した結果（Kifu）と局順(seq)を、所有者の局に上書き保存する。
+// 下書き/編集済は半荘単位（UpdateGameStatus）で扱うため、ここでは変更しない。
 
 import type { Kifu } from "@rigel/schema";
-import type { KifuStatus } from "../domain/kifu/game-log";
 import type { GameLogRepository } from "../domain/kifu/game-log.repository";
-import { draftLimit, privateKifuLimit } from "../domain/user/user";
-import type { UserRepository } from "../domain/user/user.repository";
-import { isOverLimit } from "./limits";
 
-export type UpdateKifuResult =
-  { ok: true } | { ok: false; reason: "not_found" | "draft_limit" | "private_limit" };
+export type UpdateKifuResult = { ok: true } | { ok: false; reason: "not_found" | "invalid_seq" };
+
+/** 局順(seq)の上限。roundNameForSeq が表せる範囲（東一〜北四）に合わせる。 */
+export const MAX_SEQ = 16;
 
 export class UpdateKifu {
-  constructor(
-    private readonly gameLogs: GameLogRepository,
-    private readonly users: UserRepository,
-  ) {}
+  constructor(private readonly gameLogs: GameLogRepository) {}
 
   async execute(params: {
     userId: string;
     logId: string;
     kifu: Kifu;
-    /** 編集状態。省略時は現状維持。 */
-    status?: KifuStatus;
+    /** 局順（東一局=1〜北四局=16）。省略時は現状維持。 */
+    seq?: number;
   }): Promise<UpdateKifuResult> {
     const log = await this.gameLogs.findById(params.logId);
     // 他人の牌譜は存在を伏せて not_found。
     if (!log || log.userId !== params.userId) return { ok: false, reason: "not_found" };
-    const status = params.status ?? log.status;
 
-    // 上限は「半荘数」で判定する（局ではなく）。当該局の半荘は除外して数える
-    // （その半荘は既にカウント済み or この操作でカウント入りするため、
-    //   同じ半荘内の状態遷移が上限に阻まれないように）。
-    const gameId = log.gameId ?? undefined;
-
-    // complete → draft: 下書き半荘上限（無料）。
     if (
-      status === "draft" &&
-      log.status === "complete" &&
-      (await isOverLimit(this.users, params.userId, draftLimit, () =>
-        this.gameLogs.countGamesByUserAndStatus(params.userId, "draft", gameId),
-      ))
+      params.seq !== undefined &&
+      (!Number.isInteger(params.seq) || params.seq < 1 || params.seq > MAX_SEQ)
     ) {
-      return { ok: false, reason: "draft_limit" };
+      return { ok: false, reason: "invalid_seq" };
     }
 
-    // draft → complete かつ private: 非公開半荘上限（無料。complete×private のみ数える）。
-    if (
-      status === "complete" &&
-      log.status !== "complete" &&
-      log.visibility === "private" &&
-      (await isOverLimit(this.users, params.userId, privateKifuLimit, () =>
-        this.gameLogs.countGamesByUserVisibilityStatus(
-          params.userId,
-          "private",
-          "complete",
-          gameId,
-        ),
-      ))
-    ) {
-      return { ok: false, reason: "private_limit" };
-    }
-
-    await this.gameLogs.save({ ...log, kifu: params.kifu, status });
+    await this.gameLogs.save({ ...log, kifu: params.kifu, seq: params.seq ?? log.seq });
     return { ok: true };
   }
 }

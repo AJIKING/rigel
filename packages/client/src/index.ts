@@ -126,12 +126,18 @@ export interface ApiClient {
    * 必要フィールド: river, cameraBottomSeat（任意: hand_*, gameId）。
    */
   analyze(token: string, form: FormData): Promise<AnalyzeResult>;
-  /** 牌譜の修正を保存する（所有者のみ）。成否を返す。 */
+  /** 牌譜の修正を保存する（所有者のみ）。seq=局順（東一局=1〜北四局=16。省略は現状維持）。 */
   updateKifu(
     token: string,
     logId: string,
     kifu: Kifu,
-    status?: KifuStatus,
+    seq?: number,
+  ): Promise<{ ok: boolean; status: number }>;
+  /** 半荘の編集状態（下書き/編集済）を変更する（配下の全局に反映。所有者のみ）。 */
+  setGameStatus(
+    token: string,
+    gameId: string,
+    status: KifuStatus,
   ): Promise<{ ok: boolean; status: number }>;
   /**
    * 指定プラン(next/pro)へのアップグレード Checkout を開始し、決済ページURLを得る。
@@ -182,6 +188,8 @@ export interface ApiClient {
     token: string,
     cameraBottomSeat: Seat,
     meta?: KifuMetaInput,
+    /** 局順（東一局=1〜北四局=16）。省略時は東一局。 */
+    seq?: number,
   ): Promise<{ ok: true; gameId: string; logId: string } | { ok: false; status: number }>;
   /** 半荘に空の局を追加する（手動入力の起点）。成功で gameId/新しい logId を返す。 */
   createEmptyKifu(
@@ -189,6 +197,8 @@ export interface ApiClient {
     gameId: string,
     cameraBottomSeat: Seat,
     meta?: KifuMetaInput,
+    /** 局順（東一局=1〜北四局=16）。省略時は既存の次の局。 */
+    seq?: number,
   ): Promise<{ ok: true; gameId: string; logId: string } | { ok: false; status: number }>;
   /** プロフィール（handle/表示名/公開）を更新する。handle 重複は status 409。 */
   updateProfile(
@@ -216,11 +226,12 @@ export function createApiClient(baseUrl: string, fetchImpl?: typeof fetch): ApiC
     token: string,
     cameraBottomSeat: Seat,
     meta?: KifuMetaInput,
+    seq?: number,
   ): Promise<{ ok: true; gameId: string; logId: string } | { ok: false; status: number }> {
     const res = await doFetch(url, {
       method: "POST",
       headers: { ...bearer(token), "content-type": "application/json" },
-      body: JSON.stringify({ cameraBottomSeat, meta }),
+      body: JSON.stringify({ cameraBottomSeat, meta, seq }),
     });
     if (!res.ok) return { ok: false, status: res.status };
     const d = (await res.json()) as { gameId: string; logId: string };
@@ -301,11 +312,20 @@ export function createApiClient(baseUrl: string, fetchImpl?: typeof fetch): ApiC
       return { ok: false, status: res.status, reason: body.reason ?? body.error };
     },
 
-    async updateKifu(token, logId, kifu, status) {
+    async updateKifu(token, logId, kifu, seq) {
       const res = await doFetch(`${baseUrl}/kifu/${logId}`, {
         method: "PUT",
         headers: { ...bearer(token), "content-type": "application/json" },
-        body: JSON.stringify({ kifu, status }),
+        body: JSON.stringify({ kifu, seq }),
+      });
+      return { ok: res.ok, status: res.status };
+    },
+
+    async setGameStatus(token, gameId, status) {
+      const res = await doFetch(`${baseUrl}/games/${gameId}/status`, {
+        method: "PATCH",
+        headers: { ...bearer(token), "content-type": "application/json" },
+        body: JSON.stringify({ status }),
       });
       return { ok: res.ok, status: res.status };
     },
@@ -389,12 +409,12 @@ export function createApiClient(baseUrl: string, fetchImpl?: typeof fetch): ApiC
       return { ok: res.ok, status: res.status };
     },
 
-    async createGame(token, cameraBottomSeat, meta) {
-      return postCreateEmpty(`${baseUrl}/games`, token, cameraBottomSeat, meta);
+    async createGame(token, cameraBottomSeat, meta, seq) {
+      return postCreateEmpty(`${baseUrl}/games`, token, cameraBottomSeat, meta, seq);
     },
 
-    async createEmptyKifu(token, gameId, cameraBottomSeat, meta) {
-      return postCreateEmpty(`${baseUrl}/games/${gameId}/kifu`, token, cameraBottomSeat, meta);
+    async createEmptyKifu(token, gameId, cameraBottomSeat, meta, seq) {
+      return postCreateEmpty(`${baseUrl}/games/${gameId}/kifu`, token, cameraBottomSeat, meta, seq);
     },
 
     async updateProfile(token, update) {

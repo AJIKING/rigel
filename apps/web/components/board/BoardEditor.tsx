@@ -20,6 +20,7 @@ import {
   deleteGameAction,
   deleteKifuAction,
   getGameAction,
+  setGameStatusAction,
   setGameVisibilityAction,
   updateGameAction,
   updateGameRulesAction,
@@ -374,17 +375,32 @@ function Editor(p: EditorProps) {
   async function onSave() {
     setSave("saving");
     setSaveErr(null);
-    const res = await updateKifuAction(log.id, kifu, status).catch(() => ({
+    const res = await updateKifuAction(log.id, kifu).catch(() => ({
       ok: false,
       status: 0,
     }));
     setSave(res.ok ? "done" : "idle");
     if (res.ok) {
       setTimeout(() => setSave("idle"), 1500);
-    } else if (res.status === 403) {
-      setSaveErr(status === "complete" ? LIMIT_MESSAGES.privateGames : LIMIT_MESSAGES.draftGames);
     } else {
       setSaveErr("保存に失敗しました。");
+    }
+  }
+
+  /** 下書き/編集済は半荘単位（配下の全局に一括反映）。上限（半荘数）は API 側でも判定。 */
+  async function changeStatus(next: "draft" | "complete") {
+    if (next === status) return;
+    setStatus(next);
+    const res = await setGameStatusAction(gameId, next).catch(() => ({ ok: false, status: 0 }));
+    if (!res.ok) {
+      setStatus(status);
+      setSaveErr(
+        res.status === 403
+          ? next === "draft"
+            ? LIMIT_MESSAGES.draftGames
+            : LIMIT_MESSAGES.privateGames
+          : "編集状態の保存に失敗しました。",
+      );
     }
   }
   /** 半荘名を保存する（入力欄の blur で呼ぶ。未変更なら何もしない）。 */
@@ -494,14 +510,14 @@ function Editor(p: EditorProps) {
           label="編集モード"
         />
         {saveErr && <span className={s.saveErr}>{saveErr}</span>}
-        {/* 保存ボタンの左：下書き / 編集済み トグル。 */}
+        {/* 保存ボタンの左：下書き / 編集済み トグル（半荘単位＝配下の全局に反映）。 */}
         <Seg
           value={status}
           options={[
             ["draft", "下書き"],
             ["complete", "編集済"],
           ]}
-          onChange={setStatus}
+          onChange={(next) => void changeStatus(next)}
           label="編集状態"
         />
         <button

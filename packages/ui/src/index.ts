@@ -139,6 +139,9 @@ export function planKifuLimits(plan: Plan): { private: number | null; draft: num
 /** 1半荘あたりの局数上限。api 側 MAX_LOGS_PER_GAME と一致させる。 */
 export const MAX_LOGS_PER_GAME = 30;
 
+/** 局順(seq)の上限（東一局=1〜北四局=16）。api 側 MAX_SEQ と一致させる。 */
+export const MAX_SEQ = 16;
+
 /** 保存上限エラーの共通文言（半荘単位）。web/mobile で同じ文言を出す（表記ゆれ防止）。 */
 export const LIMIT_MESSAGES = {
   /** 403: 非公開(complete)の半荘が無料上限。 */

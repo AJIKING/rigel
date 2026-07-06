@@ -30,6 +30,7 @@ export const {
   getPublicProfile,
   getPublicGames,
   updateKifu,
+  setGameStatus,
   setGameVisibility,
   updateGame,
   updateGameRules,

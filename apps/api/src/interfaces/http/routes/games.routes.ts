@@ -4,6 +4,7 @@
 
 import { KifuSchema, RulesSchema, SeatSchema } from "@rigel/schema";
 import type { Context, Hono } from "hono";
+import { MAX_SEQ } from "../../../application/update-kifu.usecase";
 import { reasonStatus, requireAuth, type AppEnv } from "../shared";
 
 /** 空の局を作る POST 共通処理。gameId 無し=新半荘、有り=既存半荘に追加。
@@ -12,14 +13,23 @@ async function createEmptyKifuRoute(c: Context<AppEnv>, gameId?: string) {
   const body = (await c.req.json().catch(() => null)) as {
     cameraBottomSeat?: unknown;
     meta?: unknown;
+    seq?: unknown;
   } | null;
   const seat = SeatSchema.safeParse(body?.cameraBottomSeat);
   const meta = KifuSchema.shape.meta.safeParse(body?.meta);
+  const seq =
+    typeof body?.seq === "number" &&
+    Number.isInteger(body.seq) &&
+    body.seq >= 1 &&
+    body.seq <= MAX_SEQ
+      ? body.seq
+      : undefined;
   const result = await c.get("container").createEmptyKifu.execute({
     userId: c.get("userId")!,
     gameId,
     cameraBottomSeat: seat.success ? seat.data : "east",
     meta: meta.success ? meta.data : undefined,
+    seq,
   });
   if (!result.ok) {
     return c.json({ ok: false, reason: result.reason }, reasonStatus(result.reason));
@@ -72,6 +82,23 @@ export function registerGameRoutes(app: Hono<AppEnv>): void {
       userId: c.get("userId")!,
       gameId: c.req.param("id"),
       visibility: body.visibility,
+    });
+    if (!result.ok) {
+      return c.json({ ok: false, reason: result.reason }, reasonStatus(result.reason));
+    }
+    return c.json({ ok: true });
+  });
+
+  // 半荘の編集状態（下書き/編集済）の変更（配下の全局に反映）。所有者のみ。半荘単位で決める。
+  app.patch("/games/:id/status", requireAuth, async (c) => {
+    const body = (await c.req.json().catch(() => null)) as { status?: unknown } | null;
+    if (body?.status !== "draft" && body?.status !== "complete") {
+      return c.json({ error: "status は draft か complete" }, 400);
+    }
+    const result = await c.get("container").updateGameStatus.execute({
+      userId: c.get("userId")!,
+      gameId: c.req.param("id"),
+      status: body.status,
     });
     if (!result.ok) {
       return c.json({ ok: false, reason: result.reason }, reasonStatus(result.reason));

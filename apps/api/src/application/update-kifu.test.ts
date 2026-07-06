@@ -1,20 +1,10 @@
 import { describe, expect, it } from "vitest";
 import type { GameLog } from "../domain/kifu/game-log";
-import { User, firstOfNextMonthUtc, type Plan } from "../domain/user/user";
-import { InMemoryGameLogRepository, InMemoryUserRepository } from "../test-support/in-memory";
+import { InMemoryGameLogRepository } from "../test-support/in-memory";
 import { validKifu } from "../test-support/kifu";
 import { UpdateKifu } from "./update-kifu.usecase";
 
 const NOW = new Date("2026-06-28T00:00:00.000Z");
-function user(plan: Plan): User {
-  return new User({
-    id: "u1",
-    googleSub: "g1",
-    plan,
-    analysisCountThisMonth: 0,
-    countResetAt: firstOfNextMonthUtc(NOW),
-  });
-}
 const log = (id: string, userId: string, over: Partial<GameLog> = {}): GameLog => ({
   id,
   userId,
@@ -27,29 +17,38 @@ const log = (id: string, userId: string, over: Partial<GameLog> = {}): GameLog =
   ...over,
 });
 
-function make(logs: GameLog[], plan: Plan = "free") {
+function make(logs: GameLog[]) {
   const gameLogs = new InMemoryGameLogRepository();
   for (const l of logs) void gameLogs.save(l);
-  const uc = new UpdateKifu(gameLogs, new InMemoryUserRepository([user(plan)]));
-  return { uc, gameLogs };
+  return { uc: new UpdateKifu(gameLogs), gameLogs };
 }
 
 const edited = { ...validKifu, readingNotes: "直した" };
 
 describe("UpdateKifu", () => {
-  it("所有者は牌譜を上書き保存できる（status 省略は現状維持）", async () => {
-    const { uc, gameLogs } = make([log("l1", "u1")]);
+  it("所有者は牌譜を上書き保存できる（seq 省略は現状維持・status は変えない）", async () => {
+    const { uc, gameLogs } = make([log("l1", "u1", { status: "draft" })]);
     const result = await uc.execute({ userId: "u1", logId: "l1", kifu: edited });
     expect(result).toEqual({ ok: true });
     const saved = await gameLogs.findById("l1");
     expect(saved?.kifu.readingNotes).toBe("直した");
-    expect(saved?.status).toBe("complete");
+    expect(saved?.seq).toBe(1);
+    expect(saved?.status).toBe("draft"); // 下書き/編集済は半荘単位（ここでは触らない）
   });
 
-  it("status を渡すと保存する（complete→draft）", async () => {
+  it("seq を渡すと局順を変更できる（東一局→南三局=7 など自由な局に）", async () => {
     const { uc, gameLogs } = make([log("l1", "u1")]);
-    await uc.execute({ userId: "u1", logId: "l1", kifu: edited, status: "draft" });
-    expect((await gameLogs.findById("l1"))?.status).toBe("draft");
+    const result = await uc.execute({ userId: "u1", logId: "l1", kifu: edited, seq: 7 });
+    expect(result).toEqual({ ok: true });
+    expect((await gameLogs.findById("l1"))?.seq).toBe(7);
+  });
+
+  it("seq の範囲外（0 以下・17 以上・小数）は invalid_seq", async () => {
+    const { uc } = make([log("l1", "u1")]);
+    for (const seq of [0, 17, 1.5]) {
+      const result = await uc.execute({ userId: "u1", logId: "l1", kifu: edited, seq });
+      expect(result).toEqual({ ok: false, reason: "invalid_seq" });
+    }
   });
 
   it("他人の牌譜は not_found（伏せる）", async () => {
@@ -63,49 +62,5 @@ describe("UpdateKifu", () => {
     const { uc } = make([]);
     const result = await uc.execute({ userId: "u1", logId: "missing", kifu: edited });
     expect(result).toEqual({ ok: false, reason: "not_found" });
-  });
-
-  it("無料: 下書き半荘が上限(5)のとき、別半荘の complete→draft は draft_limit", async () => {
-    // 上限は半荘数で数える。下書きを含む半荘が5つある状態で、6つ目の半荘を下書き化しようとする。
-    const drafts = Array.from({ length: 5 }, (_, i) =>
-      log(`d${i}`, "u1", { gameId: `gd${i}`, status: "draft" }),
-    );
-    const { uc } = make([log("l1", "u1", { gameId: "gx", status: "complete" }), ...drafts]);
-    const result = await uc.execute({ userId: "u1", logId: "l1", kifu: edited, status: "draft" });
-    expect(result).toEqual({ ok: false, reason: "draft_limit" });
-  });
-
-  it("無料: 上限でも同じ半荘内の complete→draft は通る（半荘数が増えないため）", async () => {
-    // gd0 は既に下書きを含む半荘。その中の complete 局を draft にしても半荘数は変わらない。
-    const drafts = Array.from({ length: 5 }, (_, i) =>
-      log(`d${i}`, "u1", { gameId: `gd${i}`, status: "draft" }),
-    );
-    const { uc } = make([log("l1", "u1", { gameId: "gd0", status: "complete" }), ...drafts]);
-    const result = await uc.execute({ userId: "u1", logId: "l1", kifu: edited, status: "draft" });
-    expect(result).toEqual({ ok: true });
-  });
-
-  it("無料: 非公開半荘が上限(5)のとき、別半荘の draft→complete(private) は private_limit", async () => {
-    const privs = Array.from({ length: 5 }, (_, i) =>
-      log(`p${i}`, "u1", { gameId: `gp${i}`, visibility: "private", status: "complete" }),
-    );
-    const { uc } = make([
-      log("l1", "u1", { gameId: "gx", visibility: "private", status: "draft" }),
-      ...privs,
-    ]);
-    const result = await uc.execute({
-      userId: "u1",
-      logId: "l1",
-      kifu: edited,
-      status: "complete",
-    });
-    expect(result).toEqual({ ok: false, reason: "private_limit" });
-  });
-
-  it("有料は下書き無制限（complete→draft でも通る）", async () => {
-    const drafts = Array.from({ length: 8 }, (_, i) => log(`d${i}`, "u1", { status: "draft" }));
-    const { uc } = make([log("l1", "u1", { status: "complete" }), ...drafts], "pro");
-    const result = await uc.execute({ userId: "u1", logId: "l1", kifu: edited, status: "draft" });
-    expect(result).toEqual({ ok: true });
   });
 });

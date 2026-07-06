@@ -13,6 +13,7 @@ import { DeleteGame } from "./application/delete-game.usecase";
 import { DeleteKifu } from "./application/delete-kifu.usecase";
 import { UpdateGame } from "./application/update-game.usecase";
 import { UpdateGameRules } from "./application/update-game-rules.usecase";
+import { UpdateGameStatus } from "./application/update-game-status.usecase";
 import { UpdateGameVisibility } from "./application/update-game-visibility.usecase";
 import { GetGameWithLogs } from "./application/get-game-with-logs.usecase";
 import { GetKifu } from "./application/get-kifu.usecase";
@@ -56,6 +57,7 @@ export interface AppContainer {
   updateGame: UpdateGame;
   updateGameRules: UpdateGameRules;
   updateGameVisibility: UpdateGameVisibility;
+  updateGameStatus: UpdateGameStatus;
   createEmptyKifu: CreateEmptyKifu;
   listGames: ListGames;
   listMyGamesWithCounts: ListMyGamesWithCounts;
@@ -148,12 +150,13 @@ export function buildContainer(env: Env): AppContainer {
     }),
     getKifu: new GetKifu(gameLogs),
     listKifu: new ListKifu(gameLogs),
-    updateKifu: new UpdateKifu(gameLogs, users),
+    updateKifu: new UpdateKifu(gameLogs),
     deleteKifu: new DeleteKifu(gameLogs),
     deleteGame: new DeleteGame(gamesRepo, gameLogs),
     updateGame: new UpdateGame(gamesRepo),
     updateGameRules: new UpdateGameRules(gamesRepo, gameLogs),
     updateGameVisibility: new UpdateGameVisibility(gamesRepo, gameLogs, users),
+    updateGameStatus: new UpdateGameStatus(gamesRepo, gameLogs, users),
     createEmptyKifu: new CreateEmptyKifu({ games: gamesRepo, gameLogs, users, now, newId }),
     listGames: new ListGames(gamesRepo),
     listMyGamesWithCounts: new ListMyGamesWithCounts(gamesRepo, gameLogs),

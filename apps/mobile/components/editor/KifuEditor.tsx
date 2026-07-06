@@ -1,5 +1,4 @@
 import { SeatSchema, type Kifu, type Seat, type Tile } from "@rigel/schema";
-import type { KifuStatus } from "@rigel/client";
 import {
   addHandTile,
   addMeld,
@@ -28,6 +27,7 @@ import { Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } fr
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { colors, radius } from "../../lib/theme";
 import { BoardTable } from "../BoardTable";
+import { RoundPicker } from "../RoundPicker";
 import { AgariForm } from "./AgariForm";
 import { DrawForm } from "./DrawForm";
 import { MiniTile } from "../MiniTile";
@@ -63,22 +63,20 @@ const MELD_LABELS: { type: MeldAddType; label: string }[] = [
  */
 export function KifuEditor({
   initialKifu,
-  seq,
-  initialStatus,
+  initialSeq,
   saving = false,
   onSave,
 }: {
   initialKifu: Kifu;
-  /** 局順（1始まり）。局名表示に使う。 */
-  seq: number;
-  initialStatus: KifuStatus;
+  /** 局順（東一局=1〜北四局=16）。編集して onSave で返す。 */
+  initialSeq: number;
   saving?: boolean;
-  onSave: (kifu: Kifu, status: KifuStatus) => void;
+  onSave: (kifu: Kifu, seq: number) => void;
 }) {
   const [kifu, setKifu] = useState(initialKifu);
+  const [seq, setSeq] = useState(initialSeq);
   const [seat, setSeat] = useState<Seat>(initialKifu.cameraBottomSeat ?? "east");
   const [picker, setPicker] = useState<Picker>(null);
-  const [status, setStatus] = useState<KifuStatus>(initialStatus);
   // 盤面（席ごと）/ 手順（タイムライン）の編集モード。web の 盤面/手順 タブと同等。
   const [mode, setMode] = useState<"board" | "timeline">("board");
   // 盤面プレビュー（編集を即時反映。席タップで編集対象を切替）。
@@ -174,10 +172,11 @@ export function KifuEditor({
   return (
     <View style={styles.root}>
       <ScrollView contentContainerStyle={styles.body}>
-        {/* 局メタ: 局名 */}
+        {/* 局メタ: 局名（編集可能。半荘内の好きな局として保存できる）。 */}
         <View style={styles.metaRow}>
           <Text style={styles.round}>{roundNameForSeq(seq)}</Text>
         </View>
+        <RoundPicker value={seq} onChange={setSeq} />
         <View style={styles.segRow}>
           <Text style={styles.metaLabel}>親</Text>
           <Segment
@@ -407,22 +406,13 @@ export function KifuEditor({
         ) : null}
       </ScrollView>
 
-      {/* 保存バー（ホームインジケータぶんの下余白を足す） */}
+      {/* 保存バー（ホームインジケータぶんの下余白を足す）。
+          下書き/編集済は半荘単位のため、切替は半荘詳細（局一覧）で行う。 */}
       <View style={[styles.saveBar, { paddingBottom: Math.max(12, insets.bottom + 8) }]}>
-        <Segment
-          options={
-            [
-              ["draft", "下書き"],
-              ["complete", "編集済"],
-            ] as const
-          }
-          value={status}
-          onChange={setStatus}
-        />
         <Pressable
-          style={[styles.saveBtn, saving && styles.saveDisabled]}
+          style={[styles.saveBtn, styles.saveBtnWide, saving && styles.saveDisabled]}
           disabled={saving}
-          onPress={() => onSave(kifu, status)}
+          onPress={() => onSave(kifu, seq)}
           accessibilityRole="button"
         >
           <Text style={styles.saveText}>{saving ? "保存中…" : "保存"}</Text>
@@ -602,6 +592,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 26,
   },
+  saveBtnWide: { flex: 1, alignItems: "center" },
   saveDisabled: { opacity: 0.5 },
   saveText: { color: "#16181d", fontWeight: "800", fontSize: 14 },
 });
