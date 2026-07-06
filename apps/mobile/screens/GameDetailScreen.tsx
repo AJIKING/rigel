@@ -1,14 +1,14 @@
 import { useFocusEffect, useNavigation, useRoute, type RouteProp } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import type { Visibility } from "@rigel/client";
-import { collectReviewItems, roundNameForSeq, LIMIT_MESSAGES } from "@rigel/ui";
+import { collectReviewItems, resultLabel, roundNameForSeq, LIMIT_MESSAGES } from "@rigel/ui";
 import { useCallback, useState } from "react";
 import { FlatList, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { CenterState } from "../components/CenterState";
 import { DangerButton } from "../components/DangerButton";
 import { RulesSheet } from "../components/editor/RulesSheet";
 import { Segment } from "../components/Segment";
-import { deleteGame, setGameVisibility, updateGame, updateGameRules } from "../lib/api";
+import { deleteGame, deleteKifu, setGameVisibility, updateGame, updateGameRules } from "../lib/api";
 import { useAuth } from "../lib/auth";
 import { confirmDestructive } from "../lib/confirm";
 import { fmtDate } from "../lib/format";
@@ -82,6 +82,20 @@ export function GameDetailScreen() {
     updateGameRules(token, gameId, rules)
       .then((res) => (res.ok ? refetch() : setNote("ルールの保存に失敗しました")))
       .catch(() => setNote("通信に失敗しました"));
+  }
+
+  /** 局を1つ削除する（確認つき。最後の1局は消せない）。局の削除はこの一覧からだけ行う。 */
+  function onDeleteKyoku(logId: string, seq: number) {
+    if (!token) return;
+    confirmDestructive({
+      title: `${roundNameForSeq(seq)}を削除しますか？`,
+      message: "元に戻せません。",
+      onConfirm: () => {
+        deleteKifu(token, logId)
+          .then((res) => (res.ok ? refetch() : setNote("削除に失敗しました")))
+          .catch(() => setNote("通信に失敗しました"));
+      },
+    });
   }
 
   /** 半荘を配下の全局ごと削除する（確認ダイアログつき。成功で一覧へ戻る）。 */
@@ -189,6 +203,7 @@ export function GameDetailScreen() {
         contentContainerStyle={{ gap: 8, padding: 12 }}
         renderItem={({ item }) => {
           const reviews = collectReviewItems(item.kifu).length;
+          const canDelete = detail.logs.length > 1;
           return (
             <Pressable
               style={styles.card}
@@ -196,7 +211,7 @@ export function GameDetailScreen() {
             >
               <Text style={styles.localTitle}>
                 {roundNameForSeq(item.seq)}{" "}
-                <Text style={styles.result}>{item.kifu.result ?? "—"}</Text>
+                <Text style={styles.result}>{resultLabel(item.kifu.result)}</Text>
               </Text>
               <View style={styles.cardRight}>
                 {reviews > 0 ? <Text style={styles.review}>要確認 {reviews}</Text> : null}
@@ -208,6 +223,16 @@ export function GameDetailScreen() {
                   hitSlop={8}
                 >
                   <Text style={styles.edit}>編集 ›</Text>
+                </Pressable>
+                {/* 局の削除はこの一覧から（編集画面には置かない）。最後の1局は不可。 */}
+                <Pressable
+                  onPress={() => onDeleteKyoku(item.id, item.seq)}
+                  disabled={!canDelete}
+                  accessibilityRole="button"
+                  accessibilityLabel={`第${item.seq}局を削除`}
+                  hitSlop={8}
+                >
+                  <Text style={[styles.del, !canDelete && styles.delOff]}>✕</Text>
                 </Pressable>
               </View>
             </Pressable>
@@ -244,7 +269,14 @@ const styles = StyleSheet.create({
   titleCancel: { color: colors.w45, fontWeight: "700", fontSize: 13 },
   date: { color: colors.w45, fontSize: 12, marginTop: 2 },
   visRow: { marginTop: 10, alignSelf: "flex-start" },
-  headActions: { flexDirection: "row", marginTop: 10 },
+  // ボタン3つは狭い画面・大きめ文字で1行に収まらないことがあるため折返しを許可する。
+  headActions: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    alignItems: "center",
+    gap: 8,
+    marginTop: 10,
+  },
   addBtn: {
     paddingVertical: 9,
     paddingHorizontal: 16,
@@ -255,7 +287,6 @@ const styles = StyleSheet.create({
   },
   addBtnText: { color: colors.accent, fontWeight: "800", fontSize: 13 },
   rulesBtn: {
-    marginLeft: 8,
     paddingVertical: 9,
     paddingHorizontal: 14,
     borderRadius: 8,
@@ -282,4 +313,6 @@ const styles = StyleSheet.create({
   preview: { color: colors.w70, fontSize: 12.5, fontWeight: "700" },
   cardRight: { flexDirection: "row", alignItems: "center", gap: 14 },
   edit: { color: colors.accent, fontSize: 12.5, fontWeight: "700" },
+  del: { color: colors.vermilion, fontSize: 14, fontWeight: "800" },
+  delOff: { color: colors.line },
 });

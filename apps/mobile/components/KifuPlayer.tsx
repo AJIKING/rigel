@@ -212,10 +212,27 @@ export function KifuPlayer({
             <Text style={styles.h3}>局情報</Text>
             <KV k="親" v={`${windOf(dealer, dealer)}家`} />
             <View style={styles.kv}>
-              <Text style={styles.kvK}>ドラ / 裏</Text>
+              <Text style={styles.kvK}>ドラ</Text>
               <View style={styles.kvTiles}>
-                <MiniTile code={kifu.meta.dora} w={20} h={28} />
-                <MiniTile code={kifu.meta.uraDora} w={20} h={28} />
+                {kifu.meta.dora.length === 0 ? (
+                  <Text style={styles.kvV}>—</Text>
+                ) : (
+                  kifu.meta.dora.map((t, i) => (
+                    <MiniTile key={`${t}-${i}`} code={t} w={20} h={28} />
+                  ))
+                )}
+              </View>
+            </View>
+            <View style={styles.kv}>
+              <Text style={styles.kvK}>裏ドラ</Text>
+              <View style={styles.kvTiles}>
+                {kifu.meta.uraDora.length === 0 ? (
+                  <Text style={styles.kvV}>—</Text>
+                ) : (
+                  kifu.meta.uraDora.map((t, i) => (
+                    <MiniTile key={`${t}-${i}`} code={t} w={20} h={28} />
+                  ))
+                )}
               </View>
             </View>
             <KV k="本場 / 供託" v={`${kifu.meta.honba}本場 / ${kifu.meta.kyotaku}`} />

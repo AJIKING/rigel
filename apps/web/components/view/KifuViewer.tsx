@@ -64,18 +64,18 @@ function ViewTile({
 }
 
 /** 局情報のドラ/裏ドラ1行（牌があれば小牌グリフ、無ければ —）。 */
-function DoraRow({ label, code }: { label: string; code: Tile | null }) {
+function DoraRow({ label, codes }: { label: string; codes: Tile[] }) {
   return (
     <div className={s.irow}>
       <span>{label}</span>
       <b>
-        {code ? (
-          <span className={s.metaTile}>
-            <OssTileFace code={code} />
-          </span>
-        ) : (
-          "—"
-        )}
+        {codes.length > 0
+          ? codes.map((code, i) => (
+              <span className={s.metaTile} key={`${code}-${i}`}>
+                <OssTileFace code={code} />
+              </span>
+            ))
+          : "—"}
       </b>
     </div>
   );
@@ -499,12 +499,12 @@ export function KifuViewer({ detail, gameId }: { detail: PublicGameDetail; gameI
                 <span>供託</span>
                 <b>{kifu.meta.kyotaku}本</b>
               </div>
-              <DoraRow label="ドラ" code={kifu.meta.dora} />
+              <DoraRow label="ドラ" codes={kifu.meta.dora} />
               <div className={s.irow}>
                 <span>結果</span>
                 <b>{resultLabel(kifu.result)}</b>
               </div>
-              {isWin && <DoraRow label="裏ドラ" code={kifu.meta.uraDora} />}
+              {isWin && <DoraRow label="裏ドラ" codes={kifu.meta.uraDora} />}
               <p className={s.muted}>点数は記録しません。</p>
             </div>
 

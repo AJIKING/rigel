@@ -77,22 +77,22 @@ describe("CreateEmptyKifu", () => {
       userId: "u1",
       gameId: "g1",
       cameraBottomSeat: "east",
-      meta: { honba: 2, kyotaku: 1, dora: "3p", junme: 9 },
+      meta: { honba: 2, kyotaku: 1, dora: ["3p"], junme: 9 },
     });
     expect(result.ok).toBe(true);
     if (result.ok) {
       const log = await gameLogs.findById(result.logId);
-      expect(log?.kifu.meta).toMatchObject({ honba: 2, kyotaku: 1, dora: "3p", junme: 9 });
+      expect(log?.kifu.meta).toMatchObject({ honba: 2, kyotaku: 1, dora: ["3p"], junme: 9 });
     }
   });
 
-  it("局メタ省略時は既定(0/0/null/1)で作る", async () => {
+  it("局メタ省略時は既定(0/0/[]/1)で作る", async () => {
     const { uc, gameLogs } = make({ games: [game("g1", "u1")] });
     const result = await uc.execute({ userId: "u1", gameId: "g1", cameraBottomSeat: "east" });
     expect(result.ok).toBe(true);
     if (result.ok) {
       const log = await gameLogs.findById(result.logId);
-      expect(log?.kifu.meta).toMatchObject({ honba: 0, kyotaku: 0, dora: null, junme: 1 });
+      expect(log?.kifu.meta).toMatchObject({ honba: 0, kyotaku: 0, dora: [], junme: 1 });
     }
   });
 

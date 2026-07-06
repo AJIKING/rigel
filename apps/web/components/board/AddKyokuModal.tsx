@@ -69,7 +69,8 @@ export function AddKyokuModal({
     setBusy(true);
     setError(null);
     try {
-      const meta = { honba, kyotaku, dora };
+      // ドラは複数枚スキーマ（作成時は1枚だけ選べる。追加はエディタで）。
+      const meta = { honba, kyotaku, dora: dora ? [dora] : [] };
       const result = gameId
         ? await createEmptyKifuAction(gameId, seat, meta)
         : await createGameAction(seat, meta);

@@ -67,6 +67,28 @@ export function applyResultMode(kifu: Kifu, mode: ResultMode, dealer: Seat): Kif
   });
 }
 
+// ------------------------------------------------------------
+// ドラ/裏ドラ（複数枚＝カンで増える。最大5）。web/mobile のエディタが共有する。
+// ------------------------------------------------------------
+
+export type DoraKind = "dora" | "uraDora";
+
+/** ドラ表示牌を追加（index 省略時）または index の1枚を差し替える。
+ *  最大5枚（スキーマ検証）を超える追加は例外＝呼び出し側で length<5 をガードする。 */
+export function setDoraTile(kifu: Kifu, kind: DoraKind, tile: Tile, index?: number): Kifu {
+  return mutateKifu(kifu, (d) => {
+    if (index === undefined) d.meta[kind].push(tile);
+    else d.meta[kind][index] = tile;
+  });
+}
+
+/** ドラ表示牌を1枚取り除く。 */
+export function removeDoraTile(kifu: Kifu, kind: DoraKind, index: number): Kifu {
+  return mutateKifu(kifu, (d) => {
+    d.meta[kind].splice(index, 1);
+  });
+}
+
 /** 手牌に1枚追加する（確定扱い）。 */
 export function addHandTile(kifu: Kifu, seat: Seat, tile: Tile): Kifu {
   const d = clone(kifu);

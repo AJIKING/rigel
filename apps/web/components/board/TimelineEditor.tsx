@@ -153,7 +153,9 @@ export function TimelineEditor({
           <p className={s.empty}>まだ打牌がありません。「＋打牌」で追加してください。</p>
         )}
         {timeline.map((e, i) => {
-          const showTurn = e.kind === "discard" && e.seat === dealer;
+          // 巡目見出しは「先頭」または「巡目が変わる位置」に出す。親の打牌位置基準だと
+          // 並替で親の打牌より上に行が来たとき「1巡目より前」に見える領域ができるため。
+          const showTurn = i === 0 || turns[i] !== turns[i - 1];
           return (
             <div key={i}>
               {showTurn && (

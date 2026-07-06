@@ -6,7 +6,9 @@ import {
   applyTileEdit,
   deriveWinResult,
   mutateKifu,
+  removeDoraTile,
   resultModeOf,
+  setDoraTile,
   visibilityLabel,
   LIMIT_MESSAGES,
   type TileLocation,
@@ -50,22 +52,58 @@ function GateShell({ children }: { children?: React.ReactNode }) {
   );
 }
 
-/** 局情報のドラ/裏ドラ1行（ラベル＋牌ピッカーを開くボタン）。 */
+/** 局情報のドラ/裏ドラ1行（複数枚）。牌クリックで変更、✕で削除、＋で追加（最大5枚）。 */
 function DoraNavRow({
   label,
-  code,
+  tiles,
   onOpen,
+  onRemove,
 }: {
   label: string;
-  code: Tile | null;
-  onOpen: (e: React.MouseEvent) => void;
+  tiles: Tile[];
+  /** index あり=その1枚の変更、無し=追加。 */
+  onOpen: (e: React.MouseEvent, index?: number) => void;
+  onRemove: (index: number) => void;
 }) {
   return (
     <div className={s.steprow}>
       <span className={s.stlabel}>{label}</span>
-      <button className={s.doraPick} aria-label={`${label}を選ぶ`} onClick={onOpen}>
-        <DoraGlyph code={code} />
-      </button>
+      <span style={{ display: "flex", flexWrap: "wrap", gap: 4, alignItems: "center" }}>
+        {tiles.map((t, i) => (
+          <span key={`${t}-${i}`} style={{ display: "inline-flex", alignItems: "center" }}>
+            <button
+              className={s.doraPick}
+              aria-label={`${label}${i + 1}を変更`}
+              onClick={(e) => onOpen(e, i)}
+            >
+              <DoraGlyph code={t} />
+            </button>
+            <button
+              aria-label={`${label}${i + 1}を削除`}
+              onClick={() => onRemove(i)}
+              style={{
+                background: "none",
+                border: "none",
+                color: "var(--vermilion)",
+                cursor: "pointer",
+                fontSize: 12,
+                padding: "0 2px",
+              }}
+            >
+              ✕
+            </button>
+          </span>
+        ))}
+        {tiles.length < 5 && (
+          <button
+            className={s.doraPick}
+            aria-label={`${label}を追加`}
+            onClick={(e) => onOpen(e, undefined)}
+          >
+            <DoraGlyph code={null} />
+          </button>
+        )}
+      </span>
     </div>
   );
 }
@@ -185,10 +223,9 @@ function Editor(p: EditorProps) {
   const bottomSeat: Seat = kifu.cameraBottomSeat ?? "east";
   const dealer: Seat = kifu.meta.dealer ?? bottomSeat;
 
-  // 局メタ（本場/供託/最終巡目/ドラ/裏ドラ）は kifu.meta から読み、変更は mutate で書き戻して保存に乗せる。
+  // 局メタ（本場/供託/ドラ/裏ドラ）は kifu.meta から読み、変更は mutate で書き戻して保存に乗せる。
   const honba = kifu.meta.honba;
   const kyotaku = kifu.meta.kyotaku;
-  const junme = kifu.meta.junme;
   const dora = kifu.meta.dora;
   const uraDora = kifu.meta.uraDora;
   const setMeta =
@@ -199,9 +236,6 @@ function Editor(p: EditorProps) {
       });
   const setHonba = setMeta("honba");
   const setKyotaku = setMeta("kyotaku");
-  const setJunme = setMeta("junme");
-  const setDora = setMeta("dora");
-  const setUraDora = setMeta("uraDora");
 
   const [sel, setSel] = useState<Selection>(null);
   const [pop, setPop] = useState<{ x: number; y: number } | null>(null);
@@ -271,10 +305,11 @@ function Editor(p: EditorProps) {
     setMeldType("none");
     setPop(popAnchor((e.currentTarget as HTMLElement).getBoundingClientRect()));
   }
-  function openDoraPicker(e: React.MouseEvent, kind: "dora" | "uradora") {
+  function openDoraPicker(e: React.MouseEvent, kind: "dora" | "uradora", index?: number) {
     e.stopPropagation();
-    const cur = kind === "dora" ? dora : uraDora;
-    setSel({ kind });
+    const tiles = kind === "dora" ? dora : uraDora;
+    const cur = index !== undefined ? tiles[index] : tiles[tiles.length - 1];
+    setSel({ kind, index });
     setSuit((cur?.[1] as Suit) ?? "z");
     setMeldType("none");
     setPop(popAnchor((e.currentTarget as HTMLElement).getBoundingClientRect()));
@@ -293,13 +328,9 @@ function Editor(p: EditorProps) {
 
   function applyTile(code: Tile) {
     if (!sel) return;
-    if (sel.kind === "dora") {
-      setDora(code);
-      closePop();
-      return;
-    }
-    if (sel.kind === "uradora") {
-      setUraDora(code);
+    if (sel.kind === "dora" || sel.kind === "uradora") {
+      // index あり=その1枚を差し替え、無し=追加（複数ドラ＝カン対応。@rigel/ui の共有純関数）。
+      setKifu(setDoraTile(kifu, sel.kind === "dora" ? "dora" : "uraDora", code, sel.index));
       closePop();
       return;
     }
@@ -626,14 +657,7 @@ function Editor(p: EditorProps) {
                       </select>
                     </div>
                   </div>
-                  <Stepper
-                    label="最終巡目"
-                    unit="巡"
-                    value={junme}
-                    min={1}
-                    max={30}
-                    set={setJunme}
-                  />
+                  {/* 最終巡目の入力は撤去（記録のみで不要。mobile と同一方針）。 */}
                   <Stepper label="本場" unit="本場" value={honba} min={0} max={19} set={setHonba} />
                   <Stepper
                     label="供託"
@@ -643,11 +667,17 @@ function Editor(p: EditorProps) {
                     max={9}
                     set={setKyotaku}
                   />
-                  <DoraNavRow label="ドラ" code={dora} onOpen={(e) => openDoraPicker(e, "dora")} />
+                  <DoraNavRow
+                    label="ドラ"
+                    tiles={dora}
+                    onOpen={(e, i) => openDoraPicker(e, "dora", i)}
+                    onRemove={(i) => setKifu(removeDoraTile(kifu, "dora", i))}
+                  />
                   <DoraNavRow
                     label="裏ドラ"
-                    code={uraDora}
-                    onOpen={(e) => openDoraPicker(e, "uradora")}
+                    tiles={uraDora}
+                    onOpen={(e, i) => openDoraPicker(e, "uradora", i)}
+                    onRemove={(i) => setKifu(removeDoraTile(kifu, "uraDora", i))}
                   />
                 </div>
               )}

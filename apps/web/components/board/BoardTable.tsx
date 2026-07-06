@@ -28,7 +28,7 @@ export interface BoardTableProps {
   honba: number;
   kyotaku: number;
   round: string;
-  dora: Tile | null;
+  dora: Tile[];
   onOpenEdit: (e: React.MouseEvent, loc: TileLocation, code: Tile | null) => void;
   onOpenAdd: (e: React.MouseEvent, seat: Seat, area: "hand" | "river") => void;
 }
@@ -55,7 +55,11 @@ export function BoardTable(p: BoardTableProps) {
               </div>
             )}
             <div className={s.dora}>
-              <DoraGlyph code={p.dora} />
+              {p.dora.length === 0 ? (
+                <DoraGlyph code={null} />
+              ) : (
+                p.dora.map((t, i) => <DoraGlyph key={`${t}-${i}`} code={t} />)
+              )}
             </div>
           </div>
 

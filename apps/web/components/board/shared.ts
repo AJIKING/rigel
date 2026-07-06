@@ -5,8 +5,9 @@ import { type TileLocation } from "@rigel/ui";
 export type Selection =
   | { kind: "edit"; loc: TileLocation }
   | { kind: "add"; seat: Seat; area: "hand" | "river" }
-  | { kind: "dora" }
-  | { kind: "uradora" }
+  // ドラ/裏ドラは複数枚（カンで増える）。index あり=その1枚を変更、無し=追加。
+  | { kind: "dora"; index?: number }
+  | { kind: "uradora"; index?: number }
   | null;
 
 /** TileLocation を一意なキー文字列に。選択中/フラッシュ中の牌の一致判定に使う。 */

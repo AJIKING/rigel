@@ -166,10 +166,12 @@ export function BoardTable({
           {kifu.meta.honba > 0 ? <Text style={styles.sub}>{kifu.meta.honba}本場</Text> : null}
         </View>
         {kifu.meta.kyotaku > 0 ? <Text style={styles.sub}>供託 {kifu.meta.kyotaku}本</Text> : null}
-        {kifu.meta.dora ? (
+        {kifu.meta.dora.length > 0 ? (
           <View style={styles.dora}>
             <Text style={styles.doraLbl}>ドラ</Text>
-            <MiniTile code={kifu.meta.dora} w={B * 0.05} h={B * 0.07} />
+            {kifu.meta.dora.map((t, i) => (
+              <MiniTile key={`${t}-${i}`} code={t} w={B * 0.05} h={B * 0.07} />
+            ))}
           </View>
         ) : null}
       </View>

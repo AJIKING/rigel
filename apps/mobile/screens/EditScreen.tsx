@@ -1,25 +1,19 @@
-import { useNavigation, useRoute, type RouteProp } from "@react-navigation/native";
-import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
+import { useRoute, type RouteProp } from "@react-navigation/native";
 import { LIMIT_MESSAGES } from "@rigel/ui";
 import { useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { CenterState } from "../components/CenterState";
-import { DangerButton } from "../components/DangerButton";
 import { KifuEditor } from "../components/editor/KifuEditor";
-import { deleteKifu, updateKifu } from "../lib/api";
+import { updateKifu } from "../lib/api";
 import { useAuth } from "../lib/auth";
-import { confirmDestructive } from "../lib/confirm";
 import type { RootStackParamList } from "../lib/navigation";
 import { colors } from "../lib/theme";
 import { useGame } from "../lib/use-kifu-data";
 
-type Nav = NativeStackNavigationProp<RootStackParamList, "Edit">;
-
-/** 牌譜の編集画面（手入力）。取得・保存・局削除を担い、編集本体は KifuEditor。
- *  公開/非公開は局ごとに選ばず半荘単位（半荘詳細画面で切り替える）。 */
+/** 牌譜の編集画面（手入力）。取得・保存を担い、編集本体は KifuEditor。
+ *  公開/非公開は半荘単位（半荘詳細で切替）、局の削除も半荘詳細の一覧から行う。 */
 export function EditScreen() {
   const { gameId, logId } = useRoute<RouteProp<RootStackParamList, "Edit">>().params;
-  const nav = useNavigation<Nav>();
   const { token } = useAuth();
   const { loading, detail } = useGame(gameId);
   const [saving, setSaving] = useState(false);
@@ -28,21 +22,6 @@ export function EditScreen() {
   if (loading) return <CenterState loading />;
   const log = detail?.logs.find((l) => l.id === logId);
   if (!detail || !log) return <CenterState message="牌譜が見つかりませんでした。" />;
-
-  const canDelete = detail.logs.length > 1;
-
-  function onDelete() {
-    if (!token || !canDelete) return;
-    confirmDestructive({
-      title: "この局を削除しますか？",
-      message: "元に戻せません。",
-      onConfirm: () => {
-        deleteKifu(token, logId)
-          .then((res) => (res.ok ? nav.goBack() : setNote("削除に失敗しました")))
-          .catch(() => setNote("通信に失敗しました"));
-      },
-    });
-  }
 
   function onSave(
     kifu: Parameters<typeof updateKifu>[2],
@@ -65,13 +44,9 @@ export function EditScreen() {
   return (
     <View style={styles.root}>
       <View style={styles.toolbar}>
-        <Text style={styles.title}>{detail.game.title || "（無題の半荘）"}</Text>
-        <DangerButton
-          label="削除"
-          a11yLabel="この局を削除"
-          disabled={!canDelete}
-          onPress={onDelete}
-        />
+        <Text style={styles.title} numberOfLines={1}>
+          {detail.game.title || "（無題の半荘）"}
+        </Text>
       </View>
       {note ? <Text style={styles.note}>{note}</Text> : null}
       <KifuEditor
@@ -87,14 +62,8 @@ export function EditScreen() {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.bg },
-  toolbar: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    paddingHorizontal: 14,
-    paddingTop: 10,
-  },
-  title: { flex: 1, color: colors.w70, fontSize: 13, fontWeight: "700" },
+  toolbar: { paddingHorizontal: 14, paddingTop: 10 },
+  title: { color: colors.w70, fontSize: 13, fontWeight: "700" },
   note: {
     color: colors.accent,
     fontSize: 12.5,

@@ -147,7 +147,9 @@ export function TimelineEditor({
 
       {timeline.map((e, i) => (
         <View key={i}>
-          {e.kind === "discard" && e.seat === dealer ? (
+          {/* 巡目見出しは「先頭」または「巡目が変わる位置」に出す。親の打牌位置基準だと
+              並替で親の打牌より上に行が来たとき「1巡目より前」に見える領域ができるため。 */}
+          {i === 0 || turns[i] !== turns[i - 1] ? (
             <Text style={styles.turn}>{turns[i]}巡目</Text>
           ) : null}
           <View style={[styles.row, e.kind === "meld" && styles.meldRow]}>

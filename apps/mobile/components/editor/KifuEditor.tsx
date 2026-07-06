@@ -8,10 +8,12 @@ import {
   applyTileEdit,
   deriveWinResult,
   mutateKifu,
+  removeDoraTile,
   removeHandTile,
   removeMeld,
   removeRiverTile,
   resultModeOf,
+  setDoraTile,
   roundNameForSeq,
   seatLabel,
   setDiscardFlags,
@@ -41,8 +43,9 @@ type Picker =
   | { kind: "add-meld"; meld: MeldAddType }
   | { kind: "edit-hand"; index: number; suit: PickerSuit }
   | { kind: "edit-river"; index: number; suit: PickerSuit }
-  | { kind: "dora" }
-  | { kind: "uradora" }
+  // ドラ/裏ドラは複数枚（カンで増える）。index あり=その1枚を変更/削除、無し=追加。
+  | { kind: "dora"; index?: number }
+  | { kind: "uradora"; index?: number }
   | null;
 
 // チー/ポンに加え、カンは種別（大明槓/暗槓/加槓）まで選べる（web の TilePickerPopup と同等）。
@@ -120,20 +123,23 @@ export function KifuEditor({
       setKifu(applyTileEdit(kifu, { seat, area: "hand", index: picker.index }, code));
     else if (picker.kind === "edit-river")
       setKifu(applyTileEdit(kifu, { seat, area: "river", index: picker.index }, code));
-    else if (picker.kind === "dora")
-      mutate((d) => {
-        d.meta.dora = code;
-      });
-    else if (picker.kind === "uradora")
-      mutate((d) => {
-        d.meta.uraDora = code;
-      });
+    else if (picker.kind === "dora" || picker.kind === "uradora") {
+      const kind = picker.kind === "dora" ? "dora" : "uraDora";
+      setKifu(setDoraTile(kifu, kind, code, picker.index));
+    }
     setPicker(null);
   }
 
   function onDelete() {
     if (picker?.kind === "edit-hand") setKifu(removeHandTile(kifu, seat, picker.index));
     else if (picker?.kind === "edit-river") setKifu(removeRiverTile(kifu, seat, picker.index));
+    else if (
+      (picker?.kind === "dora" || picker?.kind === "uradora") &&
+      picker.index !== undefined
+    ) {
+      const kind = picker.kind === "dora" ? "dora" : "uraDora";
+      setKifu(removeDoraTile(kifu, kind, picker.index));
+    }
     setPicker(null);
   }
 
@@ -156,9 +162,13 @@ export function KifuEditor({
         : picker.kind === "add-meld"
           ? `${MELD_LABELS.find((m) => m.type === picker.meld)?.label}を追加`
           : picker.kind === "dora"
-            ? "ドラを選ぶ"
+            ? picker.index === undefined
+              ? "ドラを追加"
+              : "ドラを変更"
             : picker.kind === "uradora"
-              ? "裏ドラを選ぶ"
+              ? picker.index === undefined
+                ? "裏ドラを追加"
+                : "裏ドラを変更"
               : "牌を変更";
 
   return (
@@ -207,30 +217,19 @@ export function KifuEditor({
               })
             }
           />
-          {/* ドラ・裏ドラ（供託の下）。 */}
-          <View style={styles.doraRow}>
-            <Text style={styles.doraRowLabel}>ドラ / 裏ドラ</Text>
-            <View style={styles.doraCol}>
-              <Text style={styles.doraLbl}>ドラ</Text>
-              <Pressable
-                onPress={() => setPicker({ kind: "dora" })}
-                accessibilityRole="button"
-                accessibilityLabel="ドラを選ぶ"
-              >
-                <MiniTile code={kifu.meta.dora} w={26} h={36} />
-              </Pressable>
-            </View>
-            <View style={styles.doraCol}>
-              <Text style={styles.doraLbl}>裏</Text>
-              <Pressable
-                onPress={() => setPicker({ kind: "uradora" })}
-                accessibilityRole="button"
-                accessibilityLabel="裏ドラを選ぶ"
-              >
-                <MiniTile code={kifu.meta.uraDora} w={26} h={36} />
-              </Pressable>
-            </View>
-          </View>
+          {/* ドラ・裏ドラ（供託の下）。カンで増えるため複数枚（最大5）。牌タップで変更/削除、＋で追加。 */}
+          <DoraEdit
+            label="ドラ"
+            tiles={kifu.meta.dora}
+            onEdit={(index) => setPicker({ kind: "dora", index })}
+            onAdd={() => setPicker({ kind: "dora" })}
+          />
+          <DoraEdit
+            label="裏ドラ"
+            tiles={kifu.meta.uraDora}
+            onEdit={(index) => setPicker({ kind: "uradora", index })}
+            onAdd={() => setPicker({ kind: "uradora" })}
+          />
           {/* ルールは局ごとに持たず半荘単位。編集は半荘詳細画面（局一覧）で行う。 */}
         </View>
 
@@ -436,7 +435,11 @@ export function KifuEditor({
           initialSuit={
             picker.kind === "edit-hand" || picker.kind === "edit-river" ? picker.suit : "m"
           }
-          canDelete={picker.kind === "edit-hand" || picker.kind === "edit-river"}
+          canDelete={
+            picker.kind === "edit-hand" ||
+            picker.kind === "edit-river" ||
+            ((picker.kind === "dora" || picker.kind === "uradora") && picker.index !== undefined)
+          }
           discard={
             editingDiscard
               ? { riichi: editingDiscard.riichi, tsumogiri: editingDiscard.tsumogiri ?? false }
@@ -469,6 +472,47 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
   return <Text style={styles.section}>{children}</Text>;
 }
 
+/** ドラ/裏ドラの編集行（複数枚）。牌タップで変更/削除、＋で追加（最大5枚）。 */
+function DoraEdit({
+  label,
+  tiles,
+  onEdit,
+  onAdd,
+}: {
+  label: string;
+  tiles: Tile[];
+  onEdit: (index: number) => void;
+  onAdd: () => void;
+}) {
+  return (
+    <View style={styles.doraRow}>
+      <Text style={styles.doraRowLabel}>{label}</Text>
+      <View style={styles.doraTiles}>
+        {tiles.map((t, i) => (
+          <Pressable
+            key={`${t}-${i}`}
+            onPress={() => onEdit(i)}
+            accessibilityRole="button"
+            accessibilityLabel={`${label}${i + 1}を変更`}
+          >
+            <MiniTile code={t} w={26} h={36} />
+          </Pressable>
+        ))}
+        {tiles.length < 5 ? (
+          <Pressable
+            style={styles.doraAdd}
+            onPress={onAdd}
+            accessibilityRole="button"
+            accessibilityLabel={`${label}を追加`}
+          >
+            <Text style={styles.addText}>＋</Text>
+          </Pressable>
+        ) : null}
+      </View>
+    </View>
+  );
+}
+
 function AddButton({ label, onPress }: { label: string; onPress: () => void }) {
   return (
     <Pressable
@@ -487,10 +531,19 @@ const styles = StyleSheet.create({
   body: { padding: 14, paddingBottom: 24, gap: 8 },
   metaRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   round: { color: colors.white, fontSize: 17, fontWeight: "800" },
-  doraRow: { flexDirection: "row", alignItems: "flex-end", gap: 14 },
-  doraRowLabel: { color: colors.w70, fontSize: 13, flex: 1 },
-  doraCol: { alignItems: "center", gap: 3 },
-  doraLbl: { color: colors.w45, fontSize: 10, fontWeight: "700" },
+  doraRow: { flexDirection: "row", alignItems: "center", gap: 10 },
+  doraRowLabel: { color: colors.w70, fontSize: 13, width: 52 },
+  doraTiles: { flex: 1, flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: 5 },
+  doraAdd: {
+    width: 26,
+    height: 36,
+    borderRadius: 4,
+    borderWidth: 1,
+    borderStyle: "dashed",
+    borderColor: colors.w45,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   metaLabel: { color: colors.w45, fontSize: 12, fontWeight: "700", width: 24 },
   metaBox: {
     gap: 10,

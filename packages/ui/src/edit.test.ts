@@ -9,10 +9,12 @@ import {
   meldTiles,
   mutateKifu,
   NUMS,
+  removeDoraTile,
   removeHandTile,
   removeMeld,
   removeRiverTile,
   resultModeOf,
+  setDoraTile,
   setDiscardFlags,
   SUITS,
 } from "./edit";
@@ -90,6 +92,28 @@ describe("結果モード（resultModeOf / deriveWinResult / applyResultMode）"
     expect(next.result).toBeNull();
     expect(next.agari).toEqual([]);
     expect(next.tenpai).toEqual([]);
+  });
+});
+
+describe("setDoraTile / removeDoraTile（ドラは複数枚・最大5）", () => {
+  it("index 省略で追加、指定で差し替え、remove で1枚だけ取り除く", () => {
+    let k = setDoraTile(kifu(), "dora", "3p");
+    k = setDoraTile(k, "dora", "7s");
+    expect(k.meta.dora).toEqual(["3p", "7s"]);
+    k = setDoraTile(k, "dora", "1m", 0); // 1枚目を差し替え
+    expect(k.meta.dora).toEqual(["1m", "7s"]);
+    k = removeDoraTile(k, "dora", 0);
+    expect(k.meta.dora).toEqual(["7s"]);
+  });
+  it("裏ドラも同じ操作（uraDora キー）", () => {
+    const k = setDoraTile(kifu(), "uraDora", "5z");
+    expect(k.meta.uraDora).toEqual(["5z"]);
+    expect(k.meta.dora).toEqual([]); // 表は不変
+  });
+  it("6枚目の追加はスキーマ検証で例外（最大5）", () => {
+    let k = kifu();
+    for (const t of ["1m", "2m", "3m", "4m", "5m"] as const) k = setDoraTile(k, "dora", t);
+    expect(() => setDoraTile(k, "dora", "6m")).toThrow();
   });
 });
 

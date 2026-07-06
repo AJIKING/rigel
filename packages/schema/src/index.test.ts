@@ -138,8 +138,8 @@ describe("KifuSchema（牌譜1件の最終検証）", () => {
     expect(kifu.meta).toMatchObject({
       honba: 0,
       kyotaku: 0,
-      dora: null,
-      uraDora: null,
+      dora: [],
+      uraDora: [],
       junme: 1,
     });
   });
@@ -147,9 +147,35 @@ describe("KifuSchema（牌譜1件の最終検証）", () => {
   it("局メタを指定すると保持する（記録のみ・点数計算はしない）", () => {
     const kifu = KifuSchema.parse({
       ...minimalKifu,
-      meta: { honba: 2, kyotaku: 1, dora: "3p", uraDora: "5m", junme: 9 },
+      meta: { honba: 2, kyotaku: 1, dora: ["3p"], uraDora: ["5m"], junme: 9 },
     });
-    expect(kifu.meta).toMatchObject({ honba: 2, kyotaku: 1, dora: "3p", uraDora: "5m", junme: 9 });
+    expect(kifu.meta).toMatchObject({
+      honba: 2,
+      kyotaku: 1,
+      dora: ["3p"],
+      uraDora: ["5m"],
+      junme: 9,
+    });
+  });
+
+  it("ドラ/裏ドラは複数枚（カンで増える）を保持し、最大5枚まで", () => {
+    const kifu = KifuSchema.parse({
+      ...minimalKifu,
+      meta: { dora: ["3p", "7s"], uraDora: ["5m", "1z"] },
+    });
+    expect(kifu.meta.dora).toEqual(["3p", "7s"]);
+    expect(kifu.meta.uraDora).toEqual(["5m", "1z"]);
+    const over = KifuSchema.safeParse({
+      ...minimalKifu,
+      meta: { dora: ["1m", "2m", "3m", "4m", "5m", "6m"] }, // 6枚は不可
+    });
+    expect(over.success).toBe(false);
+  });
+
+  it("旧データの単一ドラ（Tile / null）は配列へ移行する（後方互換）", () => {
+    const single = KifuSchema.parse({ ...minimalKifu, meta: { dora: "3p", uraDora: null } });
+    expect(single.meta.dora).toEqual(["3p"]);
+    expect(single.meta.uraDora).toEqual([]);
   });
 
   it("本場・供託は負値を、最終巡目は0以下を拒否する", () => {
@@ -223,7 +249,7 @@ describe("KifuSchema（牌譜1件の最終検証）", () => {
     expect(kifu.rules).toEqual(RULE_PRESETS.mleague);
     expect(kifu.agari).toEqual([]);
     expect(kifu.tenpai).toEqual([]); // 未指定は空（流局の聴牌者）
-    expect(kifu.meta).toMatchObject({ uraDora: null, kyotaku: 0, dora: null, junme: 1, honba: 1 });
+    expect(kifu.meta).toMatchObject({ uraDora: [], kyotaku: 0, dora: [], junme: 1, honba: 1 });
   });
 
   it("tenpai は聴牌者の席配列を保持する（流局の点数計算用）", () => {

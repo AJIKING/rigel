@@ -296,10 +296,21 @@ export const KifuSchema = z.object({
       honba: z.number().int().min(0).default(0),
       /** 供託（場に残るリーチ棒の本数）。 */
       kyotaku: z.number().int().min(0).default(0),
-      /** ドラ表示牌。未設定は null。点数計算はしないので表示・記録用。 */
-      dora: TileSchema.nullable().default(null),
-      /** 裏ドラ表示牌。リーチ和了時のみ意味を持つ。未設定は null。表示・記録用。 */
-      uraDora: TileSchema.nullable().default(null),
+      /** ドラ表示牌（複数枚＝カンで増える。最大5）。点数計算はしないので表示・記録用。
+       *  旧データの単一値（Tile / null）は配列へ移行する（後方互換）。 */
+      dora: z
+        .preprocess(
+          (v) => (v == null ? [] : Array.isArray(v) ? v : [v]),
+          z.array(TileSchema).max(5),
+        )
+        .default([]),
+      /** 裏ドラ表示牌（複数枚。リーチ和了時のみ意味を持つ）。表示・記録用。 */
+      uraDora: z
+        .preprocess(
+          (v) => (v == null ? [] : Array.isArray(v) ? v : [v]),
+          z.array(TileSchema).max(5),
+        )
+        .default([]),
       /** 最終巡目（スナップショット時点）。 */
       junme: z.number().int().min(1).default(1),
       note: z.string().default(""),
