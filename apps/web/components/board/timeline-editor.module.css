@@ -321,3 +321,8 @@
 .pcell:hover {
   border-color: var(--accent);
 }
+/* 現在の牌（編集対象に入っている牌）の選択表示。 */
+.pcell.on {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 45%, transparent);
+}

@@ -34,6 +34,23 @@ export interface TilePickerPopupProps {
  *  position:fixed で盤面の overflow に切られない前提（背後クリックで閉じるオーバーレイ込み）。 */
 export function TilePickerPopup(p: TilePickerPopupProps) {
   const { sel, kifu, meldType, bottomSeat, dealer, names } = p;
+
+  // 編集対象に現在入っている牌（グリッドの選択ハイライトに使う）。追加(add)時は無し。
+  const current: Tile | null = (() => {
+    if (sel?.kind === "edit") {
+      const { seat, area, index, meldIndex } = sel.loc;
+      const board = kifu.seats[seat];
+      if (area === "hand") return board.hand[index]?.tile ?? null;
+      if (area === "river") return board.river[index]?.tile ?? null;
+      return board.melds[meldIndex ?? 0]?.tiles[index]?.tile ?? null;
+    }
+    if (sel?.kind === "dora")
+      return sel.index !== undefined ? (kifu.meta.dora[sel.index] ?? null) : null;
+    if (sel?.kind === "uradora")
+      return sel.index !== undefined ? (kifu.meta.uraDora[sel.index] ?? null) : null;
+    return null;
+  })();
+
   return (
     <>
       <div
@@ -63,7 +80,12 @@ export function TilePickerPopup(p: TilePickerPopupProps) {
         </div>
         <div className={s.pgrid}>
           {NUMS[p.suit].map((code) => (
-            <button key={code} className={s.pk} onClick={() => p.onApplyTile(code)}>
+            <button
+              key={code}
+              className={`${s.pk} ${current === code ? s.pkOn : ""}`}
+              aria-pressed={current === code}
+              onClick={() => p.onApplyTile(code)}
+            >
               <span className={s.tile}>
                 <OssTileFace code={code} />
               </span>

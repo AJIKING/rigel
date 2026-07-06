@@ -63,6 +63,23 @@ export function TimelineEditor({
   const [pick, setPick] = useState<PickTarget | null>(null);
   const [pickSuit, setPickSuit] = useState<Suit>("m");
 
+  /** ピッカーの編集対象に現在入っている牌（選択ハイライトに使う）。 */
+  function currentOf(t: PickTarget): Tile | null {
+    const e = timeline[t.index];
+    if (!e) return null;
+    if (e.kind === "discard") return t.kind === "draw" ? e.draw : e.tile;
+    if (t.kind === "mtile") return e.meld.tiles[t.ti]?.tile ?? null;
+    return null;
+  }
+
+  /** ピッカーを開く。スートタブは現在の牌に合わせる（毎回萬に戻さない）。 */
+  function openPick(t: PickTarget) {
+    const cur = currentOf(t);
+    setPickSuit((cur?.[1] as Suit) ?? "m");
+    setPick(t);
+  }
+  const pickCurrent = pick ? currentOf(pick) : null;
+
   /** 新しい timeline を正典にして盤面を同期し、親へ返す。 */
   function commit(next: TimelineEvent[]) {
     onChange(syncSeatsFromTimeline(KifuSchema.parse({ ...kifu, timeline: next })));
@@ -185,14 +202,14 @@ export function TimelineEditor({
 
                 {e.kind === "discard" ? (
                   <>
-                    <button className={s.tp} onClick={() => setPick({ kind: "draw", index: i })}>
+                    <button className={s.tp} onClick={() => openPick({ kind: "draw", index: i })}>
                       <span className={s.lab}>ツモ</span>
                       <TileBox code={e.draw} />
                     </button>
                     <button
                       className={s.tp}
                       disabled={e.tsumogiri}
-                      onClick={() => setPick({ kind: "disc", index: i })}
+                      onClick={() => openPick({ kind: "disc", index: i })}
                     >
                       <span className={s.lab}>打</span>
                       <TileBox code={e.tile} />
@@ -241,7 +258,7 @@ export function TimelineEditor({
                         <button
                           key={ti}
                           className={s.mtileBtn}
-                          onClick={() => setPick({ kind: "mtile", index: i, ti })}
+                          onClick={() => openPick({ kind: "mtile", index: i, ti })}
                         >
                           <TileBox code={rt.tile} small />
                         </button>
@@ -291,7 +308,12 @@ export function TimelineEditor({
             </div>
             <div className={s.pgrid}>
               {NUMS[pickSuit].map((code) => (
-                <button key={code} className={s.pcell} onClick={() => onPick(code)}>
+                <button
+                  key={code}
+                  className={`${s.pcell} ${pickCurrent === code ? s.on : ""}`}
+                  aria-pressed={pickCurrent === code}
+                  onClick={() => onPick(code)}
+                >
                   <OssTileFace code={code} />
                 </button>
               ))}

@@ -102,6 +102,8 @@ function DoraNavRow({
             onClick={(e) => onOpen(e, undefined)}
           >
             <DoraGlyph code={null} />
+            {/* 牌の破線スロットだけだと気づきにくいので、未選択時はラベルも出す。 */}
+            {tiles.length === 0 && <span className={s.doraAddText}>＋ 選ぶ</span>}
           </button>
         )}
       </span>

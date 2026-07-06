@@ -53,7 +53,12 @@ export function BoardTile({
   );
 }
 
-/** ドラ/裏ドラ表示用の小さな牌グリフ（未設定なら空）。 */
+/** ドラ/裏ドラ表示用の小さな牌グリフ。
+ *  未選択(null)は破線の空スロットを出す（何も描かないと「無い」ことすら見えない）。 */
 export function DoraGlyph({ code }: { code: Tile | null }) {
-  return <span className={s.doraT}>{code && <OssTileFace code={code} />}</span>;
+  return (
+    <span className={`${s.doraT} ${code ? "" : s.doraEmpty}`}>
+      {code && <OssTileFace code={code} />}
+    </span>
+  );
 }
