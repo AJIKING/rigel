@@ -102,7 +102,7 @@ rigel/
     │   ├── src/interfaces/http/   #   Hono アプリ（app.ts=横断MW、routes/=account/games/kifu/billing）
     │   ├── src/eval/              #   AI精度の指標（accuracy.ts）
     │   └── drizzle.config.ts / migrations/  #   D1 マイグレーション
-    ├── web/     web               # Next.js (App Router)。/capture /kifu(一覧マイページ/公開) /kifu/[gameId]/[logId](盤面エディタ) /settings /u/[handle] /login
+    ├── web/     web               # Next.js (App Router)。/capture /kifu(一覧マイページ/公開) /kifu/[gameId]/[logId](盤面エディタ) /k/[gameId](公開ビューア・動的OGP=lib/og-meta+opengraph-image) /settings /u/[handle] /login
     └── mobile/  mobile            # Expo + react-navigation。Capture/GamesList/GameDetail/Board/Login
 ```
 

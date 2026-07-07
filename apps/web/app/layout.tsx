@@ -1,10 +1,14 @@
 import type { ReactNode } from "react";
 import { AuthProvider } from "../lib/auth-context";
+import { DEFAULT_DESCRIPTION, DEFAULT_TITLE, siteBaseUrl } from "../lib/og-meta";
 import "./theme.css";
 
+// metadataBase: /k/[gameId] の動的OGP（og:url・opengraph-image のURL）を
+// 絶対URLへ解決するための基準。既定は本番ドメイン（wrangler のカスタムドメイン）。
 export const metadata = {
-  title: "rigel — 麻雀牌譜",
-  description: "実物の麻雀卓を撮った写真から牌譜ドラフトを生成する",
+  metadataBase: new URL(siteBaseUrl()),
+  title: DEFAULT_TITLE,
+  description: DEFAULT_DESCRIPTION,
 };
 
 // アドレスバー等の配色（フェルト緑）。アイコン（favicon.ico / icon.svg /
