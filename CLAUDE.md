@@ -135,6 +135,10 @@ AI精度の実測 / UI共有手段 / カウンタ整合の原子化 / 認証実�
 ## 6. 開発環境メモ
 
 - OS: Windows 11 / シェルは PowerShell（主）と Bash（POSIX）。パスは環境に合わせる。
+- **罠**: web の `cf:build`（OpenNext）は next/og 使用時、pnpm の symlink 越しに実体
+  `node_modules/.../next/dist/compiled/@vercel/og/noto-sans-v27-latin-regular.ttf` を `.ttf.bin` に
+  リネームし、以後 `next dev` の OG 画像が ENOENT で落ちる。`.ttf.bin` を `.ttf` に**コピー**して復旧
+  （`.bin` は残す）。ローカル `cf:preview`/`wrangler dev` は Windows 非対応で全ルート500（本番は CI/Linux ビルドで問題なし）。
 - git 管理済み（`main` ブランチ）。M0（モノレポ土台）/ M1（`@rigel/schema`）構築済み。`api`/`ui` は土台のみ、`web`/`mobile` は未作成。
 - ツールチェーン：Node.js >= 20 / **pnpm 10**（workspace）/ turborepo / Vitest / **Jest(mobile=jest-expo + React Native Testing Library)** / ESLint / Prettier。Workers は wrangler（M5/M7 で本格導入）、モバイルは Expo（M5+）。
 - AI の鍵などの秘匿情報は `.env` / `.dev.vars`（読み取りは権限で deny 済み・コミットしない。雛形は `.env.example`）。AI 呼び出しは **AI Gateway 経由**。
