@@ -10,7 +10,6 @@ import {
   canSubmitProblemAnswer,
   choiceKeyLabel,
   problemHandMax,
-  problemOpponentHands,
   problemRiverTiles,
   problemRoundLabel,
   problemToKifu,
@@ -57,26 +56,6 @@ function makeProblem(): Problem {
 }
 
 describe("problemToKifu（盤面描画の再利用のための変換）", () => {
-  it("相手の手牌も理牌して写す（設定されている席のみ）", () => {
-    const p = ProblemSchema.parse({
-      schemaVersion: PROBLEM_SCHEMA_VERSION,
-      kind: "discard",
-      pov: "south",
-      drawn: "5p",
-      seats: {
-        east: { hand: [...HAND_13].reverse().map((t) => ({ tile: t, confidence: 1 })) },
-        south: { hand: HAND_13.map((t) => ({ tile: t, confidence: 1 })) },
-        west: {},
-        north: {},
-      },
-    });
-    const kifu = problemToKifu(p);
-    expect(kifu.seats.east.hand).toHaveLength(13);
-    // 東家の手は逆順で入れてあるが、理牌されて先頭が最小牌になる。
-    expect(kifu.seats.east.hand[0]?.tile).toBe("1m");
-    expect(kifu.seats.west.hand).toHaveLength(0);
-  });
-
   it("KifuSchema を通る牌譜になり、pov が手前・手牌は理牌される", () => {
     const kifu = problemToKifu(makeProblem());
     expect(kifu.schemaVersion).toBe("1.0.0");
@@ -230,20 +209,6 @@ describe("assembleProblem（編集状態→Problem の組み立て・検証。we
   it("scores が null なら点数状況なしで組み立てる", () => {
     expect(assembleProblem(draft({ scores: null })).problem?.scores).toBeNull();
   });
-
-  it("相手の手牌（opponentHands）を置ける。13枚整合でないとエラー", () => {
-    const { problem } = assembleProblem(
-      draft({ opponentHands: { east: [], south: [...HAND_13], west: [], north: [] } }),
-    );
-    expect(problem?.seats.south.hand.map((t) => t.tile)).toHaveLength(13);
-    // pov（east）の opponentHands は無視される（自分の手牌は draft.hand）。
-    expect(problem?.seats.east.hand).toHaveLength(13);
-
-    const bad = assembleProblem(
-      draft({ opponentHands: { east: [], south: HAND_13.slice(0, 3), west: [], north: [] } }),
-    );
-    expect(bad.error).toContain("相手の手牌");
-  });
 });
 
 describe("draftToKifu（編集途中の盤面プレビュー変換）", () => {
@@ -289,25 +254,6 @@ describe("problemHandMax / addDraftMeld / problemRiverTiles（編集画面の共
   it("problemRiverTiles は各席の河を牌配列へ写す（未指定は空）", () => {
     expect(problemRiverTiles()).toEqual({ east: [], south: [], west: [], north: [] });
     expect(problemRiverTiles(makeProblem()).west).toEqual(["5p"]);
-  });
-
-  it("problemOpponentHands は他家の手牌だけを牌配列へ写す（pov は空・未指定は空）", () => {
-    expect(problemOpponentHands()).toEqual({ east: [], south: [], west: [], north: [] });
-    const p = ProblemSchema.parse({
-      schemaVersion: PROBLEM_SCHEMA_VERSION,
-      kind: "call",
-      pov: "south",
-      targetSeat: "west",
-      seats: {
-        east: { hand: HAND_13.map((t) => ({ tile: t, confidence: 1 })) },
-        south: { hand: HAND_13.map((t) => ({ tile: t, confidence: 1 })) },
-        west: { river: [{ order: 1, tile: "5p", confidence: 1 }] },
-        north: {},
-      },
-    });
-    const opp = problemOpponentHands(p);
-    expect(opp.east).toHaveLength(13);
-    expect(opp.south).toEqual([]); // pov の分は含めない
   });
 });
 

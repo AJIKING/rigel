@@ -171,14 +171,13 @@ function AnswerBody({ post, token }: { post: ProblemPost; token: string | null }
       </Text>
 
       {/* 盤面（牌譜と同じ回転卓）。ドラ・本場・供託は BoardTable が卓中央に表示する。 */}
-      {/* showHands=true: 出題者が他家に手牌を設定した問題では表向きに見せる（未設定の席は手牌が空＝表示は変わらない）。 */}
       <View style={styles.boardWrap}>
         <BoardTable
           kifu={boardKifu}
           bottomSeat={pov}
           dealer={dealer ?? pov}
           roundLabel={roundLabel}
-          showHands
+          showHands={false}
           size={boardSize}
           highlightRiver={highlightRiver}
         />

@@ -14,7 +14,6 @@ import {
   compareTiles,
   draftToKifu,
   problemHandMax,
-  problemOpponentHands,
   problemRiverTiles,
   problemRoundLabel,
   seatLabel,
@@ -50,11 +49,7 @@ import { colors, radius } from "../lib/theme";
 type Nav = NativeStackNavigationProp<RootStackParamList, "ProblemEdit">;
 
 /** 牌ピッカーの入力先。null=閉じている。 */
-type Target =
-  "hand" | "drawn" | "dora" | `river:${Seat}` | `opphand:${Seat}` | `meld:${MeldPick}` | null;
-
-/** 相手の手牌の上限（副露編集なし＝13枚固定。web と同一）。 */
-const OPP_HAND_MAX = 13;
+type Target = "hand" | "drawn" | "dora" | `river:${Seat}` | `meld:${MeldPick}` | null;
 
 const MELD_PICKS: { type: MeldPick; label: string }[] = [
   { type: "pon", label: "副露:ポン" },
@@ -109,11 +104,6 @@ function EditorBody({ initial, token }: { initial?: ProblemPost; token: string |
   const [melds, setMelds] = useState<Meld[]>(p0 ? p0.seats[p0.pov].melds : []);
   const [drawn, setDrawn] = useState<Tile | null>(p0?.drawn ?? null);
   const [rivers, setRivers] = useState<Record<Seat, Tile[]>>(() => problemRiverTiles(p0));
-  // 相手の手牌（出題オプション。配牌何切る等、相手の手が重要でない問題では OFF）。
-  const [oppHands, setOppHands] = useState<Record<Seat, Tile[]>>(() => problemOpponentHands(p0));
-  const [oppOn, setOppOn] = useState(() =>
-    SEAT_ORDER.some((seat) => problemOpponentHands(p0)[seat].length > 0),
-  );
   const [dora, setDora] = useState<Tile[]>(p0?.meta.dora ?? []);
   const [targetSeat, setTargetSeat] = useState<Seat>(p0?.targetSeat ?? "south");
   const [roundWind, setRoundWind] = useState<Seat>(p0?.meta.roundWind ?? "east");
@@ -143,7 +133,6 @@ function EditorBody({ initial, token }: { initial?: ProblemPost; token: string |
 
   const handMax = problemHandMax(melds.length);
   const sortedHand = [...hand].sort(compareTiles);
-  const oppSeats = SEAT_ORDER.filter((seat) => seat !== pov);
 
   // 編集途中でも検証なしで Kifu へ写して描く（枚数不足でもプレビューできる）。
   const previewKifu = useMemo(
@@ -152,26 +141,11 @@ function EditorBody({ initial, token }: { initial?: ProblemPost; token: string |
         pov,
         hand,
         melds,
-        opponentHands: oppOn ? oppHands : undefined,
         rivers,
         meta: { dealer, roundWind, honba, kyotaku, junme, dora },
         rules,
       }),
-    [
-      pov,
-      hand,
-      melds,
-      oppOn,
-      oppHands,
-      rivers,
-      dealer,
-      roundWind,
-      honba,
-      kyotaku,
-      junme,
-      dora,
-      rules,
-    ],
+    [pov, hand, melds, rivers, dealer, roundWind, honba, kyotaku, junme, dora, rules],
   );
   // 鳴き判断は対象席の河の末尾＝対象牌を卓上で強調（回答画面と同じ見え方）。
   const previewHighlight =
@@ -203,14 +177,6 @@ function EditorBody({ initial, token }: { initial?: ProblemPost; token: string |
       setRivers((cur) => ({ ...cur, [seat]: [...cur[seat], code] }));
       return;
     }
-    if (target.startsWith("opphand:")) {
-      const seat = target.slice("opphand:".length) as Seat;
-      // 相手は副露編集なし＝手牌13枚固定（連続入力。web と同一挙動）。
-      setOppHands((cur) =>
-        cur[seat].length < OPP_HAND_MAX ? { ...cur, [seat]: [...cur[seat], code] } : cur,
-      );
-      return;
-    }
     const type = target.slice("meld:".length) as MeldPick;
     // 副露の生成と手牌の3枚換算圧迫は共有純関数（web と同一挙動）。
     const next = addDraftMeld(hand, melds, type, code);
@@ -228,28 +194,6 @@ function EditorBody({ initial, token }: { initial?: ProblemPost; token: string |
     });
   }
 
-  /** 相手の手牌設定の ON/OFF。OFF に戻したら入力済みの他家手牌は破棄する（web と同一挙動）。 */
-  function toggleOpp() {
-    setOppOn((cur) => {
-      if (cur) {
-        setOppHands({ east: [], south: [], west: [], north: [] });
-        // 他家手牌のピッカーを開いたままなら閉じる（入力先が消えるため）。
-        setTarget((t) => (t?.startsWith("opphand:") ? null : t));
-      }
-      return !cur;
-    });
-  }
-
-  /** 他家の手牌から指定の牌を1枚外す（チップは理牌表示なので牌で探す）。 */
-  function removeOppTile(seat: Seat, tile: Tile) {
-    setOppHands((cur) => {
-      const j = cur[seat].indexOf(tile);
-      return j < 0
-        ? cur
-        : { ...cur, [seat]: [...cur[seat].slice(0, j), ...cur[seat].slice(j + 1)] };
-    });
-  }
-
   /** 編集状態→Problem の組み立て・検証は共有純関数（web と同一挙動）。 */
   function build(): { problem?: Problem; error?: string } {
     return assembleProblem({
@@ -258,7 +202,6 @@ function EditorBody({ initial, token }: { initial?: ProblemPost; token: string |
       hand,
       melds,
       drawn,
-      opponentHands: oppOn ? oppHands : undefined,
       targetSeat,
       rivers,
       meta: { dealer, roundWind, honba, kyotaku, junme, dora },
@@ -297,18 +240,16 @@ function EditorBody({ initial, token }: { initial?: ProblemPost; token: string |
     setErr(res.status === 403 ? LIMIT_MESSAGES.problems : "保存に失敗しました。");
   }
 
-  /** 牌ピッカーの見出し（入力先ごとに文言と残枚数を出し分ける）。 */
+  /** ピッカーの見出し（入力先ごと）。 */
   function pickerTitleOf(t: Target): string {
-    if (!t) return "";
     if (t === "hand") return `手牌に追加（${hand.length}/${handMax}枚）`;
     if (t === "drawn") return "ツモ牌を選ぶ";
     if (t === "dora") return `ドラを追加（${dora.length}/5枚）`;
-    if (t.startsWith("river:")) return `${seatLabel(t.slice("river:".length) as Seat)}家の河に追加`;
-    if (t.startsWith("opphand:")) {
-      const seat = t.slice("opphand:".length) as Seat;
-      return `${seatLabel(seat)}家の手牌に追加（${oppHands[seat].length}/${OPP_HAND_MAX}枚）`;
+    if (t?.startsWith("river:")) {
+      return `${seatLabel(t.slice("river:".length) as Seat)}家の河に追加`;
     }
-    return `${MELD_PICKS.find((m) => `meld:${m.type}` === t)?.label}を追加`;
+    if (t) return `${MELD_PICKS.find((m) => `meld:${m.type}` === t)?.label}を追加`;
+    return "";
   }
   const pickerTitle = pickerTitleOf(target);
 
@@ -367,13 +308,6 @@ function EditorBody({ initial, token }: { initial?: ProblemPost; token: string |
             </Text>
           </>
         ) : null}
-
-        {/* 相手の手牌（出題オプション）。配牌何切る等、相手の手が重要でない問題では OFF。 */}
-        <View style={styles.segRow}>
-          <Text style={styles.rowLabel}>相手の手牌</Text>
-          <Chip label="相手の手牌も設定する" on={oppOn} onPress={toggleOpp} />
-        </View>
-        {oppOn ? <Text style={styles.hint}>設定した席の手牌は回答者に見えます。</Text> : null}
 
         {/* 局情報 */}
         <View style={styles.segRow}>
@@ -434,13 +368,12 @@ function EditorBody({ initial, token }: { initial?: ProblemPost; token: string |
         </Pressable>
         {previewOpen ? (
           <View style={styles.prevWrap}>
-            {/* 出題者のプレビューは相手の手牌（設定時のみ）も表向きで確認できるようにする。 */}
             <BoardTable
               kifu={previewKifu}
               bottomSeat={pov}
               dealer={dealer}
               roundLabel={previewRoundLabel}
-              showHands
+              showHands={false}
               size={previewSize}
               highlightRiver={previewHighlight}
             />
@@ -538,31 +471,6 @@ function EditorBody({ initial, token }: { initial?: ProblemPost; token: string |
             onAdd={() => setTarget(`river:${seat}`)}
           />
         ))}
-
-        {/* 相手の手牌（ON のとき pov 以外の3席。チップは理牌表示・タップで1枚外す） */}
-        {oppOn
-          ? oppSeats.map((seat) => {
-              const sorted = [...oppHands[seat]].sort(compareTiles);
-              return (
-                <TileRow
-                  key={`opp-${seat}`}
-                  label={`${seatLabel(seat)}家の手牌`}
-                  tiles={sorted}
-                  removeLabel={(t) => `${seatLabel(seat)}家の手牌の ${tileLabel(t)} を外す`}
-                  onRemove={(i) => {
-                    const tile = sorted[i];
-                    if (tile) removeOppTile(seat, tile);
-                  }}
-                  addLabel={`${seatLabel(seat)}家の手牌に追加`}
-                  onAdd={
-                    oppHands[seat].length < OPP_HAND_MAX
-                      ? () => setTarget(`opphand:${seat}`)
-                      : undefined
-                  }
-                />
-              );
-            })
-          : null}
 
         {/* 正解は設けない（多様な正解を前提に、回答の分布を見る）。コメントだけ書ける。 */}
         <TextInput

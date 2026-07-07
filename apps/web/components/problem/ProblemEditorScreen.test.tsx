@@ -119,33 +119,6 @@ describe("ProblemEditorScreen: 何切るの作成", () => {
   });
 });
 
-describe("ProblemEditorScreen: 相手の手牌（出題オプション）", () => {
-  it("既定はOFF（他家の手牌の入力先が出ない）。ONにすると入力先が現れ、牌を置ける", async () => {
-    stubMe("free");
-    renderEditor();
-    await screen.findByRole("group", { name: "牌を選ぶ" });
-    expect(screen.queryByRole("button", { name: "南家の手牌" })).toBeNull();
-
-    fireEvent.click(screen.getByRole("button", { name: "相手の手牌も設定する" }));
-    fireEvent.click(screen.getByRole("button", { name: "南家の手牌" }));
-    pick("1萬");
-    // 入力済み行に南家の手牌が出る（タップで外せるチップ）。
-    expect(screen.getByRole("button", { name: "南家の手牌の 1萬 を外す" })).toBeTruthy();
-  });
-
-  it("OFFに戻すと他家の手牌はクリアされる", async () => {
-    stubMe("free");
-    renderEditor();
-    await screen.findByRole("group", { name: "牌を選ぶ" });
-    fireEvent.click(screen.getByRole("button", { name: "相手の手牌も設定する" }));
-    fireEvent.click(screen.getByRole("button", { name: "南家の手牌" }));
-    pick("1萬");
-    fireEvent.click(screen.getByRole("button", { name: "相手の手牌も設定する" })); // OFF
-    expect(screen.queryByRole("button", { name: "南家の手牌の 1萬 を外す" })).toBeNull();
-    expect(screen.queryByRole("button", { name: "南家の手牌" })).toBeNull();
-  });
-});
-
 describe("ProblemEditorScreen: 既存問題の編集", () => {
   it("初期値を読み込み、更新は updateProblemAction を呼ぶ", async () => {
     stubMe("free");

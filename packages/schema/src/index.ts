@@ -539,26 +539,6 @@ export const ProblemSchema = z
       });
       return;
     }
-    // 相手の手牌は任意（出題オプション）。置くなら自分と同じ整合を要求する。
-    for (const seat of ["east", "south", "west", "north"] as const) {
-      if (seat === p.pov) continue;
-      const opp = p.seats[seat];
-      if (opp.hand.length === 0) continue;
-      if (opp.hand.some((t) => t.tile === null)) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: "相手の手牌に読めない牌は置けない",
-        });
-        return;
-      }
-      if (opp.hand.length + opp.melds.length * HAND_TILES_PER_MELD !== FULL_HAND) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: `相手の手牌も副露3枚換算で${FULL_HAND}枚にする`,
-        });
-        return;
-      }
-    }
 
     if (p.kind === "discard") {
       if (p.drawn === null) {

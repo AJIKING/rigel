@@ -15,7 +15,6 @@ import {
   compareTiles,
   draftToKifu,
   problemHandMax,
-  problemOpponentHands,
   problemRiverTiles,
   seatLabel,
   tileLabel,
@@ -41,10 +40,9 @@ import { ProblemBoardCenter } from "./ProblemBoardCenter";
 import s from "./problem.module.css";
 
 /** 牌グリッドの入力先。 */
-type Target =
-  "hand" | "drawn" | "dora" | `river:${Seat}` | `opphand:${Seat}` | `meld:${"pon" | "chi" | "kan"}`;
+type Target = "hand" | "drawn" | "dora" | `river:${Seat}` | `meld:${"pon" | "chi" | "kan"}`;
 
-/** 入力済み牌のチップ行（タップで外す）。ドラ・河・相手の手牌で共用。空なら描かない。 */
+/** 入力済み牌のチップ行（タップで外す）。ドラ・河で共用。空なら描かない。 */
 function TileChipRow({
   label,
   tiles,
@@ -54,7 +52,7 @@ function TileChipRow({
   label: string;
   tiles: Tile[];
   removeLabel: (tile: Tile) => string;
-  onRemove: (tile: Tile, index: number) => void;
+  onRemove: (index: number) => void;
 }) {
   if (tiles.length === 0) return null;
   return (
@@ -67,7 +65,7 @@ function TileChipRow({
             type="button"
             className={s.handTileSmall}
             aria-label={removeLabel(t)}
-            onClick={() => onRemove(t, i)}
+            onClick={() => onRemove(i)}
           >
             <OssTileFace code={t} />
           </button>
@@ -79,7 +77,7 @@ function TileChipRow({
 
 /**
  * 何切る問題の作成/編集画面。牌グリッドで「手牌・ツモ・ドラ・各席の河・副露」へ入力し、
- * 答え（何切る=牌+リーチ / 鳴き判断=スルー・ポン・チー・カン+切る牌）と解説を付けて保存する。
+ * 出題者のコメント（任意）を付けて保存する。正解は設けない（多様な正解を前提）。
  * 保存前にクライアントでも ProblemSchema で検証し、エラーは日本語で表示する。
  */
 export function ProblemEditorScreen({ initial }: { initial?: ProblemPost }) {
@@ -94,11 +92,6 @@ export function ProblemEditorScreen({ initial }: { initial?: ProblemPost }) {
   const [melds, setMelds] = useState<Meld[]>(p0 ? p0.seats[p0.pov].melds : []);
   const [drawn, setDrawn] = useState<Tile | null>(p0?.drawn ?? null);
   const [rivers, setRivers] = useState<Record<Seat, Tile[]>>(() => problemRiverTiles(p0));
-  // 相手の手牌（出題オプション。配牌何切る等、相手の手が重要でない問題では OFF）。
-  const [oppHands, setOppHands] = useState<Record<Seat, Tile[]>>(() => problemOpponentHands(p0));
-  const [oppOn, setOppOn] = useState(() =>
-    SEAT_ORDER.some((seat) => problemOpponentHands(p0)[seat].length > 0),
-  );
   const [dora, setDora] = useState<Tile[]>(p0?.meta.dora ?? []);
   const [targetSeat, setTargetSeat] = useState<Seat>(p0?.targetSeat ?? "south");
   const [roundWind, setRoundWind] = useState<Seat | null>(p0?.meta.roundWind ?? "east");
@@ -134,26 +127,11 @@ export function ProblemEditorScreen({ initial }: { initial?: ProblemPost }) {
         pov,
         hand,
         melds,
-        opponentHands: oppOn ? oppHands : undefined,
         rivers,
         meta: { dealer, roundWind, honba, kyotaku, junme, dora },
         rules,
       }),
-    [
-      pov,
-      hand,
-      melds,
-      oppOn,
-      oppHands,
-      rivers,
-      dealer,
-      roundWind,
-      honba,
-      kyotaku,
-      junme,
-      dora,
-      rules,
-    ],
+    [pov, hand, melds, rivers, dealer, roundWind, honba, kyotaku, junme, dora, rules],
   );
   const previewHighlight =
     kind === "call" && rivers[targetSeat].length > 0
@@ -175,12 +153,6 @@ export function ProblemEditorScreen({ initial }: { initial?: ProblemPost }) {
     } else if (target.startsWith("river:")) {
       const seat = target.slice("river:".length) as Seat;
       setRivers((cur) => ({ ...cur, [seat]: [...cur[seat], code] }));
-    } else if (target.startsWith("opphand:")) {
-      const seat = target.slice("opphand:".length) as Seat;
-      // 相手は副露編集なし＝手牌13枚固定。
-      setOppHands((cur) =>
-        cur[seat].length >= 13 ? cur : { ...cur, [seat]: [...cur[seat], code] },
-      );
     } else if (target.startsWith("meld:")) {
       const type = target.slice("meld:".length) as "pon" | "chi" | "kan";
       // 副露の生成と手牌の3枚換算圧迫は共有純関数（mobile と同一挙動）。
@@ -207,7 +179,6 @@ export function ProblemEditorScreen({ initial }: { initial?: ProblemPost }) {
       hand,
       melds,
       drawn,
-      opponentHands: oppOn ? oppHands : undefined,
       targetSeat,
       rivers,
       meta: { dealer, roundWind, honba, kyotaku, junme, dora },
@@ -240,18 +211,6 @@ export function ProblemEditorScreen({ initial }: { initial?: ProblemPost }) {
     );
   }
 
-  /** 相手の手牌設定の ON/OFF。OFF に戻したら入力済みの他家手牌は破棄する。 */
-  function toggleOpp() {
-    setOppOn((cur) => {
-      if (cur) {
-        setOppHands({ east: [], south: [], west: [], north: [] });
-        setTarget((t) => (typeof t === "string" && t.startsWith("opphand:") ? "hand" : t));
-      }
-      return !cur;
-    });
-  }
-
-  const oppSeats = SEAT_ORDER.filter((seat) => seat !== pov);
   const targets: { key: Target; label: string }[] = [
     { key: "hand", label: `手牌（${hand.length}/${handMax}）` },
     ...(kind === "discard" ? [{ key: "drawn" as Target, label: "ツモ牌" }] : []),
@@ -260,12 +219,6 @@ export function ProblemEditorScreen({ initial }: { initial?: ProblemPost }) {
       key: `river:${seat}` as Target,
       label: `${seatLabel(seat)}家の河`,
     })),
-    ...(oppOn
-      ? oppSeats.map((seat) => ({
-          key: `opphand:${seat}` as Target,
-          label: `${seatLabel(seat)}家の手牌`,
-        }))
-      : []),
     { key: "meld:pon", label: "副露:ポン" },
     { key: "meld:chi", label: "副露:チー" },
     { key: "meld:kan", label: "副露:カン" },
@@ -343,15 +296,6 @@ export function ProblemEditorScreen({ initial }: { initial?: ProblemPost }) {
             が「鳴くかどうか」の対象牌になります。河に対象牌まで並べてください。
           </p>
         )}
-
-        {/* 相手の手牌（出題オプション）。配牌何切る等、相手の手が重要でない問題では OFF。 */}
-        <div className={s.row}>
-          <span className={s.rowLabel}>相手の手牌</span>
-          <button type="button" className={s.rulesBtn} aria-pressed={oppOn} onClick={toggleOpp}>
-            相手の手牌も設定する
-          </button>
-          {oppOn && <span className={s.hint}>設定した席の手牌は回答者に見えます。</span>}
-        </div>
 
         {/* 局情報 */}
         <div className={s.row}>
@@ -476,7 +420,7 @@ export function ProblemEditorScreen({ initial }: { initial?: ProblemPost }) {
           label="ドラ"
           tiles={dora}
           removeLabel={(t) => `ドラ ${tileLabel(t)} を外す`}
-          onRemove={(_, i) => setDora((cur) => cur.filter((_t, j) => j !== i))}
+          onRemove={(i) => setDora((cur) => cur.filter((_, j) => j !== i))}
         />
         {SEAT_ORDER.map((seat) => (
           <TileChipRow
@@ -484,29 +428,11 @@ export function ProblemEditorScreen({ initial }: { initial?: ProblemPost }) {
             label={`${seatLabel(seat)}家の河`}
             tiles={rivers[seat]}
             removeLabel={(t) => `${seatLabel(seat)}家の河の ${tileLabel(t)} を外す`}
-            onRemove={(_, i) =>
-              setRivers((cur) => ({ ...cur, [seat]: cur[seat].filter((_t, j) => j !== i) }))
+            onRemove={(i) =>
+              setRivers((cur) => ({ ...cur, [seat]: cur[seat].filter((_, j) => j !== i) }))
             }
           />
         ))}
-        {oppOn &&
-          oppSeats.map((seat) => (
-            <TileChipRow
-              key={`opp-${seat}`}
-              label={`${seatLabel(seat)}家の手牌`}
-              tiles={[...oppHands[seat]].sort(compareTiles)}
-              removeLabel={(t) => `${seatLabel(seat)}家の手牌の ${tileLabel(t)} を外す`}
-              onRemove={(t) =>
-                // 表示は理牌済みなので、元配列からは牌の値で1枚だけ外す。
-                setOppHands((cur) => {
-                  const j = cur[seat].indexOf(t);
-                  return j < 0
-                    ? cur
-                    : { ...cur, [seat]: [...cur[seat].slice(0, j), ...cur[seat].slice(j + 1)] };
-                })
-              }
-            />
-          ))}
 
         {/* 入力先セレクタ＋牌グリッド */}
         <div className={s.answerBox}>
