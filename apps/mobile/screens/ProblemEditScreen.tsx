@@ -2,7 +2,6 @@ import { useNavigation, useRoute, type RouteProp } from "@react-navigation/nativ
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import {
   RulesSchema,
-  type CallType,
   type Meld,
   type Problem,
   type ProblemKind,
@@ -19,7 +18,6 @@ import {
   problemRoundLabel,
   seatLabel,
   tileLabel,
-  CALL_CHOICES,
   LIMIT_MESSAGES,
   SEAT_ORDER,
   type MeldPick,
@@ -61,7 +59,8 @@ const MELD_PICKS: { type: MeldPick; label: string }[] = [
 
 /**
  * 何切る問題の作成/編集画面（route params の problemId 有無で切替）。
- * 手牌・ツモ・ドラ・各席の河・副露を TilePickerSheet で入力し、答えと解説を付けて保存する。
+ * 手牌・ツモ・ドラ・各席の河・副露を TilePickerSheet で入力し、出題者のコメントを付けて保存する。
+ * 正解は設けない（多様な正解を前提に、回答の分布を見る）。
  * 保存前にクライアントでも ProblemSchema で検証し、エラーは日本語で表示する（web 版と同挙動）。
  */
 export function ProblemEditScreen() {
@@ -124,20 +123,6 @@ function EditorBody({ initial, token }: { initial?: ProblemPost; token: string |
 
   const [title, setTitle] = useState(initial?.title ?? "");
   const [explanation, setExplanation] = useState(p0?.explanation ?? "");
-  // 答え。
-  const [ansTile, setAnsTile] = useState<Tile | null>(
-    p0?.answer.type === "discard"
-      ? p0.answer.tile
-      : p0?.answer.type === "call"
-        ? p0.answer.discard
-        : null,
-  );
-  const [ansRiichi, setAnsRiichi] = useState(
-    p0?.answer.type === "discard" ? p0.answer.riichi : false,
-  );
-  const [ansCall, setAnsCall] = useState<"pass" | CallType | null>(
-    p0?.answer.type === "pass" ? "pass" : p0?.answer.type === "call" ? p0.answer.call : null,
-  );
 
   const [target, setTarget] = useState<Target>(null);
   const [err, setErr] = useState<string | null>(null);
@@ -207,7 +192,6 @@ function EditorBody({ initial, token }: { initial?: ProblemPost; token: string |
       const j = cur.indexOf(tile);
       return j < 0 ? cur : [...cur.slice(0, j), ...cur.slice(j + 1)];
     });
-    if (ansTile === tile) setAnsTile(null);
   }
 
   /** 編集状態→Problem の組み立て・検証は共有純関数（web と同一挙動）。 */
@@ -223,9 +207,6 @@ function EditorBody({ initial, token }: { initial?: ProblemPost; token: string |
       meta: { dealer, roundWind, honba, kyotaku, junme, dora },
       scores: scoresOn ? scores : null,
       rules,
-      ansTile,
-      ansRiichi,
-      ansCall,
       explanation,
     });
   }
@@ -491,70 +472,14 @@ function EditorBody({ initial, token }: { initial?: ProblemPost; token: string |
           />
         ))}
 
-        {/* 答え */}
-        <Text style={styles.section}>出題者の答え</Text>
-        {kind === "discard" ? (
-          <>
-            <View style={styles.chipRow}>
-              <Chip label="リーチ" on={ansRiichi} onPress={() => setAnsRiichi((v) => !v)} />
-            </View>
-            <Text style={styles.hint}>切る牌を選んでください（手牌＋ツモ牌から）。</Text>
-          </>
-        ) : (
-          <>
-            <View style={styles.chipRow}>
-              {CALL_CHOICES.map(({ key, label }) => (
-                <Chip
-                  key={key}
-                  label={label}
-                  on={ansCall === key}
-                  onPress={() => {
-                    setAnsCall(key);
-                    if (key === "pass" || key === "kan") setAnsTile(null);
-                  }}
-                />
-              ))}
-            </View>
-            {ansCall === "pon" || ansCall === "chi" ? (
-              <Text style={styles.hint}>鳴いた後に切る牌を選んでください。</Text>
-            ) : null}
-          </>
-        )}
-        {kind === "discard" || ansCall === "pon" || ansCall === "chi" ? (
-          <View style={styles.tiles}>
-            {sortedHand.map((t, i) => (
-              <Pressable
-                key={`${t}-${i}`}
-                style={ansTile === t ? styles.sel : null}
-                onPress={() => setAnsTile(t)}
-                accessibilityRole="button"
-                accessibilityLabel={`答え: ${tileLabel(t)}`}
-                accessibilityState={{ selected: ansTile === t }}
-              >
-                <MiniTile code={t} w={30} h={42} />
-              </Pressable>
-            ))}
-            {kind === "discard" && drawn ? (
-              <Pressable
-                style={[styles.drawnGap, ansTile === drawn ? styles.sel : null]}
-                onPress={() => setAnsTile(drawn)}
-                accessibilityRole="button"
-                accessibilityLabel={`答え: ${tileLabel(drawn)}`}
-                accessibilityState={{ selected: ansTile === drawn }}
-              >
-                <MiniTile code={drawn} w={30} h={42} />
-              </Pressable>
-            ) : null}
-          </View>
-        ) : null}
-
+        {/* 正解は設けない（多様な正解を前提に、回答の分布を見る）。コメントだけ書ける。 */}
         <TextInput
           style={[styles.input, styles.inputMulti]}
           value={explanation}
           multiline
-          placeholder="解説（回答後に表示）"
+          placeholder="出題者のコメント（任意。回答後に表示されます）"
           placeholderTextColor={colors.w45}
-          accessibilityLabel="解説"
+          accessibilityLabel="出題者のコメント（任意。回答後に表示されます）"
           onChangeText={setExplanation}
         />
 
@@ -701,9 +626,6 @@ const styles = StyleSheet.create({
     backgroundColor: colors.chrome2,
   },
   meldAdd: { flexDirection: "row", flexWrap: "wrap", gap: 6 },
-  chipRow: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
-  sel: { borderWidth: 2, borderColor: colors.accent, borderRadius: 5, margin: -2 },
-  drawnGap: { marginLeft: 10 },
   add: {
     width: 30,
     height: 42,

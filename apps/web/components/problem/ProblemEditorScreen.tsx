@@ -3,7 +3,6 @@
 import {
   RulesSchema,
   SeatSchema,
-  type CallType,
   type Meld,
   type ProblemKind,
   type Rules,
@@ -19,7 +18,6 @@ import {
   problemRiverTiles,
   seatLabel,
   tileLabel,
-  CALL_CHOICES,
   LIMIT_MESSAGES,
   NUMS,
   PROBLEM_KIND_LABELS,
@@ -33,9 +31,9 @@ import { useMemo, useRef, useState } from "react";
 import { createProblemAction, updateProblemAction } from "../../app/actions";
 import { type ProblemPost } from "../../lib/api";
 import { useBoardScale } from "../../lib/use-board-scale";
+import { AppHeader } from "../AppHeader";
 import { RulesDialog } from "../board/RulesDialog";
 import { Stepper } from "../board/Stepper";
-import { BrandMark } from "../BrandMark";
 import { OssTileFace } from "../OssTileFace";
 import { ViewBoard } from "../view/ViewBoard";
 import { ProblemBoardCenter } from "./ProblemBoardCenter";
@@ -80,20 +78,6 @@ export function ProblemEditorScreen({ initial }: { initial?: ProblemPost }) {
 
   const [title, setTitle] = useState(initial?.title ?? "");
   const [explanation, setExplanation] = useState(p0?.explanation ?? "");
-  // 答え。
-  const [ansTile, setAnsTile] = useState<Tile | null>(
-    p0?.answer.type === "discard"
-      ? p0.answer.tile
-      : p0?.answer.type === "call"
-        ? p0.answer.discard
-        : null,
-  );
-  const [ansRiichi, setAnsRiichi] = useState(
-    p0?.answer.type === "discard" ? p0.answer.riichi : false,
-  );
-  const [ansCall, setAnsCall] = useState<"pass" | CallType | null>(
-    p0?.answer.type === "pass" ? "pass" : p0?.answer.type === "call" ? p0.answer.call : null,
-  );
 
   const [target, setTarget] = useState<Target>("hand");
   const [suit, setSuit] = useState<PickerSuit>("m");
@@ -152,7 +136,6 @@ export function ProblemEditorScreen({ initial }: { initial?: ProblemPost }) {
       const j = cur.indexOf(tile!);
       return j < 0 ? cur : [...cur.slice(0, j), ...cur.slice(j + 1)];
     });
-    if (ansTile === tile && !hand.includes(tile!)) setAnsTile(null);
   }
 
   async function save(status: "draft" | "published") {
@@ -168,9 +151,6 @@ export function ProblemEditorScreen({ initial }: { initial?: ProblemPost }) {
       meta: { dealer, roundWind, honba, kyotaku, junme, dora },
       scores: scoresOn ? scores : null,
       rules,
-      ansTile,
-      ansRiichi,
-      ansCall,
       explanation,
     });
     if (!problem) {
@@ -212,19 +192,16 @@ export function ProblemEditorScreen({ initial }: { initial?: ProblemPost }) {
   ];
 
   return (
-    <div className={s.app}>
-      <div className={s.bar}>
-        <Link href="/mypage/problems" className={s.brand} aria-label="マイページへ">
-          <BrandMark starClassName={s.star} wordmarkClassName={s.wm} />
-        </Link>
-        <div className={s.crumb}>
-          <Link href="/mypage/problems">マイ何切る</Link>
-          <span>›</span>
-          <span>{initial ? "問題を編集" : "問題を作成"}</span>
-        </div>
-      </div>
+    <div className={`${s.app} themeBoard`}>
+      {/* ヘッダは一覧・マイページと同じ共通ヘッダー（画面遷移で変わらない）。 */}
+      <AppHeader active="mypage" />
 
       <main className={s.main} ref={mainRef}>
+        <p className={s.crumbRow}>
+          <Link href="/mypage/problems">マイ何切る</Link>
+          <span> › </span>
+          <span>{initial ? "問題を編集" : "問題を作成"}</span>
+        </p>
         <div className={s.field}>
           <label htmlFor="pb-title">タイトル</label>
           <input
@@ -487,73 +464,10 @@ export function ProblemEditorScreen({ initial }: { initial?: ProblemPost }) {
           </div>
         </div>
 
-        {/* 答え */}
+        {/* 正解は設けない（多様な正解を前提に、回答の分布を見る）。コメントだけ書ける。 */}
         <div className={s.answerBox}>
-          <h2 className={s.resultHead}>出題者の答え</h2>
-          {kind === "discard" ? (
-            <>
-              <button
-                type="button"
-                className={`${s.riichiBtn} ${ansRiichi ? s.on : ""}`}
-                aria-pressed={ansRiichi}
-                onClick={() => setAnsRiichi((v) => !v)}
-              >
-                リーチ
-              </button>
-              <p className={s.hint}>切る牌を選んでください（手牌＋ツモ牌から）。</p>
-            </>
-          ) : (
-            <>
-              <div className={s.callSeg} role="group" aria-label="答え">
-                {CALL_CHOICES.map(({ key, label }) => (
-                  <button
-                    key={key}
-                    type="button"
-                    className={ansCall === key ? s.on : ""}
-                    aria-pressed={ansCall === key}
-                    onClick={() => {
-                      setAnsCall(key);
-                      if (key === "pass" || key === "kan") setAnsTile(null);
-                    }}
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
-              {(ansCall === "pon" || ansCall === "chi") && (
-                <p className={s.hint}>鳴いた後に切る牌を選んでください。</p>
-              )}
-            </>
-          )}
-          {(kind === "discard" || ansCall === "pon" || ansCall === "chi") && (
-            <div className={s.hand} role="group" aria-label="答えの牌">
-              {sortedHand.map((t, i) => (
-                <button
-                  key={`${t}-${i}`}
-                  type="button"
-                  className={`${s.handTile} ${ansTile === t ? s.sel : ""}`}
-                  aria-label={tileLabel(t)}
-                  aria-pressed={ansTile === t}
-                  onClick={() => setAnsTile(t)}
-                >
-                  <OssTileFace code={t} />
-                </button>
-              ))}
-              {kind === "discard" && drawn && (
-                <button
-                  type="button"
-                  className={`${s.handTile} ${s.drawn} ${ansTile === drawn ? s.sel : ""}`}
-                  aria-label={tileLabel(drawn)}
-                  aria-pressed={ansTile === drawn}
-                  onClick={() => setAnsTile(drawn)}
-                >
-                  <OssTileFace code={drawn} />
-                </button>
-              )}
-            </div>
-          )}
           <div className={s.field}>
-            <label htmlFor="pb-exp">解説</label>
+            <label htmlFor="pb-exp">出題者のコメント（任意。回答後に表示されます）</label>
             <textarea
               id="pb-exp"
               rows={4}

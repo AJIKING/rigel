@@ -31,7 +31,6 @@ export function minimalProblemInput(): Record<string, unknown> {
       west: {},
       north: {},
     },
-    answer: { type: "discard", tile: "5p" },
   };
 }
 

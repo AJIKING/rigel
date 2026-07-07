@@ -519,9 +519,8 @@ export const ProblemSchema = z
     scores: ProblemScoresSchema.nullable().default(null),
     /** 半荘ルール（点数計算の前提と同じ既定＝Mリーグ相当）。 */
     rules: RulesSchema.default({}),
-    /** 作者の答え。 */
-    answer: ProblemActionSchema,
-    /** 解説（回答後に表示）。 */
+    /** 出題者の解説・コメント（回答後に表示）。正解は設けない（多様な正解を前提に、
+     *  回答の分布を見る）。 */
     explanation: z.string().default(""),
   })
   .superRefine((p, ctx) => {
@@ -540,7 +539,6 @@ export const ProblemSchema = z
       });
       return;
     }
-    const inHand = (tile: Tile) => handTiles.includes(tile);
 
     if (p.kind === "discard") {
       if (p.drawn === null) {
@@ -548,14 +546,6 @@ export const ProblemSchema = z
       }
       if (p.targetSeat !== null) {
         ctx.addIssue({ code: z.ZodIssueCode.custom, message: "何切るに対象席は無い" });
-      }
-      if (p.answer.type !== "discard") {
-        ctx.addIssue({ code: z.ZodIssueCode.custom, message: "何切るの答えは打牌のみ" });
-      } else if (!inHand(p.answer.tile) && p.answer.tile !== p.drawn) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: "答えの切る牌は手牌かツモ牌から選ぶ",
-        });
       }
       return;
     }
@@ -577,14 +567,6 @@ export const ProblemSchema = z
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         message: "対象席の河の末尾に対象牌を置く",
-      });
-    }
-    if (p.answer.type === "discard") {
-      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "鳴き判断の答えは鳴くかスルー" });
-    } else if (p.answer.type === "call" && p.answer.discard !== null && !inHand(p.answer.discard)) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: "鳴いた後に切る牌は手牌から選ぶ",
       });
     }
   });

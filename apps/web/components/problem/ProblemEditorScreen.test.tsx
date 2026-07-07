@@ -70,16 +70,10 @@ describe("ProblemEditorScreen: 何切るの作成", () => {
     fireEvent.click(screen.getByRole("button", { name: "ツモ牌" }));
     pick("5筒");
 
-    // 答え: 手牌プレビューの 1萬 をタップ（リーチ付き）。
-    fireEvent.click(screen.getByRole("button", { name: "リーチ" }));
-    fireEvent.click(
-      within(screen.getByRole("group", { name: "答えの牌" })).getByRole("button", {
-        name: "1萬",
-      }),
-    );
-
     fireEvent.change(screen.getByLabelText("タイトル"), { target: { value: "テスト問題" } });
-    fireEvent.change(screen.getByLabelText("解説"), { target: { value: "解説文" } });
+    fireEvent.change(screen.getByLabelText(/出題者のコメント/), {
+      target: { value: "解説文" },
+    });
 
     fireEvent.click(screen.getByRole("button", { name: "公開して保存" }));
     await waitFor(() => expect(h.createProblemAction).toHaveBeenCalled());
@@ -90,7 +84,8 @@ describe("ProblemEditorScreen: 何切るの作成", () => {
     expect(input.status).toBe("published");
     expect(input.problem.kind).toBe("discard");
     expect(input.problem.drawn).toBe("5p");
-    expect(input.problem.answer).toEqual({ type: "discard", tile: "1m", riichi: true });
+    // 正解は設けない（多様な正解を前提）。answer フィールドは持たない。
+    expect("answer" in input.problem).toBe(false);
     expect(input.problem.explanation).toBe("解説文");
     expect(() => ProblemSchema.parse(input.problem)).not.toThrow();
     expect(push).toHaveBeenCalledWith("/mypage/problems");
@@ -104,11 +99,6 @@ describe("ProblemEditorScreen: 何切るの作成", () => {
     fireEvent.click(screen.getByRole("button", { name: "ツモ牌" }));
     fireEvent.click(screen.getByRole("button", { name: "筒" })); // スートタブ
     pick("5筒");
-    fireEvent.click(
-      within(screen.getByRole("group", { name: "答えの牌" })).getByRole("button", {
-        name: "1萬",
-      }),
-    );
     fireEvent.click(screen.getByRole("button", { name: "下書き保存" }));
     expect(await screen.findByText(/13枚/)).toBeTruthy();
     expect(h.createProblemAction).not.toHaveBeenCalled();
@@ -124,11 +114,6 @@ describe("ProblemEditorScreen: 何切るの作成", () => {
     for (const label of TILE_LABELS.slice(9)) pick(label);
     fireEvent.click(screen.getByRole("button", { name: "ツモ牌" }));
     pick("5筒");
-    fireEvent.click(
-      within(screen.getByRole("group", { name: "答えの牌" })).getByRole("button", {
-        name: "5筒",
-      }),
-    );
     fireEvent.click(screen.getByRole("button", { name: "下書き保存" }));
     expect(await screen.findByText(/20問まで/)).toBeTruthy();
   });

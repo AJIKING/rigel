@@ -204,6 +204,9 @@
   width: var(--board);
   height: var(--board);
   transform-origin: top center;
+  /* 親（.stage=flex）が盤面より狭くても押し潰さない（縮小は transform: scale が担う）。
+     潰れると正方形が崩れ、絶対配置の席座標がズレる。 */
+  flex: none;
 }
 .seat {
   position: absolute;

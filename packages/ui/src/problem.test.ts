@@ -52,7 +52,6 @@ function makeProblem(): Problem {
     },
     meta: { dealer: "east", honba: 2, kyotaku: 1, junme: 6, dora: ["3z"] },
     rules: { kuitan: false },
-    answer: { type: "pass" },
   });
 }
 
@@ -182,32 +181,27 @@ describe("assembleProblem（編集状態→Problem の組み立て・検証。we
       meta: { dealer: "east", roundWind: "east", honba: 1, kyotaku: 0, junme: 6, dora: ["3z"] },
       scores: { east: "25000", south: "24000", west: "26000", north: "25000" },
       // rules は省略＝既定（Mリーグ相当）に任せる
-      ansTile: "5p",
-      ansRiichi: true,
-      ansCall: null,
       explanation: "解説",
       ...overrides,
     };
   }
 
-  it("正しい編集状態から検証済み Problem を組み立てる（河の order 連番・点数の数値化込み）", () => {
+  it("正しい編集状態から検証済み Problem を組み立てる（河の order 連番・点数の数値化込み。正解は持たない）", () => {
     const { problem, error } = assembleProblem(draft());
     expect(error).toBeUndefined();
-    expect(problem?.answer).toEqual({ type: "discard", tile: "5p", riichi: true });
+    expect(problem && "answer" in problem).toBe(false); // 正解は設けない
+    expect(problem?.explanation).toBe("解説");
     expect(problem?.seats.south.river.map((d) => d.order)).toEqual([1]);
     expect(problem?.scores).toEqual({ east: 25000, south: 24000, west: 26000, north: 25000 });
     expect(problem?.meta.dora).toEqual(["3z"]);
   });
 
-  it("答え未選択・枚数不足は日本語のエラーを返す", () => {
-    expect(assembleProblem(draft({ ansTile: null })).error).toContain("答え");
+  it("枚数不足は日本語のエラーを返す", () => {
     expect(assembleProblem(draft({ hand: HAND_13.slice(0, 12) })).error).toContain("13枚");
   });
 
   it("鳴き判断はツモ牌を落とし対象席を立てる（kind に応じた整形）", () => {
-    const { problem } = assembleProblem(
-      draft({ kind: "call", ansTile: null, ansCall: "pass", targetSeat: "south" }),
-    );
+    const { problem } = assembleProblem(draft({ kind: "call", targetSeat: "south" }));
     expect(problem?.drawn).toBeNull();
     expect(problem?.targetSeat).toBe("south");
   });

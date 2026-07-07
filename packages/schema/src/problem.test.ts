@@ -47,7 +47,6 @@ function discardProblem(overrides: Record<string, unknown> = {}) {
     pov: "east",
     drawn: "5p",
     seats: seatsWithHand(HAND_13),
-    answer: { type: "discard", tile: "5p" },
     ...overrides,
   };
 }
@@ -62,7 +61,6 @@ function callProblem(overrides: Record<string, unknown> = {}) {
     seats: seatsWithHand(HAND_13, {
       south: { river: [{ order: 1, tile: "5p", confidence: 1 }] },
     }),
-    answer: { type: "call", call: "pon", discard: "1m" },
     ...overrides,
   };
 }
@@ -146,9 +144,7 @@ describe("ProblemSchema: 何切る（discard）", () => {
         ],
       },
     };
-    expect(() =>
-      ProblemSchema.parse(discardProblem({ seats, answer: { type: "discard", tile: "1m" } })),
-    ).not.toThrow();
+    expect(() => ProblemSchema.parse(discardProblem({ seats }))).not.toThrow();
   });
 
   it("ツモ牌が無い・対象席がある discard は拒否する", () => {
@@ -162,20 +158,9 @@ describe("ProblemSchema: 何切る（discard）", () => {
     expect(() => ProblemSchema.parse(discardProblem({ seats }))).toThrow();
   });
 
-  it("答えの切る牌が手牌にもツモにも無ければ拒否する", () => {
-    expect(() =>
-      ProblemSchema.parse(discardProblem({ answer: { type: "discard", tile: "9s" } })),
-    ).toThrow();
-    // 手牌の牌でもツモ牌でも OK。
-    expect(() =>
-      ProblemSchema.parse(
-        discardProblem({ answer: { type: "discard", tile: "1m", riichi: true } }),
-      ),
-    ).not.toThrow();
-  });
-
-  it("discard 問題の答えは打牌のみ（pass は拒否）", () => {
-    expect(() => ProblemSchema.parse(discardProblem({ answer: { type: "pass" } }))).toThrow();
+  it("正解（answer）というフィールドは持たない（多様な正解を前提に分布を見る）", () => {
+    const p = ProblemSchema.parse(discardProblem());
+    expect("answer" in p).toBe(false);
   });
 });
 
@@ -207,16 +192,6 @@ describe("ProblemSchema: 鳴き判断（call）", () => {
         }),
       ),
     ).toThrow();
-  });
-
-  it("答えは call か pass（打牌は拒否）。鳴いた後に切る牌は手牌に必要", () => {
-    expect(() => ProblemSchema.parse(callProblem({ answer: { type: "pass" } }))).not.toThrow();
-    expect(() =>
-      ProblemSchema.parse(callProblem({ answer: { type: "discard", tile: "1m" } })),
-    ).toThrow();
-    expect(() =>
-      ProblemSchema.parse(callProblem({ answer: { type: "call", call: "pon", discard: "9s" } })),
-    ).toThrow(); // 9s は手牌に無い
   });
 });
 

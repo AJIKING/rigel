@@ -505,9 +505,7 @@ export interface ProblemDraft {
   scores: Record<Seat, string> | null;
   /** 省略時は既定ルール（Mリーグ相当）。 */
   rules?: Rules;
-  ansTile: Tile | null;
-  ansRiichi: boolean;
-  ansCall: "pass" | CallType | null;
+  /** 出題者の解説・コメント（正解は設けない）。 */
   explanation: string;
 }
 
@@ -551,17 +549,10 @@ export function draftToKifu(draft: ProblemBoardDraft): Kifu {
 
 /**
  * 編集状態から Problem を組み立てて検証する（保存前のクライアント側ゲート）。
- * 答え未選択・スキーマ違反は日本語のエラー文言で返す。kind に応じて
- * ツモ牌/対象席を整形し、河には order 連番を振る。
+ * スキーマ違反は日本語のエラー文言で返す。kind に応じてツモ牌/対象席を整形し、
+ * 河には order 連番を振る。正解は設けない（多様な正解を前提に分布を見る）。
  */
 export function assembleProblem(draft: ProblemDraft): { problem?: Problem; error?: string } {
-  const answer = buildProblemAnswer({
-    kind: draft.kind,
-    tile: draft.ansTile,
-    riichi: draft.ansRiichi,
-    call: draft.ansCall,
-  });
-  if (!answer) return { error: "答え（切る牌・鳴くかどうか）を選んでください。" };
   const seats = Object.fromEntries(
     SEAT_ORDER.map((seat) => [
       seat,
@@ -595,7 +586,6 @@ export function assembleProblem(draft: ProblemDraft): { problem?: Problem; error
         }
       : null,
     rules: draft.rules ?? {},
-    answer,
     explanation: draft.explanation,
   });
   if (!parsed.success) {

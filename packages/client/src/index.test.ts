@@ -338,7 +338,6 @@ describe("problems（何切る問題）", () => {
       west: {},
       north: {},
     },
-    answer: { type: "discard", tile: "5p" },
   });
 
   const post = {

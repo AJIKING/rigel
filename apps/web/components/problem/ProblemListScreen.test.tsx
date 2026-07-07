@@ -79,9 +79,9 @@ describe("MyProblemsScreen（マイ何切る。牌譜マイページと同じ構
         <MyProblemsScreen initialPosts={[post("p1", "draft"), post("p2", "published")]} />
       </AuthProvider>,
     );
-    // 「下書き/公開中」は統計とバッジの両方に出る（牌譜マイページと同じ構造）。
+    // 「下書き/公開」は統計とバッジの両方に出る（牌譜マイページと同じ構造）。
     expect((await screen.findAllByText("下書き")).length).toBeGreaterThan(0);
-    expect(screen.getAllByText("公開中").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("公開").length).toBeGreaterThan(0);
     expect(await screen.findByText(/2\s*\/\s*20問/)).toBeTruthy();
   });
 

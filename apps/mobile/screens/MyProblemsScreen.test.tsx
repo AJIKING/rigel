@@ -44,7 +44,7 @@ describe("MyProblemsScreen（マイ何切る）", () => {
 
     expect(await screen.findByText("下書きの問題")).toBeTruthy();
     expect(screen.getByText("下書き")).toBeTruthy();
-    expect(screen.getByText("公開中")).toBeTruthy();
+    expect(screen.getByText("公開")).toBeTruthy();
     expect(screen.getByText("2 / 20問")).toBeTruthy();
   });
 
@@ -71,11 +71,11 @@ describe("MyProblemsScreen（マイ何切る）", () => {
     await waitFor(() => expect(screen.queryByText("下書きの問題")).toBeNull());
   });
 
-  it("「＋ 新しい問題」で作成画面へ、「編集」でその問題の編集画面へ遷移する", async () => {
+  it("「＋ 新規」で作成画面へ、「編集」でその問題の編集画面へ遷移する", async () => {
     mockGetMyProblems.mockResolvedValue(twoPosts());
     render(<MyProblemsScreen />);
 
-    fireEvent.press(await screen.findByText("＋ 新しい問題"));
+    fireEvent.press(await screen.findByText("＋ 新規"));
     expect(mockNavigate).toHaveBeenCalledWith("ProblemEdit");
 
     fireEvent.press(screen.getAllByText("編集")[1]!);

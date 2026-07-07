@@ -61,9 +61,7 @@ export function ProblemListScreen({ posts }: { posts: ProblemPost[] }) {
                 <option value="old">古い順</option>
               </select>
             </div>
-            <button className={s.newbtn} onClick={() => router.push("/mypage/problems")}>
-              マイ何切る
-            </button>
+            {/* 新規作成・マイ何切るへの導線はここには置かない（ヘッダのマイページから）。 */}
           </div>
           <div className={gc.feed}>
             {view.length === 0 ? (

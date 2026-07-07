@@ -99,7 +99,7 @@ export function MyProblemsScreen() {
           onPress={() => nav.navigate("ProblemEdit")}
           accessibilityRole="button"
         >
-          <Text style={styles.newBtnText}>＋ 新しい問題</Text>
+          <Text style={styles.newBtnText}>＋ 新規</Text>
         </Pressable>
       </View>
       {atLimit ? <Text style={styles.limitNote}>{LIMIT_MESSAGES.problems}</Text> : null}
@@ -108,7 +108,7 @@ export function MyProblemsScreen() {
       {loading ? (
         <CenterState loading />
       ) : posts.length === 0 ? (
-        <CenterState message="まだ問題がありません。「＋ 新しい問題」から作成できます。" />
+        <CenterState message="まだ問題がありません。「＋ 新規」から作成できます。" />
       ) : (
         <FlatList
           data={posts}
@@ -124,7 +124,7 @@ export function MyProblemsScreen() {
                 <View style={styles.metaRow}>
                   <Text style={styles.kind}>{KIND_LABELS[item.problem.kind]}</Text>
                   <Text style={item.status === "draft" ? styles.badgeDraft : styles.badgePub}>
-                    {item.status === "draft" ? "下書き" : "公開中"}
+                    {item.status === "draft" ? "下書き" : "公開"}
                   </Text>
                   <Text style={styles.meta}>{relativeTime(item.createdAt)}</Text>
                 </View>

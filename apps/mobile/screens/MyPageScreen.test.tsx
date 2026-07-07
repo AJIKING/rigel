@@ -53,7 +53,8 @@ describe("MyPageScreen（マイページ：牌譜/何切るの切替）", () => 
 
     expect(screen.getByText("マイページ")).toBeTruthy();
     expect(screen.getByText("東風戦")).toBeTruthy();
-    expect(screen.queryByText("＋ 新しい問題")).toBeNull();
+    // 何切るタブの内容（問題カード）は出ない。※「＋ 新規」は牌譜タブにもあるため識別に使わない。
+    expect(screen.queryByText("公開中の問題")).toBeNull();
     // タイトルバーはマイページ側が持つ（旧マイ牌譜のバーは出さない）。
     expect(screen.queryByText("マイ牌譜")).toBeNull();
   });
@@ -63,7 +64,7 @@ describe("MyPageScreen（マイページ：牌譜/何切るの切替）", () => 
 
     fireEvent.press(screen.getByText("何切る"));
     expect(await screen.findByText("公開中の問題")).toBeTruthy();
-    expect(screen.getByText("＋ 新しい問題")).toBeTruthy();
+    expect(screen.getByText("＋ 新規")).toBeTruthy();
     expect(screen.queryByText("東風戦")).toBeNull();
 
     fireEvent.press(screen.getByText("牌譜"));

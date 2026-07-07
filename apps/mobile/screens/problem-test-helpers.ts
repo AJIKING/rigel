@@ -33,7 +33,6 @@ export function makeProblem(overrides: Record<string, unknown> = {}): Problem {
       north: {},
     },
     meta: { dealer: "east", roundWind: "east", junme: 6 },
-    answer: { type: "discard", tile: "5p", riichi: false },
     explanation: "テスト解説",
     ...overrides,
   });
@@ -51,7 +50,6 @@ export function makeCallProblem(overrides: Record<string, unknown> = {}): Proble
       west: {},
       north: {},
     },
-    answer: { type: "pass" },
     ...overrides,
   });
 }

@@ -52,14 +52,20 @@ describe("ProblemEditScreen（何切る問題の作成/編集）", () => {
     mockParams = undefined;
   });
 
-  it("13枚+ツモ+答えを入れて公開保存すると、ProblemSchema を通る problem が createProblem に渡る", async () => {
+  it("13枚+ツモ+コメントを入れて公開保存すると、答えを持たない problem が createProblem に渡る", async () => {
     mockCreateProblem.mockResolvedValue({ ok: true, status: 200 });
     render(<ProblemEditScreen />);
+
+    // 正解は設けない（答え入力の UI 自体が無い）。
+    expect(screen.queryByText("出題者の答え")).toBeNull();
 
     fireEvent.changeText(screen.getByLabelText("タイトル"), "テスト作成");
     inputFullHand();
     inputDrawn5p();
-    fireEvent.press(screen.getByLabelText("答え: 5筒")); // ツモ切りが答え
+    fireEvent.changeText(
+      screen.getByLabelText("出題者のコメント（任意。回答後に表示されます）"),
+      "テストコメント",
+    );
 
     fireEvent.press(screen.getByText("公開して保存"));
 
@@ -75,7 +81,8 @@ describe("ProblemEditScreen（何切る問題の作成/編集）", () => {
     expect(() => ProblemSchema.parse(input.problem)).not.toThrow();
     expect(input.problem.seats.east.hand).toHaveLength(13);
     expect(input.problem.drawn).toBe("5p");
-    expect(input.problem.answer).toEqual({ type: "discard", tile: "5p", riichi: false });
+    expect("answer" in input.problem).toBe(false); // 正解は設けない
+    expect(input.problem.explanation).toBe("テストコメント");
     await waitFor(() => expect(mockGoBack).toHaveBeenCalled());
   });
 
@@ -86,7 +93,6 @@ describe("ProblemEditScreen（何切る問題の作成/編集）", () => {
     fireEvent.press(screen.getByLabelText("1萬"));
     fireEvent.press(screen.getByText("閉じる"));
     inputDrawn5p();
-    fireEvent.press(screen.getByLabelText("答え: 5筒"));
 
     fireEvent.press(screen.getByText("下書き保存"));
 
@@ -101,7 +107,6 @@ describe("ProblemEditScreen（何切る問題の作成/編集）", () => {
 
     inputFullHand();
     inputDrawn5p();
-    fireEvent.press(screen.getByLabelText("答え: 5筒"));
     fireEvent.press(screen.getByText("公開して保存"));
 
     expect(await screen.findByText(/無料プランの何切る問題は20問まで/)).toBeTruthy();

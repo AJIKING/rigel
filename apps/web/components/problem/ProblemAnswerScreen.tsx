@@ -29,16 +29,17 @@ import { type ProblemPost, type ProblemStats } from "../../lib/api";
 import { useAuth } from "../../lib/auth-context";
 import { fmtDate } from "../../lib/format";
 import { useBoardScale } from "../../lib/use-board-scale";
-import { BrandMark } from "../BrandMark";
+import { AppHeader } from "../AppHeader";
 import { OssTileFace } from "../OssTileFace";
 import { ViewBoard } from "../view/ViewBoard";
 import { ProblemBoardCenter } from "./ProblemBoardCenter";
 import s from "./problem.module.css";
 
 /**
- * 何切る問題の回答画面（/p/[id]）。
- * 回答するまで出題者の答え・解説・分布は見せない。集計（回答の保存と分布）は
- * ログイン時のみ（未ログインは回答体験＋答え・解説まで）。
+ * 何切る問題の回答画面（/p/[id]）。正解は設けない（多様な正解を前提に、
+ * 回答後に出題者のコメントとみんなの回答分布を見る）。回答するまで
+ * コメント・分布は見せない。集計はログイン時のみ・再回答は上書き
+ * （未ログインは回答体験まで）。
  */
 export function ProblemAnswerScreen({ post }: { post: ProblemPost }) {
   const { user } = useAuth();
@@ -53,14 +54,16 @@ export function ProblemAnswerScreen({ post }: { post: ProblemPost }) {
   const [call, setCall] = useState<"pass" | CallType | null>(null);
   const [answered, setAnswered] = useState<ProblemAction | null>(null);
   const [stats, setStats] = useState<ProblemStats | null>(null);
+  const [shareLabel, setShareLabel] = useState("共有");
 
   // 選択状態→アクションの組み立ては共有純関数（mobile と同一挙動）。
   const sel = { kind: problem.kind, tile: selTile, riichi, call };
   const needsTile = answerNeedsTile(sel);
+  const pending = buildProblemAnswer(sel);
   const canSubmit = canSubmitProblemAnswer(sel);
 
   async function submit() {
-    const action = buildProblemAnswer(sel);
+    const action = pending;
     if (!action) return;
     setAnswered(action);
     // 集計はログイン時のみ（未ログインは分布に数えない＝そもそも呼ばない）。
@@ -72,9 +75,23 @@ export function ProblemAnswerScreen({ post }: { post: ProblemPost }) {
     if (res.ok) setStats(await getProblemStatsAction(post.id).catch(() => null));
   }
 
+  /** 回答のやり直し（再回答はサーバ側 upsert で上書きされる）。選択は保持する。 */
+  function redo() {
+    setAnswered(null);
+    setStats(null);
+  }
+
   function pickTile(tile: Tile) {
     if (answered || !needsTile) return;
     setSelTile((cur) => (cur === tile ? null : tile));
+  }
+
+  /** 公開問題の共有（URLコピー）。 */
+  function onShare() {
+    const url = typeof window !== "undefined" ? window.location.href : "";
+    navigator.clipboard?.writeText(url).catch(() => {});
+    setShareLabel("コピーしました");
+    setTimeout(() => setShareLabel("共有"), 1500);
   }
 
   // 盤面は牌譜ビューアと同じ卓（ViewBoard）で描く。河は全表示（既定）・鳴き判断は対象牌を強調。
@@ -88,22 +105,32 @@ export function ProblemAnswerScreen({ post }: { post: ProblemPost }) {
 
   return (
     <div className={`${s.app} themeBoard`}>
-      <div className={s.bar}>
-        <Link href="/problems" className={s.brand} aria-label="何切る一覧へ">
-          <BrandMark starClassName={s.star} wordmarkClassName={s.wm} />
-        </Link>
-        <div className={s.crumb}>
-          <Link href="/problems">何切る</Link>
-          <span>›</span>
-          <span>問題を解く</span>
-        </div>
-      </div>
+      {/* ヘッダは一覧・マイページと同じ共通ヘッダー（画面遷移で変わらない）。 */}
+      <AppHeader active="problems" />
 
       <main className={s.main} ref={mainRef}>
-        <h1 className={s.title}>
-          {post.title || "（無題の問題）"}
-          {post.status === "draft" && <span className={s.draftBadge}>下書き</span>}
-        </h1>
+        <p className={s.crumbRow}>
+          <Link href="/problems">何切る</Link>
+          <span> › </span>
+          <span>問題を解く</span>
+        </p>
+        <div className={s.titleRow}>
+          <h1 className={s.title}>
+            {post.title || "（無題の問題）"}
+            {post.status === "draft" && <span className={s.draftBadge}>下書き</span>}
+          </h1>
+          {post.status === "published" && (
+            <button type="button" className={s.shareBtn} onClick={onShare}>
+              <svg viewBox="0 0 24 24">
+                <circle cx="18" cy="5" r="3" />
+                <circle cx="6" cy="12" r="3" />
+                <circle cx="18" cy="19" r="3" />
+                <path d="M8.6 13.5l6.8 4M15.4 6.5l-6.8 4" />
+              </svg>
+              {shareLabel}
+            </button>
+          )}
+        </div>
         <p className={s.meta}>
           {problem.meta.roundWind && `${seatLabel(problem.meta.roundWind)}場`}
           {dealer && ` ・ 親 ${windOf(dealer, dealer)}家（${seatLabel(dealer)}）`}
@@ -113,6 +140,15 @@ export function ProblemAnswerScreen({ post }: { post: ProblemPost }) {
           <span className={s.sep}>·</span>
           {fmtDate(post.createdAt)}
         </p>
+
+        {/* 質問見出し。正解は無い＝「あなたなら」を問う。 */}
+        <h2 className={s.question}>
+          {problem.kind === "discard"
+            ? "あなたなら何を切る？"
+            : problem.targetSeat && targetTile
+              ? `${seatLabel(problem.targetSeat)}家が切った ${tileLabel(targetTile)}、あなたならどうする？`
+              : ""}
+        </h2>
 
         {/* 盤面は牌譜ビューアと同じ卓（河・鳴きは卓上に。鳴き判断は対象牌を強調）。 */}
         <ViewBoard
@@ -137,12 +173,6 @@ export function ProblemAnswerScreen({ post }: { post: ProblemPost }) {
               ))}
             </span>
           </div>
-        )}
-
-        {problem.kind === "call" && problem.targetSeat && targetTile && (
-          <p className={s.question}>
-            {seatLabel(problem.targetSeat)}家が切った {tileLabel(targetTile)} を鳴きますか？
-          </p>
         )}
 
         {/* 自分の手牌（理牌済み）＋ツモ牌 */}
@@ -178,6 +208,7 @@ export function ProblemAnswerScreen({ post }: { post: ProblemPost }) {
             )}
           </span>
         </div>
+        {problem.drawn && <p className={s.drawnNote}>右端はツモ牌</p>}
 
         {/* 回答 UI */}
         {!answered && (
@@ -217,6 +248,12 @@ export function ProblemAnswerScreen({ post }: { post: ProblemPost }) {
                 )}
               </>
             )}
+            {/* 選択中の手を言葉でも確認できるようにする（押し間違い防止）。 */}
+            {pending && (
+              <p className={s.pendingChoice}>
+                選択中: <b>{actionLabel(pending)}</b>
+              </p>
+            )}
             <button
               type="button"
               className={s.submit}
@@ -225,37 +262,52 @@ export function ProblemAnswerScreen({ post }: { post: ProblemPost }) {
             >
               回答する
             </button>
+            {!user && <p className={s.hint}>※ログインすると回答が集計されます。</p>}
           </div>
         )}
 
-        {/* 回答後: 自分の回答・出題者の答え・解説・分布 */}
+        {/* 回答後: 自分の回答・出題者のコメント・みんなの回答分布（正解は無い）。 */}
         {answered && (
           <div className={s.resultBox}>
-            <p className={s.myAnswer}>
-              あなたの回答: <b>{actionLabel(answered)}</b>
-            </p>
-            <h2 className={s.resultHead}>出題者の答え</h2>
-            <p className={s.authorAnswer}>{actionLabel(problem.answer)}</p>
-            {problem.explanation && <p className={s.explanation}>{problem.explanation}</p>}
+            <div className={s.myAnswerRow}>
+              <p className={s.myAnswer}>
+                あなたの回答: <b>{actionLabel(answered)}</b>
+              </p>
+              <button type="button" className={s.redoBtn} onClick={redo}>
+                回答をやり直す
+              </button>
+            </div>
+            {problem.explanation && (
+              <>
+                <h2 className={s.resultHead}>出題者のコメント</h2>
+                <p className={s.explanation}>{problem.explanation}</p>
+              </>
+            )}
 
             {user ? (
               stats && (
                 <>
                   <h2 className={s.resultHead}>回答分布（{stats.total}人）</h2>
                   <div className={s.stats}>
-                    {statsRatios(stats.counts).map(({ key, count, ratio }) => (
-                      <div key={key} className={s.statRow}>
-                        <span className={s.statLabel}>
-                          {choiceKeyLabel(key)}
-                          {stats.myChoiceKey === key && <small>（あなた）</small>}
-                        </span>
-                        <span className={s.statBarWrap}>
-                          <span className={s.statBar} style={{ width: `${ratio}%` }} />
-                        </span>
-                        <span className={s.statPct}>{ratio}%</span>
-                        <span className={s.statCount}>{count}件</span>
-                      </div>
-                    ))}
+                    {statsRatios(stats.counts).map(({ key, count, ratio }) => {
+                      const mine = stats.myChoiceKey === key;
+                      return (
+                        <div key={key} className={s.statRow}>
+                          <span className={s.statLabel}>
+                            {choiceKeyLabel(key)}
+                            {mine && <small>（あなた）</small>}
+                          </span>
+                          <span className={s.statBarWrap}>
+                            <span
+                              className={`${s.statBar} ${mine ? s.statBarMine : ""}`}
+                              style={{ width: `${ratio}%` }}
+                            />
+                          </span>
+                          <span className={s.statPct}>{ratio}%</span>
+                          <span className={s.statCount}>{count}件</span>
+                        </div>
+                      );
+                    })}
                   </div>
                 </>
               )

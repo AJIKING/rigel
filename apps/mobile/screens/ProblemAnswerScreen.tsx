@@ -44,8 +44,9 @@ import { problemShareUrl } from "../lib/problems";
 import { colors, radius } from "../lib/theme";
 
 /**
- * 何切る問題の回答画面。回答するまで出題者の答え・解説・分布は見せない。
- * 集計（回答の保存と分布）はログイン時のみ（未ログインは回答体験＋答え・解説まで）。
+ * 何切る問題の回答画面。正解は設けない（多様な正解を前提に、回答後に
+ * 出題者のコメントとみんなの回答分布を見る）。回答するまでコメント・分布は見せない。
+ * 集計（回答の保存と分布）はログイン時のみ（未ログインは回答体験＋コメントまで）。
  */
 export function ProblemAnswerScreen() {
   const route = useRoute<RouteProp<RootStackParamList, "ProblemAnswer">>();
@@ -101,6 +102,7 @@ function AnswerBody({ post, token }: { post: ProblemPost; token: string | null }
   // 選択状態→アクションの組み立ては共有純関数（web と同一挙動）。
   const sel = { kind: problem.kind, tile: selTile, riichi, call };
   const needsTile = answerNeedsTile(sel);
+  const pending = buildProblemAnswer(sel);
   const canSubmit = canSubmitProblemAnswer(sel);
 
   async function submit() {
@@ -114,6 +116,12 @@ function AnswerBody({ post, token }: { post: ProblemPost; token: string | null }
       status: 0,
     }));
     if (res.ok) setStats(await getProblemStats(token, post.id).catch(() => null));
+  }
+
+  /** 回答のやり直し（再回答はサーバ側 upsert で上書きされる）。選択は保持する。 */
+  function redo() {
+    setAnswered(null);
+    setStats(null);
   }
 
   function pickTile(tile: Tile) {
@@ -153,6 +161,15 @@ function AnswerBody({ post, token }: { post: ProblemPost; token: string | null }
       </View>
       <Text style={styles.meta}>{metaParts.join(" ・ ")}</Text>
 
+      {/* 質問見出し。正解は無い＝「あなたなら」を問う（web と同一文言）。 */}
+      <Text style={styles.question}>
+        {problem.kind === "discard"
+          ? "あなたなら何を切る？"
+          : problem.targetSeat && targetTile
+            ? `${seatLabel(problem.targetSeat)}家が切った ${tileLabel(targetTile)}、あなたならどうする？`
+            : ""}
+      </Text>
+
       {/* 盤面（牌譜と同じ回転卓）。ドラ・本場・供託は BoardTable が卓中央に表示する。 */}
       <View style={styles.boardWrap}>
         <BoardTable
@@ -177,12 +194,6 @@ function AnswerBody({ post, token }: { post: ProblemPost; token: string | null }
         </Row>
       ) : null}
 
-      {problem.kind === "call" && problem.targetSeat && targetTile ? (
-        <Text style={styles.question}>
-          {seatLabel(problem.targetSeat)}家が切った {tileLabel(targetTile)} を鳴きますか？
-        </Text>
-      ) : null}
-
       {/* 自分の手牌（理牌済み）＋ツモ牌 */}
       <Text style={styles.section}>手牌</Text>
       <View style={styles.hand}>
@@ -194,6 +205,7 @@ function AnswerBody({ post, token }: { post: ProblemPost; token: string | null }
               disabled={answered !== null || !needsTile}
               onPress={() => pickTile(t.tile!)}
               accessibilityRole="button"
+              accessibilityLabel={tileLabel(t.tile)}
               accessibilityState={{ selected: selTile === t.tile }}
             >
               <MiniTile code={t.tile} w={30} h={42} />
@@ -206,12 +218,15 @@ function AnswerBody({ post, token }: { post: ProblemPost; token: string | null }
             disabled={answered !== null}
             onPress={() => pickTile(problem.drawn!)}
             accessibilityRole="button"
+            accessibilityLabel={tileLabel(problem.drawn)}
             accessibilityState={{ selected: selTile === problem.drawn }}
           >
             <MiniTile code={problem.drawn} w={30} h={42} />
           </Pressable>
         ) : null}
       </View>
+      {/* ツモ牌は手牌の右に離して置く。初見でも分かるよう言葉でも添える（web と同一文言）。 */}
+      {problem.drawn ? <Text style={styles.drawnNote}>右端はツモ牌</Text> : null}
 
       {/* 回答 UI */}
       {!answered ? (
@@ -243,6 +258,8 @@ function AnswerBody({ post, token }: { post: ProblemPost; token: string | null }
               ) : null}
             </>
           )}
+          {/* 選択中の手を言葉でも確認できるようにする（押し間違い防止。web と同一文言）。 */}
+          {pending ? <Text style={styles.pending}>選択中: {actionLabel(pending)}</Text> : null}
           <Pressable
             style={[styles.submit, !canSubmit && styles.submitOff]}
             disabled={!canSubmit}
@@ -251,14 +268,23 @@ function AnswerBody({ post, token }: { post: ProblemPost; token: string | null }
           >
             <Text style={styles.submitText}>回答する</Text>
           </Pressable>
+          {/* 未ログインでも回答体験はできるが、分布には数えないことを先に伝える。 */}
+          {!token ? <Text style={styles.hint}>※ログインすると回答が集計されます。</Text> : null}
         </View>
       ) : (
         <View style={styles.resultBox}>
-          <Text style={styles.myAnswer}>あなたの回答: {actionLabel(answered)}</Text>
-          <Text style={styles.resultHead}>出題者の答え</Text>
-          <Text style={styles.authorAnswer}>{actionLabel(problem.answer)}</Text>
+          <View style={styles.myAnswerRow}>
+            <Text style={styles.myAnswer}>あなたの回答: {actionLabel(answered)}</Text>
+            <Pressable style={styles.redoBtn} onPress={redo} accessibilityRole="button">
+              <Text style={styles.redoText}>回答をやり直す</Text>
+            </Pressable>
+          </View>
+          {/* 正解は設けない（多様な正解を前提）。出題者のコメントとみんなの分布を見る。 */}
           {problem.explanation ? (
-            <Text style={styles.explanation}>{problem.explanation}</Text>
+            <>
+              <Text style={styles.resultHead}>出題者のコメント</Text>
+              <Text style={styles.explanation}>{problem.explanation}</Text>
+            </>
           ) : null}
 
           {token ? (
@@ -272,7 +298,15 @@ function AnswerBody({ post, token }: { post: ProblemPost; token: string | null }
                       {stats.myChoiceKey === key ? "（あなた）" : ""}
                     </Text>
                     <View style={styles.statBarWrap}>
-                      <View style={[styles.statBar, { width: `${ratio}%` }]} />
+                      {/* 自分の回答のバーはアクセント色で強調（web の statBarMine と同じ意図）。 */}
+                      <View
+                        testID={`stat-bar-${key}`}
+                        style={[
+                          styles.statBar,
+                          stats.myChoiceKey === key && styles.statBarMine,
+                          { width: `${ratio}%` },
+                        ]}
+                      />
                     </View>
                     <Text style={styles.statPct}>{ratio}%</Text>
                     <Text style={styles.statCount}>{count}件</Text>
@@ -323,10 +357,11 @@ const styles = StyleSheet.create({
   rowTiles: { flex: 1, flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: 4 },
   scores: { color: colors.w70, fontSize: 12.5 },
   boardWrap: { alignItems: "center", marginTop: 2 },
-  question: { color: colors.accent, fontSize: 13.5, fontWeight: "700" },
+  question: { color: colors.white, fontSize: 16, fontWeight: "800", marginTop: 2 },
   section: { color: colors.w45, fontSize: 12, fontWeight: "800", marginTop: 6 },
   hand: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: 4 },
   drawn: { marginLeft: 10 },
+  drawnNote: { color: colors.w45, fontSize: 11, marginTop: -4 },
   sel: {
     borderWidth: 2,
     borderColor: colors.accent,
@@ -343,6 +378,7 @@ const styles = StyleSheet.create({
     marginTop: 6,
   },
   hint: { color: colors.w45, fontSize: 12 },
+  pending: { color: colors.white, fontSize: 13, fontWeight: "700" },
   chipRow: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   submit: {
     backgroundColor: colors.accent,
@@ -361,9 +397,17 @@ const styles = StyleSheet.create({
     padding: 12,
     marginTop: 6,
   },
-  myAnswer: { color: colors.w70, fontSize: 13 },
+  myAnswerRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  myAnswer: { color: colors.w70, fontSize: 13, flexShrink: 1 },
+  redoBtn: {
+    borderWidth: 1,
+    borderColor: colors.line,
+    borderRadius: 7,
+    paddingVertical: 4,
+    paddingHorizontal: 12,
+  },
+  redoText: { color: colors.w70, fontSize: 12 },
   resultHead: { color: colors.w45, fontSize: 12, fontWeight: "800", marginTop: 6 },
-  authorAnswer: { color: colors.white, fontSize: 15, fontWeight: "800" },
   explanation: { color: colors.w70, fontSize: 13, lineHeight: 20 },
   statRow: { flexDirection: "row", alignItems: "center", gap: 8 },
   statLabel: { color: colors.w70, fontSize: 12, width: 120 },
@@ -374,7 +418,9 @@ const styles = StyleSheet.create({
     backgroundColor: colors.chrome2,
     overflow: "hidden",
   },
-  statBar: { height: "100%", backgroundColor: colors.accent },
+  // 既定のバーは卓の緑系（web の --accent と同じ意図）。自分の回答だけオレンジで目立たせる。
+  statBar: { height: "100%", backgroundColor: colors.emLite },
+  statBarMine: { backgroundColor: colors.accent },
   statPct: { color: colors.w70, fontSize: 12, width: 38, textAlign: "right" },
   statCount: { color: colors.w45, fontSize: 11, width: 34, textAlign: "right" },
   loginCta: { color: colors.accent, fontSize: 12.5, marginTop: 4 },

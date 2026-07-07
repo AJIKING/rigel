@@ -6,41 +6,17 @@
   color: #fff;
 }
 
-.bar {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  padding: 10px 16px;
-  border-bottom: 1px solid var(--line, rgba(255, 255, 255, 0.08));
-}
-.brand {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  text-decoration: none;
-  color: #fff;
-}
-.star {
-  width: 16px;
-  height: 16px;
-}
-.wm {
-  font-weight: 800;
-  letter-spacing: 0.14em;
-  font-size: 13px;
-}
-.crumb {
-  display: flex;
-  align-items: center;
-  gap: 7px;
+/* 本文内のパンくず（ヘッダは共通 AppHeader を使うため本文側に置く）。 */
+.crumbRow {
   font-size: 12px;
   color: var(--w70, rgba(255, 255, 255, 0.7));
+  margin: 0 0 14px;
 }
-.crumb a {
+.crumbRow a {
   color: var(--w70, rgba(255, 255, 255, 0.7));
   text-decoration: none;
 }
-.crumb a:hover {
+.crumbRow a:hover {
   color: #fff;
 }
 
@@ -115,9 +91,79 @@
   border-radius: 3px;
 }
 .question {
-  font-size: 14px;
-  font-weight: 700;
+  font-size: 16px;
+  font-weight: 800;
   margin: 6px 0 14px;
+}
+.titleRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.titleRow .title {
+  flex: 1;
+  min-width: 0;
+}
+.shareBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: transparent;
+  border: 1px solid var(--line, rgba(255, 255, 255, 0.2));
+  color: var(--w70, rgba(255, 255, 255, 0.7));
+  border-radius: 8px;
+  padding: 5px 12px;
+  font-size: 12px;
+  cursor: pointer;
+  flex: none;
+}
+.shareBtn svg {
+  width: 13px;
+  height: 13px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+}
+.shareBtn:hover {
+  color: #fff;
+}
+.drawnNote {
+  font-size: 11px;
+  color: var(--w45, rgba(255, 255, 255, 0.45));
+  margin: 4px 0 0 94px;
+}
+.pendingChoice {
+  font-size: 13px;
+  margin: 10px 0 0;
+  color: var(--w85, rgba(255, 255, 255, 0.9));
+}
+.myAnswerRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.myAnswerRow .myAnswer {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+}
+.redoBtn {
+  background: transparent;
+  border: 1px solid var(--line, rgba(255, 255, 255, 0.2));
+  color: var(--w70, rgba(255, 255, 255, 0.7));
+  border-radius: 7px;
+  padding: 4px 12px;
+  font-size: 12px;
+  cursor: pointer;
+  flex: none;
+}
+.redoBtn:hover {
+  color: #fff;
+}
+/* 分布バー: 自分の回答はアクセント色で強調。 */
+.statBarMine {
+  background: var(--orange, #f6a04d);
 }
 /* ViewBoard（共有卓）の中央情報（局・巡目・ドラ）。 */
 .centerInfo {
@@ -254,11 +300,6 @@
   color: var(--w70, rgba(255, 255, 255, 0.7));
   margin: 14px 0 6px;
   font-weight: 700;
-}
-.authorAnswer {
-  font-size: 16px;
-  font-weight: 800;
-  margin: 0;
 }
 .explanation {
   font-size: 13px;

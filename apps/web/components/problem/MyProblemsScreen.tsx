@@ -77,12 +77,8 @@ export function MyProblemsScreen({ initialPosts }: { initialPosts: ProblemPost[]
           <div className={s.profile}>
             <div className={s.stats}>
               <div className={s.stat}>
-                <b>{posts.length}</b>
-                <span>問題</span>
-              </div>
-              <div className={s.stat}>
                 <b>{publishedCount}</b>
-                <span>公開中</span>
+                <span>公開</span>
               </div>
               <div className={s.stat}>
                 <b>{posts.length - publishedCount}</b>
@@ -119,7 +115,7 @@ export function MyProblemsScreen({ initialPosts }: { initialPosts: ProblemPost[]
                 onChange={(e) => setStatus(e.target.value as typeof status)}
               >
                 <option value="all">すべて</option>
-                <option value="published">公開中</option>
+                <option value="published">公開</option>
                 <option value="draft">下書き</option>
               </select>
             </div>
@@ -138,7 +134,7 @@ export function MyProblemsScreen({ initialPosts }: { initialPosts: ProblemPost[]
               >
                 <path d="M12 5v14M5 12h14" />
               </svg>
-              新しい問題
+              新規
             </button>
           </div>
 
@@ -146,7 +142,7 @@ export function MyProblemsScreen({ initialPosts }: { initialPosts: ProblemPost[]
             {view.length === 0 ? (
               <div className={gc.empty}>
                 {posts.length === 0
-                  ? "まだ問題がありません。「新しい問題」から作成できます"
+                  ? "まだ問題がありません。「＋ 新規」から作成できます"
                   : "該当する問題がありません"}
               </div>
             ) : (
@@ -160,7 +156,7 @@ export function MyProblemsScreen({ initialPosts }: { initialPosts: ProblemPost[]
                         {PROBLEM_KIND_LABELS[post.problem.kind]}
                       </span>
                       {post.status === "published" ? (
-                        <span className={`${gc.badge} ${gc.pub}`}>公開中</span>
+                        <span className={`${gc.badge} ${gc.pub}`}>公開</span>
                       ) : (
                         <span className={`${gc.badge} ${gc.draft}`}>下書き</span>
                       )}
