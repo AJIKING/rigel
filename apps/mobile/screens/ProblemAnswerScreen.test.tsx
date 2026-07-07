@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react-native";
 import { Share, StyleSheet } from "react-native";
 import { colors } from "../lib/theme";
-import { makeCallProblem, makePost } from "./problem-test-helpers";
+import { makeCallProblem, makeOpponentHandsProblem, makePost } from "./problem-test-helpers";
 import { ProblemAnswerScreen } from "./ProblemAnswerScreen";
 
 const mockNavigate = jest.fn();
@@ -244,6 +244,15 @@ describe("ProblemAnswerScreen（何切る回答画面）", () => {
     });
     // 卓中央には場風+巡目（KifuPlayer と同じ回転卓の中央表示）。
     expect(screen.getByText("東場 6巡目")).toBeTruthy();
+  });
+
+  it("他家に手牌が設定された問題は、その席の手牌が盤面に表向きで描画される", async () => {
+    mockGetProblem.mockResolvedValue(makePost({ problem: makeOpponentHandsProblem() }));
+    render(<ProblemAnswerScreen />);
+
+    expect(await screen.findByText("テスト問題")).toBeTruthy();
+    // 南家にしか無い牌（2索）が表向き＝牌ラベル付きで描画される（裏向きはラベル無し）。
+    expect(screen.getByLabelText("2索")).toBeTruthy();
   });
 
   it("公開問題では OS 共有を開ける（下書きには出さない）", async () => {

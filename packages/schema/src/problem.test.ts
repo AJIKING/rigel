@@ -164,6 +164,39 @@ describe("ProblemSchema: 何切る（discard）", () => {
   });
 });
 
+describe("ProblemSchema: 相手の手牌（任意。置くなら自分と同じ整合を要求）", () => {
+  const opponentHand = (tiles: Tile[]) => tiles.map((t) => ({ tile: t, confidence: 1 }));
+
+  it("他家の手牌は未設定（0枚）でよい", () => {
+    expect(() => ProblemSchema.parse(discardProblem())).not.toThrow();
+  });
+
+  it("他家に手牌を置くなら13枚（副露3枚換算）で受け入れる", () => {
+    const seats = seatsWithHand(HAND_13, { south: { hand: opponentHand(HAND_13) } });
+    const p = ProblemSchema.parse(discardProblem({ seats }));
+    expect(p.seats.south.hand).toHaveLength(13);
+  });
+
+  it("他家の手牌が13枚整合でない・読めない牌を含むなら拒否する", () => {
+    expect(() =>
+      ProblemSchema.parse(
+        discardProblem({
+          seats: seatsWithHand(HAND_13, { south: { hand: opponentHand(HAND_13.slice(0, 5)) } }),
+        }),
+      ),
+    ).toThrow();
+    expect(() =>
+      ProblemSchema.parse(
+        discardProblem({
+          seats: seatsWithHand(HAND_13, {
+            south: { hand: [...opponentHand(HAND_13.slice(0, 12)), { tile: null, confidence: 0 }] },
+          }),
+        }),
+      ),
+    ).toThrow();
+  });
+});
+
 describe("ProblemSchema: 鳴き判断（call）", () => {
   it("対象席の河の末尾の1枚を対象として parse できる", () => {
     const p = ProblemSchema.parse(callProblem());

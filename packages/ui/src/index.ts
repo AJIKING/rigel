@@ -371,10 +371,8 @@ export function problemToKifu(problem: Problem): Kifu {
   const seats = Object.fromEntries(
     SEAT_ORDER.map((seat) => {
       const board = problem.seats[seat];
-      return [
-        seat,
-        { ...board, hand: seat === problem.pov ? sortHandTiles(board.hand) : board.hand },
-      ];
+      // 相手の手牌（出題オプション）も含め、置かれている手牌はすべて理牌して見せる。
+      return [seat, { ...board, hand: sortHandTiles(board.hand) }];
     }),
   );
   return KifuSchema.parse({
@@ -468,6 +466,17 @@ export function problemRiverTiles(problem?: Problem): Record<Seat, Tile[]> {
   return rivers;
 }
 
+/** 問題の他家の手牌を牌配列へ写す（編集画面の初期状態用。pov の分は含めない）。 */
+export function problemOpponentHands(problem?: Problem): Record<Seat, Tile[]> {
+  const hands: Record<Seat, Tile[]> = { east: [], south: [], west: [], north: [] };
+  if (!problem) return hands;
+  for (const seat of SEAT_ORDER) {
+    if (seat === problem.pov) continue;
+    hands[seat] = problem.seats[seat].hand.flatMap((t) => (t.tile ? [t.tile] : []));
+  }
+  return hands;
+}
+
 /** 副露を1組追加した編集状態を返す（3枚換算で溢れる手牌は末尾から外す。カンは kan_open）。 */
 export function addDraftMeld(
   hand: Tile[],
@@ -490,6 +499,8 @@ export interface ProblemDraft {
   hand: Tile[];
   melds: Meld[];
   drawn: Tile | null;
+  /** 相手の手牌（出題オプション。未設定の席は空配列。pov の分は無視される）。 */
+  opponentHands?: Record<Seat, Tile[]>;
   /** 鳴き判断の対象席（kind=call のときだけ使われる）。 */
   targetSeat: Seat;
   rivers: Record<Seat, Tile[]>;
@@ -509,9 +520,9 @@ export interface ProblemDraft {
   explanation: string;
 }
 
-/** 盤面プレビューに必要な編集状態のサブセット（答え・解説は不要）。 */
+/** 盤面プレビューに必要な編集状態のサブセット（解説は不要）。 */
 export type ProblemBoardDraft = Pick<ProblemDraft, "pov" | "hand" | "melds" | "rivers" | "meta"> &
-  Partial<Pick<ProblemDraft, "rules">>;
+  Partial<Pick<ProblemDraft, "rules" | "opponentHands">>;
 
 /**
  * 編集途中の状態を検証なしで盤面プレビュー用の Kifu に写す（枚数不足でも描ける）。
@@ -519,23 +530,23 @@ export type ProblemBoardDraft = Pick<ProblemDraft, "pov" | "hand" | "melds" | "r
  */
 export function draftToKifu(draft: ProblemBoardDraft): Kifu {
   const seats = Object.fromEntries(
-    SEAT_ORDER.map((seat) => [
-      seat,
-      {
-        hand:
-          seat === draft.pov
-            ? sortHandTiles(draft.hand.map((tile) => ({ tile, confidence: 1 })))
-            : [],
-        melds: seat === draft.pov ? draft.melds : [],
-        river: draft.rivers[seat].map((tile, i) => ({
-          order: i + 1,
-          tile,
-          riichi: false,
-          tsumogiri: false,
-          confidence: 1,
-        })),
-      },
-    ]),
+    SEAT_ORDER.map((seat) => {
+      const handTiles = seat === draft.pov ? draft.hand : (draft.opponentHands?.[seat] ?? []);
+      return [
+        seat,
+        {
+          hand: sortHandTiles(handTiles.map((tile) => ({ tile, confidence: 1 }))),
+          melds: seat === draft.pov ? draft.melds : [],
+          river: draft.rivers[seat].map((tile, i) => ({
+            order: i + 1,
+            tile,
+            riichi: false,
+            tsumogiri: false,
+            confidence: 1,
+          })),
+        },
+      ];
+    }),
   );
   return KifuSchema.parse({
     schemaVersion: SCHEMA_VERSION,
@@ -554,20 +565,24 @@ export function draftToKifu(draft: ProblemBoardDraft): Kifu {
  */
 export function assembleProblem(draft: ProblemDraft): { problem?: Problem; error?: string } {
   const seats = Object.fromEntries(
-    SEAT_ORDER.map((seat) => [
-      seat,
-      {
-        hand: seat === draft.pov ? draft.hand.map((t) => ({ tile: t, confidence: 1 })) : [],
-        melds: seat === draft.pov ? draft.melds : [],
-        river: draft.rivers[seat].map((tile, i) => ({
-          order: i + 1,
-          tile,
-          riichi: false,
-          tsumogiri: false,
-          confidence: 1,
-        })),
-      },
-    ]),
+    SEAT_ORDER.map((seat) => {
+      // 自分の手牌は draft.hand、他家は opponentHands（出題オプション。未設定は空）。
+      const handTiles = seat === draft.pov ? draft.hand : (draft.opponentHands?.[seat] ?? []);
+      return [
+        seat,
+        {
+          hand: handTiles.map((t) => ({ tile: t, confidence: 1 })),
+          melds: seat === draft.pov ? draft.melds : [],
+          river: draft.rivers[seat].map((tile, i) => ({
+            order: i + 1,
+            tile,
+            riichi: false,
+            tsumogiri: false,
+            confidence: 1,
+          })),
+        },
+      ];
+    }),
   );
   const parsed = ProblemSchema.safeParse({
     schemaVersion: PROBLEM_SCHEMA_VERSION,
