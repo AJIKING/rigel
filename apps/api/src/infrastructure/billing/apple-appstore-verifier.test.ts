@@ -1,32 +1,23 @@
-import "reflect-metadata"; // @peculiar/x509 が要求するポリフィル（最初に読み込む）。
-import * as x509 from "@peculiar/x509";
-import { CompactSign } from "jose";
 import { beforeAll, describe, expect, it } from "vitest";
+import {
+  createTestAppStoreChain,
+  genAppStoreKeys,
+  signAppStoreJws,
+} from "../../test-support/appstore-jws";
 import { AppleAppStoreVerifier, normalizeAppStoreNotification } from "./apple-appstore-verifier";
 
 // ------------------------------------------------------------
-// テスト用の証明書チェーン（自作CA → 葉）を作り、実際に JWS を署名して検証経路を通す。
-// 「信頼アンカー（ルート）を差し替えられる」設計を利用して正常系を、
-// 既定（Apple ルート固定）で偽チェーンの拒否を検証する。
+// テスト用の証明書チェーン（自作CA → 葉。test-support/appstore-jws）で
+// 実際に JWS を署名して検証経路を通す。「信頼アンカー（ルート）を差し替え
+// られる」設計を利用して正常系を、既定（Apple ルート固定）で偽チェーンの
+// 拒否を検証する。
 // ------------------------------------------------------------
-
-const ALG = { name: "ECDSA", namedCurve: "P-256", hash: "SHA-256" } as const;
-const b64 = (buf: ArrayBuffer) => Buffer.from(buf).toString("base64");
-
-/** ECDSA 鍵ペアを作る（generateKey の戻り型 union を CryptoKeyPair に絞る）。 */
-async function genKeys(): Promise<CryptoKeyPair> {
-  return (await crypto.subtle.generateKey(ALG, true, ["sign", "verify"])) as CryptoKeyPair;
-}
 
 let rootB64: string;
 let leafKeys: CryptoKeyPair;
 let x5c: string[];
 
-async function signJws(payload: unknown, keys: CryptoKeyPair, chain: string[]): Promise<string> {
-  return new CompactSign(new TextEncoder().encode(JSON.stringify(payload)))
-    .setProtectedHeader({ alg: "ES256", x5c: chain })
-    .sign(keys.privateKey);
-}
+const signJws = signAppStoreJws;
 
 const TX = {
   bundleId: "jp.co.plaria.rigel",
@@ -36,30 +27,10 @@ const TX = {
 };
 
 beforeAll(async () => {
-  x509.cryptoProvider.set(crypto);
-  const caKeys = await genKeys();
-  const caCert = await x509.X509CertificateGenerator.createSelfSigned({
-    serialNumber: "01",
-    name: "CN=Test Root CA",
-    notBefore: new Date("2026-01-01"),
-    notAfter: new Date("2039-01-01"),
-    keys: caKeys,
-    signingAlgorithm: ALG,
-    extensions: [new x509.BasicConstraintsExtension(true, undefined, true)],
-  });
-  leafKeys = await genKeys();
-  const leafCert = await x509.X509CertificateGenerator.create({
-    serialNumber: "02",
-    subject: "CN=Test Leaf",
-    issuer: caCert.subject,
-    notBefore: new Date("2026-01-01"),
-    notAfter: new Date("2039-01-01"),
-    publicKey: leafKeys.publicKey,
-    signingKey: caKeys.privateKey,
-    signingAlgorithm: ALG,
-  });
-  rootB64 = b64(caCert.rawData);
-  x5c = [b64(leafCert.rawData), rootB64];
+  const chain = await createTestAppStoreChain();
+  rootB64 = chain.rootDerB64;
+  leafKeys = chain.leafKeys;
+  x5c = chain.x5c;
 });
 
 describe("AppleAppStoreVerifier.verifyTransaction", () => {
@@ -82,9 +53,16 @@ describe("AppleAppStoreVerifier.verifyTransaction", () => {
   });
 
   it("葉と違う鍵で署名した JWS は拒否する（チェーンだけ本物でも通らない）", async () => {
-    const otherKeys = await genKeys();
+    const otherKeys = await genAppStoreKeys();
     const verifier = new AppleAppStoreVerifier({ rootCaDerB64: rootB64 });
     const jws = await signJws(TX, otherKeys, x5c);
+    await expect(verifier.verifyTransaction(jws)).rejects.toThrow();
+  });
+
+  it("別のCA（別ルート）で作った正しいチェーンでも、信頼アンカー不一致なら拒否する", async () => {
+    const foreign = await createTestAppStoreChain();
+    const verifier = new AppleAppStoreVerifier({ rootCaDerB64: rootB64 });
+    const jws = await signJws(TX, foreign.leafKeys, foreign.x5c);
     await expect(verifier.verifyTransaction(jws)).rejects.toThrow();
   });
 });
@@ -108,6 +86,48 @@ describe("AppleAppStoreVerifier.parseNotification", () => {
         expiresDate: TX.expiresDate,
       },
     });
+  });
+
+  it("EXPIRED（更新失敗の確定）を revoked に正規化する", async () => {
+    const verifier = new AppleAppStoreVerifier({ rootCaDerB64: rootB64 });
+    const inner = await signJws(TX, leafKeys, x5c);
+    const outer = await signJws(
+      {
+        notificationType: "EXPIRED",
+        data: { bundleId: TX.bundleId, signedTransactionInfo: inner },
+      },
+      leafKeys,
+      x5c,
+    );
+    expect(await verifier.parseNotification(outer)).toEqual({
+      type: "revoked",
+      originalTransactionId: "orig-1",
+    });
+  });
+
+  it("signedTransactionInfo を欠く通知は ignored（誤ってプランを動かさない）", async () => {
+    const verifier = new AppleAppStoreVerifier({ rootCaDerB64: rootB64 });
+    const outer = await signJws(
+      { notificationType: "DID_RENEW", data: { bundleId: TX.bundleId } },
+      leafKeys,
+      x5c,
+    );
+    expect(await verifier.parseNotification(outer)).toEqual({ type: "ignored" });
+  });
+
+  it("内側の signedTransactionInfo が別鍵で署名されていたら通知ごと拒否する", async () => {
+    const verifier = new AppleAppStoreVerifier({ rootCaDerB64: rootB64 });
+    const otherKeys = await genAppStoreKeys();
+    const forgedInner = await signJws(TX, otherKeys, x5c);
+    const outer = await signJws(
+      {
+        notificationType: "DID_RENEW",
+        data: { bundleId: TX.bundleId, signedTransactionInfo: forgedInner },
+      },
+      leafKeys,
+      x5c,
+    );
+    await expect(verifier.parseNotification(outer)).rejects.toThrow();
   });
 });
 

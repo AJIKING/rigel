@@ -17,6 +17,7 @@ import {
   updateProfileAction,
 } from "../../app/actions";
 import { useAuth } from "../../lib/auth-context";
+import { redirectTo } from "../../lib/navigation";
 import { AppHeader } from "../AppHeader";
 import s from "./account.module.css";
 
@@ -77,7 +78,7 @@ export function SettingsShell() {
    *  Checkout の作り直しは別サブスクを追加してしまい二重課金になる（api 側でも 409 で拒否）。 */
   async function openPortal() {
     const res = await createPortalAction({ returnUrl: `${window.location.origin}/settings` });
-    if (res.ok) window.location.href = res.url;
+    if (res.ok) redirectTo(res.url);
     else {
       setSave(
         res.status === 404 ? "加入中のプランが見つかりませんでした" : "ポータルを開けませんでした",
@@ -100,7 +101,7 @@ export function SettingsShell() {
       successUrl: `${origin}/settings`,
       cancelUrl: `${origin}/settings`,
     });
-    if (res.ok) window.location.href = res.url;
+    if (res.ok) redirectTo(res.url);
     else {
       setSave(checkoutErrorMessage(res.status));
       setPlanOpen(false);

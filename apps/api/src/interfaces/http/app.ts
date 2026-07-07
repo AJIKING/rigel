@@ -9,7 +9,8 @@
 
 import { Hono } from "hono";
 import { cors } from "hono/cors";
-import { buildContainer } from "../../composition-root";
+import { buildContainer, type AppContainer } from "../../composition-root";
+import type { Env } from "../../env";
 import { registerAccountRoutes } from "./routes/account.routes";
 import { registerBillingRoutes } from "./routes/billing.routes";
 import { registerGameRoutes } from "./routes/games.routes";
@@ -20,8 +21,17 @@ import type { AppEnv } from "./shared";
 /** localhost 開発オリジンは常に許可する（本番ドメインは ALLOWED_ORIGINS で渡す）。 */
 const DEV_ORIGINS = ["http://localhost:3000"];
 
-export function createApp(): Hono<AppEnv> {
+export interface CreateAppOptions {
+  /**
+   * DI コンテナの組み立てを差し替える（統合テスト用の継ぎ目）。
+   * 省略時は本番の buildContainer(env)。ルート・ミドルウェアの挙動は変わらない。
+   */
+  container?: (env: Env) => AppContainer;
+}
+
+export function createApp(options: CreateAppOptions = {}): Hono<AppEnv> {
   const app = new Hono<AppEnv>();
+  const makeContainer = options.container ?? buildContainer;
 
   // CORS。web は別オリジン（rigel.plaria.co.jp）から API を叩くため、
   // 許可オリジンのプリフライト/レスポンスに ACAO を返す。認証は Bearer
@@ -47,7 +57,7 @@ export function createApp(): Hono<AppEnv> {
 
   // リクエストごとに DI コンテナを組み立ててコンテキストに載せる。
   app.use("*", async (c, next) => {
-    c.set("container", buildContainer(c.env));
+    c.set("container", makeContainer(c.env));
     await next();
   });
 
