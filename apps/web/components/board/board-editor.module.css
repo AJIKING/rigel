@@ -200,6 +200,16 @@
   gap: 2px;
   align-items: flex-end;
 }
+/* 手牌行の「配牌」キャプション（最終手牌ではなく配牌であることを示す）。 */
+.handLabel {
+  font-size: 10px;
+  color: var(--w70);
+  font-weight: 500;
+  align-self: center;
+  margin-right: 4px;
+  flex: 0 0 auto;
+  user-select: none;
+}
 .melds {
   display: flex;
   gap: 6px;
@@ -573,6 +583,11 @@
   font-size: 10px;
   color: var(--w45);
   font-weight: 400;
+}
+/* 局メニューの要確認バッジ（読めなかった/低confidenceの牌数。人手修正の入口）。 */
+.roundItem small.reviewCnt {
+  color: var(--vermilion);
+  font-weight: 700;
 }
 .roundItem:hover,
 .roundItem.on {
@@ -1026,6 +1041,25 @@
   color: var(--w45);
   text-align: center;
   margin: 2px 0 0;
+}
+/* ピッカー内の削除ボタン（牌/鳴き）。mobile の TilePickerSheet「削除」と同等の操作。 */
+.pkDel {
+  display: block;
+  width: 100%;
+  margin-top: 8px;
+  padding: 6px 8px;
+  background: transparent;
+  border: 1px solid var(--vermilion);
+  border-radius: var(--r-sm);
+  color: var(--vermilion);
+  font-family: var(--round);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: 0.15s;
+}
+.pkDel:hover {
+  background: rgba(214, 69, 69, 0.12);
 }
 
 /* modal */

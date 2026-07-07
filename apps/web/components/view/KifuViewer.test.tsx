@@ -31,7 +31,7 @@ const kifuWithAgari = (): Kifu =>
     },
   );
 
-function detail(logs: Kifu[]): PublicGameDetail {
+function detail(logs: Kifu[], visibility: "public" | "private" = "public"): PublicGameDetail {
   return {
     game: { id: "g1", title: "公開テスト卓", createdAt: "2026-06-28T00:00:00.000Z" },
     owner: { id: "u1", handle: "taro", displayName: "太郎" },
@@ -41,7 +41,7 @@ function detail(logs: Kifu[]): PublicGameDetail {
       gameId: "g1",
       seq: i + 1,
       kifu: k,
-      visibility: "public" as const,
+      visibility,
       status: "complete" as const,
       createdAt: "2026-06-28T00:00:00.000Z",
     })),
@@ -124,6 +124,19 @@ describe("KifuViewer", () => {
       .map((img) => img.getAttribute("alt"))
       .filter((alt) => alt); // Front.svg（alt=""）を除く
     expect(alts).toEqual(["1萬", "9索", "東"]);
+  });
+
+  it("公開の半荘は「公開」バッジと共有ボタンを出す", () => {
+    renderViewer(detail([kifu()]));
+    expect(screen.getByText("公開")).toBeTruthy();
+    expect(screen.getByText("共有")).toBeTruthy();
+  });
+
+  it("非公開の半荘（所有者の再生）は「非公開」バッジを出し、共有ボタンは出さない", () => {
+    renderViewer(detail([kifu()], "private"));
+    expect(screen.getByText("非公開")).toBeTruthy();
+    expect(screen.queryByText("公開")).toBeNull();
+    expect(screen.queryByText("共有")).toBeNull();
   });
 
   it("本場は牌譜の実データを表示する（ハードコードしない）", () => {

@@ -171,6 +171,8 @@ export function KifuViewer({ detail, gameId }: { detail: PublicGameDetail; gameI
 
   const round = roundNameForSeq(log.seq);
   const authorName = detail.owner.handle ?? detail.owner.id.slice(0, 6);
+  // 非公開の半荘（所有者だけが開ける再生ページ）。バッジと共有の出し分けに使う。
+  const isPrivate = detail.logs[0]?.visibility === "private";
   const curJunme = Math.max(1, revealed[dealer]); // 巡目は最小1（0巡を出さない）
   // 和了（ロン/ツモ）のときだけ裏ドラを出す（リーチ和了で意味を持つため）。
   const isWin = kifu.result === "ron" || kifu.result === "tsumo";
@@ -190,7 +192,7 @@ export function KifuViewer({ detail, gameId }: { detail: PublicGameDetail; gameI
             <BrandMark starClassName={s.star} wordmarkClassName={s.wm} />
           </Link>
           <div className={s.crumb}>
-            <Link href="/kifu">公開牌譜</Link>
+            <Link href="/kifu">{isPrivate ? "マイページ" : "公開牌譜"}</Link>
             <span>›</span>
             <span>牌譜を見る</span>
           </div>
@@ -202,7 +204,9 @@ export function KifuViewer({ detail, gameId }: { detail: PublicGameDetail; gameI
           <div className={s.khMain}>
             <h1 className={s.ktitle}>
               {detail.game.title || "（無題の半荘）"}
-              <span className={`${s.badge} ${s.pub}`}>公開</span>
+              <span className={`${s.badge} ${isPrivate ? s.priv : s.pub}`}>
+                {isPrivate ? "非公開" : "公開"}
+              </span>
             </h1>
             <div className={s.kmeta}>
               <Link href={`/u/${detail.owner.handle ?? detail.owner.id}`}>@{authorName}</Link>
@@ -244,15 +248,18 @@ export function KifuViewer({ detail, gameId }: { detail: PublicGameDetail; gameI
               </svg>
               お気に入り
             </button>
-            <button className={s.iconbtn} onClick={onShare}>
-              <svg viewBox="0 0 24 24">
-                <circle cx="18" cy="5" r="3" />
-                <circle cx="6" cy="12" r="3" />
-                <circle cx="18" cy="19" r="3" />
-                <path d="M8.6 13.5l6.8 4M15.4 6.5l-6.8 4" />
-              </svg>
-              {shareLabel}
-            </button>
+            {/* 共有は公開のみ（非公開のURLは所有者以外開けないため）。mobile と同一方針。 */}
+            {!isPrivate && (
+              <button className={s.iconbtn} onClick={onShare}>
+                <svg viewBox="0 0 24 24">
+                  <circle cx="18" cy="5" r="3" />
+                  <circle cx="6" cy="12" r="3" />
+                  <circle cx="18" cy="19" r="3" />
+                  <path d="M8.6 13.5l6.8 4M15.4 6.5l-6.8 4" />
+                </svg>
+                {shareLabel}
+              </button>
+            )}
           </div>
         </div>
       )}

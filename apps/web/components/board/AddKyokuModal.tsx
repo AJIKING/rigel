@@ -3,6 +3,7 @@
 import {
   analyzeErrorMessage,
   cameraLabel,
+  planCanAnalyze,
   roundNameForSeq,
   seatLabel,
   LIMIT_MESSAGES,
@@ -12,6 +13,7 @@ import { SeatSchema, type CameraSeat, type Seat, type Tile } from "@rigel/schema
 import { useState } from "react";
 import { analyzeAction, createEmptyKifuAction, createGameAction } from "../../app/actions";
 import { buildAnalyzeForm } from "../../lib/analyze-form";
+import { useAuth } from "../../lib/auth-context";
 import { DoraPicker } from "./DoraPicker";
 import { Stepper } from "./Stepper";
 import s from "./board-editor.module.css";
@@ -38,7 +40,12 @@ export function AddKyokuModal({
   onDone: (newLogId: string, gameId: string) => void | Promise<void>;
 }) {
   const isNew = !gameId;
+  const { user } = useAuth();
+  // 写真からのAI再現は有料プランのみ（free は解析枠0）。フリーには写真入力を出さない
+  //（mobile の Capture と同一方針。実際の枠判定は API 側でも行う）。
+  const canAnalyze = planCanAnalyze(user?.plan ?? "free");
   const [mode, setMode] = useState<"ai" | "manual">("ai");
+  const effMode = canAnalyze ? mode : "manual";
   const [seat, setSeat] = useState<Seat>(bottomSeat);
   const [river, setRiver] = useState<File | null>(null);
   const [hands, setHands] = useState<Partial<Record<CameraSeat, File>>>({});
@@ -115,20 +122,22 @@ export function AddKyokuModal({
             ✕
           </button>
         </div>
-        <div className={s.modalModes}>
-          <button
-            className={`${s.modeTab} ${mode === "ai" ? s.on : ""}`}
-            onClick={() => setMode("ai")}
-          >
-            AI再現
-          </button>
-          <button
-            className={`${s.modeTab} ${mode === "manual" ? s.on : ""}`}
-            onClick={() => setMode("manual")}
-          >
-            手動入力
-          </button>
-        </div>
+        {canAnalyze && (
+          <div className={s.modalModes}>
+            <button
+              className={`${s.modeTab} ${effMode === "ai" ? s.on : ""}`}
+              onClick={() => setMode("ai")}
+            >
+              AI再現
+            </button>
+            <button
+              className={`${s.modeTab} ${effMode === "manual" ? s.on : ""}`}
+              onClick={() => setMode("manual")}
+            >
+              手動入力
+            </button>
+          </div>
+        )}
 
         {isNew && (
           <div className={s.modalSeat}>
@@ -148,7 +157,7 @@ export function AddKyokuModal({
           </div>
         )}
 
-        {mode === "ai" ? (
+        {effMode === "ai" ? (
           <div className={s.modalBody}>
             <label className={`${s.up} ${s.upRiver} ${river ? s.filled : ""}`}>
               <input
@@ -213,6 +222,12 @@ export function AddKyokuModal({
               <DoraPicker value={dora} onPick={setDora} />
             </div>
             <p className={s.note}>空の盤面で局を作成します。牌は盤面の「＋」から手入力できます。</p>
+            {/* free にはアップセル文言だけ出す（mobile と同一文言）。 */}
+            {!canAnalyze && (
+              <p className={s.note}>
+                写真からのAI再現（撮影→自動で牌譜化）は有料プラン（Next / Pro）で利用できます。
+              </p>
+            )}
             {error && (
               <p className={s.note} style={{ color: "var(--vermilion)" }}>
                 {error}
@@ -225,7 +240,7 @@ export function AddKyokuModal({
           <button className={s.btnGhost} onClick={onClose}>
             キャンセル
           </button>
-          {mode === "ai" ? (
+          {effMode === "ai" ? (
             <button className={s.btnPrimary} disabled={busy} onClick={() => void onAnalyze()}>
               {busy && <span className={s.spinner} />}
               {busy ? "解析中…" : "AI再現"}

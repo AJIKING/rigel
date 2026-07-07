@@ -138,6 +138,8 @@ export function BoardTable(p: BoardTableProps) {
                 </div>
 
                 <div className={s.hand}>
+                  {/* この行は最終手牌ではなく配牌。ラベルで明示する（mobile の編集画面と同じ呼称）。 */}
+                  <span className={s.handLabel}>配牌</span>
                   {board.hand.map((h, hi) => {
                     const loc: TileLocation = { seat, area: "hand", index: hi };
                     return (

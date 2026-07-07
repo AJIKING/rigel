@@ -5,9 +5,13 @@ import {
   addHandTile,
   applyResultMode,
   applyTileEdit,
+  collectReviewItems,
   deriveWinResult,
   mutateKifu,
   removeDoraTile,
+  removeHandTile,
+  removeMeld,
+  removeRiverTile,
   resultModeOf,
   setDoraTile,
   sortHandTiles,
@@ -151,6 +155,13 @@ function normalizeKifu(k: Kifu | null | undefined): Kifu | null {
   return k ? sortKifuHands(k) : null;
 }
 
+const CAMS: CameraSeat[] = ["bottom", "right", "top", "left"];
+
+/** 絶対席をカメラ相対（手前基準）へ戻す。追加ピッカーの「鳴いた人」の既定値に使う。 */
+function cameraSeatOf(seat: Seat, bottomSeat: Seat): CameraSeat {
+  return CAMS.find((cam) => toAbsoluteSeat(cam, bottomSeat) === seat) ?? "bottom";
+}
+
 /** 手牌修正後のフラッシュ位置。理牌で牌が動くので、applyTileEdit と同じ安定ソートを
  *  元 index 付きで再現して「動いた先」を求める。 */
 function handIndexAfterEdit(kifu: Kifu, loc: TileLocation, code: Tile): number {
@@ -268,6 +279,9 @@ function Editor(p: EditorProps) {
   const [meldType, setMeldType] = useState<MeldType>("none");
   const [meldWho, setMeldWho] = useState<CameraSeat>("bottom");
   const [kanType, setKanType] = useState<KanType>("minkan");
+  // 河への追加時に「これから追加する牌」へ適用する捨て方/リーチ（追加ピッカーで選ぶ）。
+  const [addTsumogiri, setAddTsumogiri] = useState(false);
+  const [addRiichi, setAddRiichi] = useState(false);
 
   const [save, setSave] = useState<"idle" | "saving" | "done">("idle");
   const [saveErr, setSaveErr] = useState<string | null>(null);
@@ -327,6 +341,10 @@ function Editor(p: EditorProps) {
     setSel({ kind: "add", seat, area });
     setSuit("m");
     setMeldType("none");
+    // 追加する牌のフラグは毎回リセット。鳴きを選んだときの既定の鳴き主は追加先の席。
+    setAddTsumogiri(false);
+    setAddRiichi(false);
+    setMeldWho(cameraSeatOf(seat, bottomSeat));
     setPop(popAnchor((e.currentTarget as HTMLElement).getBoundingClientRect()));
   }
   function openDoraPicker(e: React.MouseEvent, kind: "dora" | "uradora", index?: number) {
@@ -358,27 +376,8 @@ function Editor(p: EditorProps) {
       closePop();
       return;
     }
-    if (sel.kind === "add") {
-      const { seat, area } = sel;
-      if (area === "hand") {
-        // 配牌への追加は理牌込みの共有純関数（mobile と同一挙動）。
-        setKifu(addHandTile(kifu, seat, code));
-      } else {
-        mutate((d) => {
-          const river = d.seats[seat].river;
-          river.push({
-            order: river.length + 1,
-            tile: code,
-            riichi: false,
-            tsumogiri: false,
-            confidence: 1,
-          });
-        });
-      }
-      closePop();
-      return;
-    }
-    if (meldType !== "none" && sel.loc.area !== "meld") {
+    // 鳴き種別が選ばれていれば、追加/編集どちらのピッカーからでも鳴きを作成する。
+    if (meldType !== "none" && (sel.kind === "add" || sel.loc.area !== "meld")) {
       const owner = toAbsoluteSeat(meldWho, bottomSeat);
       const kanMap = { minkan: "kan_open", ankan: "kan_closed", kakan: "kan_added" } as const;
       const type = meldType === "chi" ? "chi" : meldType === "pon" ? "pon" : kanMap[kanType];
@@ -392,10 +391,42 @@ function Editor(p: EditorProps) {
       closePop();
       return;
     }
+    if (sel.kind === "add") {
+      const { seat, area } = sel;
+      if (area === "hand") {
+        // 配牌への追加は理牌込みの共有純関数（mobile と同一挙動）。
+        setKifu(addHandTile(kifu, seat, code));
+      } else {
+        // 追加ピッカーで選んだ捨て方/リーチをそのまま乗せる。
+        mutate((d) => {
+          const river = d.seats[seat].river;
+          river.push({
+            order: river.length + 1,
+            tile: code,
+            riichi: addRiichi,
+            tsumogiri: addTsumogiri,
+            confidence: 1,
+          });
+        });
+      }
+      closePop();
+      return;
+    }
     const loc = sel.loc;
     setKifu(applyTileEdit(kifu, loc, code));
     // 手牌は理牌で位置が動くので、動いた先を追ってフラッシュする。
     flash(loc.area === "hand" ? { ...loc, index: handIndexAfterEdit(kifu, loc, code) } : loc);
+    closePop();
+  }
+
+  /** ピッカーからの削除。手牌/河は1牌（河は order を振り直す共有純関数）、鳴きは丸ごと。
+   *  mobile の TilePickerSheet「削除」・鳴き行「削除」と同等の操作。 */
+  function deleteSelected() {
+    if (sel?.kind !== "edit") return;
+    const loc = sel.loc;
+    if (loc.area === "hand") setKifu(removeHandTile(kifu, loc.seat, loc.index));
+    else if (loc.area === "river") setKifu(removeRiverTile(kifu, loc.seat, loc.index));
+    else setKifu(removeMeld(kifu, loc.seat, loc.meldIndex ?? 0));
     closePop();
   }
 
@@ -466,7 +497,12 @@ function Editor(p: EditorProps) {
   }
 
   // 捨牌の手出し/自摸切りを切り替える（選択は保持＝ポップアップを開いたまま）。
+  // 河への追加中は「これから追加する牌」へ適用するフラグを切り替える。
   function setDiscardKind(tsumogiri: boolean) {
+    if (sel?.kind === "add" && sel.area === "river") {
+      setAddTsumogiri(tsumogiri);
+      return;
+    }
     if (sel?.kind !== "edit" || sel.loc.area !== "river") return;
     const loc = sel.loc;
     mutate((d) => {
@@ -475,8 +511,12 @@ function Editor(p: EditorProps) {
     });
   }
 
-  // リーチ宣言牌（横向き）を切り替える。
+  // リーチ宣言牌（横向き）を切り替える。河への追加中は追加する牌へ適用する。
   function setDiscardRiichi(riichi: boolean) {
+    if (sel?.kind === "add" && sel.area === "river") {
+      setAddRiichi(riichi);
+      return;
+    }
     if (sel?.kind !== "edit" || sel.loc.area !== "river") return;
     const loc = sel.loc;
     mutate((d) => {
@@ -634,19 +674,24 @@ function Editor(p: EditorProps) {
                     </div>
                     {roundMenu && (
                       <div className={s.roundMenu}>
-                        {detail.logs.map((l, i) => (
-                          <button
-                            key={l.id}
-                            className={`${s.roundItem} ${i === idx ? s.on : ""}`}
-                            onClick={() => {
-                              p.onSwitch(i);
-                              setRoundMenu(false);
-                            }}
-                          >
-                            {roundName(i)}
-                            <small>第{l.seq}局</small>
-                          </button>
-                        ))}
+                        {detail.logs.map((l, i) => {
+                          // 要確認（読めなかった/低confidence）の残数。人手修正の入口（mobile の半荘詳細と同等）。
+                          const review = collectReviewItems(l.kifu).length;
+                          return (
+                            <button
+                              key={l.id}
+                              className={`${s.roundItem} ${i === idx ? s.on : ""}`}
+                              onClick={() => {
+                                p.onSwitch(i);
+                                setRoundMenu(false);
+                              }}
+                            >
+                              {roundName(i)}
+                              <small>第{l.seq}局</small>
+                              {review > 0 && <small className={s.reviewCnt}>要確認 {review}</small>}
+                            </button>
+                          );
+                        })}
                       </div>
                     )}
                   </div>
@@ -886,27 +931,26 @@ function Editor(p: EditorProps) {
                     </div>
                   </div>
                   {vis === "public" && (
-                    <>
-                      <div className={s.shareUrl}>
-                        <span className={s.url}>{shareUrl}</span>
-                        <button
-                          className={s.copyurl}
-                          aria-label="URLをコピー"
-                          onClick={() => navigator.clipboard?.writeText(shareUrl).catch(() => {})}
-                        >
-                          <svg viewBox="0 0 24 24">
-                            <rect x="9" y="9" width="11" height="11" rx="2" />
-                            <path d="M5 15V5a2 2 0 0 1 2-2h10" />
-                          </svg>
-                        </button>
-                      </div>
-                      <p className={s.visNote}>
-                        <Link href={`/k/${gameId}`} style={{ color: "#fff" }}>
-                          公開ページを見る →
-                        </Link>
-                      </p>
-                    </>
+                    <div className={s.shareUrl}>
+                      <span className={s.url}>{shareUrl}</span>
+                      <button
+                        className={s.copyurl}
+                        aria-label="URLをコピー"
+                        onClick={() => navigator.clipboard?.writeText(shareUrl).catch(() => {})}
+                      >
+                        <svg viewBox="0 0 24 24">
+                          <rect x="9" y="9" width="11" height="11" rx="2" />
+                          <path d="M5 15V5a2 2 0 0 1 2-2h10" />
+                        </svg>
+                      </button>
+                    </div>
                   )}
+                  {/* 非公開でも所有者は再生ページで確認できる（mobile の「プレビュー」と同等）。 */}
+                  <p className={s.visNote}>
+                    <Link href={`/k/${gameId}`} style={{ color: "#fff" }}>
+                      {vis === "public" ? "公開ページを見る →" : "再生ページを見る →"}
+                    </Link>
+                  </p>
                   <p className={s.visNote}>
                     公開すると共有URLで誰でも閲覧できます（{visibilityLabel(vis)}）。
                   </p>
@@ -930,6 +974,8 @@ function Editor(p: EditorProps) {
           setSuit={setSuit}
           sel={sel}
           kifu={kifu}
+          addTsumogiri={addTsumogiri}
+          addRiichi={addRiichi}
           meldType={meldType}
           setMeldType={setMeldType}
           meldWho={meldWho}
@@ -942,6 +988,7 @@ function Editor(p: EditorProps) {
           onApplyTile={applyTile}
           onSetDiscardKind={setDiscardKind}
           onSetDiscardRiichi={setDiscardRiichi}
+          onDelete={deleteSelected}
           onClose={closePop}
         />
       )}

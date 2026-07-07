@@ -87,6 +87,11 @@
   color: #0c0e12;
   background: var(--accent);
 }
+/* 非公開（所有者だけが開ける再生ページ）のバッジ。 */
+.badge.priv {
+  color: var(--w70);
+  background: var(--chrome-2);
+}
 .kmeta {
   display: flex;
   align-items: center;

@@ -15,6 +15,9 @@ export interface TilePickerPopupProps {
   setSuit: (su: Suit) => void;
   sel: Selection;
   kifu: Kifu;
+  /** 河への追加時に「これから追加する牌」へ適用する捨て方/リーチ（BoardEditor が保持）。 */
+  addTsumogiri: boolean;
+  addRiichi: boolean;
   meldType: MeldType;
   setMeldType: (m: MeldType) => void;
   meldWho: CameraSeat;
@@ -27,10 +30,12 @@ export interface TilePickerPopupProps {
   onApplyTile: (code: Tile) => void;
   onSetDiscardKind: (tsumogiri: boolean) => void;
   onSetDiscardRiichi: (riichi: boolean) => void;
+  /** 編集中の牌（手牌/河）または鳴きを取り除く（mobile の「削除」と同等）。 */
+  onDelete: () => void;
   onClose: () => void;
 }
 
-/** 牌を選ぶポップアップ。編集対象が河/手牌なら捨て方・リーチ・鳴きの追加操作も出す。
+/** 牌を選ぶポップアップ。対象が河/手牌なら（追加・編集どちらでも）捨て方・リーチ・鳴きの操作も出す。
  *  position:fixed で盤面の overflow に切られない前提（背後クリックで閉じるオーバーレイ込み）。 */
 export function TilePickerPopup(p: TilePickerPopupProps) {
   const { sel, kifu, meldType, bottomSeat, dealer, names } = p;
@@ -50,6 +55,21 @@ export function TilePickerPopup(p: TilePickerPopupProps) {
       return sel.index !== undefined ? (kifu.meta.uraDora[sel.index] ?? null) : null;
     return null;
   })();
+
+  // 捨て方/リーチの表示値。編集=その牌の現在値、追加=これから追加する牌へ適用する値。
+  const riverFlags: { tsumogiri: boolean; riichi: boolean } | null = (() => {
+    if (sel?.kind === "edit" && sel.loc.area === "river") {
+      const discard = kifu.seats[sel.loc.seat].river[sel.loc.index];
+      return { tsumogiri: discard?.tsumogiri ?? false, riichi: discard?.riichi ?? false };
+    }
+    if (sel?.kind === "add" && sel.area === "river") {
+      return { tsumogiri: p.addTsumogiri, riichi: p.addRiichi };
+    }
+    return null;
+  })();
+
+  // 捨て方・リーチ・鳴きの操作ボックスを出すか（鳴きは meld 自体の編集時以外いつでも）。
+  const showOps = sel?.kind === "add" || (sel?.kind === "edit" && sel.loc.area !== "meld");
 
   return (
     <>
@@ -92,9 +112,9 @@ export function TilePickerPopup(p: TilePickerPopupProps) {
             </button>
           ))}
         </div>
-        {sel?.kind === "edit" && sel.loc.area !== "meld" && (
+        {showOps && (
           <div className={s.meldEdit}>
-            {sel.loc.area === "river" && (
+            {riverFlags && (
               <div className={s.meRow}>
                 <span className={s.meLabel}>捨て方</span>
                 <div className={s.meSeg}>
@@ -106,11 +126,7 @@ export function TilePickerPopup(p: TilePickerPopupProps) {
                   ).map(([tg, lbl]) => (
                     <button
                       key={lbl}
-                      className={
-                        (kifu.seats[sel.loc.seat].river[sel.loc.index]?.tsumogiri ?? false) === tg
-                          ? s.on
-                          : ""
-                      }
+                      className={riverFlags.tsumogiri === tg ? s.on : ""}
                       onClick={() => p.onSetDiscardKind(tg)}
                     >
                       {lbl}
@@ -119,7 +135,7 @@ export function TilePickerPopup(p: TilePickerPopupProps) {
                 </div>
               </div>
             )}
-            {sel.loc.area === "river" && (
+            {riverFlags && (
               <div className={s.meRow}>
                 <span className={s.meLabel}>リーチ宣言牌</span>
                 <div className={s.meSeg}>
@@ -131,11 +147,7 @@ export function TilePickerPopup(p: TilePickerPopupProps) {
                   ).map(([rc, lbl]) => (
                     <button
                       key={lbl}
-                      className={
-                        (kifu.seats[sel.loc.seat].river[sel.loc.index]?.riichi ?? false) === rc
-                          ? s.on
-                          : ""
-                      }
+                      className={riverFlags.riichi === rc ? s.on : ""}
                       onClick={() => p.onSetDiscardRiichi(rc)}
                     >
                       {lbl}
@@ -203,6 +215,12 @@ export function TilePickerPopup(p: TilePickerPopupProps) {
               </>
             )}
           </div>
+        )}
+        {/* 既存の牌/鳴きの編集時だけ削除を出す（追加中は対象が無い）。 */}
+        {sel?.kind === "edit" && (
+          <button className={s.pkDel} onClick={p.onDelete}>
+            {sel.loc.area === "meld" ? "この鳴きを削除" : "この牌を削除"}
+          </button>
         )}
       </div>
     </>
