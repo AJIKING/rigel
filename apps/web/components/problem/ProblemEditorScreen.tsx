@@ -173,12 +173,22 @@ export function ProblemEditorScreen({ initial }: { initial?: ProblemPost }) {
   function pickTile(code: Tile) {
     setErr(null);
     if (target === "hand") {
-      if (hand.length >= handMax) return;
-      setHand((cur) => [...cur, code]);
+      // 黙って捨てない: 置けない理由と解決手段を必ず知らせる（袋小路防止）。
+      if (hand.length >= handMax) {
+        setErr(`手牌は${handMax}枚までです（置いた牌はタップで外せます）。`);
+        return;
+      }
+      const next = [...hand, code];
+      setHand(next);
+      // 13枚に達したら入力先を自動でツモ牌へ（切替忘れで「ツモ牌が必須」に悩ませない）。
+      if (kind === "discard" && next.length >= handMax && drawn === null) setTarget("drawn");
     } else if (target === "drawn") {
       setDrawn(code);
     } else if (target === "dora") {
-      if (dora.length >= 5) return;
+      if (dora.length >= 5) {
+        setErr("ドラ表示は5枚までです（置いた牌はタップで外せます）。");
+        return;
+      }
       setDora((cur) => [...cur, code]);
     } else if (target.startsWith("river:")) {
       const seat = target.slice("river:".length) as Seat;
@@ -199,6 +209,8 @@ export function ProblemEditorScreen({ initial }: { initial?: ProblemPost }) {
       const j = cur.indexOf(tile!);
       return j < 0 ? cur : [...cur.slice(0, j), ...cur.slice(j + 1)];
     });
+    // 外した＝手牌を直したいはず。入力先を手牌に戻す（ツモ牌の誤上書き防止）。
+    setTarget("hand");
   }
 
   async function save(status: "draft" | "published") {
@@ -284,7 +296,11 @@ export function ProblemEditorScreen({ initial }: { initial?: ProblemPost }) {
                 type="button"
                 className={kind === k ? s.on : ""}
                 aria-pressed={kind === k}
-                onClick={() => setKind(k)}
+                onClick={() => {
+                  setKind(k);
+                  // 鳴き判断にツモ牌は無い。見えない入力先に置かせない。
+                  if (k === "call" && target === "drawn") setTarget("hand");
+                }}
               >
                 {PROBLEM_KIND_LABELS[k]}
               </button>
@@ -300,7 +316,13 @@ export function ProblemEditorScreen({ initial }: { initial?: ProblemPost }) {
             value={pov}
             seats={SEAT_ORDER}
             format={seatLabel}
-            onChange={setPov}
+            onChange={(seat) => {
+              setPov(seat);
+              // 対象席（鳴き判断）は自分と同席にできない。選べない値のまま残さない。
+              setTargetSeat((cur) =>
+                cur === seat ? (SEAT_ORDER.find((x) => x !== seat) ?? cur) : cur,
+              );
+            }}
           />
           {kind === "call" && (
             <>
@@ -401,18 +423,16 @@ export function ProblemEditorScreen({ initial }: { initial?: ProblemPost }) {
                 <OssTileFace code={t} />
               </button>
             ))}
-            {kind === "discard" && drawn && (
-              <button
-                type="button"
-                className={`${s.handTile} ${s.drawn}`}
-                aria-label={`ツモ牌 ${tileLabel(drawn)} を外す`}
-                onClick={() => setDrawn(null)}
-              >
-                <OssTileFace code={drawn} />
-              </button>
-            )}
           </span>
         </div>
+        {kind === "discard" && (
+          <TileChipRow
+            label="ツモ牌"
+            tiles={drawn ? [drawn] : []}
+            removeLabel={(t) => `ツモ牌の ${tileLabel(t)} を外す`}
+            onRemove={() => setDrawn(null)}
+          />
+        )}
         {melds.length > 0 && (
           <div className={s.row}>
             <span className={s.rowLabel}>副露</span>

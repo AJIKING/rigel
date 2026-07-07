@@ -25,8 +25,8 @@ jest.mock("../lib/api", () => ({
   updateProblem: (...args: unknown[]) => mockUpdateProblem(...args),
 }));
 
-/** 手牌13枚（1-9萬 + 1-4筒）をピッカーで入力する（開いたまま連続入力→閉じる）。 */
-function inputFullHand() {
+/** 手牌13枚を入力し、ピッカーは開いたままにする（13枚目で入力先の自動切替を観察する用）。 */
+function inputFullHandKeepOpen() {
   fireEvent.press(screen.getByLabelText("手牌に追加"));
   for (const label of ["1萬", "2萬", "3萬", "4萬", "5萬", "6萬", "7萬", "8萬", "9萬"]) {
     fireEvent.press(screen.getByLabelText(label));
@@ -35,6 +35,11 @@ function inputFullHand() {
   for (const label of ["1筒", "2筒", "3筒", "4筒"]) {
     fireEvent.press(screen.getByLabelText(label));
   }
+}
+
+/** 手牌13枚（1-9萬 + 1-4筒）をピッカーで入力する（開いたまま連続入力→閉じる）。 */
+function inputFullHand() {
+  inputFullHandKeepOpen();
   fireEvent.press(screen.getByText("閉じる"));
 }
 
@@ -86,6 +91,21 @@ describe("ProblemEditScreen（何切る問題の作成/編集）", () => {
     await waitFor(() => expect(mockGoBack).toHaveBeenCalled());
   });
 
+  it("手牌が13枚に達するとピッカーがツモ牌入力へ自動で切り替わる（切替忘れ防止）", async () => {
+    render(<ProblemEditScreen />);
+    fireEvent.press(screen.getByLabelText("手牌に追加"));
+    for (const label of ["1萬", "2萬", "3萬", "4萬", "5萬", "6萬", "7萬", "8萬", "9萬"]) {
+      fireEvent.press(screen.getByLabelText(label));
+    }
+    fireEvent.press(screen.getByText("筒"));
+    for (const label of ["1筒", "2筒", "3筒", "4筒"]) {
+      fireEvent.press(screen.getByLabelText(label));
+    }
+    // 13枚目を置いた時点で入力先はツモ牌。そのまま置くとツモ牌になり、チップで外せる。
+    fireEvent.press(screen.getByLabelText("5筒"));
+    expect(screen.getByLabelText("ツモ牌 5筒 を外す")).toBeTruthy();
+  });
+
   it("手牌が13枚に足りないと保存せずエラー文言（13枚）を出す", async () => {
     render(<ProblemEditScreen />);
 
@@ -119,6 +139,62 @@ describe("ProblemEditScreen（何切る問題の作成/編集）", () => {
     expect(screen.getByText("東場 6巡目")).toBeTruthy();
     fireEvent.press(screen.getByText(/プレビュー/));
     expect(screen.queryByText("東場 6巡目")).toBeNull();
+  });
+
+  describe("袋小路（無反応・解決不能なエラー）を作らない", () => {
+    it("自分の席を対象席と同じにしたら、鳴き判断の対象席は自動で別の席に補正される", () => {
+      render(<ProblemEditScreen />);
+      fireEvent.press(screen.getByText("鳴き判断"));
+      // 既定: 自分=東・対象=南。「誰の捨て牌」では南家が選択中。
+      expect(screen.getByRole("button", { name: "南家", selected: true })).toBeTruthy();
+      // 自分の席を南へ（「南」は自分の席と親の2セグメントにあり、先頭が自分の席）。
+      fireEvent.press(screen.getAllByText("南")[0]!);
+      // 対象席は選べる有効な別の席（東）へ補正される（同席のまま残さない）。
+      expect(screen.getByRole("button", { name: "東家", selected: true })).toBeTruthy();
+      // 「南家」は選択肢から消える（盤面プレビューの席名テキストはボタンではないので対象外）。
+      expect(screen.queryByRole("button", { name: "南家" })).toBeNull();
+    });
+
+    it("出題形式を鳴き判断へ切り替えたら、ツモ牌入力のピッカーが開いたまま残らない", () => {
+      render(<ProblemEditScreen />);
+      inputFullHandKeepOpen(); // 13枚目で入力先は自動でツモ牌へ（ピッカーは開いたまま）
+      expect(screen.getByText("ツモ牌を選ぶ")).toBeTruthy();
+      fireEvent.press(screen.getByText("鳴き判断"));
+      // 鳴き判断にツモ牌は無い。見えない入力先に置かせない（ピッカーを閉じる）。
+      expect(screen.queryByText("ツモ牌を選ぶ")).toBeNull();
+    });
+
+    it("手牌チップを外したら、ツモ牌入力のままのピッカーは閉じる（ツモ牌の誤上書き防止）", () => {
+      render(<ProblemEditScreen />);
+      inputFullHandKeepOpen(); // 入力先は自動でツモ牌へ
+      expect(screen.getByText("ツモ牌を選ぶ")).toBeTruthy();
+      fireEvent.press(screen.getByLabelText("1萬 を外す"));
+      // 外した直後に牌を置いてもツモ牌へ入らない（ピッカーごと閉じる）。
+      expect(screen.queryByText("ツモ牌を選ぶ")).toBeNull();
+    });
+
+    it("鳴き判断で手牌13枚のままさらに置くと、黙殺せず「手牌は13枚まで」と知らせる", async () => {
+      render(<ProblemEditScreen />);
+      fireEvent.press(screen.getByText("鳴き判断")); // 鳴き判断はツモ牌への自動切替が無い
+      inputFullHandKeepOpen();
+      fireEvent.press(screen.getByLabelText("5筒")); // 14枚目
+      expect(
+        await screen.findByText("手牌は13枚までです（置いた牌はタップで外せます）。"),
+      ).toBeTruthy();
+    });
+
+    it("ドラ6枚目を置こうとすると、黙殺せず「ドラ表示は5枚まで」と知らせる", async () => {
+      render(<ProblemEditScreen />);
+      fireEvent.press(screen.getByLabelText("ドラを追加"));
+      for (const label of ["1萬", "2萬", "3萬", "4萬", "5萬"]) {
+        fireEvent.press(screen.getByLabelText(label));
+      }
+      fireEvent.press(screen.getByLabelText("6萬")); // 6枚目は入らない
+      expect(
+        await screen.findByText("ドラ表示は5枚までです（置いた牌はタップで外せます）。"),
+      ).toBeTruthy();
+      expect(screen.queryByLabelText("ドラ6（6萬）を外す")).toBeNull();
+    });
   });
 
   it("problemId 付きは既存の問題を読み込み、保存で updateProblem を呼ぶ", async () => {

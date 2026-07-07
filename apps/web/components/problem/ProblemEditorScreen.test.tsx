@@ -55,16 +55,19 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
+/** 手牌13枚（萬9+筒4）をピッカーの連続タップで入れる。 */
+function fillHand() {
+  for (const label of TILE_LABELS.slice(0, 9)) pick(label);
+  fireEvent.click(screen.getByRole("button", { name: "筒" })); // スートタブ
+  for (const label of TILE_LABELS.slice(9)) pick(label);
+}
+
 describe("ProblemEditorScreen: 何切るの作成", () => {
   it("手牌13枚＋ツモ＋答えを入れて公開保存できる", async () => {
     stubMe("free");
     renderEditor();
-
-    // 手牌へ13枚（ピッカーは連続タップ）。萬子9枚＋筒子4枚。
     await screen.findByRole("group", { name: "牌を選ぶ" });
-    for (const label of TILE_LABELS.slice(0, 9)) pick(label);
-    fireEvent.click(screen.getByRole("button", { name: "筒" })); // スートタブ
-    for (const label of TILE_LABELS.slice(9)) pick(label);
+    fillHand();
 
     // ツモ牌へ切替 → 5筒。
     fireEvent.click(screen.getByRole("button", { name: "ツモ牌" }));
@@ -91,6 +94,27 @@ describe("ProblemEditorScreen: 何切るの作成", () => {
     expect(push).toHaveBeenCalledWith("/mypage/problems");
   });
 
+  it("手牌が13枚に達すると入力先が自動でツモ牌に切り替わる（切替忘れでツモ未設定にならない）", async () => {
+    stubMe("free");
+    renderEditor();
+    await screen.findByRole("group", { name: "牌を選ぶ" });
+    fillHand();
+    // 13枚目を置いた時点で入力先は「ツモ牌」へ。チップを押さずにそのまま置ける。
+    expect(
+      (screen.getByRole("button", { name: "ツモ牌" }) as HTMLButtonElement).getAttribute(
+        "aria-pressed",
+      ),
+    ).toBe("true");
+    pick("5筒");
+    // 入力済みの「ツモ牌」行に表示され、タップで外せる。
+    expect(screen.getByRole("button", { name: "ツモ牌の 5筒 を外す" })).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("button", { name: "下書き保存" }));
+    await waitFor(() => expect(h.createProblemAction).toHaveBeenCalled());
+    const [input] = h.createProblemAction.mock.calls[0] as [{ problem: Problem }];
+    expect(input.problem.drawn).toBe("5p");
+  });
+
   it("手牌が13枚未満だと保存できずエラー文言を出す", async () => {
     stubMe("free");
     renderEditor();
@@ -109,13 +133,69 @@ describe("ProblemEditorScreen: 何切るの作成", () => {
     h.createProblemAction.mockResolvedValue({ ok: false, status: 403 });
     renderEditor();
     await screen.findByRole("group", { name: "牌を選ぶ" });
-    for (const label of TILE_LABELS.slice(0, 9)) pick(label);
-    fireEvent.click(screen.getByRole("button", { name: "筒" }));
-    for (const label of TILE_LABELS.slice(9)) pick(label);
+    fillHand();
     fireEvent.click(screen.getByRole("button", { name: "ツモ牌" }));
     pick("5筒");
     fireEvent.click(screen.getByRole("button", { name: "下書き保存" }));
     expect(await screen.findByText(/20問まで/)).toBeTruthy();
+  });
+});
+
+describe("ProblemEditorScreen: 袋小路（無反応・解決不能なエラー）を作らない", () => {
+  const pressed = (name: string) =>
+    (screen.getByRole("button", { name }) as HTMLButtonElement).getAttribute("aria-pressed");
+
+  it("自分の席を対象席と同じにしたら、対象席は自動で別の席に補正される", async () => {
+    stubMe("free");
+    renderEditor();
+    await screen.findByRole("group", { name: "牌を選ぶ" });
+    fireEvent.click(screen.getByRole("button", { name: "鳴き判断" }));
+    // 既定: 自分=東・対象=南。自分の席を南にすると対象席は自動で有効な別の席になる
+    // （南のまま／空値のまま残さない）。
+    fireEvent.change(screen.getByLabelText("自分の席"), { target: { value: "south" } });
+    expect(["east", "west", "north"]).toContain(
+      (screen.getByLabelText("対象席") as HTMLSelectElement).value,
+    );
+  });
+
+  it("出題形式を鳴き判断に切り替えたら、入力先がツモ牌のまま残らない", async () => {
+    stubMe("free");
+    renderEditor();
+    await screen.findByRole("group", { name: "牌を選ぶ" });
+    fillHand(); // 13枚で入力先は自動でツモ牌へ
+    fireEvent.click(screen.getByRole("button", { name: "鳴き判断" }));
+    // ツモ牌チップは消え、入力先は手牌に戻る（見えない入力先に置かせない）。
+    expect(screen.queryByRole("button", { name: "ツモ牌" })).toBeNull();
+    expect(pressed("手牌（13/13）")).toBe("true");
+  });
+
+  it("手牌を外したら入力先は手牌に戻る（ツモ牌を誤って置き換えない）", async () => {
+    stubMe("free");
+    renderEditor();
+    await screen.findByRole("group", { name: "牌を選ぶ" });
+    fillHand(); // 入力先は自動でツモ牌へ
+    fireEvent.click(screen.getByRole("button", { name: "1萬 を外す" }));
+    expect(pressed("手牌（12/13）")).toBe("true");
+  });
+
+  it("ドラは5枚で上限。超えて置こうとしたら黙殺せず文言で知らせる", async () => {
+    stubMe("free");
+    renderEditor();
+    await screen.findByRole("group", { name: "牌を選ぶ" });
+    fireEvent.click(screen.getByRole("button", { name: "ドラ" }));
+    for (const label of TILE_LABELS.slice(0, 6)) pick(label); // 6枚目は入らない
+    expect(await screen.findByText(/ドラ表示は5枚まで/)).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "ドラ 6萬 を外す" })).toBeNull();
+  });
+
+  it("鳴き判断で手牌が13枚のとき、さらに置こうとしたら黙殺せず文言で知らせる", async () => {
+    stubMe("free");
+    renderEditor();
+    await screen.findByRole("group", { name: "牌を選ぶ" });
+    fireEvent.click(screen.getByRole("button", { name: "鳴き判断" }));
+    fillHand();
+    pick("9筒"); // 14枚目（鳴き判断はツモ牌への自動切替が無い）
+    expect(await screen.findByText(/手牌は13枚まで/)).toBeTruthy();
   });
 });
 

@@ -160,7 +160,15 @@ function EditorBody({ initial, token }: { initial?: ProblemPost; token: string |
     if (!target) return;
     // 手牌・河・ドラは連続入力（ピッカーを開いたまま）。ツモ・副露は1回で閉じる。
     if (target === "hand") {
-      if (hand.length < handMax) setHand((cur) => [...cur, code]);
+      // 黙って捨てない: 置けない理由と解決手段を必ず知らせる（袋小路防止・web と同文言）。
+      if (hand.length >= handMax) {
+        setErr(`手牌は${handMax}枚までです（置いた牌はタップで外せます）。`);
+        return;
+      }
+      const next = [...hand, code];
+      setHand(next);
+      // 13枚に達したら入力先を自動でツモ牌へ（切替忘れで「ツモ牌が必須」に悩ませない）。
+      if (kind === "discard" && next.length >= handMax && drawn === null) setTarget("drawn");
       return;
     }
     if (target === "drawn") {
@@ -169,7 +177,11 @@ function EditorBody({ initial, token }: { initial?: ProblemPost; token: string |
       return;
     }
     if (target === "dora") {
-      if (dora.length < 5) setDora((cur) => [...cur, code]);
+      if (dora.length >= 5) {
+        setErr("ドラ表示は5枚までです（置いた牌はタップで外せます）。");
+        return;
+      }
+      setDora((cur) => [...cur, code]);
       return;
     }
     if (target.startsWith("river:")) {
@@ -192,6 +204,8 @@ function EditorBody({ initial, token }: { initial?: ProblemPost; token: string |
       const j = cur.indexOf(tile);
       return j < 0 ? cur : [...cur.slice(0, j), ...cur.slice(j + 1)];
     });
+    // 外した＝手牌を直したいはず。ツモ牌の誤上書きを防ぐ（mobile はピッカーを閉じる）。
+    if (target === "drawn") setTarget(null);
   }
 
   /** 編集状態→Problem の組み立て・検証は共有純関数（web と同一挙動）。 */
@@ -272,7 +286,11 @@ function EditorBody({ initial, token }: { initial?: ProblemPost; token: string |
           <Segment
             options={(["discard", "call"] as const).map((k) => [k, KIND_LABELS[k]] as const)}
             value={kind}
-            onChange={setKind}
+            onChange={(k) => {
+              setKind(k);
+              // 鳴き判断にツモ牌は無い。見えない入力先に置かせない（ピッカーを閉じる）。
+              if (k === "call" && target === "drawn") setTarget(null);
+            }}
           />
         </View>
 
@@ -284,10 +302,8 @@ function EditorBody({ initial, token }: { initial?: ProblemPost; token: string |
             value={pov}
             onChange={(s) => {
               setPov(s);
-              // 対象席は自分以外（重なったら次の席へずらす）。
-              if (targetSeat === s) {
-                setTargetSeat(SEAT_ORDER.find((x) => x !== s) ?? "south");
-              }
+              // 対象席（鳴き判断）は自分と同席にできない。選べない値のまま残さない（web と同形）。
+              setTargetSeat((cur) => (cur === s ? (SEAT_ORDER.find((x) => x !== s) ?? cur) : cur));
             }}
           />
         </View>
