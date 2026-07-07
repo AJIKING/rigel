@@ -45,7 +45,7 @@ export function LandingScreen() {
               </svg>
               Google ではじめる
             </Link>
-            <Link className={s.ghost} href="/explore">
+            <Link className={s.ghost} href="/kifu">
               公開牌譜を見る
             </Link>
           </div>

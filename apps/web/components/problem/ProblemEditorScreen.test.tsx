@@ -1,8 +1,9 @@
-import { ProblemSchema, PROBLEM_SCHEMA_VERSION, type Problem, type Tile } from "@rigel/schema";
+import { ProblemSchema, type Problem } from "@rigel/schema";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { type ProblemPost } from "../../lib/api";
 import { AuthProvider } from "../../lib/auth-context";
+import { makeDiscardPost, stubMe } from "./test-helpers";
 
 const h = vi.hoisted(() => ({
   createProblemAction: vi.fn(),
@@ -13,32 +14,6 @@ const push = vi.hoisted(() => vi.fn());
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push }) }));
 
 import { ProblemEditorScreen } from "./ProblemEditorScreen";
-
-const HAND_13: Tile[] = [
-  "1m",
-  "2m",
-  "3m",
-  "4m",
-  "5m",
-  "6m",
-  "7m",
-  "8m",
-  "9m",
-  "1p",
-  "2p",
-  "3p",
-  "4p",
-];
-
-function stubMe(plan: string | null) {
-  vi.stubGlobal(
-    "fetch",
-    vi.fn(async () => ({
-      ok: true,
-      json: async () => ({ user: plan ? { id: "u1", plan } : null }),
-    })),
-  );
-}
 
 function renderEditor(initial?: ProblemPost) {
   return render(
@@ -118,7 +93,7 @@ describe("ProblemEditorScreen: 何切るの作成", () => {
     expect(input.problem.answer).toEqual({ type: "discard", tile: "1m", riichi: true });
     expect(input.problem.explanation).toBe("解説文");
     expect(() => ProblemSchema.parse(input.problem)).not.toThrow();
-    expect(push).toHaveBeenCalledWith("/problems/mine");
+    expect(push).toHaveBeenCalledWith("/mypage/problems");
   });
 
   it("手牌が13枚未満だと保存できずエラー文言を出す", async () => {
@@ -162,26 +137,12 @@ describe("ProblemEditorScreen: 何切るの作成", () => {
 describe("ProblemEditorScreen: 既存問題の編集", () => {
   it("初期値を読み込み、更新は updateProblemAction を呼ぶ", async () => {
     stubMe("free");
-    const initial: ProblemPost = {
+    const initial: ProblemPost = makeDiscardPost({
       id: "p9",
       userId: "u1",
       title: "既存問題",
       status: "draft",
-      createdAt: "2026-07-07T00:00:00.000Z",
-      problem: ProblemSchema.parse({
-        schemaVersion: PROBLEM_SCHEMA_VERSION,
-        kind: "discard",
-        pov: "east",
-        drawn: "5p",
-        seats: {
-          east: { hand: HAND_13.map((t) => ({ tile: t, confidence: 1 })) },
-          south: {},
-          west: {},
-          north: {},
-        },
-        answer: { type: "discard", tile: "5p" },
-      }),
-    };
+    });
     renderEditor(initial);
     expect((await screen.findByLabelText("タイトル")) as HTMLInputElement).toHaveProperty(
       "value",

@@ -3,9 +3,9 @@ import Svg, { Circle, Path } from "react-native-svg";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { colors } from "../lib/theme";
 
-export type MainTab = "pub" | "mine" | "problems" | "set";
+export type MainTab = "pub" | "problems" | "my" | "set";
 
-function Icon({ name, color }: { name: MainTab | "create"; color: string }) {
+function Icon({ name, color }: { name: MainTab; color: string }) {
   const p = {
     stroke: color,
     strokeWidth: 1.8,
@@ -21,18 +21,6 @@ function Icon({ name, color }: { name: MainTab | "create"; color: string }) {
           <Path d="M3 12h18M12 3c3 3 3 15 0 18M12 3c-3 3-3 15 0 18" {...p} />
         </>
       )}
-      {name === "mine" && (
-        <>
-          <Path d="M4 6h16v12H4z" {...p} />
-          <Path d="M4 10h16" {...p} />
-        </>
-      )}
-      {name === "create" && (
-        <>
-          <Circle cx={12} cy={12} r={9} {...p} />
-          <Path d="M12 8.2v7.6M8.2 12h7.6" {...p} />
-        </>
-      )}
       {name === "problems" && (
         <>
           {/* 牌（縦長の角丸タイル＋中央の目）。何切る＝牌の選択のメタファ。 */}
@@ -40,57 +28,45 @@ function Icon({ name, color }: { name: MainTab | "create"; color: string }) {
           <Circle cx={12} cy={12} r={2.4} {...p} />
         </>
       )}
-      {name === "set" && (
+      {name === "my" && (
         <>
           <Circle cx={12} cy={8} r={3.4} {...p} />
           <Path d="M5 20c1.2-3.6 12.8-3.6 14 0" {...p} />
+        </>
+      )}
+      {name === "set" && (
+        <>
+          {/* 歯車（中心円＋8方向の歯）。 */}
+          <Circle cx={12} cy={12} r={3.2} {...p} />
+          <Path
+            d="M12 3v2.6M12 18.4V21M3 12h2.6M18.4 12H21M5.6 5.6l1.9 1.9M16.5 16.5l1.9 1.9M18.4 5.6l-1.9 1.9M7.5 16.5l-1.9 1.9"
+            {...p}
+          />
         </>
       )}
     </Svg>
   );
 }
 
-// 作成タブ（撮影フロー）は中央に固定。前後にタブを並べる。
-const LEFT_TABS: { key: MainTab; label: string }[] = [
-  { key: "pub", label: "公開" },
-  { key: "mine", label: "マイ牌譜" },
-];
-const RIGHT_TABS: { key: MainTab; label: string }[] = [
+const TABS: { key: MainTab; label: string }[] = [
+  { key: "pub", label: "牌譜" },
   { key: "problems", label: "何切る" },
+  { key: "my", label: "マイページ" },
   { key: "set", label: "設定" },
 ];
 
-/** 自前のボトムタブ（公開 / マイ牌譜 / 作成 / 何切る / 設定）。作成は撮影フローへ。 */
+/** 自前のボトムタブ（牌譜 / 何切る / マイページ / 設定）。作成導線はマイページ内の「＋ 新規」。 */
 export function TabBar({
   active,
   onSelect,
-  onCreate,
 }: {
   active: MainTab;
   onSelect: (tab: MainTab) => void;
-  onCreate: () => void;
 }) {
   const insets = useSafeAreaInsets();
   return (
     <View style={[styles.bar, { paddingBottom: Math.max(insets.bottom, 10) }]}>
-      {LEFT_TABS.map((tab) => (
-        <TabButton
-          key={tab.key}
-          tab={tab}
-          active={active === tab.key}
-          onPress={() => onSelect(tab.key)}
-        />
-      ))}
-      <Pressable
-        style={styles.tab}
-        onPress={onCreate}
-        accessibilityRole="button"
-        accessibilityLabel="撮影して作成"
-      >
-        <Icon name="create" color={colors.w45} />
-        <Text style={styles.label}>作成</Text>
-      </Pressable>
-      {RIGHT_TABS.map((tab) => (
+      {TABS.map((tab) => (
         <TabButton
           key={tab.key}
           tab={tab}

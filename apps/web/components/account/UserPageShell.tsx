@@ -28,7 +28,7 @@ export function UserPageShell({ idOrHandle }: { idOrHandle: string }) {
 
   return (
     <div className={`${s.shell} themeApp`}>
-      <AppHeader active="public" />
+      <AppHeader active="kifu" />
       <main className={s.main}>
         <div className={s.wide}>
           {state === "loading" ? (

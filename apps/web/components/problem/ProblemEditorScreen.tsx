@@ -190,7 +190,7 @@ export function ProblemEditorScreen({ initial }: { initial?: ProblemPost }) {
         }));
     setBusy(false);
     if (res.ok) {
-      router.push("/problems/mine");
+      router.push("/mypage/problems");
       return;
     }
     setErr(
@@ -214,11 +214,11 @@ export function ProblemEditorScreen({ initial }: { initial?: ProblemPost }) {
   return (
     <div className={s.app}>
       <div className={s.bar}>
-        <Link href="/problems/mine" className={s.brand} aria-label="マイ何切るへ">
+        <Link href="/mypage/problems" className={s.brand} aria-label="マイページへ">
           <BrandMark starClassName={s.star} wordmarkClassName={s.wm} />
         </Link>
         <div className={s.crumb}>
-          <Link href="/problems/mine">マイ何切る</Link>
+          <Link href="/mypage/problems">マイ何切る</Link>
           <span>›</span>
           <span>{initial ? "問題を編集" : "問題を作成"}</span>
         </div>

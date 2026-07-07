@@ -20,6 +20,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Svg, { Path, Rect } from "react-native-svg";
+import { kifuShareUrl } from "../lib/site";
 import { colors, radius } from "../lib/theme";
 import { AgariSheet } from "./AgariSheet";
 import { BoardTable } from "./BoardTable";
@@ -91,7 +92,7 @@ export function KifuPlayer({
 
   // 公開牌譜の共有（web 公開ページ /k/:gameId を OS 共有シートで）。
   async function onShare() {
-    const url = `https://rigel.plaria.co.jp/k/${log.gameId}`;
+    const url = kifuShareUrl(log.gameId ?? "");
     await Share.share({ message: `${title || roundLabel}\n${url}`, url }).catch(() => {});
   }
 

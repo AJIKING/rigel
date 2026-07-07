@@ -10,6 +10,7 @@ import { fmtDateSlash } from "../../lib/format";
 import { useFavorites } from "../../lib/use-favorites";
 import { AppHeader } from "../AppHeader";
 import { GameCard } from "../GameCard";
+import { MyPageTabs } from "../mypage/MyPageTabs";
 import gc from "../game-card.module.css";
 import s from "../list/kifu-list.module.css";
 import p9 from "./problem.module.css";
@@ -69,9 +70,10 @@ export function MyProblemsScreen({ initialPosts }: { initialPosts: ProblemPost[]
 
   return (
     <div className={`${s.shell} themeApp`}>
-      <AppHeader active="problems" />
+      <AppHeader active="mypage" />
       <main className={s.main}>
         <section>
+          <MyPageTabs active="problems" />
           <div className={s.profile}>
             <div className={s.stats}>
               <div className={s.stat}>

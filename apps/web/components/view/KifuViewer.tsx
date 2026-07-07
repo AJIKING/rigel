@@ -123,7 +123,7 @@ export function KifuViewer({ detail, gameId }: { detail: PublicGameDetail; gameI
     return (
       <Shell>
         <p className={s.notice}>
-          この半荘には局がありません。<Link href="/kifu">牌譜一覧へ</Link>
+          この半荘には局がありません。<Link href="/kifu">牌譜へ</Link>
         </p>
       </Shell>
     );
@@ -151,7 +151,7 @@ export function KifuViewer({ detail, gameId }: { detail: PublicGameDetail; gameI
             <BrandMark starClassName={s.star} wordmarkClassName={s.wm} />
           </Link>
           <div className={s.crumb}>
-            <Link href="/kifu">{isPrivate ? "マイページ" : "公開牌譜"}</Link>
+            <Link href={isPrivate ? "/mypage" : "/kifu"}>{isPrivate ? "マイページ" : "牌譜"}</Link>
             <span>›</span>
             <span>牌譜を見る</span>
           </div>

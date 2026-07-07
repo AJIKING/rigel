@@ -2,7 +2,7 @@
 
 import { KifuListShell } from "../../components/list/KifuListShell";
 
-/** マイページ（自分の牌譜一覧・要ログイン）。公開牌譜は /explore。 */
+/** 公開牌譜の一覧（ログイン不要）。自分の牌譜はマイページ /mypage。 */
 export default function KifuListPage() {
-  return <KifuListShell view="mine" />;
+  return <KifuListShell view="public" />;
 }

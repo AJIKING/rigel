@@ -22,7 +22,7 @@ export default function NewGamePage() {
   return (
     <div className={`${s.app} themeBoard`}>
       <AddKyokuModal
-        onClose={() => router.push("/kifu")}
+        onClose={() => router.push("/mypage")}
         onDone={(logId, gameId) => router.replace(`/kifu/${gameId}/${logId}`)}
       />
     </div>

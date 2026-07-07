@@ -218,7 +218,7 @@ export function BoardEditor({
     return (
       <GateShell>
         <p style={{ color: "var(--w70)" }}>
-          この半荘には局がありません。<Link href="/kifu">牌譜一覧へ</Link>
+          この半荘には局がありません。<Link href="/mypage">マイページへ</Link>
         </p>
       </GateShell>
     );
@@ -477,7 +477,7 @@ function Editor(p: EditorProps) {
       return;
     }
     const res = await deleteGameAction(gameId).catch(() => ({ ok: false, status: 0 }));
-    if (res.ok) router.push("/kifu");
+    if (res.ok) router.push("/mypage");
     else setSaveErr("半荘の削除に失敗しました。");
   }
 
@@ -549,7 +549,7 @@ function Editor(p: EditorProps) {
   return (
     <div className={`${s.app} themeBoard`} onClick={() => pop && closePop()}>
       <header className={s.bar}>
-        <Link href="/kifu" className={s.brand} aria-label="牌譜一覧へ">
+        <Link href="/mypage" className={s.brand} aria-label="マイページへ">
           <svg className={s.star} viewBox="0 0 24 24">
             <path
               d="M12 1.5l1.7 7.1 7.1 1.7-7.1 1.7L12 19.1l-1.7-7.1L3.2 10.3l7.1-1.7L12 1.5z"

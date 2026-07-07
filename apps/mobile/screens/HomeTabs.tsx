@@ -1,34 +1,40 @@
-import { useNavigation } from "@react-navigation/native";
-import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useState } from "react";
 import { StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { TabBar, type MainTab } from "../components/TabBar";
-import type { RootStackParamList } from "../lib/navigation";
 import { colors } from "../lib/theme";
-import { MyListScreen } from "./MyListScreen";
+import { MyPageScreen, type MyPageSegment } from "./MyPageScreen";
 import { ProblemsListScreen } from "./ProblemsListScreen";
 import { PublicListScreen } from "./PublicListScreen";
 import { SettingsScreen } from "./SettingsScreen";
 
-type Nav = NativeStackNavigationProp<RootStackParamList, "Home">;
-
-/** ボトムタブのコンテナ。公開/マイ牌譜/何切る/設定を切替え、作成タブは撮影フローへ。 */
+/**
+ * ボトムタブのコンテナ。牌譜（公開一覧）/ 何切る（公開一覧）/ マイページ / 設定を切り替える。
+ * マイページ内のセグメント（牌譜/何切る）もここで保持し、何切る一覧の「マイ何切る」導線から
+ * 「マイページタブ＋何切るセグメント」を直接開けるようにする。
+ */
 export function HomeTabs() {
-  const nav = useNavigation<Nav>();
   const insets = useSafeAreaInsets();
   const [tab, setTab] = useState<MainTab>("pub");
+  const [mySegment, setMySegment] = useState<MyPageSegment>("kifu");
 
   return (
     <View style={styles.root}>
       <View style={{ height: insets.top, backgroundColor: colors.chrome }} />
       <View style={styles.content}>
         {tab === "pub" && <PublicListScreen />}
-        {tab === "mine" && <MyListScreen />}
-        {tab === "problems" && <ProblemsListScreen />}
+        {tab === "problems" && (
+          <ProblemsListScreen
+            onOpenMine={() => {
+              setMySegment("problems");
+              setTab("my");
+            }}
+          />
+        )}
+        {tab === "my" && <MyPageScreen segment={mySegment} onChangeSegment={setMySegment} />}
         {tab === "set" && <SettingsScreen />}
       </View>
-      <TabBar active={tab} onSelect={setTab} onCreate={() => nav.navigate("Capture")} />
+      <TabBar active={tab} onSelect={setTab} />
     </View>
   );
 }

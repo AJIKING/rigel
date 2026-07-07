@@ -13,8 +13,11 @@ import { colors } from "../lib/theme";
 
 type Nav = NativeStackNavigationProp<RootStackParamList, "Home">;
 
-/** 何切る問題の公開一覧（published のみ・新着順、認証不要）。未接続時はエラーにせず空表示。 */
-export function ProblemsListScreen() {
+/**
+ * 何切る問題の公開一覧（published のみ・新着順、認証不要）。未接続時はエラーにせず空表示。
+ * onOpenMine はマイページタブの何切るセグメントを開く導線（HomeTabs が配線する）。
+ */
+export function ProblemsListScreen({ onOpenMine }: { onOpenMine?: () => void }) {
   const nav = useNavigation<Nav>();
   const [loading, setLoading] = useState(true);
   const [posts, setPosts] = useState<ProblemPost[]>([]);
@@ -41,13 +44,11 @@ export function ProblemsListScreen() {
       <AppBar
         title="何切る"
         right={
-          <Pressable
-            onPress={() => nav.navigate("MyProblems")}
-            accessibilityRole="button"
-            hitSlop={8}
-          >
-            <Text style={styles.mineLink}>マイ何切る</Text>
-          </Pressable>
+          onOpenMine ? (
+            <Pressable onPress={onOpenMine} accessibilityRole="button" hitSlop={8}>
+              <Text style={styles.mineLink}>マイ何切る</Text>
+            </Pressable>
+          ) : undefined
         }
       />
       {loading ? (

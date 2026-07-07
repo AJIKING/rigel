@@ -12,7 +12,6 @@ import { EditScreen } from "./screens/EditScreen";
 import { GameDetailScreen } from "./screens/GameDetailScreen";
 import { HomeTabs } from "./screens/HomeTabs";
 import { LoginScreen } from "./screens/LoginScreen";
-import { MyProblemsScreen } from "./screens/MyProblemsScreen";
 import { ProblemAnswerScreen } from "./screens/ProblemAnswerScreen";
 import { ProblemEditScreen } from "./screens/ProblemEditScreen";
 import { PublicGameScreen } from "./screens/PublicGameScreen";
@@ -66,11 +65,6 @@ function Root() {
           name="Capture"
           component={CaptureScreen}
           options={{ title: "撮影して作成" }}
-        />
-        <Stack.Screen
-          name="MyProblems"
-          component={MyProblemsScreen}
-          options={{ title: "マイ何切る" }}
         />
         <Stack.Screen
           name="ProblemAnswer"

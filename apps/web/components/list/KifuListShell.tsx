@@ -11,10 +11,11 @@ import { fmtDateSlash } from "../../lib/format";
 import { useFavorites } from "../../lib/use-favorites";
 import { AppHeader } from "../AppHeader";
 import { GameCard } from "../GameCard";
+import { MyPageTabs } from "../mypage/MyPageTabs";
 import gc from "../game-card.module.css";
 import s from "./kifu-list.module.css";
 
-/** 牌譜一覧。view=mine はマイページ(/kifu・要ログイン)、view=public は公開牌譜(/explore)。 */
+/** 牌譜一覧。view=mine はマイページの牌譜タブ(/mypage・要ログイン)、view=public は公開牌譜(/kifu)。 */
 export function KifuListShell({ view }: { view: "mine" | "public" }) {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
@@ -86,11 +87,12 @@ export function KifuListShell({ view }: { view: "mine" | "public" }) {
 
   return (
     <div className={`${s.shell} themeApp`}>
-      <AppHeader active={view} />
+      <AppHeader active={view === "mine" ? "mypage" : "kifu"} />
 
       <main className={s.main}>
         {view === "mine" ? (
           <section>
+            <MyPageTabs active="kifu" />
             <div className={s.profile}>
               <div className={s.stats}>
                 <div className={s.stat}>
@@ -195,7 +197,7 @@ export function KifuListShell({ view }: { view: "mine" | "public" }) {
                         )}
                         {/* 下書きが1局でもあれば注意色、無ければ編集済（mobile と同一表示）。 */}
                         {c.draftCount > 0 ? (
-                          <span className={`${gc.badge} ${gc.draft}`}>下書き{c.draftCount}</span>
+                          <span className={`${gc.badge} ${gc.draft}`}>下書き</span>
                         ) : (
                           <span className={`${gc.badge} ${gc.priv}`}>編集済</span>
                         )}
@@ -219,7 +221,7 @@ export function KifuListShell({ view }: { view: "mine" | "public" }) {
         ) : (
           <section>
             <div className={s.pubhead}>
-              <h1>公開牌譜</h1>
+              <h1>牌譜</h1>
               <p>みんなが共有した卓の記録を見る</p>
             </div>
             <div className={s.toolbar}>

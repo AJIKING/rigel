@@ -1,8 +1,8 @@
-import { ProblemSchema, PROBLEM_SCHEMA_VERSION, type Tile } from "@rigel/schema";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { type ProblemPost } from "../../lib/api";
 import { AuthProvider } from "../../lib/auth-context";
+import { makeDiscardPost, stubMe } from "./test-helpers";
 
 const h = vi.hoisted(() => ({
   getMyProblemsAction: vi.fn(),
@@ -17,53 +17,8 @@ vi.mock("next/navigation", () => ({ useRouter: () => ({ push }) }));
 import { MyProblemsScreen } from "./MyProblemsScreen";
 import { ProblemListScreen } from "./ProblemListScreen";
 
-const HAND_13: Tile[] = [
-  "1m",
-  "2m",
-  "3m",
-  "4m",
-  "5m",
-  "6m",
-  "7m",
-  "8m",
-  "9m",
-  "1p",
-  "2p",
-  "3p",
-  "4p",
-];
-
 function post(id: string, status: "draft" | "published" = "published"): ProblemPost {
-  return {
-    id,
-    userId: "u1",
-    title: `問題${id}`,
-    status,
-    createdAt: "2026-07-07T00:00:00.000Z",
-    problem: ProblemSchema.parse({
-      schemaVersion: PROBLEM_SCHEMA_VERSION,
-      kind: "discard",
-      pov: "east",
-      drawn: "5p",
-      seats: {
-        east: { hand: HAND_13.map((t) => ({ tile: t, confidence: 1 })) },
-        south: {},
-        west: {},
-        north: {},
-      },
-      answer: { type: "discard", tile: "5p" },
-    }),
-  };
-}
-
-function stubMe(plan: string | null) {
-  vi.stubGlobal(
-    "fetch",
-    vi.fn(async () => ({
-      ok: true,
-      json: async () => ({ user: plan ? { id: "u1", plan } : null }),
-    })),
-  );
+  return makeDiscardPost({ id, userId: "u1", title: `問題${id}`, status });
 }
 
 beforeEach(() => {

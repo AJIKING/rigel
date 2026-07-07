@@ -1,10 +1,5 @@
 import { useRoute, type RouteProp } from "@react-navigation/native";
-import {
-  problemTargetTile,
-  type CallType,
-  type ProblemAction,
-  type Tile,
-} from "@rigel/schema";
+import { problemTargetTile, type CallType, type ProblemAction, type Tile } from "@rigel/schema";
 import {
   actionLabel,
   answerNeedsTile,

@@ -15,7 +15,7 @@ describe("KifuListShell", () => {
         <KifuListShell view="public" />
       </AuthProvider>,
     );
-    expect(await screen.findByRole("heading", { name: "公開牌譜" })).toBeTruthy();
+    expect(await screen.findByRole("heading", { name: "牌譜" })).toBeTruthy();
   });
 
   it("マイページビューは未ログインだとログイン導線を出す", async () => {

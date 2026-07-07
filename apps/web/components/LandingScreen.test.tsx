@@ -17,7 +17,7 @@ describe("LandingScreen", () => {
       "/login",
     );
     expect(screen.getByRole("link", { name: "公開牌譜を見る" }).getAttribute("href")).toBe(
-      "/explore",
+      "/kifu",
     );
   });
 });

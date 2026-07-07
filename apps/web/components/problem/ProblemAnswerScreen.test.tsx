@@ -1,8 +1,8 @@
-import { ProblemSchema, PROBLEM_SCHEMA_VERSION, type Tile } from "@rigel/schema";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { type ProblemPost } from "../../lib/api";
 import { AuthProvider } from "../../lib/auth-context";
+import { makeCallPost, makeDiscardPost, stubMe } from "./test-helpers";
 
 const h = vi.hoisted(() => ({
   answerProblemAction: vi.fn(),
@@ -12,77 +12,8 @@ vi.mock("../../app/actions", () => h);
 
 import { ProblemAnswerScreen } from "./ProblemAnswerScreen";
 
-const HAND_13: Tile[] = [
-  "1m",
-  "2m",
-  "3m",
-  "4m",
-  "5m",
-  "6m",
-  "7m",
-  "8m",
-  "9m",
-  "1p",
-  "2p",
-  "3p",
-  "4p",
-];
-
-function discardPost(): ProblemPost {
-  return {
-    id: "p1",
-    userId: "owner",
-    title: "何を切る？",
-    status: "published",
-    createdAt: "2026-07-07T00:00:00.000Z",
-    problem: ProblemSchema.parse({
-      schemaVersion: PROBLEM_SCHEMA_VERSION,
-      kind: "discard",
-      pov: "east",
-      drawn: "5p",
-      seats: {
-        east: { hand: HAND_13.map((t) => ({ tile: t, confidence: 1 })) },
-        south: {},
-        west: {},
-        north: {},
-      },
-      answer: { type: "discard", tile: "1m", riichi: true },
-      explanation: "ピンズの伸びを見て字牌側から整理する。",
-    }),
-  };
-}
-
-function callPost(): ProblemPost {
-  return {
-    ...discardPost(),
-    id: "p2",
-    problem: ProblemSchema.parse({
-      schemaVersion: PROBLEM_SCHEMA_VERSION,
-      kind: "call",
-      pov: "east",
-      targetSeat: "south",
-      seats: {
-        east: { hand: HAND_13.map((t) => ({ tile: t, confidence: 1 })) },
-        south: { river: [{ order: 1, tile: "5p", confidence: 1 }] },
-        west: {},
-        north: {},
-      },
-      answer: { type: "pass" },
-      explanation: "門前を崩さない。",
-    }),
-  };
-}
-
-/** /api/me をスタブ（AuthProvider が起動時に読む）。plan=null で未ログイン。 */
-function stubMe(plan: string | null) {
-  vi.stubGlobal(
-    "fetch",
-    vi.fn(async () => ({
-      ok: true,
-      json: async () => ({ user: plan ? { id: "u1", plan } : null }),
-    })),
-  );
-}
+const discardPost = makeDiscardPost;
+const callPost = makeCallPost;
 
 function renderScreen(post: ProblemPost) {
   return render(

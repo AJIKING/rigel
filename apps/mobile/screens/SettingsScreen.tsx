@@ -21,11 +21,12 @@ import {
 } from "../lib/api";
 import { useAuth } from "../lib/auth";
 import { IAP_PRODUCT_IDS, IAP_SKUS } from "../lib/iap";
+import { SITE_ORIGIN } from "../lib/site";
 import { colors, radius } from "../lib/theme";
 
 // 決済（外部ブラウザ）から戻る先。web の設定ページ（本番ドメイン）。
 // TODO(deep-link): アプリへ直接戻すならユニバーサルリンク/カスタムスキームを設定する。
-const BILLING_RETURN_URL = "https://rigel.plaria.co.jp/settings";
+const BILLING_RETURN_URL = `${SITE_ORIGIN}/settings`;
 
 // アプリは App Store（アプリ内課金）経由の販売のため、手数料込み価格を表示する。
 function priceLabel(plan: Plan): string {

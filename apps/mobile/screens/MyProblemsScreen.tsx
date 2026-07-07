@@ -14,10 +14,11 @@ import type { RootStackParamList } from "../lib/navigation";
 import { KIND_LABELS } from "../lib/problems";
 import { colors, radius } from "../lib/theme";
 
-type Nav = NativeStackNavigationProp<RootStackParamList, "MyProblems">;
+type Nav = NativeStackNavigationProp<RootStackParamList, "Home">;
 
 /**
- * マイ何切る（自分の問題の管理）。状態は draft / published の二択。
+ * マイ何切る（自分の問題の管理。マイページの何切るセグメントとして表示）。
+ * 状態は draft / published の二択。
  * free は draft+published 合算 20 問まで（PROBLEM_LIMIT。上限で警告文言）。
  */
 export function MyProblemsScreen() {

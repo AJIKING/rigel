@@ -1,0 +1,73 @@
+import { fireEvent, render, screen } from "@testing-library/react-native";
+import { useState } from "react";
+import type { MyGameCard } from "../lib/api";
+import { makePost } from "./problem-test-helpers";
+import { MyPageScreen, type MyPageSegment } from "./MyPageScreen";
+
+const mockNavigate = jest.fn();
+jest.mock("@react-navigation/native", () => ({
+  useNavigation: () => ({ navigate: mockNavigate }),
+  useFocusEffect: () => {},
+}));
+
+jest.mock("../lib/auth", () => ({
+  useAuth: () => ({ token: "t", user: { plan: "free" } }),
+}));
+
+const myGames: MyGameCard[] = [
+  {
+    id: "g1",
+    title: "東風戦",
+    createdAt: "2026-07-01T00:00:00.000Z",
+    kyokuCount: 4,
+    publicCount: 0,
+    draftCount: 0,
+  },
+];
+jest.mock("../lib/use-kifu-data", () => ({
+  useMyGames: () => ({ loading: false, games: myGames, sample: false, refetch: jest.fn() }),
+}));
+
+const mockGetMyProblems = jest.fn();
+jest.mock("../lib/api", () => ({
+  deleteGame: jest.fn(),
+  getMyProblems: (...args: unknown[]) => mockGetMyProblems(...args),
+  updateProblem: jest.fn(),
+  deleteProblem: jest.fn(),
+}));
+
+/** MyPageScreen は制御コンポーネント（状態は HomeTabs 持ち）。テストでは薄い state で包む。 */
+function Harness({ initial = "kifu" }: { initial?: MyPageSegment }) {
+  const [segment, setSegment] = useState<MyPageSegment>(initial);
+  return <MyPageScreen segment={segment} onChangeSegment={setSegment} />;
+}
+
+describe("MyPageScreen（マイページ：牌譜/何切るの切替）", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockGetMyProblems.mockResolvedValue([makePost({ id: "p1", title: "公開中の問題" })]);
+  });
+
+  it("初期表示は牌譜タブ（自分の半荘一覧が出て、何切るの内容は出ない）", () => {
+    render(<Harness />);
+
+    expect(screen.getByText("マイページ")).toBeTruthy();
+    expect(screen.getByText("東風戦")).toBeTruthy();
+    expect(screen.queryByText("＋ 新しい問題")).toBeNull();
+    // タイトルバーはマイページ側が持つ（旧マイ牌譜のバーは出さない）。
+    expect(screen.queryByText("マイ牌譜")).toBeNull();
+  });
+
+  it("セグメントを何切るに切り替えると問題一覧に、牌譜に戻すと半荘一覧に切り替わる", async () => {
+    render(<Harness />);
+
+    fireEvent.press(screen.getByText("何切る"));
+    expect(await screen.findByText("公開中の問題")).toBeTruthy();
+    expect(screen.getByText("＋ 新しい問題")).toBeTruthy();
+    expect(screen.queryByText("東風戦")).toBeNull();
+
+    fireEvent.press(screen.getByText("牌譜"));
+    expect(screen.getByText("東風戦")).toBeTruthy();
+    expect(screen.queryByText("公開中の問題")).toBeNull();
+  });
+});

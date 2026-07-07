@@ -12,9 +12,9 @@ export function LoginScreen() {
   const { user, loading } = useAuth();
   const router = useRouter();
 
-  // ログイン済みになったら牌譜一覧へ。
+  // ログイン済みになったらマイページへ。
   useEffect(() => {
-    if (user) router.replace("/kifu");
+    if (user) router.replace("/mypage");
   }, [user, router]);
 
   return (
@@ -44,7 +44,7 @@ export function LoginScreen() {
                 公開牌譜の閲覧はどなたでも可能です。
               </p>
               <GoogleSignInButton />
-              <Link href="/explore" className={s.browse}>
+              <Link href="/kifu" className={s.browse}>
                 牌譜をみてみる
               </Link>
               <p className={s.legal}>
