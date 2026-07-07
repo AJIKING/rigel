@@ -11,8 +11,11 @@
 # 2. 環境変数グループ `appstore_credentials` に CERTIFICATE_PRIVATE_KEY
 #    （配布証明書用の RSA 秘密鍵。Secure で登録）を入れる。
 # 3. 環境変数グループ `rigel_mobile_env` に、ビルド時にバンドルへ焼き込む公開値:
-#       EXPO_PUBLIC_API_URL          … 本番 API のベースURL（Workers のデプロイ先）
-#       EXPO_PUBLIC_GOOGLE_CLIENT_ID … Google OAuth Web クライアントID（id_token フロー用）
+#       EXPO_PUBLIC_API_URL                  … 本番 API のベースURL（Workers のデプロイ先）
+#       EXPO_PUBLIC_GOOGLE_CLIENT_ID         … iOS 用 OAuth クライアントID（app.json の
+#                                              CFBundleURLSchemes の逆ドメインと対。web 用の値ではない）
+#       EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID … Android 用 OAuth クライアントID（package+SHA-1 検証。
+#                                              どちらも api の GOOGLE_CLIENT_ID にカンマ追記して aud を許可）
 # 4. App Store Connect に App（Bundle ID: jp.co.plaria.rigel）を登録しておく
 #    （app.json の ios.bundleIdentifier と一致させる）。
 # 5. アプリ設定で「Switch to codemagic.yaml configuration」を選ぶ。

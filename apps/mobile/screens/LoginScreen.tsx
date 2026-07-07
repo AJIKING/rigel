@@ -7,11 +7,17 @@ import Svg, { Path } from "react-native-svg";
 import { BrandMark } from "../components/BrandMark";
 import { TileChip } from "../components/TileChip";
 import { useAuth } from "../lib/auth";
+import { googleClientConfig } from "../lib/google-login";
 import { colors, radius } from "../lib/theme";
 
 WebBrowser.maybeCompleteAuthSession();
 
-const CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID;
+// EXPO_PUBLIC_GOOGLE_CLIENT_ID は iOS 用、EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID は
+// Android 用の OAuth クライアントID（詳細は lib/google-login.ts）。未設定なら null = ログイン無効表示。
+const GOOGLE_CONFIG = googleClientConfig({
+  clientId: process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID,
+  androidClientId: process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID,
+});
 
 function GoogleLogo() {
   return (
@@ -38,7 +44,7 @@ function GoogleLogo() {
 
 export function LoginScreen() {
   const { signInWithGoogle } = useAuth();
-  const [request, response, promptAsync] = Google.useIdTokenAuthRequest({ clientId: CLIENT_ID });
+  const [request, response, promptAsync] = Google.useIdTokenAuthRequest(GOOGLE_CONFIG ?? {});
 
   // Google から id_token が返ったらサーバ認証へ。
   useEffect(() => {
@@ -57,7 +63,7 @@ export function LoginScreen() {
         </View>
       </View>
       <View style={styles.foot}>
-        {CLIENT_ID ? (
+        {GOOGLE_CONFIG ? (
           <Pressable
             style={({ pressed }) => [styles.gbtn, (!request || pressed) && styles.gbtnPressed]}
             disabled={!request}
@@ -72,7 +78,7 @@ export function LoginScreen() {
             Google ログインは未設定です（EXPO_PUBLIC_GOOGLE_CLIENT_ID を設定すると有効化）。
           </Text>
         )}
-        {!request && CLIENT_ID ? (
+        {!request && GOOGLE_CONFIG ? (
           <ActivityIndicator color={colors.accent} style={{ marginTop: 12 }} />
         ) : null}
         <Text style={styles.legal}>
