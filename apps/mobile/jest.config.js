@@ -9,4 +9,7 @@ module.exports = {
   transformIgnorePatterns: [
     "node_modules/.pnpm/(?!(react-native|@react-native|expo|@expo|@react-navigation))",
   ],
+  // CI（遅いランナー）ではスイート先頭のテストが画面の初回レンダリング＋変換コストを
+  // 背負い、既定の 5秒を超えることがある（ローカルは1秒未満）。実測の揺れに耐える値にする。
+  testTimeout: 20000,
 };
