@@ -13,6 +13,7 @@ import {
   buildProblemAnswer,
   canSubmitProblemAnswer,
   choiceKeyLabel,
+  problemToKifu,
   seatLabel,
   sortHandTiles,
   statsRatios,
@@ -22,13 +23,16 @@ import {
   windOf,
 } from "@rigel/ui";
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { answerProblemAction, getProblemStatsAction } from "../../app/actions";
 import { type ProblemPost, type ProblemStats } from "../../lib/api";
 import { useAuth } from "../../lib/auth-context";
 import { fmtDate } from "../../lib/format";
+import { useBoardScale } from "../../lib/use-board-scale";
 import { BrandMark } from "../BrandMark";
 import { OssTileFace } from "../OssTileFace";
+import { ViewBoard } from "../view/ViewBoard";
+import { ProblemBoardCenter } from "./ProblemBoardCenter";
 import s from "./problem.module.css";
 
 /**
@@ -73,7 +77,14 @@ export function ProblemAnswerScreen({ post }: { post: ProblemPost }) {
     setSelTile((cur) => (cur === tile ? null : tile));
   }
 
-  const riversToShow = SEAT_ORDER.filter((seat) => problem.seats[seat].river.length > 0);
+  // 盤面は牌譜ビューアと同じ卓（ViewBoard）で描く。河は全表示（既定）・鳴き判断は対象牌を強調。
+  const boardKifu = useMemo(() => problemToKifu(problem), [problem]);
+  const highlightRiver =
+    problem.kind === "call" && problem.targetSeat
+      ? { seat: problem.targetSeat, index: problem.seats[problem.targetSeat].river.length - 1 }
+      : null;
+  const mainRef = useRef<HTMLDivElement>(null);
+  const scale = useBoardScale(mainRef);
 
   return (
     <div className={`${s.app} themeBoard`}>
@@ -88,7 +99,7 @@ export function ProblemAnswerScreen({ post }: { post: ProblemPost }) {
         </div>
       </div>
 
-      <main className={s.main}>
+      <main className={s.main} ref={mainRef}>
         <h1 className={s.title}>
           {post.title || "（無題の問題）"}
           {post.status === "draft" && <span className={s.draftBadge}>下書き</span>}
@@ -103,19 +114,16 @@ export function ProblemAnswerScreen({ post }: { post: ProblemPost }) {
           {fmtDate(post.createdAt)}
         </p>
 
-        {/* ドラ表示 */}
-        {problem.meta.dora.length > 0 && (
-          <div className={s.row}>
-            <span className={s.rowLabel}>ドラ</span>
-            <span className={s.tiles}>
-              {problem.meta.dora.map((t, i) => (
-                <span key={`${t}-${i}`} className={s.tile}>
-                  <OssTileFace code={t} />
-                </span>
-              ))}
-            </span>
-          </div>
-        )}
+        {/* 盤面は牌譜ビューアと同じ卓（河・鳴きは卓上に。鳴き判断は対象牌を強調）。 */}
+        <ViewBoard
+          kifu={boardKifu}
+          bottomSeat={pov}
+          dealer={dealer ?? pov}
+          scale={scale}
+          bottomName="あなた"
+          highlightRiver={highlightRiver}
+          center={<ProblemBoardCenter meta={problem.meta} />}
+        />
 
         {/* 点数状況（手入力の記録のみ） */}
         {problem.scores && (
@@ -131,28 +139,6 @@ export function ProblemAnswerScreen({ post }: { post: ProblemPost }) {
           </div>
         )}
 
-        {/* 河（作成者が入れた席だけ）。鳴き判断は対象牌を強調。 */}
-        {riversToShow.map((seat) => (
-          <div key={seat} className={s.row}>
-            <span className={s.rowLabel}>{seatLabel(seat)}家の河</span>
-            <span className={s.tiles}>
-              {problem.seats[seat].river.map((d, i) => {
-                const isTarget =
-                  problem.kind === "call" &&
-                  seat === problem.targetSeat &&
-                  i === problem.seats[seat].river.length - 1;
-                return (
-                  <span
-                    key={i}
-                    className={`${s.tile} ${d.riichi ? s.lay : ""} ${isTarget ? s.target : ""}`}
-                  >
-                    <OssTileFace code={d.tile} />
-                  </span>
-                );
-              })}
-            </span>
-          </div>
-        ))}
         {problem.kind === "call" && problem.targetSeat && targetTile && (
           <p className={s.question}>
             {seatLabel(problem.targetSeat)}家が切った {tileLabel(targetTile)} を鳴きますか？

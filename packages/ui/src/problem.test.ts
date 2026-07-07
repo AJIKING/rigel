@@ -5,11 +5,13 @@ import {
   addDraftMeld,
   answerNeedsTile,
   assembleProblem,
+  draftToKifu,
   buildProblemAnswer,
   canSubmitProblemAnswer,
   choiceKeyLabel,
   problemHandMax,
   problemRiverTiles,
+  problemRoundLabel,
   problemToKifu,
   statsRatios,
   CALL_CHOICES,
@@ -212,6 +214,29 @@ describe("assembleProblem（編集状態→Problem の組み立て・検証。we
 
   it("scores が null なら点数状況なしで組み立てる", () => {
     expect(assembleProblem(draft({ scores: null })).problem?.scores).toBeNull();
+  });
+});
+
+describe("draftToKifu（編集途中の盤面プレビュー変換）", () => {
+  it("枚数不足でも検証なしで Kifu になり、pov が手前・手牌は理牌される", () => {
+    const kifu = draftToKifu({
+      pov: "south",
+      hand: ["9m", "1m"], // 2枚しかない編集途中
+      melds: [],
+      rivers: { east: [], south: [], west: ["5p"], north: [] },
+      meta: { dealer: "east", roundWind: "east", honba: 1, kyotaku: 0, junme: 3, dora: ["3z"] },
+    });
+    expect(kifu.cameraBottomSeat).toBe("south");
+    expect(kifu.seats.south.hand.map((t) => t.tile)).toEqual(["1m", "9m"]); // 理牌
+    expect(kifu.seats.west.river.map((d) => d.order)).toEqual([1]);
+    expect(kifu.meta.dora).toEqual(["3z"]);
+  });
+});
+
+describe("problemRoundLabel（局ラベル。卓中央・mobile の roundLabel で共用）", () => {
+  it("場風＋巡目（場風が無ければ巡目のみ）", () => {
+    expect(problemRoundLabel({ roundWind: "east", junme: 6 })).toBe("東場 6巡目");
+    expect(problemRoundLabel({ roundWind: null, junme: 3 })).toBe("3巡目");
   });
 });
 

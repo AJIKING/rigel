@@ -1,38 +1,55 @@
 "use client";
 
 import { PROBLEM_KIND_LABELS, PROBLEM_LIMIT, LIMIT_MESSAGES } from "@rigel/ui";
-import Link from "next/link";
-import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { useMemo, useState } from "react";
 import { deleteProblemAction, updateProblemAction } from "../../app/actions";
 import { type ProblemPost } from "../../lib/api";
 import { useAuth } from "../../lib/auth-context";
-import { fmtDate } from "../../lib/format";
+import { fmtDateSlash } from "../../lib/format";
+import { useFavorites } from "../../lib/use-favorites";
 import { AppHeader } from "../AppHeader";
-import s from "./problem.module.css";
+import { GameCard } from "../GameCard";
+import gc from "../game-card.module.css";
+import s from "../list/kifu-list.module.css";
+import p9 from "./problem.module.css";
 
 /**
- * マイ何切る（自分の問題の管理）。状態は draft / published の二択
- * （公開非公開の概念なし）。free は draft+published 合算 20 問まで。
+ * マイ何切る（自分の問題の管理）。牌譜のマイページ（/kifu）と同じ構造
+ * （統計・クォータ・ツールバー・GameCard）。状態は draft / published の二択。
+ * free は draft+published 合算 20 問まで。
  */
 export function MyProblemsScreen({ initialPosts }: { initialPosts: ProblemPost[] }) {
   const { user } = useAuth();
+  const router = useRouter();
+  const { favs, toggle: toggleFav } = useFavorites();
   const [posts, setPosts] = useState(initialPosts);
   const [delArm, setDelArm] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
+  const [q, setQ] = useState("");
+  const [status, setStatus] = useState<"all" | "published" | "draft">("all");
 
   const limit = PROBLEM_LIMIT[user?.plan ?? "free"];
   const atLimit = limit !== null && posts.length >= limit;
+  const publishedCount = posts.filter((post) => post.status === "published").length;
+
+  const view = useMemo(() => {
+    let arr = posts.slice();
+    if (status !== "all") arr = arr.filter((post) => post.status === status);
+    if (q) arr = arr.filter((post) => post.title.includes(q));
+    return arr.sort((a, b) => -a.createdAt.localeCompare(b.createdAt));
+  }, [posts, status, q]);
 
   /** draft⇔published の切替（楽観更新・失敗でロールバック）。 */
   async function toggleStatus(post: ProblemPost) {
     const next = post.status === "draft" ? "published" : "draft";
-    setPosts((cur) => cur.map((p) => (p.id === post.id ? { ...p, status: next } : p)));
+    setPosts((cur) => cur.map((x) => (x.id === post.id ? { ...x, status: next } : x)));
     const res = await updateProblemAction(post.id, { status: next }).catch(() => ({
       ok: false,
       status: 0,
     }));
     if (!res.ok) {
-      setPosts((cur) => cur.map((p) => (p.id === post.id ? { ...p, status: post.status } : p)));
+      setPosts((cur) => cur.map((x) => (x.id === post.id ? { ...x, status: post.status } : x)));
       setErr("状態の変更に失敗しました。");
     }
   }
@@ -46,61 +63,136 @@ export function MyProblemsScreen({ initialPosts }: { initialPosts: ProblemPost[]
     }
     setDelArm(null);
     const res = await deleteProblemAction(post.id).catch(() => ({ ok: false, status: 0 }));
-    if (res.ok) setPosts((cur) => cur.filter((p) => p.id !== post.id));
+    if (res.ok) setPosts((cur) => cur.filter((x) => x.id !== post.id));
     else setErr("削除に失敗しました。");
   }
 
   return (
-    <div className={s.page}>
+    <div className={`${s.shell} themeApp`}>
       <AppHeader active="problems" />
-      <main className={s.listMain}>
-        <div className={s.listHead}>
-          <h1 className={s.listTitle}>マイ何切る</h1>
-          {limit !== null && (
-            <span className={`${s.quota} ${atLimit ? s.quotaWarn : ""}`}>
-              {posts.length} / {limit}問
-            </span>
-          )}
-          <Link
-            href="/problems/new"
-            className={`${s.newBtn} ${atLimit ? s.newBtnDisabled : ""}`}
-            aria-disabled={atLimit}
-          >
-            ＋ 新しい問題
-          </Link>
-        </div>
-        {atLimit && <p className={s.limitNote}>{LIMIT_MESSAGES.problems}</p>}
-        {err && <p className={s.err}>{err}</p>}
-
-        {posts.length === 0 ? (
-          <p className={s.empty}>まだ問題がありません。「＋ 新しい問題」から作成できます。</p>
-        ) : (
-          <div className={s.cards}>
-            {posts.map((p) => (
-              <div key={p.id} className={s.card}>
-                <span className={s.cardKind}>{PROBLEM_KIND_LABELS[p.problem.kind]}</span>
-                <Link href={`/p/${p.id}`} className={s.cardTitle}>
-                  {p.title || "（無題の問題）"}
-                </Link>
-                <span className={s.cardMeta}>
-                  {fmtDate(p.createdAt)}
-                  <span className={p.status === "draft" ? s.badgeDraft : s.badgePub}>
-                    {p.status === "draft" ? "下書き" : "公開中"}
-                  </span>
-                </span>
-                <div className={s.cardActs}>
-                  <button type="button" onClick={() => void toggleStatus(p)}>
-                    {p.status === "draft" ? "公開する" : "下書きに戻す"}
-                  </button>
-                  <Link href={`/problems/${p.id}/edit`}>編集</Link>
-                  <button type="button" className={s.danger} onClick={() => void onDelete(p)}>
-                    {delArm === p.id ? "もう一度押して削除" : "削除"}
-                  </button>
-                </div>
+      <main className={s.main}>
+        <section>
+          <div className={s.profile}>
+            <div className={s.stats}>
+              <div className={s.stat}>
+                <b>{posts.length}</b>
+                <span>問題</span>
               </div>
-            ))}
+              <div className={s.stat}>
+                <b>{publishedCount}</b>
+                <span>公開中</span>
+              </div>
+              <div className={s.stat}>
+                <b>{posts.length - publishedCount}</b>
+                <span>下書き</span>
+              </div>
+            </div>
+            {limit !== null && (
+              <p className={s.quota}>
+                何切る {posts.length} / {limit}問
+              </p>
+            )}
           </div>
-        )}
+          {atLimit && <p className={p9.limitNote}>{LIMIT_MESSAGES.problems}</p>}
+          {err && <p className={p9.err}>{err}</p>}
+
+          <div className={s.toolbar}>
+            <div className={s.search}>
+              <svg viewBox="0 0 24 24">
+                <circle cx="11" cy="11" r="7" />
+                <path d="M21 21l-4-4" />
+              </svg>
+              <input
+                type="search"
+                placeholder="問題を検索"
+                aria-label="自分の問題を検索"
+                value={q}
+                onChange={(e) => setQ(e.target.value.trim())}
+              />
+            </div>
+            <div className={s.sortwrap}>
+              <select
+                aria-label="状態で絞り込み"
+                value={status}
+                onChange={(e) => setStatus(e.target.value as typeof status)}
+              >
+                <option value="all">すべて</option>
+                <option value="published">公開中</option>
+                <option value="draft">下書き</option>
+              </select>
+            </div>
+            <button
+              className={s.newbtn}
+              disabled={atLimit}
+              onClick={() => router.push("/problems/new")}
+            >
+              <svg
+                viewBox="0 0 24 24"
+                width="14"
+                height="14"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.4"
+              >
+                <path d="M12 5v14M5 12h14" />
+              </svg>
+              新しい問題
+            </button>
+          </div>
+
+          <div className={gc.feed}>
+            {view.length === 0 ? (
+              <div className={gc.empty}>
+                {posts.length === 0
+                  ? "まだ問題がありません。「新しい問題」から作成できます"
+                  : "該当する問題がありません"}
+              </div>
+            ) : (
+              view.map((post) => (
+                <GameCard
+                  key={post.id}
+                  title={post.title || "（無題の問題）"}
+                  badge={
+                    <>
+                      <span className={`${gc.badge} ${gc.priv}`}>
+                        {PROBLEM_KIND_LABELS[post.problem.kind]}
+                      </span>
+                      {post.status === "published" ? (
+                        <span className={`${gc.badge} ${gc.pub}`}>公開中</span>
+                      ) : (
+                        <span className={`${gc.badge} ${gc.draft}`}>下書き</span>
+                      )}
+                    </>
+                  }
+                  meta={fmtDateSlash(post.createdAt)}
+                  faved={favs.has(post.id)}
+                  onToggleFav={() => toggleFav(post.id)}
+                  onOpen={() => router.push(`/p/${post.id}`)}
+                  actions={
+                    <>
+                      <button type="button" onClick={() => void toggleStatus(post)}>
+                        {post.status === "draft" ? "公開する" : "下書きに戻す"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => router.push(`/problems/${post.id}/edit`)}
+                      >
+                        編集
+                      </button>
+                      <button
+                        type="button"
+                        className={gc.danger}
+                        onClick={() => void onDelete(post)}
+                      >
+                        {delArm === post.id ? "もう一度押して削除" : "削除"}
+                      </button>
+                    </>
+                  }
+                />
+              ))
+            )}
+          </div>
+        </section>
       </main>
     </div>
   );

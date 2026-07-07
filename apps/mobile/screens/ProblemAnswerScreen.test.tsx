@@ -1,5 +1,6 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react-native";
-import { Share } from "react-native";
+import { Share, StyleSheet } from "react-native";
+import { colors } from "../lib/theme";
 import { makeCallProblem, makePost } from "./problem-test-helpers";
 import { ProblemAnswerScreen } from "./ProblemAnswerScreen";
 
@@ -104,6 +105,19 @@ describe("ProblemAnswerScreen（何切る回答画面）", () => {
 
     expect(await screen.findByText("あなたの回答: スルー")).toBeTruthy();
     expect(mockAnswerProblem).toHaveBeenCalledWith("t", "p1", { type: "pass" });
+  });
+
+  it("盤面は回転卓（BoardTable）で表示し、鳴き判断の対象牌に強調枠が付く", async () => {
+    mockGetProblem.mockResolvedValue(makePost({ problem: makeCallProblem() }));
+    render(<ProblemAnswerScreen />);
+
+    // 対象牌（南家の河の末尾＝發）は卓上でアクセント色の枠で強調される。
+    const target = await screen.findByLabelText("發");
+    expect(StyleSheet.flatten(target.props.style)).toMatchObject({
+      borderColor: colors.accent,
+    });
+    // 卓中央には場風+巡目（KifuPlayer と同じ回転卓の中央表示）。
+    expect(screen.getByText("東場 6巡目")).toBeTruthy();
   });
 
   it("公開問題では OS 共有を開ける（下書きには出さない）", async () => {

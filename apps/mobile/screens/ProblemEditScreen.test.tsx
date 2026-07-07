@@ -108,6 +108,14 @@ describe("ProblemEditScreen（何切る問題の作成/編集）", () => {
     expect(mockGoBack).not.toHaveBeenCalled();
   });
 
+  it("盤面プレビューは既定で表示され、折りたたみできる", () => {
+    render(<ProblemEditScreen />);
+    // 既定 open：卓中央に場風+巡目（既定=東場・6巡目）が出る。
+    expect(screen.getByText("東場 6巡目")).toBeTruthy();
+    fireEvent.press(screen.getByText(/プレビュー/));
+    expect(screen.queryByText("東場 6巡目")).toBeNull();
+  });
+
   it("problemId 付きは既存の問題を読み込み、保存で updateProblem を呼ぶ", async () => {
     mockParams = { problemId: "p1" };
     mockGetProblem.mockResolvedValue(makePost({ id: "p1", title: "既存の問題" }));

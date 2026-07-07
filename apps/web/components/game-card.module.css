@@ -182,3 +182,29 @@
 .cmeta .sep {
   opacity: 0.5;
 }
+/* カード内の操作ボタン列（何切るの公開切替・編集・削除など。カード遷移に伝播しない）。 */
+.cacts {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+  flex-wrap: wrap;
+}
+.cacts button,
+.cacts a {
+  background: transparent;
+  border: 1px solid var(--line);
+  color: var(--w70);
+  border-radius: 7px;
+  padding: 3px 10px;
+  font-size: 11.5px;
+  cursor: pointer;
+  text-decoration: none;
+}
+.cacts button:hover,
+.cacts a:hover {
+  color: #fff;
+}
+.cacts .danger {
+  border-color: color-mix(in srgb, var(--vermilion) 55%, transparent);
+  color: var(--vermilion);
+}

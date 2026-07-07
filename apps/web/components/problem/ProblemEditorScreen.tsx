@@ -14,6 +14,7 @@ import {
   addDraftMeld,
   assembleProblem,
   compareTiles,
+  draftToKifu,
   problemHandMax,
   problemRiverTiles,
   seatLabel,
@@ -28,13 +29,16 @@ import {
 } from "@rigel/ui";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { createProblemAction, updateProblemAction } from "../../app/actions";
 import { type ProblemPost } from "../../lib/api";
+import { useBoardScale } from "../../lib/use-board-scale";
 import { RulesDialog } from "../board/RulesDialog";
 import { Stepper } from "../board/Stepper";
 import { BrandMark } from "../BrandMark";
 import { OssTileFace } from "../OssTileFace";
+import { ViewBoard } from "../view/ViewBoard";
+import { ProblemBoardCenter } from "./ProblemBoardCenter";
 import s from "./problem.module.css";
 
 /** 牌グリッドの入力先。 */
@@ -98,6 +102,26 @@ export function ProblemEditorScreen({ initial }: { initial?: ProblemPost }) {
 
   const handMax = problemHandMax(melds.length);
   const sortedHand = [...hand].sort(compareTiles);
+
+  // 盤面プレビュー（牌譜と同じ卓）。編集途中でも検証なしで描ける draftToKifu を使う。
+  const previewKifu = useMemo(
+    () =>
+      draftToKifu({
+        pov,
+        hand,
+        melds,
+        rivers,
+        meta: { dealer, roundWind, honba, kyotaku, junme, dora },
+        rules,
+      }),
+    [pov, hand, melds, rivers, dealer, roundWind, honba, kyotaku, junme, dora, rules],
+  );
+  const previewHighlight =
+    kind === "call" && rivers[targetSeat].length > 0
+      ? { seat: targetSeat, index: rivers[targetSeat].length - 1 }
+      : null;
+  const mainRef = useRef<HTMLDivElement>(null);
+  const scale = useBoardScale(mainRef);
 
   function pickTile(code: Tile) {
     setErr(null);
@@ -200,7 +224,7 @@ export function ProblemEditorScreen({ initial }: { initial?: ProblemPost }) {
         </div>
       </div>
 
-      <main className={s.main}>
+      <main className={s.main} ref={mainRef}>
         <div className={s.field}>
           <label htmlFor="pb-title">タイトル</label>
           <input
@@ -322,7 +346,18 @@ export function ProblemEditorScreen({ initial }: { initial?: ProblemPost }) {
             ))}
         </div>
 
-        {/* 入力済みの盤面プレビュー（タップで削除） */}
+        {/* 盤面プレビュー（牌譜と同じ卓。編集途中でも即時反映）。 */}
+        <ViewBoard
+          kifu={previewKifu}
+          bottomSeat={pov}
+          dealer={dealer ?? pov}
+          scale={scale}
+          bottomName="あなた"
+          highlightRiver={previewHighlight}
+          center={<ProblemBoardCenter meta={{ roundWind, junme, dora }} />}
+        />
+
+        {/* 入力済みの一覧（タップで削除） */}
         <div className={s.handRow}>
           <span className={s.rowLabel}>手牌</span>
           <span className={s.hand}>

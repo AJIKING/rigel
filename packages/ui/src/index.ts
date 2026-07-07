@@ -452,6 +452,12 @@ export function problemHandMax(meldCount: number): number {
   return Math.max(0, PROBLEM_FULL_HAND - meldCount * 3);
 }
 
+/** 局ラベル（例: "東場 6巡目"。場風が無ければ巡目のみ）。卓中央の表示で共用する。 */
+export function problemRoundLabel(meta: { roundWind: Seat | null; junme: number }): string {
+  const wind = meta.roundWind ? `${seatLabel(meta.roundWind)}場 ` : "";
+  return `${wind}${meta.junme}巡目`;
+}
+
 /** 問題の各席の河を牌配列へ写す（編集画面の初期状態用。読めない牌はスキップ）。 */
 export function problemRiverTiles(problem?: Problem): Record<Seat, Tile[]> {
   const rivers: Record<Seat, Tile[]> = { east: [], south: [], west: [], north: [] };
@@ -503,6 +509,44 @@ export interface ProblemDraft {
   ansRiichi: boolean;
   ansCall: "pass" | CallType | null;
   explanation: string;
+}
+
+/** 盤面プレビューに必要な編集状態のサブセット（答え・解説は不要）。 */
+export type ProblemBoardDraft = Pick<ProblemDraft, "pov" | "hand" | "melds" | "rivers" | "meta"> &
+  Partial<Pick<ProblemDraft, "rules">>;
+
+/**
+ * 編集途中の状態を検証なしで盤面プレビュー用の Kifu に写す（枚数不足でも描ける）。
+ * 保存前の確認は assembleProblem（検証あり）、表示は problemToKifu（検証済み Problem 用）と使い分ける。
+ */
+export function draftToKifu(draft: ProblemBoardDraft): Kifu {
+  const seats = Object.fromEntries(
+    SEAT_ORDER.map((seat) => [
+      seat,
+      {
+        hand:
+          seat === draft.pov
+            ? sortHandTiles(draft.hand.map((tile) => ({ tile, confidence: 1 })))
+            : [],
+        melds: seat === draft.pov ? draft.melds : [],
+        river: draft.rivers[seat].map((tile, i) => ({
+          order: i + 1,
+          tile,
+          riichi: false,
+          tsumogiri: false,
+          confidence: 1,
+        })),
+      },
+    ]),
+  );
+  return KifuSchema.parse({
+    schemaVersion: SCHEMA_VERSION,
+    capturedAt: "2026-01-01T00:00:00.000Z",
+    cameraBottomSeat: draft.pov,
+    seats,
+    meta: { ...draft.meta, note: "" },
+    rules: draft.rules ?? {},
+  });
 }
 
 /**

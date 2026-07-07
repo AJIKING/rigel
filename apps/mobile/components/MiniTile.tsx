@@ -17,6 +17,7 @@ const RAISED = {
  * 1牌の表示（OSS 画像 = FluffyStuff/riichi-mahjong-tiles, CC0）。回転卓・和了手で共通に使う。
  * Front の上にシンボル画像を重ねる。サイズは w/h 指定（盤面サイズ比から算出）。
  * back=裏向き（緑の伏せ牌）、riichi=横向き、tsumogiri=グレーがけ、読めない牌は Front に「?」。
+ * highlight=注目牌の強調枠（何切るの鳴き判断で対象牌に付ける。web の強調と同じ意図）。
  */
 export function MiniTile({
   code,
@@ -25,6 +26,7 @@ export function MiniTile({
   back = false,
   riichi = false,
   tsumogiri = false,
+  highlight = false,
 }: {
   code?: TileCode | null;
   w: number;
@@ -32,6 +34,7 @@ export function MiniTile({
   back?: boolean;
   riichi?: boolean;
   tsumogiri?: boolean;
+  highlight?: boolean;
 }) {
   const box: ViewStyle = {
     width: w,
@@ -56,7 +59,10 @@ export function MiniTile({
 
   const symbol = code ? TILE_IMAGES[tileAssetName(code)] : undefined;
   return (
-    <View style={[styles.tile, box]} accessibilityLabel={tileLabel(code ?? null)}>
+    <View
+      style={[styles.tile, box, highlight && styles.hl]}
+      accessibilityLabel={tileLabel(code ?? null)}
+    >
       <Image source={TILE_FRONT} style={styles.img} resizeMode="contain" />
       {symbol !== undefined ? (
         <Image source={symbol} style={[styles.img, styles.overlay]} resizeMode="contain" />
@@ -71,6 +77,8 @@ export function MiniTile({
 
 const styles = StyleSheet.create({
   tile: { backgroundColor: colors.bone, overflow: "hidden", ...RAISED },
+  // 注目牌の強調枠（鳴き判断の対象牌など）。
+  hl: { borderWidth: 2, borderColor: colors.accent },
   img: { width: "100%", height: "100%" },
   overlay: { position: "absolute", top: 0, left: 0 },
   scrim: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(86,90,88,0.42)" },

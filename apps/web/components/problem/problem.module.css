@@ -119,6 +119,22 @@
   font-weight: 700;
   margin: 6px 0 14px;
 }
+/* ViewBoard（共有卓）の中央情報（局・巡目・ドラ）。 */
+.centerInfo {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+.centerRound {
+  font-size: 20px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+}
+.centerDora {
+  display: flex;
+  gap: 2px;
+}
 .scores {
   display: inline-flex;
   gap: 12px;
@@ -299,60 +315,7 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* ---- 一覧（公開 / マイ何切る） ---- */
-.page {
-  min-height: 100dvh;
-  background: var(--bg, #0f1115);
-  color: #fff;
-}
-.listMain {
-  max-width: 880px;
-  margin: 0 auto;
-  padding: 24px 16px 48px;
-}
-.listHead {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 18px;
-}
-.listTitle {
-  font-size: 20px;
-  font-weight: 800;
-  margin: 0;
-}
-.mineLink {
-  margin-left: auto;
-  font-size: 13px;
-  color: var(--w70, rgba(255, 255, 255, 0.7));
-  text-decoration: none;
-}
-.mineLink:hover {
-  color: #fff;
-}
-.quota {
-  font-size: 12.5px;
-  color: var(--w70, rgba(255, 255, 255, 0.7));
-  font-variant-numeric: tabular-nums;
-}
-.quotaWarn {
-  color: var(--vermilion, #d64545);
-  font-weight: 700;
-}
-.newBtn {
-  margin-left: auto;
-  font-size: 13px;
-  font-weight: 700;
-  color: #0c0e12;
-  background: var(--accent, #4dd2a0);
-  border-radius: 8px;
-  padding: 7px 14px;
-  text-decoration: none;
-}
-.newBtnDisabled {
-  opacity: 0.4;
-  pointer-events: none;
-}
+/* ---- マイ何切るの注意文言（一覧本体は牌譜一覧の kifu-list/game-card を共用） ---- */
 .limitNote {
   font-size: 12.5px;
   color: var(--vermilion, #d64545);
@@ -363,86 +326,6 @@
   color: var(--vermilion, #d64545);
   margin: 0 0 12px;
 }
-.empty {
-  color: var(--w45, rgba(255, 255, 255, 0.45));
-  font-size: 13.5px;
-  padding: 40px 0;
-  text-align: center;
-}
-.cards {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-  gap: 12px;
-}
-.card {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  padding: 14px;
-  border: 1px solid var(--line, rgba(255, 255, 255, 0.08));
-  border-radius: 10px;
-  background: var(--chrome-2, rgba(255, 255, 255, 0.04));
-  color: #fff;
-  text-decoration: none;
-}
-a.card:hover {
-  border-color: rgba(255, 255, 255, 0.24);
-}
-.cardKind {
-  font-size: 10.5px;
-  font-weight: 700;
-  color: var(--accent, #4dd2a0);
-}
-.cardTitle {
-  font-size: 14.5px;
-  font-weight: 700;
-  color: #fff;
-  text-decoration: none;
-}
-.cardMeta {
-  font-size: 12px;
-  color: var(--w45, rgba(255, 255, 255, 0.45));
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.badgeDraft,
-.badgePub {
-  font-size: 10.5px;
-  font-weight: 700;
-  padding: 1px 7px;
-  border-radius: 6px;
-}
-.badgeDraft {
-  color: var(--w70, rgba(255, 255, 255, 0.7));
-  background: rgba(255, 255, 255, 0.09);
-}
-.badgePub {
-  color: #0c0e12;
-  background: var(--accent, #4dd2a0);
-}
-.cardActs {
-  display: flex;
-  gap: 10px;
-  margin-top: 6px;
-  flex-wrap: wrap;
-}
-.cardActs button,
-.cardActs a {
-  background: transparent;
-  border: 1px solid var(--line, rgba(255, 255, 255, 0.2));
-  color: #fff;
-  border-radius: 7px;
-  padding: 4px 10px;
-  font-size: 12px;
-  cursor: pointer;
-  text-decoration: none;
-}
-.cardActs .danger {
-  border-color: var(--vermilion, #d64545);
-  color: var(--vermilion, #d64545);
-}
-
 /* ---- 作成/編集画面 ---- */
 .field {
   display: flex;

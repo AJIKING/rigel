@@ -1,15 +1,14 @@
 "use client";
 
-import { toAbsoluteSeat, type CameraSeat, type Kifu, type Seat, type Tile } from "@rigel/schema";
+import { type Kifu, type Seat, type Tile } from "@rigel/schema";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { type PublicGameDetail } from "../../lib/api";
 import { useAuth } from "../../lib/auth-context";
-import { resultLabel, sortHandTiles } from "@rigel/ui";
+import { resultLabel } from "@rigel/ui";
 import {
   SEAT_ORDER,
   buildRiverPlayback,
-  chunk,
   revealCounts,
   roundNameForSeq,
   windOf,
@@ -20,48 +19,8 @@ import { useFavorites } from "../../lib/use-favorites";
 import { BrandMark } from "../BrandMark";
 import { OssTileFace } from "../OssTileFace";
 import { AgariOverlay } from "./AgariOverlay";
+import { ViewBoard } from "./ViewBoard";
 import s from "./kifu-view.module.css";
-
-const SLOTS: { cam: CameraSeat; cls: string }[] = [
-  { cam: "bottom", cls: s.seatB },
-  { cam: "right", cls: s.seatR },
-  { cam: "top", cls: s.seatT },
-  { cam: "left", cls: s.seatL },
-];
-
-/** 1牌（OSS 画像 / 裏向き）。 */
-function ViewTile({
-  code,
-  kind,
-  lay,
-  tsumogiri,
-  back,
-}: {
-  code?: Tile | null;
-  kind?: "river" | "meld";
-  lay?: boolean;
-  tsumogiri?: boolean;
-  back?: boolean;
-}) {
-  const cls = [
-    s.tile,
-    kind === "river" ? s.riverT : "",
-    kind === "meld" ? s.meldT : "",
-    lay ? s.lay : "",
-    tsumogiri ? s.tsumogiri : "",
-    back ? s.back : "",
-  ]
-    .filter(Boolean)
-    .join(" ");
-  // data-tile はレイアウト検証（Playwright）用の安定セレクタ。CSS Module クラスは
-  // ハッシュ化されるため、牌の矩形を測るためのフックとして付ける。
-  if (back) return <span className={cls} data-tile={kind ?? "hand"} />;
-  return (
-    <span className={cls} data-tile={kind ?? "hand"}>
-      <OssTileFace code={code ?? null} />
-    </span>
-  );
-}
 
 /** 局情報のドラ/裏ドラ1行（牌があれば小牌グリフ、無ければ —）。 */
 function DoraRow({ label, codes }: { label: string; codes: Tile[] }) {
@@ -267,67 +226,21 @@ export function KifuViewer({ detail, gameId }: { detail: PublicGameDetail; gameI
       <div className={`${s.wrap} ${!sideOpen || fs ? s.noSide : ""}`}>
         <div className={s.main} ref={mainRef}>
           <div className={s.boardcol}>
-            <div className={s.stage} style={{ height: 768 * scale }}>
-              <div className={s.table} style={{ transform: `scale(${scale})` }}>
-                <div className={s.center} data-center>
-                  <div className={s.rd}>
-                    {round} <span className={s.hb}>{kifu.meta.honba}本場</span>
-                  </div>
+            {/* 卓の描画は ViewBoard（何切ると共有）。 */}
+            <ViewBoard
+              kifu={kifu}
+              bottomSeat={bottomSeat}
+              dealer={dealer}
+              scale={scale}
+              revealed={revealed}
+              hideOpp={hideOpp}
+              bottomName={detail.owner.displayName || detail.owner.handle}
+              center={
+                <div className={s.rd}>
+                  {round} <span className={s.hb}>{kifu.meta.honba}本場</span>
                 </div>
-                {SLOTS.map(({ cam, cls }) => {
-                  const seat = toAbsoluteSeat(cam, bottomSeat);
-                  const board = kifu.seats[seat];
-                  const wind = windOf(seat, dealer);
-                  const back = hideOpp && seat !== bottomSeat;
-                  // 表示は理牌（保存順が乱れた既存データも萬→筒→索→字で見せる）。
-                  const handShown = sortHandTiles(board.hand);
-                  const riverShown = board.river.slice(0, revealed[seat]);
-                  const name =
-                    seat === bottomSeat
-                      ? detail.owner.displayName || detail.owner.handle || `${wind}家`
-                      : `${wind}家`;
-                  return (
-                    <div key={cam} className={`${s.seat} ${cls}`} data-seat={cam}>
-                      <div className={s.river}>
-                        {chunk(riverShown, 6).map((row, ri) => (
-                          <div key={ri} className={s.rrow}>
-                            {row.map((d, ci) => (
-                              <ViewTile
-                                key={ci}
-                                code={d.tile}
-                                kind="river"
-                                lay={d.riichi}
-                                tsumogiri={d.tsumogiri}
-                              />
-                            ))}
-                          </div>
-                        ))}
-                      </div>
-                      <div className={s.nameplate}>
-                        <span className={s.wd}>{wind}</span>
-                        <span className={s.nm}>{name}</span>
-                      </div>
-                      <div className={s.hand}>
-                        {back
-                          ? handShown.map((_, hi) => <ViewTile key={hi} back />)
-                          : handShown.map((h, hi) => <ViewTile key={hi} code={h.tile} />)}
-                        {board.melds.length > 0 && (
-                          <div className={s.melds}>
-                            {board.melds.map((md, mi) => (
-                              <div key={mi} className={s.meld}>
-                                {md.tiles.map((t, ti) => (
-                                  <ViewTile key={ti} code={t.tile} kind="meld" lay={ti === 0} />
-                                ))}
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
+              }
+            />
 
             <div className={s.controlbar}>
               <div className={s.cgrp}>

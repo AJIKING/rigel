@@ -1,11 +1,18 @@
 import { useRoute, type RouteProp } from "@react-navigation/native";
-import { problemTargetTile, type CallType, type ProblemAction, type Tile } from "@rigel/schema";
+import {
+  problemTargetTile,
+  type CallType,
+  type ProblemAction,
+  type Tile,
+} from "@rigel/schema";
 import {
   actionLabel,
   answerNeedsTile,
   buildProblemAnswer,
   canSubmitProblemAnswer,
   choiceKeyLabel,
+  problemRoundLabel,
+  problemToKifu,
   seatLabel,
   sortHandTiles,
   statsRatios,
@@ -15,8 +22,17 @@ import {
   SEAT_ORDER,
 } from "@rigel/ui";
 import { useEffect, useMemo, useState } from "react";
-import { Pressable, ScrollView, Share, StyleSheet, Text, View } from "react-native";
+import {
+  Pressable,
+  ScrollView,
+  Share,
+  StyleSheet,
+  Text,
+  useWindowDimensions,
+  View,
+} from "react-native";
 import Svg, { Path } from "react-native-svg";
+import { BoardTable } from "../components/BoardTable";
 import { CenterState } from "../components/CenterState";
 import { Chip } from "../components/Chip";
 import { MiniTile } from "../components/MiniTile";
@@ -68,6 +84,18 @@ function AnswerBody({ post, token }: { post: ProblemPost; token: string | null }
   const hand = useMemo(() => sortHandTiles(problem.seats[pov].hand), [problem, pov]);
   const targetTile = problemTargetTile(problem);
   const dealer = problem.meta.dealer;
+  const { width } = useWindowDimensions();
+
+  // 盤面は牌譜と同じ回転卓（BoardTable）で描く。河は全表示（既定）・鳴き判断は対象牌を強調（web と同じ方針）。
+  const boardKifu = useMemo(() => problemToKifu(problem), [problem]);
+  const highlightRiver =
+    problem.kind === "call" && problem.targetSeat
+      ? { seat: problem.targetSeat, index: problem.seats[problem.targetSeat].river.length - 1 }
+      : null;
+  // 場風+巡目（共有関数）。本場・供託・ドラは BoardTable が meta から表示する。
+  const roundLabel = problemRoundLabel(problem.meta);
+  // 卓サイズは KifuEditor のプレビューと同じ算出（画面幅に合わせて clamp）。
+  const boardSize = Math.max(240, Math.min(width - 28, 340));
 
   const [selTile, setSelTile] = useState<Tile | null>(null);
   const [riichi, setRiichi] = useState(false);
@@ -112,8 +140,6 @@ function AnswerBody({ post, token }: { post: ProblemPost; token: string | null }
     problem.meta.kyotaku > 0 ? `供託${problem.meta.kyotaku}本` : null,
   ].filter((p): p is string => p !== null);
 
-  const riversToShow = SEAT_ORDER.filter((seat) => problem.seats[seat].river.length > 0);
-
   return (
     <ScrollView style={styles.root} contentContainerStyle={styles.body}>
       <View style={styles.titleRow}>
@@ -132,14 +158,18 @@ function AnswerBody({ post, token }: { post: ProblemPost; token: string | null }
       </View>
       <Text style={styles.meta}>{metaParts.join(" ・ ")}</Text>
 
-      {/* ドラ表示 */}
-      {problem.meta.dora.length > 0 ? (
-        <Row label="ドラ">
-          {problem.meta.dora.map((t, i) => (
-            <MiniTile key={`${t}-${i}`} code={t} w={26} h={36} />
-          ))}
-        </Row>
-      ) : null}
+      {/* 盤面（牌譜と同じ回転卓）。ドラ・本場・供託は BoardTable が卓中央に表示する。 */}
+      <View style={styles.boardWrap}>
+        <BoardTable
+          kifu={boardKifu}
+          bottomSeat={pov}
+          dealer={dealer ?? pov}
+          roundLabel={roundLabel}
+          showHands={false}
+          size={boardSize}
+          highlightRiver={highlightRiver}
+        />
+      </View>
 
       {/* 点数状況（手入力の記録のみ） */}
       {problem.scores ? (
@@ -152,22 +182,6 @@ function AnswerBody({ post, token }: { post: ProblemPost; token: string | null }
         </Row>
       ) : null}
 
-      {/* 河（作成者が入れた席だけ）。鳴き判断は対象牌を強調。 */}
-      {riversToShow.map((seat) => (
-        <Row key={seat} label={`${seatLabel(seat)}家の河`}>
-          {problem.seats[seat].river.map((d, i) => {
-            const isTarget =
-              problem.kind === "call" &&
-              seat === problem.targetSeat &&
-              i === problem.seats[seat].river.length - 1;
-            return (
-              <View key={i} style={isTarget ? styles.target : null}>
-                <MiniTile code={d.tile} w={26} h={36} riichi={d.riichi} />
-              </View>
-            );
-          })}
-        </Row>
-      ))}
       {problem.kind === "call" && problem.targetSeat && targetTile ? (
         <Text style={styles.question}>
           {seatLabel(problem.targetSeat)}家が切った {tileLabel(targetTile)} を鳴きますか？
@@ -313,12 +327,7 @@ const styles = StyleSheet.create({
   rowLabel: { color: colors.w45, fontSize: 12, fontWeight: "700", width: 64 },
   rowTiles: { flex: 1, flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: 4 },
   scores: { color: colors.w70, fontSize: 12.5 },
-  target: {
-    borderWidth: 2,
-    borderColor: colors.accent,
-    borderRadius: 5,
-    padding: 1,
-  },
+  boardWrap: { alignItems: "center", marginTop: 2 },
   question: { color: colors.accent, fontSize: 13.5, fontWeight: "700" },
   section: { color: colors.w45, fontSize: 12, fontWeight: "800", marginTop: 6 },
   hand: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: 4 },

@@ -34,8 +34,9 @@ function FavButton({ on, onToggle }: { on: boolean; onToggle: () => void }) {
 }
 
 /**
- * 牌譜一覧カード（マイページ・公開・ユーザーページ共通）。
- * meta は行内の説明、badge は任意（公開/非公開バッジ等）。
+ * 一覧カード（牌譜のマイページ・公開・ユーザーページ・何切るで共通）。
+ * meta は行内の説明、badge は任意（公開/非公開バッジ等）、actions は
+ * カード内の操作ボタン列（何切るの公開切替・削除等。クリックはカード遷移に伝播しない）。
  */
 export function GameCard({
   title,
@@ -44,6 +45,7 @@ export function GameCard({
   faved,
   onToggleFav,
   onOpen,
+  actions,
 }: {
   title: string;
   badge?: ReactNode;
@@ -51,6 +53,7 @@ export function GameCard({
   faved: boolean;
   onToggleFav: () => void;
   onOpen: () => void;
+  actions?: ReactNode;
 }) {
   // カードは中に <button>（お気に入り）を含むため、<button> ではなく role=button の
   // クリック可能な要素にする（button の入れ子は不正で hydration エラーになる）。
@@ -74,6 +77,11 @@ export function GameCard({
         {badge}
       </div>
       <div className={s.cmeta}>{meta}</div>
+      {actions && (
+        <div className={s.cacts} onClick={(e) => e.stopPropagation()}>
+          {actions}
+        </div>
+      )}
     </div>
   );
 }

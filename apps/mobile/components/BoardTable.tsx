@@ -39,12 +39,14 @@ export function BoardTable({
   size = 330,
   selectedSeat,
   onSeatPress,
+  highlightRiver = null,
 }: {
   kifu: Kifu;
   bottomSeat: Seat;
   dealer: Seat;
   roundLabel: string;
-  revealed: Record<Seat, number>;
+  /** 席ごとの河の公開枚数（再生用）。省略時は全表示。 */
+  revealed?: Record<Seat, number>;
   showHands: boolean;
   ownerName?: string | null;
   size?: number;
@@ -52,6 +54,8 @@ export function BoardTable({
   selectedSeat?: Seat;
   /** 席タップ時のコールバック。指定時のみ席が押せる。 */
   onSeatPress?: (seat: Seat) => void;
+  /** 強調する河の1枚（何切るの鳴き判断の対象牌。web の highlightRiver と同じ意図）。 */
+  highlightRiver?: { seat: Seat; index: number } | null;
 }) {
   const B = size;
   const rt = B * GEO.riverTileW;
@@ -82,7 +86,7 @@ export function BoardTable({
         const seat = toAbsoluteSeat(cam, bottomSeat);
         const board = kifu.seats[seat];
         const wind = windOf(seat, dealer);
-        const river = board.river.slice(0, revealed[seat]);
+        const river = board.river.slice(0, revealed?.[seat] ?? board.river.length);
         const isBottom = seat === bottomSeat;
         const name = isBottom ? ownerName || `${wind}家` : `${wind}家`;
         const { cx, cy } = seatPos[cam];
@@ -128,6 +132,9 @@ export function BoardTable({
                       h={rtHt}
                       riichi={d.riichi}
                       tsumogiri={d.tsumogiri}
+                      highlight={
+                        highlightRiver?.seat === seat && highlightRiver.index === ri * 6 + ci
+                      }
                     />
                   ))}
                 </View>

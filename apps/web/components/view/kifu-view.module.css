@@ -92,6 +92,12 @@
   color: var(--w70);
   background: var(--chrome-2);
 }
+/* 強調する河の1枚（何切る=鳴き判断の対象牌）。 */
+.tile.target {
+  outline: 3px solid var(--orange, #f6a04d);
+  outline-offset: 1px;
+  border-radius: 3px;
+}
 .kmeta {
   display: flex;
   align-items: center;

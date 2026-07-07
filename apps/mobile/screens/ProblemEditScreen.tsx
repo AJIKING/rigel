@@ -13,8 +13,10 @@ import {
   addDraftMeld,
   assembleProblem,
   compareTiles,
+  draftToKifu,
   problemHandMax,
   problemRiverTiles,
+  problemRoundLabel,
   seatLabel,
   tileLabel,
   CALL_CHOICES,
@@ -22,9 +24,18 @@ import {
   SEAT_ORDER,
   type MeldPick,
 } from "@rigel/ui";
-import { useEffect, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { useEffect, useMemo, useState } from "react";
+import {
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  useWindowDimensions,
+  View,
+} from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { BoardTable } from "../components/BoardTable";
 import { CenterState } from "../components/CenterState";
 import { Chip } from "../components/Chip";
 import { MiniTile } from "../components/MiniTile";
@@ -131,9 +142,33 @@ function EditorBody({ initial, token }: { initial?: ProblemPost; token: string |
   const [target, setTarget] = useState<Target>(null);
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  // 盤面プレビュー（牌譜と同じ回転卓に編集内容を即時反映。KifuEditor と同じ折りたたみ・既定 open）。
+  const [previewOpen, setPreviewOpen] = useState(true);
+  const { width } = useWindowDimensions();
 
   const handMax = problemHandMax(melds.length);
   const sortedHand = [...hand].sort(compareTiles);
+
+  // 編集途中でも検証なしで Kifu へ写して描く（枚数不足でもプレビューできる）。
+  const previewKifu = useMemo(
+    () =>
+      draftToKifu({
+        pov,
+        hand,
+        melds,
+        rivers,
+        meta: { dealer, roundWind, honba, kyotaku, junme, dora },
+        rules,
+      }),
+    [pov, hand, melds, rivers, dealer, roundWind, honba, kyotaku, junme, dora, rules],
+  );
+  // 鳴き判断は対象席の河の末尾＝対象牌を卓上で強調（回答画面と同じ見え方）。
+  const previewHighlight =
+    kind === "call" && rivers[targetSeat].length > 0
+      ? { seat: targetSeat, index: rivers[targetSeat].length - 1 }
+      : null;
+  const previewRoundLabel = problemRoundLabel({ roundWind, junme });
+  const previewSize = Math.max(240, Math.min(width - 28, 340));
 
   function onPick(code: Tile) {
     setErr(null);
@@ -339,6 +374,28 @@ function EditorBody({ initial, token }: { initial?: ProblemPost; token: string |
                 />
               </View>
             ))}
+          </View>
+        ) : null}
+
+        {/* 盤面プレビュー（牌譜と同じ回転卓。編集内容を即時反映） */}
+        <Pressable
+          style={styles.prevHead}
+          onPress={() => setPreviewOpen((v) => !v)}
+          accessibilityRole="button"
+        >
+          <Text style={styles.prevHeadText}>{previewOpen ? "▾" : "▸"} プレビュー</Text>
+        </Pressable>
+        {previewOpen ? (
+          <View style={styles.prevWrap}>
+            <BoardTable
+              kifu={previewKifu}
+              bottomSeat={pov}
+              dealer={dealer}
+              roundLabel={previewRoundLabel}
+              showHands={false}
+              size={previewSize}
+              highlightRiver={previewHighlight}
+            />
           </View>
         ) : null}
 
@@ -629,6 +686,9 @@ const styles = StyleSheet.create({
     paddingVertical: 7,
   },
   section: { color: colors.w45, fontSize: 12, fontWeight: "800", marginTop: 6 },
+  prevHead: { flexDirection: "row", alignItems: "baseline", gap: 10, marginTop: 6 },
+  prevHeadText: { color: colors.w70, fontSize: 12.5, fontWeight: "800" },
+  prevWrap: { alignItems: "center", marginTop: 6 },
   tiles: { flexDirection: "row", flexWrap: "wrap", gap: 5, alignItems: "center" },
   tilesInRow: { flex: 1, flexDirection: "row", flexWrap: "wrap", gap: 5, alignItems: "center" },
   meldChip: {
