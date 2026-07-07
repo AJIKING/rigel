@@ -6,6 +6,7 @@ export default tseslint.config(
     ignores: [
       "**/dist/**",
       "**/.next/**",
+      "**/.open-next/**",
       "**/.expo/**",
       "**/.wrangler/**",
       "**/node_modules/**",

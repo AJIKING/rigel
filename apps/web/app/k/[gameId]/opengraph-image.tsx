@@ -1,4 +1,5 @@
 import { ImageResponse } from "next/og";
+import { STAR_COLOR, STAR_PATH } from "../../../components/StarMark";
 import { getPublicGameDetail } from "../../../lib/api-server";
 import { ogCard } from "../../../lib/og-meta";
 
@@ -31,11 +32,10 @@ async function loadNotoSansJP(text: string, weight: 400 | 700): Promise<ArrayBuf
 export default async function OgImage({ params }: { params: Promise<{ gameId: string }> }) {
   const { gameId } = await params;
   const card = ogCard(await getPublicGameDetail(gameId).catch(() => null));
-  const tagline = card.info ?? "麻雀の牌譜をブラウザで再生";
   const byline = card.author ? `by ${card.author}` : "";
   const [bold, regular] = await Promise.all([
     loadNotoSansJP(card.title, 700),
-    loadNotoSansJP(`${tagline}${byline}RIGEL`, 400),
+    loadNotoSansJP(`${card.info}${byline}RIGEL`, 400),
   ]);
   const fonts: { name: string; data: ArrayBuffer; weight: 400 | 700 }[] = [];
   if (bold) fonts.push({ name: "NotoSansJP", data: bold, weight: 700 });
@@ -56,24 +56,12 @@ export default async function OgImage({ params }: { params: Promise<{ gameId: st
       }}
     >
       <div style={{ display: "flex", alignItems: "center", gap: 18 }}>
-        {/* StarMark と同じパス（オレンジ5角星） */}
         <svg width={46} height={46} viewBox="0 0 24 24" fill="none">
-          <path
-            d="M12 1.6l2.7 6.9 7.4.4-5.8 4.6 2 7.1L12 16.9 5.7 20.6l2-7.1L1.9 8.9l7.4-.4z"
-            fill="#ff9e45"
-          />
+          <path d={STAR_PATH} fill={STAR_COLOR} />
         </svg>
-        <div style={{ display: "flex", fontSize: 38, letterSpacing: 10 }}>RIGEL</div>
+        <div style={{ fontSize: 38, letterSpacing: 10 }}>RIGEL</div>
       </div>
-      <div
-        style={{
-          display: "flex",
-          fontSize: 68,
-          fontWeight: 700,
-          lineHeight: 1.3,
-          lineClamp: 3,
-        }}
-      >
+      <div style={{ fontSize: 68, fontWeight: 700, lineHeight: 1.3, lineClamp: 3 }}>
         {card.title}
       </div>
       <div
@@ -85,10 +73,18 @@ export default async function OgImage({ params }: { params: Promise<{ gameId: st
           color: "rgba(255,255,255,0.88)",
         }}
       >
-        <div style={{ display: "flex" }}>{tagline}</div>
-        {byline ? <div style={{ display: "flex" }}>{byline}</div> : null}
+        <div>{card.info}</div>
+        {byline ? <div>{byline}</div> : null}
       </div>
     </div>,
-    { ...size, fonts: fonts.length > 0 ? fonts : undefined },
+    {
+      ...size,
+      // 空配列は @vercel/og の `options.fonts || defaultFonts` で truthy 扱いになり
+      // 内蔵フォントまで消えて throw するため、未取得時は undefined にして内蔵で描く。
+      fonts: fonts.length > 0 ? fonts : undefined,
+      // 半荘のOG画像は共有後ほぼ不変。エッジ/クローラーに再利用させ、
+      // 再スクレイプごとの satori 描画とフォント取得を省く（タイトル変更は1日で追従）。
+      headers: { "cache-control": "public, max-age=3600, s-maxage=86400" },
+    },
   );
 }

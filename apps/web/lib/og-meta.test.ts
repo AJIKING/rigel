@@ -53,7 +53,11 @@ describe("ogCard", () => {
     });
   });
 
-  it("非公開・不存在（null）は汎用カード（半荘情報なし）", () => {
-    expect(ogCard(null)).toEqual({ title: "麻雀牌譜", author: null, info: null });
+  it("非公開・不存在（null）は汎用カード（半荘情報を含まない定型文言のみ）", () => {
+    expect(ogCard(null)).toEqual({
+      title: "麻雀牌譜",
+      author: null,
+      info: "麻雀の牌譜をブラウザで再生",
+    });
   });
 });

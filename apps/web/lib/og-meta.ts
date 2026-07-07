@@ -44,14 +44,21 @@ function authorOf(owner: PublicGameSummary["owner"]): string {
   return `@${owner.handle ?? owner.id.slice(0, 6)}`;
 }
 
+/** ビューアと同じタイトル表記（空タイトルは無題）。 */
+function titleOf(detail: PublicGameSummary): string {
+  return detail.game.title || UNTITLED;
+}
+
+/** 半荘の要約文言「全N局・YYYY/MM/DD」。description と OG 画像カードで共用する。 */
+function gameInfo(detail: PublicGameSummary): string {
+  return `全${detail.logs.length}局・${fmtDateSlash(detail.game.createdAt)}`;
+}
 
 /** 公開半荘の共有メタデータ（<title>・description・OGP/Twitter カード）。 */
 export function buildGameMetadata(detail: PublicGameSummary | null): ShareMetadata {
   if (!detail) return { title: DEFAULT_TITLE, description: DEFAULT_DESCRIPTION };
-  const title = detail.game.title || UNTITLED;
-  const description = `${authorOf(detail.owner)} の牌譜（全${detail.logs.length}局・${fmtDateSlash(
-    detail.game.createdAt,
-  )}）をブラウザで再生できます。`;
+  const title = titleOf(detail);
+  const description = `${authorOf(detail.owner)} の牌譜（${gameInfo(detail)}）をブラウザで再生できます。`;
   return {
     title: `${title} | rigel`,
     description,
@@ -66,16 +73,13 @@ export function buildGameMetadata(detail: PublicGameSummary | null): ShareMetada
   };
 }
 
-/** OG 画像カードの文言（タイトル・作者・局数/日付）。画像レンダラが使う。 */
+/** OG 画像カードの文言（タイトル・作者・局数/日付）。カードの全文言をここで一元化し、
+ *  画像レンダラ（opengraph-image）はレイアウトだけを担う。 */
 export function ogCard(detail: PublicGameSummary | null): {
   title: string;
   author: string | null;
-  info: string | null;
+  info: string;
 } {
-  if (!detail) return { title: "麻雀牌譜", author: null, info: null };
-  return {
-    title: detail.game.title || UNTITLED,
-    author: authorOf(detail.owner),
-    info: `全${detail.logs.length}局・${fmtDateSlash(detail.game.createdAt)}`,
-  };
+  if (!detail) return { title: "麻雀牌譜", author: null, info: "麻雀の牌譜をブラウザで再生" };
+  return { title: titleOf(detail), author: authorOf(detail.owner), info: gameInfo(detail) };
 }
