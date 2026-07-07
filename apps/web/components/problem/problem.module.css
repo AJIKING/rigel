@@ -166,10 +166,16 @@
   align-items: center;
   gap: 6px;
 }
+/* 牌譜ビューアの中央（.rd 16px）と同じ密度に合わせる（河と重ねない）。 */
 .centerRound {
-  font-size: 20px;
-  font-weight: 800;
-  letter-spacing: 0.06em;
+  font-size: 16px;
+  font-weight: 600;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+}
+.centerSub {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--w85, rgba(255, 255, 255, 0.9));
 }
 .centerDora {
   display: flex;
@@ -275,6 +281,44 @@
   background: rgba(255, 158, 69, 0.16);
   color: var(--accent, #ff9e45);
 }
+/* 入力先（自分の手／ドラ・河）のチップ行。折り返して全項目が読める。 */
+.targetRow {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+.targetRow .rowLabel {
+  padding-top: 6px;
+}
+.targetChips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-width: 0;
+}
+.targetChip {
+  background: var(--chrome-2, #1e2128);
+  border: 1px solid var(--line, rgba(255, 255, 255, 0.13));
+  color: var(--w70, rgba(255, 255, 255, 0.74));
+  font-family: var(--round, inherit);
+  font-weight: 700;
+  font-size: 12px;
+  padding: 5px 11px;
+  border-radius: var(--r, 3px);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: 0.13s;
+}
+.targetChip:hover {
+  color: #fff;
+}
+.targetChip.on {
+  background: rgba(255, 158, 69, 0.16);
+  border-color: var(--accent, #ff9e45);
+  color: var(--accent, #ff9e45);
+}
+
 /* 主ボタン（回答する・公開して保存）は牌譜エディタの .savebtn と同じ白。 */
 .submit {
   display: block;

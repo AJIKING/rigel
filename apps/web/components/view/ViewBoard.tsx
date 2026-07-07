@@ -122,6 +122,12 @@ export function ViewBoard({
                 <span className={s.nm}>{name}</span>
               </div>
               <div className={s.hand}>
+                {/* 手牌が無い席（何切るの他家）は透明スペーサで席の外形を牌譜と同じにする。
+                    左右席の引き戻し（--seat-lr-pull）は手牌の張り出し前提のため、
+                    無いと河が卓中央へ食い込む。 */}
+                {handShown.length === 0 && board.melds.length === 0 && (
+                  <span className={s.handGhost} />
+                )}
                 {back
                   ? handShown.map((_, hi) => <ViewTile key={hi} back />)
                   : handShown.map((h, hi) => <ViewTile key={hi} code={h.tile} />)}

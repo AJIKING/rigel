@@ -241,17 +241,21 @@ export function ProblemEditorScreen({ initial }: { initial?: ProblemPost }) {
     );
   }
 
-  const targets: { key: Target; label: string }[] = [
+  // 入力先は「自分の手」と「ドラ・河」の2グループに分けて見せる（1本のセグメントに
+  // 詰め込むと潰れて読めない）。
+  const handTargets: { key: Target; label: string }[] = [
     { key: "hand", label: `手牌（${hand.length}/${handMax}）` },
     ...(kind === "discard" ? [{ key: "drawn" as Target, label: "ツモ牌" }] : []),
+    { key: "meld:pon", label: "副露:ポン" },
+    { key: "meld:chi", label: "副露:チー" },
+    { key: "meld:kan", label: "副露:カン" },
+  ];
+  const tableTargets: { key: Target; label: string }[] = [
     { key: "dora", label: "ドラ" },
     ...SEAT_ORDER.map((seat) => ({
       key: `river:${seat}` as Target,
       label: `${seatLabel(seat)}家の河`,
     })),
-    { key: "meld:pon", label: "副露:ポン" },
-    { key: "meld:chi", label: "副露:チー" },
-    { key: "meld:kan", label: "副露:カン" },
   ];
 
   return (
@@ -378,7 +382,7 @@ export function ProblemEditorScreen({ initial }: { initial?: ProblemPost }) {
             scale={scale}
             bottomName="あなた"
             highlightRiver={previewHighlight}
-            center={<ProblemBoardCenter meta={{ roundWind, junme, dora }} />}
+            center={<ProblemBoardCenter meta={{ roundWind, junme, dora, honba, kyotaku }} />}
           />
         </div>
 
@@ -450,20 +454,30 @@ export function ProblemEditorScreen({ initial }: { initial?: ProblemPost }) {
         ))}
 
         {/* 入力先セレクタ＋牌グリッド */}
-        <div className={s.answerBox}>
-          <div className={s.callSeg} role="group" aria-label="入力先">
-            {targets.map(({ key, label }) => (
-              <button
-                key={key}
-                type="button"
-                className={target === key ? s.on : ""}
-                aria-pressed={target === key}
-                onClick={() => setTarget(key)}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
+        <div className={s.answerBox} role="group" aria-label="入力先">
+          {(
+            [
+              { group: "自分の手", items: handTargets },
+              { group: "ドラ・河", items: tableTargets },
+            ] as const
+          ).map(({ group, items }) => (
+            <div key={group} className={s.targetRow}>
+              <span className={s.rowLabel}>{group}</span>
+              <div className={s.targetChips}>
+                {items.map(({ key, label }) => (
+                  <button
+                    key={key}
+                    type="button"
+                    className={`${s.targetChip} ${target === key ? s.on : ""}`}
+                    aria-pressed={target === key}
+                    onClick={() => setTarget(key)}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ))}
           <div className={s.callSeg}>
             {SUITS.map((su) => (
               <button
