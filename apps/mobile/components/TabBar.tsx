@@ -3,7 +3,7 @@ import Svg, { Circle, Path } from "react-native-svg";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { colors } from "../lib/theme";
 
-export type MainTab = "pub" | "mine" | "set";
+export type MainTab = "pub" | "mine" | "problems" | "set";
 
 function Icon({ name, color }: { name: MainTab | "create"; color: string }) {
   const p = {
@@ -33,6 +33,13 @@ function Icon({ name, color }: { name: MainTab | "create"; color: string }) {
           <Path d="M12 8.2v7.6M8.2 12h7.6" {...p} />
         </>
       )}
+      {name === "problems" && (
+        <>
+          {/* 牌（縦長の角丸タイル＋中央の目）。何切る＝牌の選択のメタファ。 */}
+          <Path d="M8 3.5h8a2 2 0 012 2v13a2 2 0 01-2 2H8a2 2 0 01-2-2v-13a2 2 0 012-2z" {...p} />
+          <Circle cx={12} cy={12} r={2.4} {...p} />
+        </>
+      )}
       {name === "set" && (
         <>
           <Circle cx={12} cy={8} r={3.4} {...p} />
@@ -43,13 +50,17 @@ function Icon({ name, color }: { name: MainTab | "create"; color: string }) {
   );
 }
 
-const TABS: { key: MainTab; label: string }[] = [
+// 作成タブ（撮影フロー）は中央に固定。前後にタブを並べる。
+const LEFT_TABS: { key: MainTab; label: string }[] = [
   { key: "pub", label: "公開" },
   { key: "mine", label: "マイ牌譜" },
+];
+const RIGHT_TABS: { key: MainTab; label: string }[] = [
+  { key: "problems", label: "何切る" },
   { key: "set", label: "設定" },
 ];
 
-/** 自前のボトムタブ（公開 / マイ牌譜 / 作成 / 設定）。作成は撮影フローへ。 */
+/** 自前のボトムタブ（公開 / マイ牌譜 / 作成 / 何切る / 設定）。作成は撮影フローへ。 */
 export function TabBar({
   active,
   onSelect,
@@ -62,16 +73,14 @@ export function TabBar({
   const insets = useSafeAreaInsets();
   return (
     <View style={[styles.bar, { paddingBottom: Math.max(insets.bottom, 10) }]}>
-      <TabButton
-        tab={TABS[0]}
-        active={active === TABS[0].key}
-        onPress={() => onSelect(TABS[0].key)}
-      />
-      <TabButton
-        tab={TABS[1]}
-        active={active === TABS[1].key}
-        onPress={() => onSelect(TABS[1].key)}
-      />
+      {LEFT_TABS.map((tab) => (
+        <TabButton
+          key={tab.key}
+          tab={tab}
+          active={active === tab.key}
+          onPress={() => onSelect(tab.key)}
+        />
+      ))}
       <Pressable
         style={styles.tab}
         onPress={onCreate}
@@ -81,11 +90,14 @@ export function TabBar({
         <Icon name="create" color={colors.w45} />
         <Text style={styles.label}>作成</Text>
       </Pressable>
-      <TabButton
-        tab={TABS[2]}
-        active={active === TABS[2].key}
-        onPress={() => onSelect(TABS[2].key)}
-      />
+      {RIGHT_TABS.map((tab) => (
+        <TabButton
+          key={tab.key}
+          tab={tab}
+          active={active === tab.key}
+          onPress={() => onSelect(tab.key)}
+        />
+      ))}
     </View>
   );
 }

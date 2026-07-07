@@ -5,6 +5,8 @@
 
 import type { GameRepository } from "../domain/game/game.repository";
 import type { GameLogRepository } from "../domain/kifu/game-log.repository";
+import type { ProblemAnswerRepository } from "../domain/problem/problem-answer.repository";
+import type { ProblemRepository } from "../domain/problem/problem.repository";
 import type { UserRepository } from "../domain/user/user.repository";
 import type { PublicGameCard } from "./list-game-cards.usecase";
 
@@ -92,6 +94,8 @@ export class DeleteAccount {
     private readonly users: UserRepository,
     private readonly games: GameRepository,
     private readonly gameLogs: GameLogRepository,
+    private readonly problems: ProblemRepository,
+    private readonly problemAnswers: ProblemAnswerRepository,
   ) {}
 
   async execute(userId: string): Promise<DeleteAccountResult> {
@@ -102,6 +106,11 @@ export class DeleteAccount {
     if (user.plan !== "free") return { ok: false, reason: "paid_plan" };
     await this.gameLogs.deleteByUser(userId);
     await this.games.deleteByUser(userId);
+    // 何切る: 自分が付けた回答 → 自分の問題への（他人の）回答 → 自分の問題 の順に消す
+    //（FK の向きに沿って孤児を残さない）。
+    await this.problemAnswers.deleteByUser(userId);
+    await this.problemAnswers.deleteByProblemOwner(userId);
+    await this.problems.deleteByUser(userId);
     await this.users.deleteById(userId);
     return { ok: true };
   }

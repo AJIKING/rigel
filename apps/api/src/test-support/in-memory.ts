@@ -5,6 +5,12 @@ import type { Game } from "../domain/game/game";
 import type { GameRepository } from "../domain/game/game.repository";
 import type { GameLog, KifuStatus, Visibility } from "../domain/kifu/game-log";
 import type { GameLogRepository } from "../domain/kifu/game-log.repository";
+import type { ProblemPost } from "../domain/problem/problem";
+import type {
+  ProblemAnswer,
+  ProblemAnswerRepository,
+} from "../domain/problem/problem-answer.repository";
+import type { ProblemRepository } from "../domain/problem/problem.repository";
 import type { User } from "../domain/user/user";
 import type { UserRepository } from "../domain/user/user.repository";
 
@@ -173,6 +179,96 @@ export class InMemoryGameRepository implements GameRepository {
       if (g.userId === userId) this.byId.delete(id);
     }
     return Promise.resolve();
+  }
+}
+
+export class InMemoryProblemRepository implements ProblemRepository {
+  private byId = new Map<string, ProblemPost>();
+
+  constructor(seed: ProblemPost[] = []) {
+    for (const p of seed) this.byId.set(p.id, p);
+  }
+
+  listByUser(userId: string): Promise<ProblemPost[]> {
+    return Promise.resolve([...this.byId.values()].filter((p) => p.userId === userId));
+  }
+
+  listPublished(limit: number): Promise<ProblemPost[]> {
+    return Promise.resolve(
+      [...this.byId.values()]
+        .filter((p) => p.status === "published")
+        .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+        .slice(0, limit),
+    );
+  }
+
+  findById(id: string): Promise<ProblemPost | null> {
+    return Promise.resolve(this.byId.get(id) ?? null);
+  }
+
+  countByUser(userId: string): Promise<number> {
+    return Promise.resolve([...this.byId.values()].filter((p) => p.userId === userId).length);
+  }
+
+  save(post: ProblemPost): Promise<void> {
+    this.byId.set(post.id, post);
+    return Promise.resolve();
+  }
+
+  deleteById(id: string): Promise<void> {
+    this.byId.delete(id);
+    return Promise.resolve();
+  }
+
+  deleteByUser(userId: string): Promise<void> {
+    for (const [id, p] of this.byId) {
+      if (p.userId === userId) this.byId.delete(id);
+    }
+    return Promise.resolve();
+  }
+}
+
+export class InMemoryProblemAnswerRepository implements ProblemAnswerRepository {
+  private rows: ProblemAnswer[] = [];
+  /** deleteByProblemOwner のためだけに問題→所有者を引く（省略時はスキップ）。 */
+  constructor(private readonly problems?: InMemoryProblemRepository) {}
+
+  upsert(answer: ProblemAnswer): Promise<void> {
+    const i = this.rows.findIndex(
+      (a) => a.problemId === answer.problemId && a.userId === answer.userId,
+    );
+    if (i >= 0) this.rows[i] = answer;
+    else this.rows.push(answer);
+    return Promise.resolve();
+  }
+
+  countsByProblem(problemId: string): Promise<Record<string, number>> {
+    const counts: Record<string, number> = {};
+    for (const a of this.rows) {
+      if (a.problemId === problemId) counts[a.choiceKey] = (counts[a.choiceKey] ?? 0) + 1;
+    }
+    return Promise.resolve(counts);
+  }
+
+  findMine(problemId: string, userId: string): Promise<ProblemAnswer | null> {
+    return Promise.resolve(
+      this.rows.find((a) => a.problemId === problemId && a.userId === userId) ?? null,
+    );
+  }
+
+  deleteByProblem(problemId: string): Promise<void> {
+    this.rows = this.rows.filter((a) => a.problemId !== problemId);
+    return Promise.resolve();
+  }
+
+  deleteByUser(userId: string): Promise<void> {
+    this.rows = this.rows.filter((a) => a.userId !== userId);
+    return Promise.resolve();
+  }
+
+  async deleteByProblemOwner(ownerId: string): Promise<void> {
+    const owned = new Set((await this.problems?.listByUser(ownerId))?.map((p) => p.id) ?? []);
+    this.rows = this.rows.filter((a) => !owned.has(a.problemId));
   }
 }
 

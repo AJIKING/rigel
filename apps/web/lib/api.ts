@@ -10,6 +10,9 @@ export type {
   GameDetail,
   GameLog,
   MyGameCard,
+  ProblemPost,
+  ProblemStats,
+  ProblemStatus,
   PublicGameCard,
   PublicGameDetail,
   PublicProfile,
@@ -35,4 +38,6 @@ export const {
   updateProfile,
   getPublicProfile,
   deleteAccount,
+  getPublicProblems,
+  getProblem,
 } = client;

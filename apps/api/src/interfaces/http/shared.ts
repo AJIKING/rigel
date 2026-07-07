@@ -24,6 +24,7 @@ export function reasonStatus(reason: string): 400 | 402 | 403 | 404 | 409 {
       return 402;
     case "private_limit":
     case "draft_limit":
+    case "problem_limit":
       return 403;
     case "game_full":
       return 409;

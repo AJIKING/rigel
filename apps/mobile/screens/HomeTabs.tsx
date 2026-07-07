@@ -7,12 +7,13 @@ import { TabBar, type MainTab } from "../components/TabBar";
 import type { RootStackParamList } from "../lib/navigation";
 import { colors } from "../lib/theme";
 import { MyListScreen } from "./MyListScreen";
+import { ProblemsListScreen } from "./ProblemsListScreen";
 import { PublicListScreen } from "./PublicListScreen";
 import { SettingsScreen } from "./SettingsScreen";
 
 type Nav = NativeStackNavigationProp<RootStackParamList, "Home">;
 
-/** ボトムタブのコンテナ。公開/マイ牌譜/設定を切替え、作成タブは撮影フローへ。 */
+/** ボトムタブのコンテナ。公開/マイ牌譜/何切る/設定を切替え、作成タブは撮影フローへ。 */
 export function HomeTabs() {
   const nav = useNavigation<Nav>();
   const insets = useSafeAreaInsets();
@@ -24,6 +25,7 @@ export function HomeTabs() {
       <View style={styles.content}>
         {tab === "pub" && <PublicListScreen />}
         {tab === "mine" && <MyListScreen />}
+        {tab === "problems" && <ProblemsListScreen />}
         {tab === "set" && <SettingsScreen />}
       </View>
       <TabBar active={tab} onSelect={setTab} onCreate={() => nav.navigate("Capture")} />

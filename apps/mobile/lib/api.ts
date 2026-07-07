@@ -14,6 +14,9 @@ export type {
   PublicGameDetail,
   PaidPlan,
   Plan,
+  ProblemPost,
+  ProblemStats,
+  ProblemStatus,
 } from "@rigel/client";
 
 const client = createApiClient(process.env.EXPO_PUBLIC_API_URL ?? "");
@@ -40,4 +43,12 @@ export const {
   setGameVisibility,
   updateProfile,
   deleteAccount,
+  getPublicProblems,
+  getMyProblems,
+  getProblem,
+  createProblem,
+  updateProblem,
+  deleteProblem,
+  answerProblem,
+  getProblemStats,
 } = client;

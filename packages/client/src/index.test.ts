@@ -1,4 +1,4 @@
-import { KifuSchema } from "@rigel/schema";
+import { KifuSchema, ProblemSchema } from "@rigel/schema";
 import { describe, expect, it } from "vitest";
 import { createApiClient } from "./index";
 
@@ -319,5 +319,147 @@ describe("createApiClient", () => {
     const result = await client.deleteAccount("tok");
     expect(method).toBe("DELETE");
     expect(result.ok).toBe(true);
+  });
+});
+
+describe("problems（何切る問題）", () => {
+  const problemData = ProblemSchema.parse({
+    schemaVersion: "1.0.0",
+    kind: "discard",
+    pov: "east",
+    drawn: "5p",
+    seats: {
+      east: {
+        hand: ["1m", "2m", "3m", "4m", "5m", "6m", "7m", "8m", "9m", "1p", "2p", "3p", "4p"].map(
+          (t) => ({ tile: t, confidence: 1 }),
+        ),
+      },
+      south: {},
+      west: {},
+      north: {},
+    },
+    answer: { type: "discard", tile: "5p" },
+  });
+
+  const post = {
+    id: "p1",
+    userId: "u1",
+    title: "t",
+    problem: problemData,
+    status: "published",
+    createdAt: "2026-07-07T00:00:00.000Z",
+  };
+
+  it("getPublicProblems は認証なしで公開一覧を返す", async () => {
+    const client = createApiClient(
+      "https://api.test",
+      fakeFetch((url) => {
+        expect(url).toBe("https://api.test/problems");
+        return json([post]);
+      }),
+    );
+    expect((await client.getPublicProblems())[0]?.id).toBe("p1");
+  });
+
+  it("getMyProblems は自分の一覧（draft 含む）を返す", async () => {
+    const client = createApiClient(
+      "https://api.test",
+      fakeFetch((url) => {
+        expect(url).toBe("https://api.test/problems/mine");
+        return json([{ ...post, status: "draft" }]);
+      }),
+    );
+    expect((await client.getMyProblems("tok"))[0]?.status).toBe("draft");
+  });
+
+  it("getProblem は 404 で null・トークンは任意", async () => {
+    const client = createApiClient(
+      "https://api.test",
+      fakeFetch(() => new Response("nf", { status: 404 })),
+    );
+    expect(await client.getProblem("missing")).toBeNull();
+  });
+
+  it("createProblem は 201 で problemId・403 は status 付き ok:false", async () => {
+    const ok = createApiClient(
+      "https://api.test",
+      fakeFetch2((url, init) => {
+        expect(url).toBe("https://api.test/problems");
+        expect(init?.method).toBe("POST");
+        return json({ ok: true, problemId: "p1" }, 201);
+      }),
+    );
+    expect(await ok.createProblem("tok", { title: "t", problem: problemData })).toEqual({
+      ok: true,
+      problemId: "p1",
+    });
+
+    const limited = createApiClient(
+      "https://api.test",
+      fakeFetch(() => json({ ok: false, reason: "problem_limit" }, 403)),
+    );
+    expect(await limited.createProblem("tok", { title: "t", problem: problemData })).toEqual({
+      ok: false,
+      status: 403,
+    });
+  });
+
+  it("updateProblem / deleteProblem は成否と status を返す", async () => {
+    let method = "";
+    const client = createApiClient(
+      "https://api.test",
+      fakeFetch2((url, init) => {
+        expect(url).toBe("https://api.test/problems/p1");
+        method = init?.method ?? "";
+        return json({ ok: true });
+      }),
+    );
+    expect(await client.updateProblem("tok", "p1", { status: "published" })).toEqual({
+      ok: true,
+      status: 200,
+    });
+    expect(method).toBe("PUT");
+    expect(await client.deleteProblem("tok", "p1")).toEqual({ ok: true, status: 200 });
+    expect(method).toBe("DELETE");
+  });
+
+  it("answerProblem は回答を POST し成否を返す（レスポンスはシンプル）", async () => {
+    const client = createApiClient(
+      "https://api.test",
+      fakeFetch2((url, init) => {
+        expect(url).toBe("https://api.test/problems/p1/answers");
+        expect(JSON.parse(String(init?.body)).action).toEqual({
+          type: "discard",
+          tile: "5p",
+          riichi: true,
+        });
+        return json({ ok: true });
+      }),
+    );
+    expect(
+      await client.answerProblem("tok", "p1", { type: "discard", tile: "5p", riichi: true }),
+    ).toEqual({ ok: true, status: 200 });
+  });
+
+  it("getProblemStats は分布を返し、404 は null", async () => {
+    const client = createApiClient(
+      "https://api.test",
+      fakeFetch((url) => {
+        expect(url).toBe("https://api.test/problems/p1/stats");
+        return json({
+          counts: { "discard:5p": 2 },
+          total: 2,
+          myChoiceKey: "discard:5p",
+          myAction: { type: "discard", tile: "5p", riichi: false },
+        });
+      }),
+    );
+    expect((await client.getProblemStats("tok", "p1"))?.total).toBe(2);
+
+    const nf = createApiClient(
+      "https://api.test",
+      fakeFetch(() => new Response("nf", { status: 404 })),
+    );
+    expect(await nf.getProblemStats("tok", "p1")).toBeNull();
   });
 });

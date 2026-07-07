@@ -43,4 +43,12 @@ export const {
   createCheckout,
   createPortal,
   deleteAccount,
+  getProblem,
+  getPublicProblems,
+  getMyProblems,
+  createProblem,
+  updateProblem,
+  deleteProblem,
+  answerProblem,
+  getProblemStats,
 } = serverClient;

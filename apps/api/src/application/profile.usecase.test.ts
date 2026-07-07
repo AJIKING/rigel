@@ -5,9 +5,12 @@ import { User, firstOfNextMonthUtc } from "../domain/user/user";
 import {
   InMemoryGameLogRepository,
   InMemoryGameRepository,
+  InMemoryProblemAnswerRepository,
+  InMemoryProblemRepository,
   InMemoryUserRepository,
 } from "../test-support/in-memory";
 import { validKifu } from "../test-support/kifu";
+import { makeProblemData } from "../test-support/problem";
 import { DeleteAccount, GetPublicProfile, UpdateProfile } from "./profile.usecase";
 
 const NOW = new Date("2026-06-29T00:00:00.000Z");
@@ -103,20 +106,52 @@ describe("GetPublicProfile", () => {
 });
 
 describe("DeleteAccount", () => {
-  it("自分の牌譜・半荘・ユーザーを削除する", async () => {
+  function problemDeps() {
+    const problems = new InMemoryProblemRepository();
+    const answers = new InMemoryProblemAnswerRepository(problems);
+    return { problems, answers };
+  }
+
+  it("自分の牌譜・半荘・何切る（回答含む）・ユーザーを削除する", async () => {
     const users = new InMemoryUserRepository([mkUser("u1", "x"), mkUser("u2", "y")]);
     const games = new InMemoryGameRepository([game("g1", "u1"), game("g2", "u2")]);
     const gameLogs = new InMemoryGameLogRepository();
     await gameLogs.save(log("l1", "u1", "g1", "public"));
     await gameLogs.save(log("l2", "u2", "g2", "public"));
+    // 何切る: u1 の問題 p1（u2 が回答）と、u2 の問題 p2（u1 が回答）。
+    const { problems, answers } = problemDeps();
+    const problemOf = (id: string, userId: string) => ({
+      id,
+      userId,
+      title: "",
+      problem: makeProblemData(),
+      status: "published" as const,
+      createdAt: NOW,
+    });
+    await problems.save(problemOf("p1", "u1"));
+    await problems.save(problemOf("p2", "u2"));
+    const answerOf = (problemId: string, userId: string) => ({
+      problemId,
+      userId,
+      choiceKey: "pass",
+      action: { type: "pass" } as const,
+      createdAt: NOW,
+    });
+    await answers.upsert(answerOf("p1", "u2"));
+    await answers.upsert(answerOf("p2", "u1"));
 
-    const r = await new DeleteAccount(users, games, gameLogs).execute("u1");
+    const r = await new DeleteAccount(users, games, gameLogs, problems, answers).execute("u1");
 
     expect(r).toEqual({ ok: true });
     expect(await users.findById("u1")).toBeNull();
     expect(await users.findById("u2")).not.toBeNull(); // 他人は残る
     expect(gameLogs.saved.map((l) => l.id)).toEqual(["l2"]);
     expect(await games.findById("g1")).toBeNull();
+    // 何切る: 自分の問題＋その問題への他人の回答＋自分が他所へ付けた回答が消える。
+    expect(await problems.findById("p1")).toBeNull();
+    expect(await problems.findById("p2")).not.toBeNull(); // 他人の問題は残る
+    expect(await answers.countsByProblem("p1")).toEqual({});
+    expect(await answers.countsByProblem("p2")).toEqual({});
   });
 
   it("有料プラン契約中は削除できない（解約が先。データは消さない）", async () => {
@@ -124,8 +159,9 @@ describe("DeleteAccount", () => {
     const games = new InMemoryGameRepository([game("g1", "u1")]);
     const gameLogs = new InMemoryGameLogRepository();
     await gameLogs.save(log("l1", "u1", "g1", "public"));
+    const { problems, answers } = problemDeps();
 
-    const r = await new DeleteAccount(users, games, gameLogs).execute("u1");
+    const r = await new DeleteAccount(users, games, gameLogs, problems, answers).execute("u1");
 
     expect(r).toEqual({ ok: false, reason: "paid_plan" });
     expect(await users.findById("u1")).not.toBeNull(); // ユーザーもデータも残る

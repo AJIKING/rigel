@@ -9,8 +9,8 @@
 //                   `pnpm --filter api db:migrate:local|db:migrate`（wrangler d1）で適用。
 // ============================================================
 
-import type { Kifu } from "@rigel/schema";
-import { index, integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
+import type { Kifu, Problem, ProblemAction } from "@rigel/schema";
+import { index, integer, primaryKey, sqliteTable, text } from "drizzle-orm/sqlite-core";
 
 export const users = sqliteTable("users", {
   /** UUID。 */
@@ -92,9 +92,65 @@ export const gameLogs = sqliteTable(
   ],
 );
 
+// 何切る問題。1問 = 1レコード（共有URL単位）。盤面・答え・解説は Problem JSON で保持。
+export const problems = sqliteTable(
+  "problems",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id),
+    /** 任意のタイトル（例: "南3局の押し引き"）。 */
+    title: text("title").notNull().default(""),
+    /** 問題本体（ProblemSchema 検証済み JSON）。画像は扱わない。 */
+    problem: text("problem", { mode: "json" }).$type<Problem>().notNull(),
+    /** draft=下書き（所有者のみ） / published=公開（誰でも閲覧可）。 */
+    status: text("status", { enum: ["draft", "published"] })
+      .notNull()
+      .default("draft"),
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
+      .notNull()
+      .$defaultFn(() => new Date()),
+  },
+  (t) => [
+    index("problems_user_idx").on(t.userId),
+    // 公開一覧（status=published を新着順）用。
+    index("problems_status_idx").on(t.status, t.createdAt),
+  ],
+);
+
+// 何切る問題への回答。1人1回（PK = problem_id + user_id。再回答は上書き）。
+// API は choice_key ごとの件数だけを外に出す（誰が何と答えたかは返さない）。
+export const problemAnswers = sqliteTable(
+  "problem_answers",
+  {
+    problemId: text("problem_id")
+      .notNull()
+      .references(() => problems.id),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id),
+    /** 回答の直列化キー（@rigel/schema の choiceKey）。分布集計の単位。 */
+    choiceKey: text("choice_key").notNull(),
+    action: text("action", { mode: "json" }).$type<ProblemAction>().notNull(),
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
+      .notNull()
+      .$defaultFn(() => new Date()),
+  },
+  (t) => [
+    primaryKey({ columns: [t.problemId, t.userId] }),
+    index("problem_answers_problem_idx").on(t.problemId),
+    index("problem_answers_user_idx").on(t.userId),
+  ],
+);
+
 export type UserRow = typeof users.$inferSelect;
 export type NewUserRow = typeof users.$inferInsert;
 export type GameRow = typeof games.$inferSelect;
 export type NewGameRow = typeof games.$inferInsert;
 export type GameLogRow = typeof gameLogs.$inferSelect;
 export type NewGameLogRow = typeof gameLogs.$inferInsert;
+export type ProblemRow = typeof problems.$inferSelect;
+export type NewProblemRow = typeof problems.$inferInsert;
+export type ProblemAnswerRow = typeof problemAnswers.$inferSelect;
+export type NewProblemAnswerRow = typeof problemAnswers.$inferInsert;

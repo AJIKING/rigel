@@ -1,23 +1,29 @@
 "use server";
 
-import { type KifuMetaInput, type KifuStatus } from "@rigel/client";
+import { type KifuMetaInput, type KifuStatus, type ProblemStatus } from "@rigel/client";
 // KifuStatus は setGameStatusAction（半荘単位の下書き/編集済）で使う。
-import { type Kifu, type Rules, type Seat } from "@rigel/schema";
+import { type Kifu, type Problem, type ProblemAction, type Rules, type Seat } from "@rigel/schema";
 import {
   analyze,
+  answerProblem,
   createCheckout,
   createPortal,
   createEmptyKifu,
   createGame,
+  createProblem,
   deleteAccount,
   deleteGame,
   deleteKifu,
+  deleteProblem,
   getMyGames,
+  getMyProblems,
+  getProblemStats,
   setGameStatus,
   setGameVisibility,
   updateGame,
   updateGameRules,
   updateKifu,
+  updateProblem,
   updateProfile,
 } from "../lib/api-server";
 import { loadGameDetail } from "../lib/load-game";
@@ -113,4 +119,42 @@ export async function deleteAccountAction() {
   const res = await deleteAccount(await requireToken());
   if (res.ok) await clearSessionCookie();
   return res;
+}
+
+// ------------------------------------------------------------
+// 何切る問題（作成・更新・削除・マイ一覧・回答・分布）。すべて要ログイン。
+// ------------------------------------------------------------
+
+/** マイ何切る一覧（draft 含む）。 */
+export async function getMyProblemsAction() {
+  return getMyProblems(await requireToken());
+}
+
+export async function createProblemAction(input: {
+  title: string;
+  problem: Problem;
+  status?: ProblemStatus;
+}) {
+  return createProblem(await requireToken(), input);
+}
+
+export async function updateProblemAction(
+  problemId: string,
+  input: { title?: string; problem?: Problem; status?: ProblemStatus },
+) {
+  return updateProblem(await requireToken(), problemId, input);
+}
+
+export async function deleteProblemAction(problemId: string) {
+  return deleteProblem(await requireToken(), problemId);
+}
+
+/** 回答（1人1回・再回答は上書き）。分布は getProblemStatsAction で別途取る。 */
+export async function answerProblemAction(problemId: string, action: ProblemAction) {
+  return answerProblem(await requireToken(), problemId, action);
+}
+
+/** 回答分布＋自分の回答（要ログイン）。 */
+export async function getProblemStatsAction(problemId: string) {
+  return getProblemStats(await requireToken(), problemId);
 }

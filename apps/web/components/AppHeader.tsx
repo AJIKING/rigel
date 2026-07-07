@@ -12,7 +12,7 @@ import s from "./app-header.module.css";
  *  - ログイン中: 「マイページ / 公開牌譜」。右肩は設定へ飛ぶアバター。
  * `active` で現在地のタブをハイライトする。
  */
-export function AppHeader({ active }: { active?: "mine" | "public" | "settings" }) {
+export function AppHeader({ active }: { active?: "mine" | "public" | "problems" | "settings" }) {
   const { user, loading } = useAuth();
   const router = useRouter();
 
@@ -32,6 +32,9 @@ export function AppHeader({ active }: { active?: "mine" | "public" | "settings" 
         )}
         <Link href="/explore" className={`${s.navItem} ${active === "public" ? s.on : ""}`}>
           公開牌譜
+        </Link>
+        <Link href="/problems" className={`${s.navItem} ${active === "problems" ? s.on : ""}`}>
+          何切る
         </Link>
       </nav>
 

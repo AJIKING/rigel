@@ -27,6 +27,15 @@ import { ListGames } from "./application/list-games.usecase";
 import { ListMyGamesWithCounts, ListPublicGames } from "./application/list-game-cards.usecase";
 import { DeleteAccount, GetPublicProfile, UpdateProfile } from "./application/profile.usecase";
 import { ListKifu } from "./application/list-kifu.usecase";
+import { AnswerProblem, GetProblemStats } from "./application/problem-answer.usecase";
+import {
+  CreateProblem,
+  DeleteProblem,
+  GetProblem,
+  ListMyProblems,
+  ListPublishedProblems,
+  UpdateProblem,
+} from "./application/problem.usecase";
 import { StartCheckout } from "./application/start-checkout.usecase";
 import { UpdateKifu } from "./application/update-kifu.usecase";
 import type { SessionService } from "./domain/auth/session";
@@ -45,6 +54,8 @@ import { ImageRiverPreprocessor } from "./infrastructure/gemini/image-river-prep
 import { PhotonImageProcessor } from "./infrastructure/gemini/photon-image-processor";
 import { RIVER_PROMPT_SINGLE } from "./infrastructure/gemini/river-prompt";
 import { DrizzleGameLogRepository } from "./infrastructure/kifu/drizzle-game-log.repository";
+import { DrizzleProblemAnswerRepository } from "./infrastructure/problem/drizzle-problem-answer.repository";
+import { DrizzleProblemRepository } from "./infrastructure/problem/drizzle-problem.repository";
 import { DrizzleUserRepository } from "./infrastructure/user/drizzle-user.repository";
 
 export interface AppContainer {
@@ -69,6 +80,14 @@ export interface AppContainer {
   updateProfile: UpdateProfile;
   getPublicProfile: GetPublicProfile;
   deleteAccount: DeleteAccount;
+  createProblem: CreateProblem;
+  updateProblem: UpdateProblem;
+  deleteProblem: DeleteProblem;
+  getProblem: GetProblem;
+  listMyProblems: ListMyProblems;
+  listPublishedProblems: ListPublishedProblems;
+  answerProblem: AnswerProblem;
+  getProblemStats: GetProblemStats;
   startCheckout: StartCheckout;
   openBillingPortal: OpenBillingPortal;
   handleBillingWebhook: HandleBillingWebhook;
@@ -91,6 +110,8 @@ export function buildContainer(env: Env): AppContainer {
   const users = new DrizzleUserRepository(db);
   const gameLogs = new DrizzleGameLogRepository(db);
   const gamesRepo = new DrizzleGameRepository(db);
+  const problems = new DrizzleProblemRepository(db);
+  const problemAnswers = new DrizzleProblemAnswerRepository(db);
 
   // 副作用（時刻・ID生成）の供給は1か所に集約してユースケースへ注入する。
   const now = () => new Date();
@@ -174,7 +195,15 @@ export function buildContainer(env: Env): AppContainer {
     getUser: new GetUser(users),
     updateProfile: new UpdateProfile(users),
     getPublicProfile: new GetPublicProfile(users, gamesRepo, gameLogs),
-    deleteAccount: new DeleteAccount(users, gamesRepo, gameLogs),
+    deleteAccount: new DeleteAccount(users, gamesRepo, gameLogs, problems, problemAnswers),
+    createProblem: new CreateProblem({ problems, users, now, newId }),
+    updateProblem: new UpdateProblem(problems),
+    deleteProblem: new DeleteProblem(problems, problemAnswers),
+    getProblem: new GetProblem(problems),
+    listMyProblems: new ListMyProblems(problems),
+    listPublishedProblems: new ListPublishedProblems(problems),
+    answerProblem: new AnswerProblem({ problems, answers: problemAnswers, now }),
+    getProblemStats: new GetProblemStats({ problems, answers: problemAnswers }),
     startCheckout: new StartCheckout(billing, users),
     openBillingPortal: new OpenBillingPortal(billing),
     handleBillingWebhook: new HandleBillingWebhook(billing, users),

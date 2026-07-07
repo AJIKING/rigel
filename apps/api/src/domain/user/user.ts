@@ -23,6 +23,10 @@ export const PRIVATE_KIFU_LIMIT: Record<Plan, number | null> = { free: 5, next: 
 /** プランごとの下書き(draft)保存上限（半荘数で数える）。null は無制限（有料）。非公開上限とは別枠。 */
 export const DRAFT_LIMIT: Record<Plan, number | null> = { free: 5, next: null, pro: null };
 
+/** プランごとの何切る問題の保存上限（draft+published 合算）。null は無制限（有料）。
+ *  @rigel/ui の PROBLEM_LIMIT と一致させる（表示用）。 */
+export const PROBLEM_LIMIT: Record<Plan, number | null> = { free: 20, next: null, pro: null };
+
 /** プランの月間呼び出し上限。 */
 export function monthlyCallQuota(plan: Plan): number {
   return MONTHLY_CALL_QUOTA[plan];
@@ -36,6 +40,11 @@ export function privateKifuLimit(plan: Plan): number | null {
 /** プランの下書き(draft)保存上限（null=無制限）。 */
 export function draftLimit(plan: Plan): number | null {
   return DRAFT_LIMIT[plan];
+}
+
+/** プランの何切る問題の保存上限（null=無制限）。 */
+export function problemLimit(plan: Plan): number | null {
+  return PROBLEM_LIMIT[plan];
 }
 
 export interface UserProps {

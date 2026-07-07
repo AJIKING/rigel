@@ -8,13 +8,23 @@
 
 import {
   KifuSchema,
+  ProblemSchema,
+  SCHEMA_VERSION,
+  TileSchema,
+  PROBLEM_SCHEMA_VERSION,
+  type CallType,
   type CameraSeat,
   type Kifu,
+  type Meld,
+  type Problem,
+  type ProblemAction,
+  type ProblemKind,
   type ReadTile,
+  type Rules,
   type Seat,
   type Tile,
 } from "@rigel/schema";
-import { sortHandTiles } from "./edit";
+import { meldTiles, sortHandTiles, type MeldPick } from "./edit";
 
 // 打点計算（han/fu + ルール → 支払い）。
 export * from "./score";
@@ -132,6 +142,9 @@ const PLAN_MONTHLY_PRICE: Record<Plan, number> = { free: 0, next: 480, pro: 1480
 const PRIVATE_KIFU_LIMIT: Record<Plan, number | null> = { free: 5, next: null, pro: null };
 const DRAFT_KIFU_LIMIT: Record<Plan, number | null> = { free: 5, next: null, pro: null };
 
+/** 何切る問題の保存上限（draft+published 合算）。api 側 PROBLEM_LIMIT と一致させる（null=無制限）。 */
+export const PROBLEM_LIMIT: Record<Plan, number | null> = { free: 20, next: null, pro: null };
+
 /** プランごとの保存上限（半荘数）。非公開(complete)と下書きは別枠。null=無制限。 */
 export function planKifuLimits(plan: Plan): { private: number | null; draft: number | null } {
   return { private: PRIVATE_KIFU_LIMIT[plan], draft: DRAFT_KIFU_LIMIT[plan] };
@@ -151,6 +164,8 @@ export const LIMIT_MESSAGES = {
   draftGames: `無料プランの下書き半荘は${DRAFT_KIFU_LIMIT.free}つまでです（有料プランで無制限）。`,
   /** 409: 1半荘の局数上限。 */
   gameFull: `1半荘は${MAX_LOGS_PER_GAME}局までです。`,
+  /** 403: 何切る問題が無料上限。 */
+  problems: `無料プランの何切る問題は${PROBLEM_LIMIT.free}問までです（有料プランで無制限）。`,
 } as const;
 
 /** プランの表示名。 */
@@ -341,6 +356,255 @@ export function collectReviewItems(kifu: Kifu): ReviewItem[] {
     });
   }
   return items;
+}
+
+// ============================================================
+// 何切る問題（表示・回答の共有ロジック。web/mobile で共用）
+// ============================================================
+
+/**
+ * 問題の盤面を牌譜(Kifu)へ写す（BoardTable 等の描画部品を再利用するため）。
+ * pov を手前(cameraBottomSeat)に置き、視点の手牌は理牌する。
+ * capturedAt は描画専用の固定値（問題に撮影時刻は無い）。
+ */
+export function problemToKifu(problem: Problem): Kifu {
+  const seats = Object.fromEntries(
+    SEAT_ORDER.map((seat) => {
+      const board = problem.seats[seat];
+      return [
+        seat,
+        { ...board, hand: seat === problem.pov ? sortHandTiles(board.hand) : board.hand },
+      ];
+    }),
+  );
+  return KifuSchema.parse({
+    schemaVersion: SCHEMA_VERSION,
+    capturedAt: "2026-01-01T00:00:00.000Z",
+    cameraBottomSeat: problem.pov,
+    seats,
+    meta: {
+      dealer: problem.meta.dealer,
+      roundWind: problem.meta.roundWind,
+      honba: problem.meta.honba,
+      kyotaku: problem.meta.kyotaku,
+      junme: problem.meta.junme,
+      dora: problem.meta.dora,
+      note: problem.meta.note,
+    },
+    rules: problem.rules,
+  });
+}
+
+const CALL_LABELS: Record<CallType, string> = { pon: "ポン", chi: "チー", kan: "カン" };
+
+/** 出題形式の表示名（一覧カード・編集画面で共用）。 */
+export const PROBLEM_KIND_LABELS: Record<ProblemKind, string> = {
+  discard: "何切る",
+  call: "鳴き判断",
+};
+
+/** 鳴き判断の選択式（スルー/ポン/チー/カン）。UI の並び順ごと共有する。 */
+export const CALL_CHOICES: readonly { key: "pass" | CallType; label: string }[] = [
+  { key: "pass", label: "スルー" },
+  { key: "pon", label: CALL_LABELS.pon },
+  { key: "chi", label: CALL_LABELS.chi },
+  { key: "kan", label: CALL_LABELS.kan },
+];
+
+/** 回答UIの選択状態（web/mobile の回答・編集画面が共有する形）。 */
+export interface ProblemAnswerSelection {
+  kind: ProblemKind;
+  /** 切る牌（何切る=手牌/ツモから、鳴き判断=鳴いた後に切る牌）。 */
+  tile: Tile | null;
+  /** リーチ宣言（何切るのみ意味を持つ）。 */
+  riichi: boolean;
+  /** 鳴き判断の選択（未選択は null）。 */
+  call: "pass" | CallType | null;
+}
+
+/** 選択状態から回答アクションを組み立てる（不足していれば null）。
+ *  スルー/カンは牌不要、ポン/チーは切る牌が必要（カンは嶺上ツモがあるため打牌を問わない）。 */
+export function buildProblemAnswer(sel: ProblemAnswerSelection): ProblemAction | null {
+  if (sel.kind === "discard") {
+    return sel.tile ? { type: "discard", tile: sel.tile, riichi: sel.riichi } : null;
+  }
+  if (sel.call === "pass") return { type: "pass" };
+  if (sel.call === "kan") return { type: "call", call: "kan", discard: null };
+  if (sel.call && sel.tile) return { type: "call", call: sel.call, discard: sel.tile };
+  return null;
+}
+
+/** 回答を確定できるか（= アクションを組み立てられるか）。 */
+export function canSubmitProblemAnswer(sel: ProblemAnswerSelection): boolean {
+  return buildProblemAnswer(sel) !== null;
+}
+
+/** 「切る牌」の選択が要る状態か（何切る、またはポン/チー選択時）。 */
+export function answerNeedsTile(sel: Pick<ProblemAnswerSelection, "kind" | "call">): boolean {
+  return sel.kind === "discard" || sel.call === "pon" || sel.call === "chi";
+}
+
+/** 手牌の目標枚数（副露は3枚換算。ProblemSchema の枚数整合と同じ前提）。 */
+export const PROBLEM_FULL_HAND = 13;
+
+/** 副露数に応じた手牌の上限枚数。 */
+export function problemHandMax(meldCount: number): number {
+  return Math.max(0, PROBLEM_FULL_HAND - meldCount * 3);
+}
+
+/** 問題の各席の河を牌配列へ写す（編集画面の初期状態用。読めない牌はスキップ）。 */
+export function problemRiverTiles(problem?: Problem): Record<Seat, Tile[]> {
+  const rivers: Record<Seat, Tile[]> = { east: [], south: [], west: [], north: [] };
+  if (!problem) return rivers;
+  for (const seat of SEAT_ORDER) {
+    rivers[seat] = problem.seats[seat].river.flatMap((d) => (d.tile ? [d.tile] : []));
+  }
+  return rivers;
+}
+
+/** 副露を1組追加した編集状態を返す（3枚換算で溢れる手牌は末尾から外す。カンは kan_open）。 */
+export function addDraftMeld(
+  hand: Tile[],
+  melds: Meld[],
+  type: MeldPick,
+  tile: Tile,
+): { hand: Tile[]; melds: Meld[] } {
+  const meld: Meld = {
+    type: type === "kan" ? "kan_open" : type,
+    tiles: meldTiles(type, tile).map((t) => ({ tile: t, confidence: 1 })),
+    from: null,
+  };
+  return { hand: hand.slice(0, problemHandMax(melds.length + 1)), melds: [...melds, meld] };
+}
+
+/** 編集画面の入力状態（web/mobile の作成/編集画面が共有する形）。 */
+export interface ProblemDraft {
+  kind: ProblemKind;
+  pov: Seat;
+  hand: Tile[];
+  melds: Meld[];
+  drawn: Tile | null;
+  /** 鳴き判断の対象席（kind=call のときだけ使われる）。 */
+  targetSeat: Seat;
+  rivers: Record<Seat, Tile[]>;
+  meta: {
+    dealer: Seat | null;
+    roundWind: Seat | null;
+    honba: number;
+    kyotaku: number;
+    junme: number;
+    dora: Tile[];
+  };
+  /** 点数状況（入力欄の文字列のまま。null=入力しない）。 */
+  scores: Record<Seat, string> | null;
+  /** 省略時は既定ルール（Mリーグ相当）。 */
+  rules?: Rules;
+  ansTile: Tile | null;
+  ansRiichi: boolean;
+  ansCall: "pass" | CallType | null;
+  explanation: string;
+}
+
+/**
+ * 編集状態から Problem を組み立てて検証する（保存前のクライアント側ゲート）。
+ * 答え未選択・スキーマ違反は日本語のエラー文言で返す。kind に応じて
+ * ツモ牌/対象席を整形し、河には order 連番を振る。
+ */
+export function assembleProblem(draft: ProblemDraft): { problem?: Problem; error?: string } {
+  const answer = buildProblemAnswer({
+    kind: draft.kind,
+    tile: draft.ansTile,
+    riichi: draft.ansRiichi,
+    call: draft.ansCall,
+  });
+  if (!answer) return { error: "答え（切る牌・鳴くかどうか）を選んでください。" };
+  const seats = Object.fromEntries(
+    SEAT_ORDER.map((seat) => [
+      seat,
+      {
+        hand: seat === draft.pov ? draft.hand.map((t) => ({ tile: t, confidence: 1 })) : [],
+        melds: seat === draft.pov ? draft.melds : [],
+        river: draft.rivers[seat].map((tile, i) => ({
+          order: i + 1,
+          tile,
+          riichi: false,
+          tsumogiri: false,
+          confidence: 1,
+        })),
+      },
+    ]),
+  );
+  const parsed = ProblemSchema.safeParse({
+    schemaVersion: PROBLEM_SCHEMA_VERSION,
+    kind: draft.kind,
+    pov: draft.pov,
+    drawn: draft.kind === "discard" ? draft.drawn : null,
+    targetSeat: draft.kind === "call" ? draft.targetSeat : null,
+    seats,
+    meta: { ...draft.meta, note: "" },
+    scores: draft.scores
+      ? {
+          east: Number(draft.scores.east) || 0,
+          south: Number(draft.scores.south) || 0,
+          west: Number(draft.scores.west) || 0,
+          north: Number(draft.scores.north) || 0,
+        }
+      : null,
+    rules: draft.rules ?? {},
+    answer,
+    explanation: draft.explanation,
+  });
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "入力に誤りがあります。" };
+  }
+  return { problem: parsed.data };
+}
+
+/** 回答アクションの人間向けラベル（例: "5筒切り・リーチ" / "ポンして2萬切り" / "スルー"）。 */
+export function actionLabel(action: ProblemAction): string {
+  if (action.type === "discard") {
+    return `${tileLabel(action.tile)}切り${action.riichi ? "・リーチ" : ""}`;
+  }
+  if (action.type === "call") {
+    const call = CALL_LABELS[action.call];
+    return action.discard ? `${call}して${tileLabel(action.discard)}切り` : call;
+  }
+  return "スルー";
+}
+
+/** choiceKey（分布集計のキー）を actionLabel と同じ日本語ラベルへ戻す。
+ *  不明なキーはそのまま返す（表示を壊さない）。 */
+export function choiceKeyLabel(key: string): string {
+  if (key === "pass") return "スルー";
+  const [head, a, b] = key.split(":");
+  const tileOf = (v: string | undefined): Tile | null => {
+    const parsed = TileSchema.safeParse(v);
+    return parsed.success ? parsed.data : null;
+  };
+  if (head === "discard") {
+    const tile = tileOf(a);
+    if (tile) return actionLabel({ type: "discard", tile, riichi: b === "riichi" });
+  }
+  if (head === "call" && (a === "pon" || a === "chi" || a === "kan")) {
+    const tile = b === undefined ? null : tileOf(b);
+    if (b === undefined || tile) return actionLabel({ type: "call", call: a, discard: tile });
+  }
+  return key;
+}
+
+export interface ChoiceRatio {
+  key: string;
+  count: number;
+  ratio: number;
+}
+
+/** 回答分布（choiceKey→件数）を件数の多い順＋割合(%)に整える。 */
+export function statsRatios(counts: Record<string, number>): ChoiceRatio[] {
+  const total = Object.values(counts).reduce((sum, n) => sum + n, 0);
+  if (total === 0) return [];
+  return Object.entries(counts)
+    .map(([key, count]) => ({ key, count, ratio: Math.round((count / total) * 100) }))
+    .sort((a, b) => b.count - a.count || a.key.localeCompare(b.key));
 }
 
 /**

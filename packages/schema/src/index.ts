@@ -400,3 +400,215 @@ export function toAbsoluteSeat(camera: CameraSeat, bottomSeat: Seat): Seat {
 // kifu.seats[seat].river = river.discards;
 // KifuSchema.parse(kifu); // 保存前に全体を最終検証
 // ============================================================
+
+// ============================================================
+// 何切る問題（作成・回答・分布キー）
+// ------------------------------------------------------------
+// AI 非関与・全て手入力の出題データ。牌は Tile 確定値（confidence 概念なし）。
+// 出題形式:
+//   discard: 手牌13枚+ツモ1枚から何を切るか（リーチ有無つき）
+//   call   : 対象席の「河の末尾の1枚」を鳴くか（スルー/ポン/チー/カン→鳴く場合のみ切る牌）
+// 牌理検証（チーは上家からか等）はしない（作者責任。Plan: docs/plans/nanikiru.md）。
+// ============================================================
+
+/** 鳴きの種別（回答の選択式）。カンの細分（明槓/暗槓/加槓）は問わない。 */
+export const CallTypeSchema = z.enum(["pon", "chi", "kan"]);
+export type CallType = z.infer<typeof CallTypeSchema>;
+
+const DiscardActionSchema = z.object({
+  type: z.literal("discard"),
+  /** 切る牌。 */
+  tile: TileSchema,
+  /** リーチ宣言するか。 */
+  riichi: z.boolean().default(false),
+});
+
+const CallActionSchema = z.object({
+  type: z.literal("call"),
+  call: CallTypeSchema,
+  /** 鳴いた後に切る牌。ポン/チーは必須、カンは嶺上ツモがあるため null 固定。 */
+  discard: TileSchema.nullable().default(null),
+});
+
+const PassActionSchema = z.object({
+  type: z.literal("pass"),
+});
+
+export const ProblemActionSchema = z
+  .discriminatedUnion("type", [DiscardActionSchema, CallActionSchema, PassActionSchema])
+  .superRefine((action, ctx) => {
+    if (action.type !== "call") return;
+    if (action.call === "kan" && action.discard !== null) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "カンは切る牌を持たない（嶺上ツモ後の打牌は問わない）",
+      });
+    }
+    if (action.call !== "kan" && action.discard === null) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "ポン/チーは切る牌が必須" });
+    }
+  });
+export type ProblemAction = z.infer<typeof ProblemActionSchema>;
+
+/**
+ * 回答の直列化キー（分布集計の単位）。同じ手は必ず同じキーになる。
+ * 例: "discard:5p" / "discard:5p:riichi" / "call:pon:2m" / "call:kan" / "pass"
+ */
+export function choiceKey(action: ProblemAction): string {
+  if (action.type === "discard") {
+    return action.riichi ? `discard:${action.tile}:riichi` : `discard:${action.tile}`;
+  }
+  if (action.type === "call") {
+    return action.discard ? `call:${action.call}:${action.discard}` : `call:${action.call}`;
+  }
+  return "pass";
+}
+
+export const PROBLEM_SCHEMA_VERSION = "1.0.0" as const;
+
+/** 出題形式。discard=何切る / call=鳴き判断。 */
+export const ProblemKindSchema = z.enum(["discard", "call"]);
+export type ProblemKind = z.infer<typeof ProblemKindSchema>;
+
+/** 局情報（手入力の記録のみ。点数の自動計算はしない）。 */
+export const ProblemMetaSchema = z.object({
+  dealer: SeatSchema.nullable().default(null),
+  roundWind: SeatSchema.nullable().default(null),
+  honba: z.number().int().min(0).default(0),
+  kyotaku: z.number().int().min(0).default(0),
+  /** 巡目。 */
+  junme: z.number().int().min(1).default(1),
+  /** ドラ表示牌（最大5）。 */
+  dora: z.array(TileSchema).max(5).default([]),
+  note: z.string().default(""),
+});
+export type ProblemMeta = z.infer<typeof ProblemMetaSchema>;
+
+/** 点数状況（各席の持ち点。手入力の記録のみ・未入力は null）。 */
+export const ProblemScoresSchema = z.object({
+  east: z.number().int(),
+  south: z.number().int(),
+  west: z.number().int(),
+  north: z.number().int(),
+});
+export type ProblemScores = z.infer<typeof ProblemScoresSchema>;
+
+/** 副露は種別に関わらず手牌3枚ぶんとして数える（カンの4枚目は嶺上補充で相殺）。 */
+const HAND_TILES_PER_MELD = 3;
+const FULL_HAND = 13;
+
+export const ProblemSchema = z
+  .object({
+    schemaVersion: z.literal(PROBLEM_SCHEMA_VERSION),
+    kind: ProblemKindSchema,
+    /** 出題視点の席（絶対）。この席の手牌が回答者に見える。 */
+    pov: SeatSchema,
+    /** ツモ牌（kind=discard で必須・call は null）。 */
+    drawn: TileSchema.nullable().default(null),
+    /** 鳴き判断の対象席。対象牌はこの席の「河の末尾の1枚」（problemTargetTile で導出）。 */
+    targetSeat: SeatSchema.nullable().default(null),
+    /** 盤面（牌譜と同じ形。pov の hand が手牌、他家は河・副露のみ想定）。 */
+    seats: z.object({
+      east: SeatBoardSchema,
+      south: SeatBoardSchema,
+      west: SeatBoardSchema,
+      north: SeatBoardSchema,
+    }),
+    meta: ProblemMetaSchema.default({}),
+    /** 点数状況（任意）。 */
+    scores: ProblemScoresSchema.nullable().default(null),
+    /** 半荘ルール（点数計算の前提と同じ既定＝Mリーグ相当）。 */
+    rules: RulesSchema.default({}),
+    /** 作者の答え。 */
+    answer: ProblemActionSchema,
+    /** 解説（回答後に表示）。 */
+    explanation: z.string().default(""),
+  })
+  .superRefine((p, ctx) => {
+    const board = p.seats[p.pov];
+    const handTiles = board.hand.map((t) => t.tile);
+    // 視点の手牌は確定牌のみ（AI 非関与。null スロットは編集ミス）。
+    if (handTiles.some((t) => t === null)) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "手牌に読めない牌は置けない" });
+      return;
+    }
+    // 枚数整合: 手牌＋副露(3枚換算) = 13枚。
+    if (board.hand.length + board.melds.length * HAND_TILES_PER_MELD !== FULL_HAND) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: `手牌は副露3枚換算で${FULL_HAND}枚にする`,
+      });
+      return;
+    }
+    const inHand = (tile: Tile) => handTiles.includes(tile);
+
+    if (p.kind === "discard") {
+      if (p.drawn === null) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, message: "何切るはツモ牌が必須" });
+      }
+      if (p.targetSeat !== null) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, message: "何切るに対象席は無い" });
+      }
+      if (p.answer.type !== "discard") {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, message: "何切るの答えは打牌のみ" });
+      } else if (!inHand(p.answer.tile) && p.answer.tile !== p.drawn) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "答えの切る牌は手牌かツモ牌から選ぶ",
+        });
+      }
+      return;
+    }
+
+    // kind === "call"（鳴き判断）
+    if (p.drawn !== null) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "鳴き判断にツモ牌は無い" });
+    }
+    if (p.targetSeat === null || p.targetSeat === p.pov) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "鳴き判断は自分以外の対象席が必須",
+      });
+      return;
+    }
+    const river = p.seats[p.targetSeat].river;
+    const last = river[river.length - 1];
+    if (!last || last.tile === null) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "対象席の河の末尾に対象牌を置く",
+      });
+    }
+    if (p.answer.type === "discard") {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "鳴き判断の答えは鳴くかスルー" });
+    } else if (p.answer.type === "call" && p.answer.discard !== null && !inHand(p.answer.discard)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "鳴いた後に切る牌は手牌から選ぶ",
+      });
+    }
+  });
+export type Problem = z.infer<typeof ProblemSchema>;
+
+/** 鳴き判断の対象牌（対象席の河の末尾の1枚）。discard 問題・河が空なら null。 */
+export function problemTargetTile(problem: Problem): Tile | null {
+  if (problem.targetSeat === null) return null;
+  const river = problem.seats[problem.targetSeat].river;
+  return river[river.length - 1]?.tile ?? null;
+}
+
+/**
+ * 回答者のアクションがこの問題の答えとして成立するか。
+ * 出題形式との一致と、切る牌が手牌（何切るはツモ牌も）にあることを確かめる。
+ * API が分布（choiceKey）に入れる前のゲートとして使う（不正キーで分布を荒らさない）。
+ */
+export function isValidAnswer(problem: Problem, action: ProblemAction): boolean {
+  const hand = problem.seats[problem.pov].hand.map((t) => t.tile);
+  if (problem.kind === "discard") {
+    if (action.type !== "discard") return false;
+    return hand.includes(action.tile) || action.tile === problem.drawn;
+  }
+  if (action.type === "pass") return true;
+  if (action.type !== "call") return false;
+  return action.discard === null || hand.includes(action.discard);
+}

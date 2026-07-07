@@ -5,7 +5,7 @@
 // fetch は注入可能（テスト用）。型(DTO)もここに集約して両アプリの drift を防ぐ。
 // ============================================================
 
-import type { Kifu, Rules, Seat } from "@rigel/schema";
+import type { Kifu, Problem, ProblemAction, Rules, Seat } from "@rigel/schema";
 
 /** 作成時に渡せる局メタ（本場/供託/ドラ/最終巡目）。記録のみ・点数計算はしない。 */
 export type KifuMetaInput = Partial<Pick<Kifu["meta"], "honba" | "kyotaku" | "dora" | "junme">>;
@@ -15,6 +15,26 @@ export type PaidPlan = "next" | "pro";
 export type Visibility = "public" | "private";
 /** 編集状態。draft=下書き / complete=編集済（公開フィードに出る）。 */
 export type KifuStatus = "draft" | "complete";
+/** 何切る問題の状態。draft=下書き（所有者のみ） / published=公開（誰でも閲覧可）。 */
+export type ProblemStatus = "draft" | "published";
+
+/** 何切る問題1件（API は createdAt を ISO 文字列で返す）。 */
+export interface ProblemPost {
+  id: string;
+  userId: string;
+  title: string;
+  problem: Problem;
+  status: ProblemStatus;
+  createdAt: string;
+}
+
+/** 回答分布（choiceKey → 件数）＋自分の回答。stats API（認証必須）が返す。 */
+export interface ProblemStats {
+  counts: Record<string, number>;
+  total: number;
+  myChoiceKey: string | null;
+  myAction: ProblemAction | null;
+}
 
 export interface AuthUser {
   id: string;
@@ -209,6 +229,33 @@ export interface ApiClient {
   getPublicProfile(idOrHandle: string): Promise<PublicProfile | null>;
   /** 自分のアカウントを削除する（取り消し不可）。 */
   deleteAccount(token: string): Promise<{ ok: boolean; status: number }>;
+  /** 公開中の何切る問題一覧（新着順）。認証不要。 */
+  getPublicProblems(): Promise<ProblemPost[]>;
+  /** 自分の何切る問題一覧（draft 含む）。 */
+  getMyProblems(token: string): Promise<ProblemPost[]>;
+  /** 何切る問題1件。published は誰でも・draft は所有者のみ（他人は null）。 */
+  getProblem(problemId: string, token?: string): Promise<ProblemPost | null>;
+  /** 何切る問題を作成する。free の上限超過は status 403。 */
+  createProblem(
+    token: string,
+    input: { title: string; problem: Problem; status?: ProblemStatus },
+  ): Promise<{ ok: true; problemId: string } | { ok: false; status: number }>;
+  /** 何切る問題を更新する（タイトル・問題本体・draft/published 切替。所有者のみ）。 */
+  updateProblem(
+    token: string,
+    problemId: string,
+    input: { title?: string; problem?: Problem; status?: ProblemStatus },
+  ): Promise<{ ok: boolean; status: number }>;
+  /** 何切る問題を削除する（回答ごと。所有者のみ）。 */
+  deleteProblem(token: string, problemId: string): Promise<{ ok: boolean; status: number }>;
+  /** 回答する（1人1回・再回答は上書き）。分布は getProblemStats で別途取る。 */
+  answerProblem(
+    token: string,
+    problemId: string,
+    action: ProblemAction,
+  ): Promise<{ ok: boolean; status: number }>;
+  /** 回答分布＋自分の回答（認証必須）。見つからなければ null。 */
+  getProblemStats(token: string, problemId: string): Promise<ProblemStats | null>;
 }
 
 /**
@@ -436,6 +483,73 @@ export function createApiClient(baseUrl: string, fetchImpl?: typeof fetch): ApiC
     async deleteAccount(token) {
       const res = await doFetch(`${baseUrl}/me`, { method: "DELETE", headers: bearer(token) });
       return { ok: res.ok, status: res.status };
+    },
+
+    async getPublicProblems() {
+      const res = await doFetch(`${baseUrl}/problems`);
+      if (!res.ok) throw new Error(`problems failed: ${res.status}`);
+      return res.json() as Promise<ProblemPost[]>;
+    },
+
+    async getMyProblems(token) {
+      const res = await doFetch(`${baseUrl}/problems/mine`, { headers: bearer(token) });
+      if (!res.ok) throw new Error(`my problems failed: ${res.status}`);
+      return res.json() as Promise<ProblemPost[]>;
+    },
+
+    async getProblem(problemId, token) {
+      const res = await doFetch(`${baseUrl}/problems/${problemId}`, {
+        headers: token ? bearer(token) : undefined,
+      });
+      if (res.status === 404) return null;
+      if (!res.ok) throw new Error(`problem failed: ${res.status}`);
+      return res.json() as Promise<ProblemPost>;
+    },
+
+    async createProblem(token, input) {
+      const res = await doFetch(`${baseUrl}/problems`, {
+        method: "POST",
+        headers: { ...bearer(token), "content-type": "application/json" },
+        body: JSON.stringify(input),
+      });
+      if (!res.ok) return { ok: false, status: res.status };
+      const d = (await res.json()) as { problemId: string };
+      return { ok: true, problemId: d.problemId };
+    },
+
+    async updateProblem(token, problemId, input) {
+      const res = await doFetch(`${baseUrl}/problems/${problemId}`, {
+        method: "PUT",
+        headers: { ...bearer(token), "content-type": "application/json" },
+        body: JSON.stringify(input),
+      });
+      return { ok: res.ok, status: res.status };
+    },
+
+    async deleteProblem(token, problemId) {
+      const res = await doFetch(`${baseUrl}/problems/${problemId}`, {
+        method: "DELETE",
+        headers: bearer(token),
+      });
+      return { ok: res.ok, status: res.status };
+    },
+
+    async answerProblem(token, problemId, action) {
+      const res = await doFetch(`${baseUrl}/problems/${problemId}/answers`, {
+        method: "POST",
+        headers: { ...bearer(token), "content-type": "application/json" },
+        body: JSON.stringify({ action }),
+      });
+      return { ok: res.ok, status: res.status };
+    },
+
+    async getProblemStats(token, problemId) {
+      const res = await doFetch(`${baseUrl}/problems/${problemId}/stats`, {
+        headers: bearer(token),
+      });
+      if (res.status === 404) return null;
+      if (!res.ok) throw new Error(`problem stats failed: ${res.status}`);
+      return res.json() as Promise<ProblemStats>;
     },
   };
 }

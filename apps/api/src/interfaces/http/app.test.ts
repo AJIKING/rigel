@@ -207,6 +207,17 @@ describe("HTTP app (Hono)", () => {
     expect(res.status).toBe(401);
   });
 
+  it("何切る: 認証必須ルートはトークン無しで 401（mine/作成/回答/分布）", async () => {
+    expect((await app.request("/problems/mine", {}, fakeEnv)).status).toBe(401);
+    expect((await app.request("/problems", { method: "POST" }, fakeEnv)).status).toBe(401);
+    expect((await app.request("/problems/p1", { method: "PUT" }, fakeEnv)).status).toBe(401);
+    expect((await app.request("/problems/p1", { method: "DELETE" }, fakeEnv)).status).toBe(401);
+    expect((await app.request("/problems/p1/answers", { method: "POST" }, fakeEnv)).status).toBe(
+      401,
+    );
+    expect((await app.request("/problems/p1/stats", {}, fakeEnv)).status).toBe(401);
+  });
+
   it("GET /me は偽のトークンで 401", async () => {
     const res = await app.request(
       "/me",

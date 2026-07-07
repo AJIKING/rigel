@@ -57,6 +57,13 @@
       "when": 1783264083293,
       "tag": "0007_dapper_banshee",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "6",
+      "when": 1783396224195,
+      "tag": "0008_natural_chimera",
+      "breakpoints": true
     }
   ]
 }
