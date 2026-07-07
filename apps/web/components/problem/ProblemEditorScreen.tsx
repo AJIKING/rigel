@@ -25,7 +25,6 @@ import {
   SUITS,
   type PickerSuit,
 } from "@rigel/ui";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useRef, useState } from "react";
 import { createProblemAction, updateProblemAction } from "../../app/actions";
@@ -41,6 +40,37 @@ import s from "./problem.module.css";
 
 /** 牌グリッドの入力先。 */
 type Target = "hand" | "drawn" | "dora" | `river:${Seat}` | `meld:${"pon" | "chi" | "kan"}`;
+
+/** 席セレクト（selwrap＝自前シェブロン付き）。自分の席・対象席・場風・親で共用。 */
+function SeatSelect({
+  ariaLabel,
+  value,
+  seats,
+  format,
+  onChange,
+}: {
+  ariaLabel: string;
+  value: Seat;
+  seats: Seat[];
+  format: (seat: Seat) => string;
+  onChange: (seat: Seat) => void;
+}) {
+  return (
+    <span className={s.selwrap}>
+      <select
+        aria-label={ariaLabel}
+        value={value}
+        onChange={(e) => onChange(SeatSchema.parse(e.target.value))}
+      >
+        {seats.map((seat) => (
+          <option key={seat} value={seat}>
+            {format(seat)}
+          </option>
+        ))}
+      </select>
+    </span>
+  );
+}
 
 /** 入力済み牌のチップ行（タップで外す）。ドラ・河で共用。空なら描かない。 */
 function TileChipRow({
@@ -230,11 +260,6 @@ export function ProblemEditorScreen({ initial }: { initial?: ProblemPost }) {
       <AppHeader active="mypage" />
 
       <main className={s.main} ref={mainRef}>
-        <p className={s.crumbRow}>
-          <Link href="/mypage/problems">マイ何切る</Link>
-          <span> › </span>
-          <span>{initial ? "問題を編集" : "問題を作成"}</span>
-        </p>
         <div className={s.field}>
           <label htmlFor="pb-title">タイトル</label>
           <input
@@ -266,27 +291,23 @@ export function ProblemEditorScreen({ initial }: { initial?: ProblemPost }) {
         {/* 視点・鳴き判断の対象席 */}
         <div className={s.row}>
           <span className={s.rowLabel}>自分の席</span>
-          <select value={pov} onChange={(e) => setPov(SeatSchema.parse(e.target.value))}>
-            {SEAT_ORDER.map((seat) => (
-              <option key={seat} value={seat}>
-                {seatLabel(seat)}
-              </option>
-            ))}
-          </select>
+          <SeatSelect
+            ariaLabel="自分の席"
+            value={pov}
+            seats={SEAT_ORDER}
+            format={seatLabel}
+            onChange={setPov}
+          />
           {kind === "call" && (
             <>
               <span className={s.rowLabel}>誰の捨て牌</span>
-              <select
-                aria-label="対象席"
+              <SeatSelect
+                ariaLabel="対象席"
                 value={targetSeat}
-                onChange={(e) => setTargetSeat(SeatSchema.parse(e.target.value))}
-              >
-                {SEAT_ORDER.filter((seat) => seat !== pov).map((seat) => (
-                  <option key={seat} value={seat}>
-                    {seatLabel(seat)}家
-                  </option>
-                ))}
-              </select>
+                seats={SEAT_ORDER.filter((seat) => seat !== pov)}
+                format={(seat) => `${seatLabel(seat)}家`}
+                onChange={setTargetSeat}
+              />
             </>
           )}
         </div>
@@ -300,28 +321,20 @@ export function ProblemEditorScreen({ initial }: { initial?: ProblemPost }) {
         {/* 局情報 */}
         <div className={s.row}>
           <span className={s.rowLabel}>場・親</span>
-          <select
-            aria-label="場風"
+          <SeatSelect
+            ariaLabel="場風"
             value={roundWind ?? "east"}
-            onChange={(e) => setRoundWind(SeatSchema.parse(e.target.value))}
-          >
-            {SEAT_ORDER.map((seat) => (
-              <option key={seat} value={seat}>
-                {seatLabel(seat)}場
-              </option>
-            ))}
-          </select>
-          <select
-            aria-label="親"
+            seats={SEAT_ORDER}
+            format={(seat) => `${seatLabel(seat)}場`}
+            onChange={setRoundWind}
+          />
+          <SeatSelect
+            ariaLabel="親"
             value={dealer ?? "east"}
-            onChange={(e) => setDealer(SeatSchema.parse(e.target.value))}
-          >
-            {SEAT_ORDER.map((seat) => (
-              <option key={seat} value={seat}>
-                親 {seatLabel(seat)}
-              </option>
-            ))}
-          </select>
+            seats={SEAT_ORDER}
+            format={(seat) => `親 ${seatLabel(seat)}`}
+            onChange={setDealer}
+          />
           <button type="button" className={s.rulesBtn} onClick={() => setRulesOpen(true)}>
             ⚙ ルール設定
           </button>
@@ -357,15 +370,17 @@ export function ProblemEditorScreen({ initial }: { initial?: ProblemPost }) {
         </div>
 
         {/* 盤面プレビュー（牌譜と同じ卓。編集途中でも即時反映）。 */}
-        <ViewBoard
-          kifu={previewKifu}
-          bottomSeat={pov}
-          dealer={dealer ?? pov}
-          scale={scale}
-          bottomName="あなた"
-          highlightRiver={previewHighlight}
-          center={<ProblemBoardCenter meta={{ roundWind, junme, dora }} />}
-        />
+        <div className={s.boardPanel}>
+          <ViewBoard
+            kifu={previewKifu}
+            bottomSeat={pov}
+            dealer={dealer ?? pov}
+            scale={scale}
+            bottomName="あなた"
+            highlightRiver={previewHighlight}
+            center={<ProblemBoardCenter meta={{ roundWind, junme, dora }} />}
+          />
+        </div>
 
         {/* 入力済みの一覧（タップで削除） */}
         <div className={s.handRow}>

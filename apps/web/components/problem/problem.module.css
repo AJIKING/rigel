@@ -6,18 +6,12 @@
   color: #fff;
 }
 
-/* 本文内のパンくず（ヘッダは共通 AppHeader を使うため本文側に置く）。 */
-.crumbRow {
-  font-size: 12px;
-  color: var(--w70, rgba(255, 255, 255, 0.7));
-  margin: 0 0 14px;
-}
-.crumbRow a {
-  color: var(--w70, rgba(255, 255, 255, 0.7));
-  text-decoration: none;
-}
-.crumbRow a:hover {
-  color: #fff;
+/* 盤面（ViewBoard）は牌譜ビューアと同じ緑の卓の上に描く（黒地に浮かせない）。 */
+.boardPanel {
+  background: var(--em, #0c7a57);
+  border-radius: var(--r, 3px);
+  margin: 14px 0;
+  overflow: hidden;
 }
 
 .main {
@@ -37,7 +31,7 @@
   font-size: 10.5px;
   font-weight: 700;
   padding: 2px 8px;
-  border-radius: 6px;
+  border-radius: var(--r, 3px);
   color: var(--w70, rgba(255, 255, 255, 0.7));
   background: var(--chrome-2, rgba(255, 255, 255, 0.08));
 }
@@ -111,7 +105,7 @@
   background: transparent;
   border: 1px solid var(--line, rgba(255, 255, 255, 0.2));
   color: var(--w70, rgba(255, 255, 255, 0.7));
-  border-radius: 8px;
+  border-radius: var(--r, 3px);
   padding: 5px 12px;
   font-size: 12px;
   cursor: pointer;
@@ -152,7 +146,7 @@
   background: transparent;
   border: 1px solid var(--line, rgba(255, 255, 255, 0.2));
   color: var(--w70, rgba(255, 255, 255, 0.7));
-  border-radius: 7px;
+  border-radius: var(--r, 3px);
   padding: 4px 12px;
   font-size: 12px;
   cursor: pointer;
@@ -243,7 +237,7 @@
   background: transparent;
   border: 1px solid var(--line, rgba(255, 255, 255, 0.2));
   color: #fff;
-  border-radius: 8px;
+  border-radius: var(--r, 3px);
   padding: 6px 16px;
   font-size: 13px;
   font-weight: 700;
@@ -253,41 +247,55 @@
   border-color: var(--orange, #f6a04d);
   color: var(--orange, #f6a04d);
 }
+/* 選択セグメント（出題形式・鳴き選択）は牌譜エディタの .statusSeg と同じ。 */
 .callSeg {
   display: inline-flex;
-  gap: 6px;
+  background: var(--chrome-2, #1e2128);
+  border: 1px solid var(--line, rgba(255, 255, 255, 0.13));
+  border-radius: var(--r, 3px);
+  padding: 2px;
   margin-bottom: 8px;
-  flex-wrap: wrap;
 }
 .callSeg button {
   background: transparent;
-  border: 1px solid var(--line, rgba(255, 255, 255, 0.2));
-  color: #fff;
-  border-radius: 8px;
-  padding: 6px 16px;
-  font-size: 13px;
+  border: 0;
+  color: var(--w70, rgba(255, 255, 255, 0.74));
+  font-family: var(--round, inherit);
   font-weight: 700;
+  font-size: 12px;
+  padding: 5px 11px;
+  border-radius: 2px;
   cursor: pointer;
+  transition: 0.13s;
+}
+.callSeg button:hover {
+  color: #fff;
 }
 .callSeg button.on {
-  border-color: var(--accent, #4dd2a0);
-  color: var(--accent, #4dd2a0);
+  background: rgba(255, 158, 69, 0.16);
+  color: var(--accent, #ff9e45);
 }
+/* 主ボタン（回答する・公開して保存）は牌譜エディタの .savebtn と同じ白。 */
 .submit {
   display: block;
   margin-top: 12px;
   width: 100%;
-  padding: 10px;
-  border: 0;
-  border-radius: 8px;
-  background: var(--accent, #4dd2a0);
-  color: #0c0e12;
-  font-size: 14px;
-  font-weight: 800;
+  padding: 9px;
+  font-family: var(--round, inherit);
+  color: #16181d;
+  background: #fff;
+  border: 1px solid #fff;
+  border-radius: var(--r, 3px);
+  font-size: 13px;
+  font-weight: 700;
   cursor: pointer;
+  transition: 0.15s;
+}
+.submit:hover {
+  background: #e9e9e9;
 }
 .submit:disabled {
-  opacity: 0.4;
+  opacity: 0.5;
   cursor: default;
 }
 
@@ -378,23 +386,53 @@
   font-size: 12px;
   color: var(--w70, rgba(255, 255, 255, 0.7));
 }
-.field input,
-.field textarea {
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid var(--line, rgba(255, 255, 255, 0.12));
-  border-radius: 8px;
+/* テキスト入力は牌譜エディタの .field input と同じ下線スタイル（角丸なし）。 */
+.field input {
+  width: 100%;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--line, rgba(255, 255, 255, 0.13));
   color: #fff;
+  font-family: var(--round, inherit);
+  font-size: 14px;
+  padding: 6px 1px;
+}
+.field input:focus {
+  outline: none;
+  border-bottom-color: #fff;
+}
+.field textarea {
+  background: var(--chrome-2, #1e2128);
+  border: 1px solid var(--line, rgba(255, 255, 255, 0.13));
+  border-radius: var(--r, 3px);
+  color: #fff;
+  font-family: var(--round, inherit);
   padding: 8px 10px;
   font-size: 13.5px;
 }
+.field textarea:focus {
+  outline: none;
+  border-color: var(--w45, rgba(255, 255, 255, 0.45));
+}
+/* 補助ボタン（ルール設定・点数入力の切替）は牌譜エディタの .addkyoku と同じ破線ゴースト。 */
 .rulesBtn {
   background: transparent;
-  border: 1px solid var(--line, rgba(255, 255, 255, 0.2));
-  color: #fff;
-  border-radius: 7px;
-  padding: 5px 12px;
+  border: 1px dashed var(--line, rgba(255, 255, 255, 0.2));
+  color: var(--w70, rgba(255, 255, 255, 0.74));
+  font-family: var(--round, inherit);
+  font-weight: 700;
+  border-radius: var(--r, 3px);
+  padding: 6px 12px;
   font-size: 12px;
   cursor: pointer;
+}
+.rulesBtn:hover {
+  color: #fff;
+}
+.rulesBtn[aria-pressed="true"] {
+  border-style: solid;
+  border-color: var(--accent, #ff9e45);
+  color: var(--accent, #ff9e45);
 }
 .scoreInput {
   display: inline-flex;
@@ -405,10 +443,11 @@
 }
 .scoreInput input {
   width: 76px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid var(--line, rgba(255, 255, 255, 0.12));
-  border-radius: 6px;
+  background: var(--chrome-2, #1e2128);
+  border: 1px solid var(--line, rgba(255, 255, 255, 0.13));
+  border-radius: var(--r, 3px);
   color: #fff;
+  color-scheme: dark;
   padding: 4px 6px;
   font-size: 12.5px;
 }
@@ -439,17 +478,40 @@
   padding: 3px;
   background: transparent;
   border: 1px dashed var(--line, rgba(255, 255, 255, 0.24));
-  border-radius: 6px;
+  border-radius: var(--r, 3px);
   cursor: pointer;
 }
-/* CSS Modules は裸のタグセレクタを許さないため、行内の select にスコープする */
-.row select {
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid var(--line, rgba(255, 255, 255, 0.12));
-  border-radius: 7px;
+/* セレクトは牌譜エディタの .sel2/.agsel と同じ（既定の白い外観を消して chrome-2 + 自前シェブロン）。 */
+.selwrap {
+  position: relative;
+  display: inline-flex;
+}
+.selwrap select {
+  appearance: none;
+  -webkit-appearance: none;
+  background: var(--chrome-2, #1e2128);
+  border: 1px solid var(--line, rgba(255, 255, 255, 0.13));
   color: #fff;
-  padding: 5px 8px;
-  font-size: 12.5px;
+  font-family: var(--round, inherit);
+  font-size: 12px;
+  padding: 6px 26px 6px 10px;
+  border-radius: var(--r, 3px);
+  cursor: pointer;
+}
+.selwrap select:hover {
+  border-color: var(--w45, rgba(255, 255, 255, 0.45));
+}
+.selwrap::after {
+  content: "";
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  width: 6px;
+  height: 6px;
+  border-right: 1.5px solid var(--w70, rgba(255, 255, 255, 0.7));
+  border-bottom: 1.5px solid var(--w70, rgba(255, 255, 255, 0.7));
+  transform: translateY(-70%) rotate(45deg);
+  pointer-events: none;
 }
 .saveRow {
   display: flex;
@@ -462,7 +524,7 @@
   background: transparent;
   border: 1px solid var(--line, rgba(255, 255, 255, 0.24));
   color: #fff;
-  border-radius: 8px;
+  border-radius: var(--r, 3px);
   font-size: 14px;
   font-weight: 700;
   cursor: pointer;

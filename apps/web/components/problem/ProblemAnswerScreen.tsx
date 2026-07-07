@@ -109,11 +109,6 @@ export function ProblemAnswerScreen({ post }: { post: ProblemPost }) {
       <AppHeader active="problems" />
 
       <main className={s.main} ref={mainRef}>
-        <p className={s.crumbRow}>
-          <Link href="/problems">何切る</Link>
-          <span> › </span>
-          <span>問題を解く</span>
-        </p>
         <div className={s.titleRow}>
           <h1 className={s.title}>
             {post.title || "（無題の問題）"}
@@ -151,15 +146,17 @@ export function ProblemAnswerScreen({ post }: { post: ProblemPost }) {
         </h2>
 
         {/* 盤面は牌譜ビューアと同じ卓（河・鳴きは卓上に。鳴き判断は対象牌を強調）。 */}
-        <ViewBoard
-          kifu={boardKifu}
-          bottomSeat={pov}
-          dealer={dealer ?? pov}
-          scale={scale}
-          bottomName="あなた"
-          highlightRiver={highlightRiver}
-          center={<ProblemBoardCenter meta={problem.meta} />}
-        />
+        <div className={s.boardPanel}>
+          <ViewBoard
+            kifu={boardKifu}
+            bottomSeat={pov}
+            dealer={dealer ?? pov}
+            scale={scale}
+            bottomName="あなた"
+            highlightRiver={highlightRiver}
+            center={<ProblemBoardCenter meta={problem.meta} />}
+          />
+        </div>
 
         {/* 点数状況（手入力の記録のみ） */}
         {problem.scores && (
