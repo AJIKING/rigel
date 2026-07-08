@@ -1,5 +1,7 @@
 import { KifuSchema, type Kifu } from "@rigel/schema";
 import { describe, expect, it } from "vitest";
+import { applyTileEdit } from "./index";
+import { deriveTimeline, syncSeatsFromTimeline } from "./timeline";
 import {
   addHandTile,
   addMeld,
@@ -262,6 +264,97 @@ describe("addMeld / removeMeld", () => {
     const k = addMeld(addMeld(kifu(), "south", "pon", "5p"), "south", "pon", "6p");
     const next = removeMeld(k, "south", 0);
     expect(next.seats.south.melds.map((m) => m.tiles[0]?.tile)).toEqual(["6p"]);
+  });
+});
+
+describe("timeline 非空のとき、盤面の河/鳴き編集が手順(timeline)へ同期される", () => {
+  // east:1m だけを committed した牌譜（timeline 正典・非空）。
+  const committed = (): Kifu =>
+    KifuSchema.parse({
+      schemaVersion: "1.0.0",
+      capturedAt: "2026-07-04T00:00:00.000Z",
+      cameraBottomSeat: "east",
+      meta: { dealer: "east" },
+      seats: {
+        east: {
+          hand: [],
+          melds: [],
+          river: [{ order: 1, tile: "1m", riichi: false, tsumogiri: false, confidence: 1 }],
+        },
+        south: {},
+        west: {},
+        north: {},
+      },
+      timeline: [
+        {
+          kind: "discard",
+          seat: "east",
+          draw: null,
+          tile: "1m",
+          tsumogiri: false,
+          riichi: false,
+          confidence: 1,
+        },
+      ],
+    });
+  const discShown = (k: Kifu) =>
+    deriveTimeline(k)
+      .filter((e) => e.kind === "discard")
+      .map((e) => (e.kind === "discard" ? `${e.seat}:${e.tile}` : ""));
+
+  it("addRiverTile: 足した打牌が手順に巡目位置で現れる（末尾集中しない）＝バグ修正", () => {
+    const k = addRiverTile(committed(), "south", "2p");
+    expect(discShown(k)).toEqual(["east:1m", "south:2p"]); // 1巡目 east→south
+  });
+
+  it("addRiverTile: リーチ/ツモ切りフラグも手順の打牌に載る", () => {
+    const k = addRiverTile(committed(), "east", "9m", { riichi: true, tsumogiri: true });
+    const ev = deriveTimeline(k).find((e) => e.kind === "discard" && e.tile === "9m");
+    expect(ev?.kind === "discard" && ev.riichi).toBe(true);
+    expect(ev?.kind === "discard" && ev.tsumogiri).toBe(true);
+  });
+
+  it("removeRiverTile: 消した打牌は手順からも消える", () => {
+    const k = addRiverTile(committed(), "south", "2p");
+    const removed = removeRiverTile(k, "south", 0);
+    expect(discShown(removed)).toEqual(["east:1m"]);
+  });
+
+  it("applyTileEdit(river): 牌の変更が手順にも反映される", () => {
+    const edited = applyTileEdit(committed(), { seat: "east", area: "river", index: 0 }, "9p");
+    expect(discShown(edited)).toEqual(["east:9p"]);
+  });
+
+  it("setDiscardFlags: リーチ切替が手順にも反映される", () => {
+    const k = setDiscardFlags(committed(), "east", 0, { riichi: true });
+    const ev = deriveTimeline(k).find((e) => e.kind === "discard");
+    expect(ev?.kind === "discard" && ev.riichi).toBe(true);
+  });
+
+  it("addMeld: 鳴きが手順に現れる", () => {
+    const k = addMeld(committed(), "south", "pon", "5p");
+    expect(deriveTimeline(k).some((e) => e.kind === "meld" && e.seat === "south")).toBe(true);
+  });
+
+  it("removeMeld: 鳴きが手順からも消え、残りの打牌順は保たれる", () => {
+    const withMeld = addMeld(addRiverTile(committed(), "south", "2p"), "south", "pon", "5p");
+    const removed = removeMeld(withMeld, "south", 0);
+    expect(removed.timeline.some((e) => e.kind === "meld")).toBe(false);
+    expect(discShown(removed)).toEqual(["east:1m", "south:2p"]);
+  });
+
+  it("データロス回帰: 盤面 add → 手順 commit 相当(syncSeats)しても打牌が残る", () => {
+    const k = addRiverTile(committed(), "south", "2p");
+    // 手順タブでの commit は syncSeatsFromTimeline(timeline)。add 分が消えないこと。
+    const committedAgain = syncSeatsFromTimeline(k);
+    expect(discShown(committedAgain)).toContain("south:2p");
+  });
+
+  it("timeline 空（新規牌譜）は空のまま＝挙動不変", () => {
+    const fresh = kifu();
+    const k = addRiverTile(fresh, "east", "1m");
+    expect(k.timeline).toEqual([]); // materialize しない
+    expect(discShown(k)).toEqual(["east:1m"]); // deriveTimeline は seats から導出
   });
 });
 

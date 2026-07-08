@@ -9,6 +9,7 @@ import {
   type Kifu,
   type Meld,
   type Seat,
+  type Tile,
   type TimelineEvent,
 } from "@rigel/schema";
 
@@ -54,6 +55,123 @@ export function buildTimelineFromSeats(kifu: Kifu): TimelineEvent[] {
 /** kifu が timeline を持てばそれを、無ければ席ごとから構築して返す。 */
 export function deriveTimeline(kifu: Kifu): TimelineEvent[] {
   return kifu.timeline.length > 0 ? kifu.timeline : buildTimelineFromSeats(kifu);
+}
+
+/**
+ * 手順に打牌を追加するときの席。既存の打牌数に応じて「親起点の東南西北」を順に埋める
+ * （1巡が埋まったら次巡の1打目＝親へ回る）。鳴きは席サイクルに数えない（打牌のみで回す）。
+ * これで「＋打牌」が必ず新巡目・親（東）にならず、東南西北×巡目の自然な並びで足せる。
+ */
+export function nextDiscardSeat(timeline: TimelineEvent[], dealer: Seat): Seat {
+  const order = seatsFromDealer(dealer);
+  const discardCount = timeline.filter((e) => e.kind === "discard").length;
+  return order[discardCount % 4]!;
+}
+
+/**
+ * 盤面（seats）を編集した後、timeline を「打牌＝東南西北×巡目順」に正規化して同期する。
+ * ------------------------------------------------------------
+ * 盤面編集は seats(river/melds) を直接触るため、timeline が非空だと古いまま残り
+ * 手順ナビに反映されない／保存時に消える。これを防ぐため:
+ *   - 打牌は seats から巡目インターリーブ（buildTimelineFromSeats と同じ順）で作り直す。
+ *   - 旧 timeline のツモ牌(draw)は「席＋席内index」で新打牌へ引き継ぐ（timeline 固有情報の保全）。
+ *   - 鳴きは「旧 timeline で直前にあった打牌（席＋席内index）」をアンカーに、打牌再整列後も
+ *     その直後へ再挿入する（アンカー打牌が消えた鳴きは末尾へ退避）。
+ * timeline が空（新規牌譜）のときは何もしない（deriveTimeline が seats から巡目順に導出する）。
+ */
+export function reconcileTimeline(kifu: Kifu): Kifu {
+  if (kifu.timeline.length === 0) return kifu;
+  const dealer = kifu.meta.dealer ?? "east";
+  const order = seatsFromDealer(dealer);
+
+  // 旧 timeline の打牌を「席→席内index順の配列」に畳む（draw 引き継ぎ用の索引）。
+  const oldDrawsBySeat: Record<Seat, (Tile | null)[]> = {
+    east: [],
+    south: [],
+    west: [],
+    north: [],
+  };
+  for (const e of kifu.timeline) {
+    if (e.kind === "discard") oldDrawsBySeat[e.seat].push(e.draw);
+  }
+
+  // 1. seats から巡目インターリーブで打牌イベントを再生成（draw は席内 index で引き継ぐ）。
+  const discards: TimelineEvent[] = [];
+  const seatCount: Record<Seat, number> = { east: 0, south: 0, west: 0, north: 0 };
+  const maxLen = Math.max(0, ...order.map((s) => kifu.seats[s].river.length));
+  for (let t = 0; t < maxLen; t++) {
+    for (const seat of order) {
+      const d = kifu.seats[seat].river[t];
+      if (!d) continue;
+      const idx = seatCount[seat]++;
+      discards.push({
+        kind: "discard",
+        seat,
+        draw: oldDrawsBySeat[seat][idx] ?? null,
+        tile: d.tile,
+        tsumogiri: d.tsumogiri,
+        riichi: d.riichi,
+        confidence: d.confidence,
+      });
+    }
+  }
+
+  // 2. 鳴きの内容は seats.melds（＝盤面の編集面。牌変更もここに反映済み）から取り、
+  //    位置（アンカー）は旧 timeline の鳴きイベントから席×鳴きindexで引き継ぐ。
+  //    アンカー = 旧 timeline でその鳴きの直前にあった打牌の「席＋席内index」。
+  //    先頭（打牌より前）は "front"、旧アンカーが無い新規鳴きは "end"（末尾＝最新）。
+  type Anchor = { seat: Seat; idx: number } | "front" | "end";
+  const oldMeldAnchors: Record<Seat, Anchor[]> = { east: [], south: [], west: [], north: [] };
+  {
+    const seen: Record<Seat, number> = { east: 0, south: 0, west: 0, north: 0 };
+    let lastDiscard: { seat: Seat; idx: number } | null = null;
+    for (const e of kifu.timeline) {
+      if (e.kind === "discard") lastDiscard = { seat: e.seat, idx: seen[e.seat]++ };
+      else oldMeldAnchors[e.seat].push(lastDiscard ?? "front");
+    }
+  }
+  type Placed = { meld: Meld; seat: Seat; anchor: Anchor };
+  const melds: Placed[] = [];
+  for (const seat of SEAT_ORDER) {
+    kifu.seats[seat].melds.forEach((meld, k) => {
+      melds.push({ meld, seat, anchor: oldMeldAnchors[seat][k] ?? "end" });
+    });
+  }
+
+  // 3. 打牌列にアンカー位置で鳴きを差し込む（アンカー打牌が消えた鳴きは末尾へ退避）。
+  const keyOf = (seat: Seat, idx: number) => `${seat}:${idx}`;
+  const survivingKeys = new Set<string>();
+  {
+    const c: Record<Seat, number> = { east: 0, south: 0, west: 0, north: 0 };
+    for (const d of discards)
+      if (d.kind === "discard") survivingKeys.add(keyOf(d.seat, c[d.seat]++));
+  }
+  const afterKey = new Map<string, TimelineEvent[]>();
+  const atFront: TimelineEvent[] = [];
+  const atEnd: TimelineEvent[] = [];
+  const push = (map: Map<string, TimelineEvent[]>, k: string, ev: TimelineEvent) =>
+    (map.get(k) ?? map.set(k, []).get(k)!).push(ev);
+  for (const { meld, seat, anchor } of melds) {
+    const ev: TimelineEvent = { kind: "meld", seat, meld };
+    if (anchor === "front") atFront.push(ev);
+    else if (anchor === "end") atEnd.push(ev);
+    else if (survivingKeys.has(keyOf(anchor.seat, anchor.idx)))
+      push(afterKey, keyOf(anchor.seat, anchor.idx), ev);
+    else atEnd.push(ev);
+  }
+
+  const result: TimelineEvent[] = [...atFront];
+  const c: Record<Seat, number> = { east: 0, south: 0, west: 0, north: 0 };
+  for (const d of discards) {
+    result.push(d);
+    if (d.kind === "discard") {
+      for (const m of afterKey.get(keyOf(d.seat, c[d.seat]++)) ?? []) result.push(m);
+    }
+  }
+  result.push(...atEnd);
+
+  // timeline を正典として seats(river/melds) も同期（hand は保持）。
+  return syncSeatsFromTimeline(KifuSchema.parse({ ...kifu, timeline: result }));
 }
 
 /** 各イベントの巡目（親の打牌ごとに +1）。timeline と同じ長さの配列を返す。 */

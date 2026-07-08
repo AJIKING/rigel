@@ -143,6 +143,67 @@ describe("BoardEditor 編集操作", () => {
     });
   });
 
+  it("timeline が非空でも、盤面で足した捨て牌が保存Kifuの手順(timeline)へ巡目位置で乗る（往復整合）", async () => {
+    // east:1m を committed 済み（timeline 非空＝手順タブを一度使った後の状態）。
+    const committed = KifuSchema.parse({
+      schemaVersion: "1.0.0",
+      capturedAt: "2026-06-28T00:00:00.000Z",
+      cameraBottomSeat: "east",
+      meta: { dealer: "east" },
+      seats: {
+        east: {
+          hand: [],
+          melds: [],
+          river: [{ order: 1, tile: "1m", riichi: false, tsumogiri: false, confidence: 1 }],
+        },
+        south: {},
+        west: {},
+        north: {},
+      },
+      timeline: [
+        {
+          kind: "discard",
+          seat: "east",
+          draw: null,
+          tile: "1m",
+          tsumogiri: false,
+          riichi: false,
+          confidence: 1,
+        },
+      ],
+    });
+    const detail: GameDetail = {
+      game: { id: "g1", userId: "u1", title: "テスト卓", createdAt: "2026-06-28T00:00:00.000Z" },
+      logs: [
+        {
+          id: "l1",
+          userId: "u1",
+          gameId: "g1",
+          seq: 1,
+          kifu: committed,
+          visibility: "private",
+          status: "complete",
+          createdAt: "2026-06-28T00:00:00.000Z",
+        },
+      ],
+    };
+    render(<BoardEditor initialDetail={detail} gameId="g1" logId="l1" />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "南家に捨て牌を追加" }));
+    const dialog = screen.getByRole("dialog", { name: "牌を選ぶ" });
+    fireEvent.click(within(dialog).getByText("筒"));
+    fireEvent.click(within(dialog).getByRole("button", { name: tileLabel("2p") }));
+
+    fireEvent.click(screen.getByRole("button", { name: "保存" }));
+    await waitFor(() => expect(h.updateKifuAction).toHaveBeenCalled());
+    const [, kifu] = h.updateKifuAction.mock.calls[0] as [string, Kifu];
+    // 手順は 1巡目 east→south の巡目順（末尾集中しない）。
+    expect(kifu.timeline.filter((e) => e.kind === "discard").map((e) => e.tile)).toEqual([
+      "1m",
+      "2p",
+    ]);
+  });
+
   it("追加ピッカーで鳴き（ポン）を選んで牌を選ぶと、配牌ではなく鳴きが作成される", async () => {
     render(<BoardEditor initialDetail={makeDetail([{ id: "l1" }])} gameId="g1" logId="l1" />);
 

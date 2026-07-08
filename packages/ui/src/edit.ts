@@ -16,6 +16,16 @@ import {
   type Tile,
 } from "@rigel/schema";
 import { SEAT_ORDER } from "./board";
+import { reconcileTimeline } from "./timeline";
+
+/**
+ * 盤面(seats)を編集した後の共通後処理。timeline が非空なら「打牌＝東南西北×巡目順」に
+ * 正規化して同期する（盤面編集が手順ナビに反映されない/消える問題の防止）。空なら何もしない
+ * （deriveTimeline が seats から巡目順に導出するため）。
+ */
+function syncBoardEdit(kifu: Kifu): Kifu {
+  return kifu.timeline.length > 0 ? reconcileTimeline(kifu) : kifu;
+}
 
 function clone(k: Kifu): Kifu {
   return JSON.parse(JSON.stringify(k)) as Kifu;
@@ -136,12 +146,23 @@ export function removeHandTile(kifu: Kifu, seat: Seat, index: number): Kifu {
   return KifuSchema.parse(d);
 }
 
-/** 河の末尾に1枚追加する（order は連番を維持）。 */
-export function addRiverTile(kifu: Kifu, seat: Seat, tile: Tile): Kifu {
+/** 河の末尾に1枚追加する（order は連番を維持）。捨て方(リーチ/ツモ切り)は任意。 */
+export function addRiverTile(
+  kifu: Kifu,
+  seat: Seat,
+  tile: Tile,
+  flags: { riichi?: boolean; tsumogiri?: boolean } = {},
+): Kifu {
   const d = clone(kifu);
   const river = d.seats[seat].river;
-  river.push({ order: river.length + 1, tile, riichi: false, tsumogiri: false, confidence: 1 });
-  return KifuSchema.parse(d);
+  river.push({
+    order: river.length + 1,
+    tile,
+    riichi: flags.riichi ?? false,
+    tsumogiri: flags.tsumogiri ?? false,
+    confidence: 1,
+  });
+  return syncBoardEdit(KifuSchema.parse(d));
 }
 
 /** 河から1枚取り除き、order を 1..n に振り直す（連番を壊さない）。 */
@@ -152,7 +173,7 @@ export function removeRiverTile(kifu: Kifu, seat: Seat, index: number): Kifu {
   river.forEach((discard, i) => {
     discard.order = i + 1;
   });
-  return KifuSchema.parse(d);
+  return syncBoardEdit(KifuSchema.parse(d));
 }
 
 /** 捨牌のリーチ宣言（横向き）/ ツモ切りフラグを切り替える（指定した項目だけ）。 */
@@ -168,7 +189,7 @@ export function setDiscardFlags(
     if (flags.riichi !== undefined) discard.riichi = flags.riichi;
     if (flags.tsumogiri !== undefined) discard.tsumogiri = flags.tsumogiri;
   }
-  return KifuSchema.parse(d);
+  return syncBoardEdit(KifuSchema.parse(d));
 }
 
 /** ピッカー向けの鳴き種別（スキーマの kan_open/closed/added は web 側で選ぶ。既定は明槓）。 */
@@ -221,14 +242,22 @@ export function addMeld(kifu: Kifu, seat: Seat, type: MeldAddType, tile: Tile): 
   });
   const hand = d.seats[seat].hand;
   hand.splice(Math.max(0, hand.length - handTilesUsed(type))); // 末尾から鳴いた枚数を除く
-  return KifuSchema.parse(d);
+  // 新しい鳴きは timeline で「末尾（最新）」に入る（reconcile がアンカー無し=末尾として扱う）。
+  return syncBoardEdit(KifuSchema.parse(d));
 }
 
-/** 鳴きを丸ごと取り除く。 */
+/** 鳴きを丸ごと取り除く。timeline 非空なら対応する鳴きイベントも除去（アンカー整列を維持）。 */
 export function removeMeld(kifu: Kifu, seat: Seat, meldIndex: number): Kifu {
   const d = clone(kifu);
   d.seats[seat].melds.splice(meldIndex, 1);
-  return KifuSchema.parse(d);
+  if (d.timeline.length > 0) {
+    let seen = -1;
+    d.timeline = d.timeline.filter((e) => {
+      if (e.kind === "meld" && e.seat === seat) return ++seen !== meldIndex;
+      return true;
+    });
+  }
+  return syncBoardEdit(KifuSchema.parse(d));
 }
 
 // ------------------------------------------------------------

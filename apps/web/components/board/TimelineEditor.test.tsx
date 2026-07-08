@@ -38,6 +38,23 @@ describe("TimelineEditor", () => {
     expect(screen.getAllByText("手出し").length).toBe(2);
   });
 
+  it("＋打牌は東南西北×巡目を順に埋める（必ず新巡目・東にならない）", () => {
+    const onChange = vi.fn();
+    // 既に 東・南 が入っている → 次の追加は「西」（新巡目・東ではない）。
+    render(
+      <TimelineEditor
+        kifu={kifu([disc("east", "1m"), disc("south", "2p")])}
+        dealer="east"
+        names={NAMES}
+        onChange={onChange}
+      />,
+    );
+    fireEvent.click(screen.getByText("＋打牌"));
+    const next = onChange.mock.calls[0]![0] as Kifu;
+    expect(next.timeline).toHaveLength(3);
+    expect(next.timeline[2]).toMatchObject({ kind: "discard", seat: "west" });
+  });
+
   it("削除するとその打牌を除いた kifu で onChange が呼ばれる", () => {
     const onChange = vi.fn();
     render(

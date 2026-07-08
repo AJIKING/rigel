@@ -136,6 +136,36 @@ describe("KifuEditor（モバイル編集画面）", () => {
     expect(saved.seats.east.river.map((d) => d.order)).toEqual([1]);
   });
 
+  it("timeline が非空でも、盤面で足した捨て牌が保存Kifuの手順(timeline)へ乗る（往復整合）", () => {
+    const onSave = jest.fn();
+    const committed = KifuSchema.parse({
+      ...riverKifu(["1m"]),
+      timeline: [
+        {
+          kind: "discard",
+          seat: "east",
+          draw: null,
+          tile: "1m",
+          tsumogiri: false,
+          riichi: false,
+          confidence: 1,
+        },
+      ],
+    });
+    render(<KifuEditor initialKifu={committed} initialSeq={1} onSave={onSave} />);
+    fireEvent.press(screen.getByText(/プレビュー/)); // 牌ラベルの重複を避けるため畳む
+    fireEvent.press(screen.getByLabelText("河に追加"));
+    fireEvent.press(screen.getByLabelText("3萬"));
+    fireEvent.press(screen.getByText("閉じる"));
+
+    fireEvent.press(screen.getByText("保存"));
+    const saved = onSave.mock.calls[0]![0] as Kifu;
+    // 手順に東:1m→東:3m が反映（timeline 非空でも消えない・追加が乗る）。
+    expect(
+      saved.timeline.filter((e) => e.kind === "discard").map((e) => `${e.seat}:${e.tile}`),
+    ).toEqual(["east:1m", "east:3m"]);
+  });
+
   it("河の牌にリーチ宣言を付けられる", () => {
     const onSave = jest.fn();
     render(<KifuEditor initialKifu={riverKifu(["5p"])} initialSeq={1} onSave={onSave} />);

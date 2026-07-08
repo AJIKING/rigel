@@ -3,11 +3,13 @@
 import { toAbsoluteSeat, type CameraSeat, type Kifu, type Seat, type Tile } from "@rigel/schema";
 import {
   addHandTile,
+  addRiverTile,
   applyResultMode,
   applyTileEdit,
   collectReviewItems,
   deriveWinResult,
   mutateKifu,
+  reconcileTimeline,
   removeDoraTile,
   removeHandTile,
   removeMeld,
@@ -381,12 +383,17 @@ function Editor(p: EditorProps) {
       const owner = toAbsoluteSeat(meldWho, bottomSeat);
       const kanMap = { minkan: "kan_open", ankan: "kan_closed", kakan: "kan_added" } as const;
       const type = meldType === "chi" ? "chi" : meldType === "pon" ? "pon" : kanMap[kanType];
-      mutate((d) =>
-        d.seats[owner].melds.push({
-          type,
-          tiles: meldTiles(meldType, code).map((t) => ({ tile: t, confidence: 1 })),
-          from: null,
-        }),
+      // 鳴きを seats に足したあと、timeline が非空なら同期（reconcileTimeline は空なら no-op）。
+      setKifu(
+        reconcileTimeline(
+          mutateKifu(kifu, (d) =>
+            d.seats[owner].melds.push({
+              type,
+              tiles: meldTiles(meldType, code).map((t) => ({ tile: t, confidence: 1 })),
+              from: null,
+            }),
+          ),
+        ),
       );
       closePop();
       return;
@@ -397,17 +404,8 @@ function Editor(p: EditorProps) {
         // 配牌への追加は理牌込みの共有純関数（mobile と同一挙動）。
         setKifu(addHandTile(kifu, seat, code));
       } else {
-        // 追加ピッカーで選んだ捨て方/リーチをそのまま乗せる。
-        mutate((d) => {
-          const river = d.seats[seat].river;
-          river.push({
-            order: river.length + 1,
-            tile: code,
-            riichi: addRiichi,
-            tsumogiri: addTsumogiri,
-            confidence: 1,
-          });
-        });
+        // 追加ピッカーで選んだ捨て方/リーチをそのまま乗せる（timeline も同期＝共有純関数）。
+        setKifu(addRiverTile(kifu, seat, code, { riichi: addRiichi, tsumogiri: addTsumogiri }));
       }
       closePop();
       return;

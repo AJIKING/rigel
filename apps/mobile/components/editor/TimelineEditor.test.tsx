@@ -42,21 +42,43 @@ describe("TimelineEditor（手順エディタ）", () => {
     expect(k.seats.east.river.map((d) => d.tile)).toEqual(["1m"]);
   });
 
-  it("上へ移動で打牌の順番が入れ替わる（河の並びに反映）", () => {
+  it("上へ移動で打牌の順番が入れ替わる（手順の並びに反映）", () => {
     const spy = jest.fn();
     render(<Harness onKifu={spy} />);
-    // 1手目 1萬
+    // 追加席は東南西北順に埋まる（1手目=東・2手目=南）。手順の並びで検証する。
+    const discTiles = () =>
+      last(spy)
+        .timeline.filter((e) => e.kind === "discard")
+        .map((e) => (e.kind === "discard" ? e.tile : null));
+    // 1手目 1萬（東）
     fireEvent.press(screen.getByText("＋打牌"));
     fireEvent.press(screen.getByLabelText("打牌を選ぶ"));
     fireEvent.press(screen.getByLabelText("1萬"));
-    // 2手目 2萬
+    // 2手目 2萬（南）
     fireEvent.press(screen.getByText("＋打牌"));
     fireEvent.press(screen.getAllByLabelText("打牌を選ぶ")[1]!);
     fireEvent.press(screen.getByLabelText("2萬"));
-    expect(last(spy).seats.east.river.map((d) => d.tile)).toEqual(["1m", "2m"]);
+    expect(discTiles()).toEqual(["1m", "2m"]);
     // 2手目を上へ → [2萬, 1萬]
     fireEvent.press(screen.getAllByLabelText("上へ移動")[1]!);
-    expect(last(spy).seats.east.river.map((d) => d.tile)).toEqual(["2m", "1m"]);
+    expect(discTiles()).toEqual(["2m", "1m"]);
+  });
+
+  it("＋打牌は東南西北×巡目を順に埋める（必ず新巡目・東にならない）", () => {
+    const spy = jest.fn();
+    render(<Harness onKifu={spy} />);
+    const seats = () =>
+      last(spy)
+        .timeline.filter((e) => e.kind === "discard")
+        .map((e) => e.seat);
+    fireEvent.press(screen.getByText("＋打牌")); // 1件目=東
+    expect(seats()).toEqual(["east"]);
+    fireEvent.press(screen.getByText("＋打牌")); // 2件目=南
+    expect(seats()).toEqual(["east", "south"]);
+    fireEvent.press(screen.getByText("＋打牌")); // 3件目=西
+    fireEvent.press(screen.getByText("＋打牌")); // 4件目=北
+    fireEvent.press(screen.getByText("＋打牌")); // 5件目=東（新巡目）
+    expect(seats()).toEqual(["east", "south", "west", "north", "east"]);
   });
 
   it("削除で打牌が消える", () => {

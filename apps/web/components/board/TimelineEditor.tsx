@@ -10,7 +10,13 @@ import {
   type Tile,
   type TimelineEvent,
 } from "@rigel/schema";
-import { deriveTimeline, seatLabel, syncSeatsFromTimeline, timelineTurns } from "@rigel/ui";
+import {
+  deriveTimeline,
+  nextDiscardSeat,
+  seatLabel,
+  syncSeatsFromTimeline,
+  timelineTurns,
+} from "@rigel/ui";
 import { useState } from "react";
 import { OssTileFace } from "../OssTileFace";
 import { NUMS, SEAT_ORDER, SUITS, type Suit } from "../../lib/board";
@@ -125,11 +131,12 @@ export function TimelineEditor({
   }
 
   function addDiscard() {
+    // 追加席は東南西北×巡目を順に埋める（必ず新巡目・東にならないように）。
     commit([
       ...timeline,
       {
         kind: "discard",
-        seat: dealer,
+        seat: nextDiscardSeat(timeline, dealer),
         draw: null,
         tile: null,
         tsumogiri: false,

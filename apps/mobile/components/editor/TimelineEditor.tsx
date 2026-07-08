@@ -9,6 +9,7 @@ import {
 } from "@rigel/schema";
 import {
   deriveTimeline,
+  nextDiscardSeat,
   seatLabel,
   syncSeatsFromTimeline,
   timelineTurns,
@@ -101,11 +102,12 @@ export function TimelineEditor({
   }
 
   function addDiscard() {
+    // 追加席は東南西北×巡目を順に埋める（必ず新巡目・東にならないように）。
     commit([
       ...timeline,
       {
         kind: "discard",
-        seat: dealer,
+        seat: nextDiscardSeat(timeline, dealer),
         draw: null,
         tile: null,
         tsumogiri: false,

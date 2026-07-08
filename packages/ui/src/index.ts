@@ -34,6 +34,7 @@ export * from "./yaku";
 export * from "./standings";
 // 手順（タイムライン）の導出・巡目・盤面同期。
 export * from "./timeline";
+import { reconcileTimeline } from "./timeline";
 // 盤面表示の共有ヘルパ（自風・局名・河の巡送り）。
 export * from "./board";
 // 牌譜の編集操作（追加/削除/フラグ/鳴き）とピッカー素材。
@@ -660,5 +661,8 @@ export function applyTileEdit(kifu: Kifu, loc: TileLocation, tile: Tile | null):
     target.confidence = 1;
     if (loc.area === "hand") board.hand = sortHandTiles(board.hand);
   }
-  return KifuSchema.parse(draft);
+  const next = KifuSchema.parse(draft);
+  // 河・鳴きの牌変更は手順(timeline)にも反映（手牌は timeline に無いので対象外）。
+  // timeline 非空時のみ正規化同期（空なら deriveTimeline が seats から導出）。
+  return loc.area !== "hand" && next.timeline.length > 0 ? reconcileTimeline(next) : next;
 }
