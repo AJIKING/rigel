@@ -66,6 +66,7 @@ export function ViewBoard({
   bottomName = null,
   center,
   highlightRiver = null,
+  points = null,
 }: {
   kifu: Kifu;
   bottomSeat: Seat;
@@ -81,6 +82,8 @@ export function ViewBoard({
   center: React.ReactNode;
   /** 強調する河の1枚（鳴き判断の対象牌）。 */
   highlightRiver?: { seat: Seat; index: number } | null;
+  /** 再生中の点棒。指定時はネームプレートに表示する。 */
+  points?: Record<Seat, number> | null;
 }) {
   return (
     <div className={s.stage} style={{ height: 768 * scale }}>
@@ -120,6 +123,7 @@ export function ViewBoard({
               <div className={s.nameplate}>
                 <span className={s.wd}>{wind}</span>
                 <span className={s.nm}>{name}</span>
+                {points && <span className={s.pts}>{points[seat].toLocaleString()}点</span>}
               </div>
               <div className={s.hand}>
                 {/* 手牌が無い席（何切るの他家）は透明スペーサで席の外形を牌譜と同じにする。

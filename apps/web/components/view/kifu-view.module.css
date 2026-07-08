@@ -303,6 +303,12 @@
   font-size: 13px;
   color: var(--w85);
 }
+.nameplate .pts {
+  font-weight: 800;
+  font-size: 12px;
+  color: var(--orange);
+  font-variant-numeric: tabular-nums;
+}
 .center {
   position: absolute;
   left: 50%;
@@ -335,6 +341,16 @@
   font-size: 13px;
   font-weight: 700;
   color: var(--w85);
+}
+.center .draw {
+  margin-top: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--orange);
 }
 
 /* tile (OSS 画像コンテナ) */

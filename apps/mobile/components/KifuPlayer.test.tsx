@@ -130,6 +130,61 @@ describe("KifuPlayer", () => {
     expect(tiles.map((t) => t.props.accessibilityLabel)).toEqual(["1萬", "中"]);
   });
 
+  it("再生中の手牌は配牌とtimelineから導出する（手出しで手牌から捨て牌が消える）", () => {
+    const k = makeKifu(
+      {
+        east: {
+          hand: [
+            { tile: "1m", confidence: 1 },
+            { tile: "2m", confidence: 1 },
+          ],
+        },
+      },
+      {
+        timeline: [
+          {
+            kind: "discard",
+            seat: "east",
+            draw: "3m",
+            tile: "1m",
+            tsumogiri: false,
+            riichi: false,
+            confidence: 1,
+          },
+        ],
+      },
+    );
+    render(<KifuPlayer logs={[log(1, k)]} />);
+
+    // 1萬は手牌からは消えるが、河に1枚だけ残る。
+    expect(screen.getAllByLabelText("1萬")).toHaveLength(1);
+    expect(screen.getByLabelText("2萬")).toBeTruthy();
+    expect(screen.getByLabelText("3萬")).toBeTruthy();
+  });
+
+  it("リーチ宣言牌まで再生すると供託が増える", () => {
+    const k = makeKifu(
+      { east: { hand: [{ tile: "1m", confidence: 1 }] } },
+      {
+        meta: { dealer: "east", kyotaku: 0 },
+        timeline: [
+          {
+            kind: "discard",
+            seat: "east",
+            draw: null,
+            tile: "1m",
+            tsumogiri: false,
+            riichi: true,
+            confidence: 1,
+          },
+        ],
+      },
+    );
+    render(<KifuPlayer logs={[log(1, k)]} />);
+
+    expect(screen.getByText("供託 1本")).toBeTruthy();
+  });
+
   it("手牌トグルで相手の手牌が表(牌)/裏に切り替わる", () => {
     render(<KifuPlayer logs={[log(1, kifuOppHand())]} />);
     // 既定は相手手牌を裏向き（發は出ない）。

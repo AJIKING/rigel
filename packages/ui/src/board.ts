@@ -2,6 +2,7 @@
 // web/mobile 両ビューアが同じ「席の自風・局名・河の巡送り」ロジックを共有する。
 
 import type { Agari, Kifu, Seat } from "@rigel/schema";
+import { deriveTimeline } from "./timeline";
 
 /** 局結果コード（スキーマの ResultSchema と一致。型が未エクスポートのためここで定義）。 */
 export type KifuResult = "ron" | "tsumo" | "draw";
@@ -64,6 +65,15 @@ export interface RiverPlayback {
  * 東→南→西→北 を親から回し、その巡にその席の打牌があれば並べる。
  */
 export function buildRiverPlayback(kifu: Kifu, dealer: Seat): RiverPlayback {
+  if (kifu.timeline.length > 0) {
+    const order = deriveTimeline(kifu).flatMap((e) => (e.kind === "discard" ? [e.seat] : []));
+    const counts: Record<Seat, number> = { east: 0, south: 0, west: 0, north: 0 };
+    for (const seat of order) counts[seat]++;
+    const maxTurn = Math.max(0, ...SEAT_ORDER.map((p) => counts[p]));
+    const junmeStops = order.map((p, i) => (p === dealer ? i + 1 : -1)).filter((x) => x >= 0);
+    return { order, junmeStops, maxTurn };
+  }
+
   const windSeq = Array.from(
     { length: 4 },
     (_, i) => SEAT_ORDER[(SEAT_ORDER.indexOf(dealer) + i) % 4]!,

@@ -2,9 +2,12 @@ import type { GameLog } from "@rigel/client";
 import type { Kifu, Seat } from "@rigel/schema";
 import {
   buildRiverPlayback,
+  buildPlaybackState,
+  playbackStateToKifu,
   resultLabel,
   revealCounts,
   roundNameForSeq,
+  standings,
   windOf,
   SEAT_ORDER,
 } from "@rigel/ui";
@@ -68,6 +71,22 @@ export function KifuPlayer({
   );
   const shown = reveal < 0 || reveal > order.length ? order.length : reveal;
   const revealed = useMemo(() => revealCounts(order, shown), [order, shown]);
+  // 表示する点棒は「局の開始時点」で固定（standings＝開始点＋直前までの局の増減）。
+  const startPoints = useMemo(
+    () =>
+      kifu
+        ? standings(
+            logs.slice(0, gi).map((l) => l.kifu),
+            kifu.rules,
+          )
+        : null,
+    [gi, kifu, logs],
+  );
+  const playback = useMemo(() => (kifu ? buildPlaybackState(kifu, shown) : null), [kifu, shown]);
+  const viewKifu = useMemo(
+    () => (kifu && playback ? playbackStateToKifu(kifu, playback) : undefined),
+    [kifu, playback],
+  );
   const atEnd = order.length > 0 && reveal >= order.length;
 
   // 末尾から離れたら「和了シートを閉じた」フラグを解除し、再び末尾に達したとき出せるようにする
@@ -76,7 +95,7 @@ export function KifuPlayer({
     if (!atEnd) setAgariClosed(false);
   }, [atEnd]);
 
-  if (!log || !kifu) return <CenterState message="この半荘には局がありません。" />;
+  if (!log || !kifu || !viewKifu) return <CenterState message="この半荘には局がありません。" />;
 
   const roundLabel = roundNameForSeq(log.seq);
   const showAgari = atEnd && kifu.agari.length > 0 && !agariClosed;
@@ -141,14 +160,15 @@ export function KifuPlayer({
       {/* 盤面 */}
       <View style={styles.stage}>
         <BoardTable
-          kifu={kifu}
+          kifu={viewKifu}
           bottomSeat={bottomSeat}
           dealer={dealer}
           roundLabel={roundLabel}
-          revealed={revealed}
           showHands={showHands}
           ownerName={ownerName}
           size={boardSize}
+          points={startPoints}
+          activeDraw={reveal >= 0 ? (playback?.activeDraw ?? null) : null}
         />
       </View>
 
@@ -215,10 +235,10 @@ export function KifuPlayer({
             <View style={styles.kv}>
               <Text style={styles.kvK}>ドラ</Text>
               <View style={styles.kvTiles}>
-                {kifu.meta.dora.length === 0 ? (
+                {viewKifu.meta.dora.length === 0 ? (
                   <Text style={styles.kvV}>—</Text>
                 ) : (
-                  kifu.meta.dora.map((t, i) => (
+                  viewKifu.meta.dora.map((t, i) => (
                     <MiniTile key={`${t}-${i}`} code={t} w={20} h={28} />
                   ))
                 )}
@@ -227,23 +247,25 @@ export function KifuPlayer({
             <View style={styles.kv}>
               <Text style={styles.kvK}>裏ドラ</Text>
               <View style={styles.kvTiles}>
-                {kifu.meta.uraDora.length === 0 ? (
+                {viewKifu.meta.uraDora.length === 0 ? (
                   <Text style={styles.kvV}>—</Text>
                 ) : (
-                  kifu.meta.uraDora.map((t, i) => (
+                  viewKifu.meta.uraDora.map((t, i) => (
                     <MiniTile key={`${t}-${i}`} code={t} w={20} h={28} />
                   ))
                 )}
               </View>
             </View>
-            <KV k="本場 / 供託" v={`${kifu.meta.honba}本場 / ${kifu.meta.kyotaku}`} />
-            <KV k="結果" v={resultLabel(kifu.result)} />
+            <KV k="本場 / 供託" v={`${viewKifu.meta.honba}本場 / ${viewKifu.meta.kyotaku}`} />
+            <KV k="結果" v={resultLabel(viewKifu.result)} />
             <Text style={styles.h3}>各家</Text>
             {SEAT_ORDER.map((seat) => (
               <KV
                 key={seat}
                 k={`${windOf(seat, dealer)}家`}
-                v={`手牌${kifu.seats[seat].hand.length}枚 / 河${kifu.seats[seat].river.length}`}
+                v={`手牌${viewKifu.seats[seat].hand.length}枚 / 河${viewKifu.seats[seat].river.length}${
+                  startPoints ? ` / ${startPoints[seat].toLocaleString()}点` : ""
+                }`}
               />
             ))}
           </ScrollView>
@@ -253,7 +275,7 @@ export function KifuPlayer({
       {/* 和了演出 */}
       {showAgari ? (
         <AgariSheet
-          kifu={kifu}
+          kifu={viewKifu}
           dealer={dealer}
           ownerName={ownerName}
           onClose={() => setAgariClosed(true)}

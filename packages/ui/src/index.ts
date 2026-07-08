@@ -35,6 +35,8 @@ export * from "./standings";
 // 手順（タイムライン）の導出・巡目・盤面同期。
 export * from "./timeline";
 import { reconcileTimeline } from "./timeline";
+// 再生ステップごとの局面導出。
+export * from "./playback";
 // 盤面表示の共有ヘルパ（自風・局名・河の巡送り）。
 export * from "./board";
 // 牌譜の編集操作（追加/削除/フラグ/鳴き）とピッカー素材。

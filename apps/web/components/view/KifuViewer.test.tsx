@@ -126,6 +126,64 @@ describe("KifuViewer", () => {
     expect(alts).toEqual(["1萬", "9索", "東"]);
   });
 
+  it("再生中の手牌は配牌とtimelineから導出する（手出しで手牌から捨て牌が消える）", () => {
+    const d = detail([
+      makeKifu(
+        {
+          east: {
+            hand: [
+              { tile: "1m", confidence: 1 },
+              { tile: "2m", confidence: 1 },
+            ],
+          },
+        },
+        {
+          timeline: [
+            {
+              kind: "discard",
+              seat: "east",
+              draw: "3m",
+              tile: "1m",
+              tsumogiri: false,
+              riichi: false,
+              confidence: 1,
+            },
+          ],
+        },
+      ),
+    ]);
+    const { container } = renderViewer(d);
+    const alts = Array.from(container.querySelectorAll('[data-tile="hand"] img'))
+      .map((img) => img.getAttribute("alt"))
+      .filter((alt) => alt);
+    expect(alts).toEqual(["2萬", "3萬"]);
+  });
+
+  it("リーチ宣言牌まで再生すると供託が増える", () => {
+    renderViewer(
+      detail([
+        makeKifu(
+          { east: { hand: [{ tile: "1m", confidence: 1 }] } },
+          {
+            meta: { dealer: "east", kyotaku: 0 },
+            timeline: [
+              {
+                kind: "discard",
+                seat: "east",
+                draw: null,
+                tile: "1m",
+                tsumogiri: false,
+                riichi: true,
+                confidence: 1,
+              },
+            ],
+          },
+        ),
+      ]),
+    );
+    expect(screen.getByText("1本")).toBeTruthy();
+  });
+
   it("公開の半荘は「公開」バッジと共有ボタンを出す", () => {
     renderViewer(detail([kifu()]));
     expect(screen.getByText("公開")).toBeTruthy();

@@ -1,4 +1,4 @@
-import { toAbsoluteSeat, type CameraSeat, type Kifu, type Seat } from "@rigel/schema";
+import { toAbsoluteSeat, type CameraSeat, type Kifu, type Seat, type Tile } from "@rigel/schema";
 import { chunk, seatResult, sortHandTiles, windOf } from "@rigel/ui";
 import { Pressable, StyleSheet, Text, View, type ViewStyle } from "react-native";
 import { colors } from "../lib/theme";
@@ -40,6 +40,8 @@ export function BoardTable({
   selectedSeat,
   onSeatPress,
   highlightRiver = null,
+  points = null,
+  activeDraw = null,
 }: {
   kifu: Kifu;
   bottomSeat: Seat;
@@ -56,6 +58,10 @@ export function BoardTable({
   onSeatPress?: (seat: Seat) => void;
   /** 強調する河の1枚（何切るの鳴き判断の対象牌。web の highlightRiver と同じ意図）。 */
   highlightRiver?: { seat: Seat; index: number } | null;
+  /** 再生中の点棒。指定時はネームプレートに表示する。 */
+  points?: Record<Seat, number> | null;
+  /** 再生操作中の直近ツモ牌。 */
+  activeDraw?: { seat: Seat; tile: Tile | null } | null;
 }) {
   const B = size;
   const rt = B * GEO.riverTileW;
@@ -145,6 +151,7 @@ export function BoardTable({
               <Text style={styles.nm} numberOfLines={1}>
                 {name}
               </Text>
+              {points ? <Text style={styles.pts}>{points[seat].toLocaleString()}点</Text> : null}
               {seatResult(kifu.agari, seat) ? (
                 <Text style={[styles.sc, seatResult(kifu.agari, seat) === "放銃" && styles.scLose]}>
                   {seatResult(kifu.agari, seat)}
@@ -174,6 +181,12 @@ export function BoardTable({
           {kifu.meta.honba > 0 ? <Text style={styles.sub}>{kifu.meta.honba}本場</Text> : null}
         </View>
         {kifu.meta.kyotaku > 0 ? <Text style={styles.sub}>供託 {kifu.meta.kyotaku}本</Text> : null}
+        {activeDraw ? (
+          <View style={styles.draw}>
+            <Text style={styles.drawLbl}>ツモ</Text>
+            <MiniTile code={activeDraw.tile} w={B * 0.05} h={B * 0.07} />
+          </View>
+        ) : null}
         {kifu.meta.dora.length > 0 ? (
           <View style={styles.dora}>
             <Text style={styles.doraLbl}>ドラ</Text>
@@ -218,6 +231,7 @@ const styles = StyleSheet.create({
   },
   wdWin: { backgroundColor: colors.accent, color: "#16181d" },
   nm: { color: "rgba(255,255,255,0.9)", fontSize: 10, fontWeight: "700", maxWidth: 90 },
+  pts: { color: colors.accent, fontSize: 9.5, fontWeight: "800" },
   sc: {
     color: colors.accent,
     fontSize: 9.5,
@@ -243,6 +257,14 @@ const styles = StyleSheet.create({
     color: "rgba(255,255,255,0.9)",
     fontWeight: "700",
     fontSize: 10.5,
+    textShadowColor: "rgba(0,0,0,0.5)",
+    textShadowRadius: 4,
+  },
+  draw: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 3 },
+  drawLbl: {
+    color: colors.accent,
+    fontWeight: "800",
+    fontSize: 9.5,
     textShadowColor: "rgba(0,0,0,0.5)",
     textShadowRadius: 4,
   },

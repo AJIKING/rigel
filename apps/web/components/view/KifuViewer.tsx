@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { type PublicGameDetail } from "../../lib/api";
 import { useAuth } from "../../lib/auth-context";
-import { resultLabel } from "@rigel/ui";
+import { buildPlaybackState, playbackStateToKifu, resultLabel, standings } from "@rigel/ui";
 import {
   SEAT_ORDER,
   buildRiverPlayback,
@@ -99,6 +99,23 @@ export function KifuViewer({ detail, gameId }: { detail: PublicGameDetail; gameI
 
   const shown = reveal < 0 || reveal > order.length ? order.length : reveal;
   const revealed = useMemo(() => revealCounts(order, shown), [order, shown]);
+  // 表示する点棒は「局の開始時点」で固定（この局の途中増減は出さない）。
+  // 開始点 = 開始持ち点 ＋ 直前までの局の増減（standings）。
+  const startPoints = useMemo(
+    () =>
+      kifu
+        ? standings(
+            detail.logs.slice(0, gi).map((l) => l.kifu),
+            kifu.rules,
+          )
+        : null,
+    [detail.logs, gi, kifu],
+  );
+  const playback = useMemo(() => (kifu ? buildPlaybackState(kifu, shown) : null), [kifu, shown]);
+  const viewKifu = useMemo(
+    () => (kifu && playback ? playbackStateToKifu(kifu, playback) : undefined),
+    [kifu, playback],
+  );
 
   // 上がりは「再生して末尾に達したとき」だけ出す。初期の全表示(reveal=-1)では出さない
   // （リロード時に一瞬ポップするのを防ぐ）。reveal が実インデックスで末尾以上のときのみ。
@@ -119,7 +136,7 @@ export function KifuViewer({ detail, gameId }: { detail: PublicGameDetail; gameI
   }
 
   // 取得・not-found は Server Component 側で処理済み。ここは局が空のときだけ守る。
-  if (!log || !kifu)
+  if (!log || !kifu || !viewKifu)
     return (
       <Shell>
         <p className={s.notice}>
@@ -134,7 +151,7 @@ export function KifuViewer({ detail, gameId }: { detail: PublicGameDetail; gameI
   const isPrivate = detail.logs[0]?.visibility === "private";
   const curJunme = Math.max(1, revealed[dealer]); // 巡目は最小1（0巡を出さない）
   // 和了（ロン/ツモ）のときだけ裏ドラを出す（リーチ和了で意味を持つため）。
-  const isWin = kifu.result === "ron" || kifu.result === "tsumo";
+  const isWin = viewKifu?.result === "ron" || viewKifu?.result === "tsumo";
 
   function onShare() {
     const url = typeof window !== "undefined" ? window.location.href : "";
@@ -228,17 +245,32 @@ export function KifuViewer({ detail, gameId }: { detail: PublicGameDetail; gameI
           <div className={s.boardcol}>
             {/* 卓の描画は ViewBoard（何切ると共有）。 */}
             <ViewBoard
-              kifu={kifu}
+              kifu={viewKifu}
               bottomSeat={bottomSeat}
               dealer={dealer}
               scale={scale}
-              revealed={revealed}
               hideOpp={hideOpp}
               bottomName={detail.owner.displayName || detail.owner.handle}
+              points={startPoints}
               center={
-                <div className={s.rd}>
-                  {round} <span className={s.hb}>{kifu.meta.honba}本場</span>
-                </div>
+                <>
+                  <div className={s.rd}>
+                    {round} <span className={s.hb}>{viewKifu.meta.honba}本場</span>
+                  </div>
+                  {viewKifu.meta.kyotaku > 0 && (
+                    <div className={s.kyotaku}>
+                      供託 <b>{viewKifu.meta.kyotaku}</b>本
+                    </div>
+                  )}
+                  {reveal >= 0 && playback?.activeDraw && (
+                    <div className={s.draw}>
+                      <span>ツモ</span>
+                      <span className={s.metaTile}>
+                        <OssTileFace code={playback.activeDraw.tile} />
+                      </span>
+                    </div>
+                  )}
+                </>
               }
             />
 
@@ -358,7 +390,7 @@ export function KifuViewer({ detail, gameId }: { detail: PublicGameDetail; gameI
           </div>
 
           {atEnd && kifu.agari.length > 0 && !agariClosed && (
-            <AgariOverlay kifu={kifu} dealer={dealer} onClose={() => setAgariClosed(true)} />
+            <AgariOverlay kifu={viewKifu} dealer={dealer} onClose={() => setAgariClosed(true)} />
           )}
         </div>
 
@@ -415,19 +447,18 @@ export function KifuViewer({ detail, gameId }: { detail: PublicGameDetail; gameI
               </div>
               <div className={s.irow}>
                 <span>本場</span>
-                <b>{kifu.meta.honba}本場</b>
+                <b>{viewKifu.meta.honba}本場</b>
               </div>
               <div className={s.irow}>
                 <span>供託</span>
-                <b>{kifu.meta.kyotaku}本</b>
+                <b>{viewKifu.meta.kyotaku}本</b>
               </div>
-              <DoraRow label="ドラ" codes={kifu.meta.dora} />
+              <DoraRow label="ドラ" codes={viewKifu.meta.dora} />
               <div className={s.irow}>
                 <span>結果</span>
-                <b>{resultLabel(kifu.result)}</b>
+                <b>{resultLabel(viewKifu.result)}</b>
               </div>
-              {isWin && <DoraRow label="裏ドラ" codes={kifu.meta.uraDora} />}
-              <p className={s.muted}>点数は記録しません。</p>
+              {isWin && <DoraRow label="裏ドラ" codes={viewKifu.meta.uraDora} />}
             </div>
 
             <div className={s.ssec}>
@@ -436,7 +467,8 @@ export function KifuViewer({ detail, gameId }: { detail: PublicGameDetail; gameI
                 <div key={seat} className={s.arow}>
                   <span className={s.an}>{windOf(seat, dealer)}家</span>
                   <span className={s.ar}>
-                    {kifu.seats[seat].hand.length}枚 / 河{kifu.seats[seat].river.length}
+                    {viewKifu.seats[seat].hand.length}枚 / 河{viewKifu.seats[seat].river.length}
+                    {startPoints && ` / ${startPoints[seat].toLocaleString()}点`}
                   </span>
                 </div>
               ))}
