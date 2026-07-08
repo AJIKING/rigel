@@ -197,6 +197,95 @@ describe("KifuViewer", () => {
     expect(screen.queryByText("共有")).toBeNull();
   });
 
+  it("1手進めたときだけ直近の打牌に drop-in 演出が付く（初期全表示・巡目ジャンプでは付かない）", () => {
+    // 東2打・南1打（親=東）。打牌順は 東→南→東、巡目区切りは [1, 3]。
+    const riverTile = (order: number, tile: string) => ({ order, tile, confidence: 1 });
+    const d = detail([
+      makeKifu({
+        east: { river: [riverTile(1, "1m"), riverTile(2, "2m")] },
+        south: { river: [riverTile(1, "5p")] },
+      }),
+    ]);
+    const { container } = renderViewer(d);
+
+    // 初期の全表示（reveal=-1）では演出しない（リロード時に毎回動くのを防ぐ）。
+    expect(container.querySelector("[data-drop]")).toBeNull();
+
+    // 先頭へ戻す（3→2→1→0手）。戻る操作では演出しない。
+    fireEvent.click(screen.getByLabelText("1手戻る"));
+    fireEvent.click(screen.getByLabelText("1手戻る"));
+    fireEvent.click(screen.getByLabelText("1手戻る"));
+    expect(container.querySelector("[data-drop]")).toBeNull();
+
+    // 1手進む（0→1）: 置かれた打牌1枚だけに演出が付く。
+    fireEvent.click(screen.getByLabelText("1手進む"));
+    expect(container.querySelectorAll("[data-drop]")).toHaveLength(1);
+
+    // 次の巡目（1→3 の2手ジャンプ）: 演出しない。
+    fireEvent.click(screen.getByLabelText("次の巡目"));
+    expect(container.querySelector("[data-drop]")).toBeNull();
+  });
+
+  it("1手進めたとき、手牌に入ったツモ牌にフライイン演出が付く（ツモ切りは付けない）", () => {
+    const d = detail([
+      makeKifu(
+        {
+          east: {
+            hand: [
+              { tile: "1m", confidence: 1 },
+              { tile: "9p", confidence: 1 },
+            ],
+          },
+        },
+        {
+          timeline: [
+            // 1手目: 3m をツモって 1m を手出し → 手牌 [3m, 9p]（理牌）。
+            {
+              kind: "discard",
+              seat: "east",
+              draw: "3m",
+              tile: "1m",
+              tsumogiri: false,
+              riichi: false,
+              confidence: 1,
+            },
+            // 2手目: 4m をツモ切り → 手牌は変わらない。
+            {
+              kind: "discard",
+              seat: "east",
+              draw: "4m",
+              tile: "4m",
+              tsumogiri: true,
+              riichi: false,
+              confidence: 1,
+            },
+          ],
+        },
+      ),
+    ]);
+    const { container } = renderViewer(d);
+
+    // 初期の全表示では演出しない。
+    expect(container.querySelector("[data-draw]")).toBeNull();
+
+    // 先頭へ戻して1手進む（手出し）: ツモ牌 3萬 にフライインが付く。
+    fireEvent.click(screen.getByLabelText("1手戻る"));
+    fireEvent.click(screen.getByLabelText("1手戻る"));
+    fireEvent.click(screen.getByLabelText("1手進む"));
+    const drawn = container.querySelectorAll("[data-draw]");
+    expect(drawn).toHaveLength(1);
+    // OssTileFace は台座 Front.svg（alt=""）＋柄の2枚。柄の alt で牌種を確認する。
+    const alts = Array.from(drawn[0]!.querySelectorAll("img"))
+      .map((img) => img.getAttribute("alt"))
+      .filter((alt) => alt);
+    expect(alts).toEqual(["3萬"]);
+
+    // もう1手進む（ツモ切り）: 手牌のフライインは無し。河の drop だけ。
+    fireEvent.click(screen.getByLabelText("1手進む"));
+    expect(container.querySelector("[data-draw]")).toBeNull();
+    expect(container.querySelectorAll("[data-drop]")).toHaveLength(1);
+  });
+
   it("本場は牌譜の実データを表示する（ハードコードしない）", () => {
     renderViewer(detail([makeKifu({}, { meta: { dealer: "east", honba: 2 } })]));
     // 卓中央・サイドパネルとも実データ（2本場）。ハードコードの「0本場」が残っていないこと。

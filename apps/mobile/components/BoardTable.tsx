@@ -1,6 +1,7 @@
 import { toAbsoluteSeat, type CameraSeat, type Kifu, type Seat, type Tile } from "@rigel/schema";
 import { chunk, seatResult, sortHandTiles, windOf } from "@rigel/ui";
-import { Pressable, StyleSheet, Text, View, type ViewStyle } from "react-native";
+import { useEffect, useRef } from "react";
+import { Animated, Easing, Pressable, StyleSheet, Text, View, type ViewStyle } from "react-native";
 import { colors } from "../lib/theme";
 import { MiniTile } from "./MiniTile";
 
@@ -16,6 +17,52 @@ const ROT: Record<CameraSeat, string> = {
  * 回転卓のジオメトリ（すべて盤面サイズ B に対する比率）。実機での見た目調整は
  * まずここを触る（席の大きさ・中心からの距離・牌の寸法を一括で管理する）。
  */
+/** 牌の登場演出（マウント時に一度だけ再生。対象牌ごとに key を変えて掛け直す）。
+ *  席コンテナごと回転しているため、席ローカルの +Y=手牌側 / -Y=卓中央側。
+ *  - 打牌 drop-in: distance>0（手牌側から河へ落ちる）
+ *  - ツモ fly-in : distance<0（中央方向から手牌へ飛んでくる） */
+function TileFx({
+  children,
+  distance,
+  fromOpacity,
+  fromScale,
+  delay = 0,
+  testID,
+}: {
+  children: React.ReactNode;
+  distance: number;
+  fromOpacity: number;
+  fromScale: number;
+  /** ツモ→打牌の順に見せるための開始遅延（ms）。 */
+  delay?: number;
+  testID: string;
+}) {
+  const v = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    Animated.timing(v, {
+      toValue: 1,
+      duration: 220,
+      delay,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    }).start();
+  }, [delay, v]);
+  return (
+    <Animated.View
+      testID={testID}
+      style={{
+        opacity: v.interpolate({ inputRange: [0, 1], outputRange: [fromOpacity, 1] }),
+        transform: [
+          { translateY: v.interpolate({ inputRange: [0, 1], outputRange: [distance, 0] }) },
+          { scale: v.interpolate({ inputRange: [0, 1], outputRange: [fromScale, 1] }) },
+        ],
+      }}
+    >
+      {children}
+    </Animated.View>
+  );
+}
+
 const GEO = {
   riverTileW: 0.043, // 河牌の幅
   handTileW: 0.049, // 手牌の幅
@@ -42,6 +89,8 @@ export function BoardTable({
   highlightRiver = null,
   points = null,
   activeDraw = null,
+  animateDiscard = null,
+  animateDraw = null,
 }: {
   kifu: Kifu;
   bottomSeat: Seat;
@@ -62,6 +111,11 @@ export function BoardTable({
   points?: Record<Seat, number> | null;
   /** 再生操作中の直近ツモ牌。 */
   activeDraw?: { seat: Seat; tile: Tile | null } | null;
+  /** drop-in 演出を付ける河の1枚（いま置かれた打牌）。1手進めたときだけ渡す。 */
+  animateDiscard?: { seat: Seat; index: number } | null;
+  /** フライイン演出を付ける手牌の1枚（理牌後の位置）。ツモ→打牌の順に見せるため
+   *  指定時は同席の drop を遅延させる。 */
+  animateDraw?: { seat: Seat; index: number } | null;
 }) {
   const B = size;
   const rt = B * GEO.riverTileW;
@@ -130,19 +184,38 @@ export function BoardTable({
             <View style={[styles.river, { minHeight: rtHt * 1.6 }]}>
               {chunk(river, 6).map((row, ri) => (
                 <View key={ri} style={styles.rrow}>
-                  {row.map((d, ci) => (
-                    <MiniTile
-                      key={ci}
-                      code={d.tile}
-                      w={rtW}
-                      h={rtHt}
-                      riichi={d.riichi}
-                      tsumogiri={d.tsumogiri}
-                      highlight={
-                        highlightRiver?.seat === seat && highlightRiver.index === ri * 6 + ci
-                      }
-                    />
-                  ))}
+                  {row.map((d, ci) => {
+                    const tile = (
+                      <MiniTile
+                        key={ci}
+                        code={d.tile}
+                        w={rtW}
+                        h={rtHt}
+                        riichi={d.riichi}
+                        tsumogiri={d.tsumogiri}
+                        highlight={
+                          highlightRiver?.seat === seat && highlightRiver.index === ri * 6 + ci
+                        }
+                      />
+                    );
+                    const drop =
+                      animateDiscard?.seat === seat && animateDiscard.index === ri * 6 + ci;
+                    // 対象牌ごとに key を変え、TileFx をマウントし直して演出を掛ける。
+                    return drop ? (
+                      <TileFx
+                        key={`d${ri * 6 + ci}`}
+                        testID="drop-tile"
+                        distance={rtHt * 0.5}
+                        fromOpacity={0.25}
+                        fromScale={1.15}
+                        delay={animateDraw?.seat === seat ? 140 : 0}
+                      >
+                        {tile}
+                      </TileFx>
+                    ) : (
+                      tile
+                    );
+                  })}
                 </View>
               ))}
             </View>
@@ -160,9 +233,25 @@ export function BoardTable({
             </View>
             <View style={styles.hand}>
               {/* 表示は理牌（保存順が乱れた既存データも萬→筒→索→字で見せる）。 */}
-              {sortHandTiles(board.hand).map((h, hi) => (
-                <MiniTile key={hi} code={hand ? h.tile : null} w={htW} h={htHt} back={!hand} />
-              ))}
+              {sortHandTiles(board.hand).map((h, hi) => {
+                const tile = (
+                  <MiniTile key={hi} code={hand ? h.tile : null} w={htW} h={htHt} back={!hand} />
+                );
+                // ツモ牌のフライイン（中央方向→手牌）。手牌が見えている席だけ。
+                return hand && animateDraw?.seat === seat && animateDraw.index === hi ? (
+                  <TileFx
+                    key={`f${hi}`}
+                    testID="draw-tile"
+                    distance={-B * 0.32}
+                    fromOpacity={0}
+                    fromScale={0.72}
+                  >
+                    {tile}
+                  </TileFx>
+                ) : (
+                  tile
+                );
+              })}
               {board.melds.map((m, mi) => (
                 <View key={`m${mi}`} style={styles.meld}>
                   {m.tiles.map((t, ti) => (

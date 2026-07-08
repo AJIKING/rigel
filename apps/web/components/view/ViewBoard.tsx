@@ -21,6 +21,9 @@ export function ViewTile({
   tsumogiri,
   back,
   highlight,
+  drop,
+  dropDelayed,
+  flyIn,
 }: {
   code?: Tile | null;
   kind?: "river" | "meld";
@@ -29,6 +32,12 @@ export function ViewTile({
   back?: boolean;
   /** 強調表示（鳴き判断の対象牌など）。 */
   highlight?: boolean;
+  /** 打牌の drop-in 演出（いま河に置かれた1枚）。 */
+  drop?: boolean;
+  /** drop をツモ演出の後に遅らせる（ツモ→打牌の順に見せる）。 */
+  dropDelayed?: boolean;
+  /** ツモ牌のフライイン演出（中央方向から手牌へ入った1枚）。 */
+  flyIn?: boolean;
 }) {
   const cls = [
     s.tile,
@@ -38,14 +47,23 @@ export function ViewTile({
     tsumogiri ? s.tsumogiri : "",
     back ? s.back : "",
     highlight ? s.target : "",
+    drop ? s.drop : "",
+    drop && dropDelayed ? s.dropDelay : "",
+    flyIn ? s.flyIn : "",
   ]
     .filter(Boolean)
     .join(" ");
   // data-tile はレイアウト検証（Playwright）用の安定セレクタ。CSS Module クラスは
   // ハッシュ化されるため、牌の矩形を測るためのフックとして付ける。
-  if (back) return <span className={cls} data-tile={kind ?? "hand"} />;
+  // data-drop / data-draw も同様に、演出対象の検証用フック。
+  const dataDrop = drop ? "" : undefined;
+  const dataDraw = flyIn ? "" : undefined;
+  if (back)
+    return (
+      <span className={cls} data-tile={kind ?? "hand"} data-drop={dataDrop} data-draw={dataDraw} />
+    );
   return (
-    <span className={cls} data-tile={kind ?? "hand"}>
+    <span className={cls} data-tile={kind ?? "hand"} data-drop={dataDrop} data-draw={dataDraw}>
       <OssTileFace code={code ?? null} />
     </span>
   );
@@ -67,6 +85,8 @@ export function ViewBoard({
   center,
   highlightRiver = null,
   points = null,
+  animateDiscard = null,
+  animateDraw = null,
 }: {
   kifu: Kifu;
   bottomSeat: Seat;
@@ -84,6 +104,11 @@ export function ViewBoard({
   highlightRiver?: { seat: Seat; index: number } | null;
   /** 再生中の点棒。指定時はネームプレートに表示する。 */
   points?: Record<Seat, number> | null;
+  /** drop-in 演出を付ける河の1枚（いま置かれた打牌）。1手進めたときだけ渡す。 */
+  animateDiscard?: { seat: Seat; index: number } | null;
+  /** フライイン演出を付ける手牌の1枚（理牌後の位置）。ツモ→打牌の順に見せるため
+   *  指定時は同席の drop を遅延させる。 */
+  animateDraw?: { seat: Seat; index: number } | null;
 }) {
   return (
     <div className={s.stage} style={{ height: 768 * scale }}>
@@ -115,6 +140,8 @@ export function ViewBoard({
                         highlight={
                           highlightRiver?.seat === seat && highlightRiver.index === ri * 6 + ci
                         }
+                        drop={animateDiscard?.seat === seat && animateDiscard.index === ri * 6 + ci}
+                        dropDelayed={animateDraw?.seat === seat}
                       />
                     ))}
                   </div>
@@ -134,7 +161,13 @@ export function ViewBoard({
                 )}
                 {back
                   ? handShown.map((_, hi) => <ViewTile key={hi} back />)
-                  : handShown.map((h, hi) => <ViewTile key={hi} code={h.tile} />)}
+                  : handShown.map((h, hi) => (
+                      <ViewTile
+                        key={hi}
+                        code={h.tile}
+                        flyIn={animateDraw?.seat === seat && animateDraw.index === hi}
+                      />
+                    ))}
                 {board.melds.length > 0 && (
                   <div className={s.melds}>
                     {board.melds.map((md, mi) => (

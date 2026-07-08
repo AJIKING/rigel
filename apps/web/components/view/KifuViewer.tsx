@@ -1,18 +1,12 @@
 "use client";
 
-import { type Kifu, type Seat, type Tile } from "@rigel/schema";
+import { type Kifu, type Tile } from "@rigel/schema";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { type PublicGameDetail } from "../../lib/api";
 import { useAuth } from "../../lib/auth-context";
-import { buildPlaybackState, playbackStateToKifu, resultLabel, standings } from "@rigel/ui";
-import {
-  SEAT_ORDER,
-  buildRiverPlayback,
-  revealCounts,
-  roundNameForSeq,
-  windOf,
-} from "../../lib/board";
+import { buildPlaybackFrame, drawnTileIndex, resultLabel } from "@rigel/ui";
+import { SEAT_ORDER, roundNameForSeq, windOf } from "../../lib/board";
 import { useBoardScale } from "../../lib/use-board-scale";
 import { fmtDate } from "../../lib/format";
 import { useFavorites } from "../../lib/use-favorites";
@@ -81,45 +75,40 @@ export function KifuViewer({ detail, gameId }: { detail: PublicGameDetail; gameI
 
   const log = detail.logs[gi];
   const kifu: Kifu | undefined = log?.kifu;
-  const bottomSeat: Seat = kifu?.cameraBottomSeat ?? "east";
-  const dealer: Seat = kifu?.meta.dealer ?? bottomSeat;
 
-  // 打牌の擬似ターン順（東→南→西→北を河の枚数ぶん回す）。@rigel/ui の共有ロジック。
-  const {
-    order,
-    junmeStops: dstops,
-    maxTurn: maxLen,
-  } = useMemo(
+  // 再生フレーム（打牌順・巡目・点棒・再生局面）は @rigel/ui の共有ロジックで一括導出。
+  // 点棒は「局の開始時点」で固定（この局の途中増減は出さない）。
+  const frame = useMemo(
     () =>
       kifu
-        ? buildRiverPlayback(kifu, dealer)
-        : { order: [] as Seat[], junmeStops: [] as number[], maxTurn: 0 },
-    [kifu, dealer],
-  );
-
-  const shown = reveal < 0 || reveal > order.length ? order.length : reveal;
-  const revealed = useMemo(() => revealCounts(order, shown), [order, shown]);
-  // 表示する点棒は「局の開始時点」で固定（この局の途中増減は出さない）。
-  // 開始点 = 開始持ち点 ＋ 直前までの局の増減（standings）。
-  const startPoints = useMemo(
-    () =>
-      kifu
-        ? standings(
-            detail.logs.slice(0, gi).map((l) => l.kifu),
-            kifu.rules,
-          )
+        ? buildPlaybackFrame({
+            kifu,
+            prevKifus: detail.logs.slice(0, gi).map((l) => l.kifu),
+            reveal,
+          })
         : null,
-    [detail.logs, gi, kifu],
-  );
-  const playback = useMemo(() => (kifu ? buildPlaybackState(kifu, shown) : null), [kifu, shown]);
-  const viewKifu = useMemo(
-    () => (kifu && playback ? playbackStateToKifu(kifu, playback) : undefined),
-    [kifu, playback],
+    [detail.logs, gi, kifu, reveal],
   );
 
   // 上がりは「再生して末尾に達したとき」だけ出す。初期の全表示(reveal=-1)では出さない
   // （リロード時に一瞬ポップするのを防ぐ）。reveal が実インデックスで末尾以上のときのみ。
-  const atEnd = order.length > 0 && reveal >= order.length;
+  const atEnd = frame?.atEnd ?? false;
+
+  // 打牌の drop-in 演出は「同じ局で1手だけ進んだとき」に限る（初期の全表示・
+  // 巡目/局ジャンプ・戻る操作では出さない）。直前描画の再生位置を ref に持ち比較する。
+  const prevStepRef = useRef<{ gi: number; shown: number } | null>(null);
+  const prevStep = prevStepRef.current;
+  const stepped =
+    frame !== null && prevStep !== null && prevStep.gi === gi && frame.shown === prevStep.shown + 1;
+  useEffect(() => {
+    prevStepRef.current = frame ? { gi, shown: frame.shown } : null;
+  });
+  const animateDiscard =
+    stepped && frame.playback.activeDiscard
+      ? { seat: frame.playback.activeDiscard.seat, index: frame.playback.activeDiscard.riverIndex }
+      : null;
+  // ツモ牌のフライイン（中央→手牌）。対象の決定は @rigel/ui（ツモ切り・不明は null）。
+  const animateDraw = stepped ? drawnTileIndex(frame.playback) : null;
   useEffect(() => {
     if (!atEnd) setAgariClosed(false);
   }, [atEnd]);
@@ -136,7 +125,7 @@ export function KifuViewer({ detail, gameId }: { detail: PublicGameDetail; gameI
   }
 
   // 取得・not-found は Server Component 側で処理済み。ここは局が空のときだけ守る。
-  if (!log || !kifu || !viewKifu)
+  if (!log || !kifu || !frame)
     return (
       <Shell>
         <p className={s.notice}>
@@ -145,13 +134,25 @@ export function KifuViewer({ detail, gameId }: { detail: PublicGameDetail; gameI
       </Shell>
     );
 
+  const {
+    order,
+    junmeStops: dstops,
+    maxTurn: maxLen,
+    shown,
+    curJunme,
+    startPoints,
+    playback,
+    viewKifu,
+    bottomSeat,
+    dealer,
+  } = frame;
+
   const round = roundNameForSeq(log.seq);
   const authorName = detail.owner.handle ?? detail.owner.id.slice(0, 6);
   // 非公開の半荘（所有者だけが開ける再生ページ）。バッジと共有の出し分けに使う。
   const isPrivate = detail.logs[0]?.visibility === "private";
-  const curJunme = Math.max(1, revealed[dealer]); // 巡目は最小1（0巡を出さない）
   // 和了（ロン/ツモ）のときだけ裏ドラを出す（リーチ和了で意味を持つため）。
-  const isWin = viewKifu?.result === "ron" || viewKifu?.result === "tsumo";
+  const isWin = viewKifu.result === "ron" || viewKifu.result === "tsumo";
 
   function onShare() {
     const url = typeof window !== "undefined" ? window.location.href : "";
@@ -250,6 +251,8 @@ export function KifuViewer({ detail, gameId }: { detail: PublicGameDetail; gameI
               dealer={dealer}
               scale={scale}
               hideOpp={hideOpp}
+              animateDiscard={animateDiscard}
+              animateDraw={animateDraw}
               bottomName={detail.owner.displayName || detail.owner.handle}
               points={startPoints}
               center={
@@ -262,7 +265,7 @@ export function KifuViewer({ detail, gameId }: { detail: PublicGameDetail; gameI
                       供託 <b>{viewKifu.meta.kyotaku}</b>本
                     </div>
                   )}
-                  {reveal >= 0 && playback?.activeDraw && (
+                  {reveal >= 0 && playback.activeDraw && (
                     <div className={s.draw}>
                       <span>ツモ</span>
                       <span className={s.metaTile}>
@@ -468,7 +471,7 @@ export function KifuViewer({ detail, gameId }: { detail: PublicGameDetail; gameI
                   <span className={s.an}>{windOf(seat, dealer)}家</span>
                   <span className={s.ar}>
                     {viewKifu.seats[seat].hand.length}枚 / 河{viewKifu.seats[seat].river.length}
-                    {startPoints && ` / ${startPoints[seat].toLocaleString()}点`}
+                    {` / ${startPoints[seat].toLocaleString()}点`}
                   </span>
                 </div>
               ))}

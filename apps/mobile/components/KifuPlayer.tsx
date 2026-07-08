@@ -1,17 +1,14 @@
 import type { GameLog } from "@rigel/client";
-import type { Kifu, Seat } from "@rigel/schema";
+import type { Kifu } from "@rigel/schema";
 import {
-  buildRiverPlayback,
-  buildPlaybackState,
-  playbackStateToKifu,
+  buildPlaybackFrame,
+  drawnTileIndex,
   resultLabel,
-  revealCounts,
   roundNameForSeq,
-  standings,
   windOf,
   SEAT_ORDER,
 } from "@rigel/ui";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Pressable,
   ScrollView,
@@ -61,33 +58,17 @@ export function KifuPlayer({
 
   const log = logs[gi];
   const kifu: Kifu | undefined = log?.kifu;
-  const bottomSeat: Seat = kifu?.cameraBottomSeat ?? "east";
-  const dealer: Seat = kifu?.meta.dealer ?? bottomSeat;
 
-  const { order, junmeStops } = useMemo(
-    () =>
-      kifu ? buildRiverPlayback(kifu, dealer) : { order: [] as Seat[], junmeStops: [] as number[] },
-    [kifu, dealer],
-  );
-  const shown = reveal < 0 || reveal > order.length ? order.length : reveal;
-  const revealed = useMemo(() => revealCounts(order, shown), [order, shown]);
-  // 表示する点棒は「局の開始時点」で固定（standings＝開始点＋直前までの局の増減）。
-  const startPoints = useMemo(
+  // 再生フレーム（打牌順・巡目・点棒・再生局面）は @rigel/ui の共有ロジックで一括導出。
+  // 点棒は「局の開始時点」で固定（この局の途中増減は出さない）。
+  const frame = useMemo(
     () =>
       kifu
-        ? standings(
-            logs.slice(0, gi).map((l) => l.kifu),
-            kifu.rules,
-          )
+        ? buildPlaybackFrame({ kifu, prevKifus: logs.slice(0, gi).map((l) => l.kifu), reveal })
         : null,
-    [gi, kifu, logs],
+    [gi, kifu, logs, reveal],
   );
-  const playback = useMemo(() => (kifu ? buildPlaybackState(kifu, shown) : null), [kifu, shown]);
-  const viewKifu = useMemo(
-    () => (kifu && playback ? playbackStateToKifu(kifu, playback) : undefined),
-    [kifu, playback],
-  );
-  const atEnd = order.length > 0 && reveal >= order.length;
+  const atEnd = frame?.atEnd ?? false;
 
   // 末尾から離れたら「和了シートを閉じた」フラグを解除し、再び末尾に達したとき出せるようにする
   //（web ビューアと同じ挙動。これが無いと一度閉じると同一局で二度と出ない）。
@@ -95,11 +76,38 @@ export function KifuPlayer({
     if (!atEnd) setAgariClosed(false);
   }, [atEnd]);
 
-  if (!log || !kifu || !viewKifu) return <CenterState message="この半荘には局がありません。" />;
+  // 打牌の drop-in 演出は「同じ局で1手だけ進んだとき」に限る（初期の全表示・
+  // 巡目/局ジャンプ・戻る操作では出さない）。直前描画の再生位置を ref に持ち比較する。
+  const prevStepRef = useRef<{ gi: number; shown: number } | null>(null);
+  const prevStep = prevStepRef.current;
+  const stepped =
+    frame !== null && prevStep !== null && prevStep.gi === gi && frame.shown === prevStep.shown + 1;
+  useEffect(() => {
+    prevStepRef.current = frame ? { gi, shown: frame.shown } : null;
+  });
+  const animateDiscard =
+    stepped && frame.playback.activeDiscard
+      ? { seat: frame.playback.activeDiscard.seat, index: frame.playback.activeDiscard.riverIndex }
+      : null;
+  // ツモ牌のフライイン（中央→手牌）。対象の決定は @rigel/ui（ツモ切り・不明は null）。
+  const animateDraw = stepped ? drawnTileIndex(frame.playback) : null;
+
+  if (!log || !kifu || !frame) return <CenterState message="この半荘には局がありません。" />;
+
+  const {
+    order,
+    junmeStops,
+    shown,
+    curJunme,
+    startPoints,
+    playback,
+    viewKifu,
+    bottomSeat,
+    dealer,
+  } = frame;
 
   const roundLabel = roundNameForSeq(log.seq);
   const showAgari = atEnd && kifu.agari.length > 0 && !agariClosed;
-  const curJunme = Math.max(1, revealed[dealer]); // 巡目は最小1（0巡を出さない）
   // 卓は横幅いっぱいまで拡大（上限は大画面向けの保険）。縦は上部バー(全画面時は無し)＋場ナビ分を控える。
   const boardSize = Math.max(240, Math.min(width - 8, height - (fs ? 150 : 240), 520));
 
@@ -168,7 +176,9 @@ export function KifuPlayer({
           ownerName={ownerName}
           size={boardSize}
           points={startPoints}
-          activeDraw={reveal >= 0 ? (playback?.activeDraw ?? null) : null}
+          activeDraw={reveal >= 0 ? playback.activeDraw : null}
+          animateDiscard={animateDiscard}
+          animateDraw={animateDraw}
         />
       </View>
 
@@ -263,9 +273,7 @@ export function KifuPlayer({
               <KV
                 key={seat}
                 k={`${windOf(seat, dealer)}家`}
-                v={`手牌${viewKifu.seats[seat].hand.length}枚 / 河${viewKifu.seats[seat].river.length}${
-                  startPoints ? ` / ${startPoints[seat].toLocaleString()}点` : ""
-                }`}
+                v={`手牌${viewKifu.seats[seat].hand.length}枚 / 河${viewKifu.seats[seat].river.length}${` / ${startPoints[seat].toLocaleString()}点`}`}
               />
             ))}
           </ScrollView>

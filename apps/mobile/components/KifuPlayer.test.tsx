@@ -185,6 +185,88 @@ describe("KifuPlayer", () => {
     expect(screen.getByText("供託 1本")).toBeTruthy();
   });
 
+  it("1手進めたときだけ直近の打牌に drop-in 演出が付く（初期全表示・巡目ジャンプでは付かない）", () => {
+    // 東2打・南1打（親=東）。打牌順は 東→南→東、巡目区切りは [1, 3]。
+    const k = makeKifu({
+      east: {
+        river: [
+          { order: 1, tile: "6z", riichi: false, confidence: 1 },
+          { order: 2, tile: "7z", riichi: false, confidence: 1 },
+        ],
+      },
+      south: { river: [{ order: 1, tile: "5z", riichi: false, confidence: 1 }] },
+    });
+    render(<KifuPlayer logs={[log(1, k)]} />);
+
+    // 初期の全表示（reveal=-1）では演出しない（開くたびに動くのを防ぐ）。
+    expect(screen.queryByTestId("drop-tile")).toBeNull();
+
+    // 先頭へ戻す（3→2→1→0手）。戻る操作では演出しない。
+    fireEvent.press(screen.getByLabelText("1手戻る"));
+    fireEvent.press(screen.getByLabelText("1手戻る"));
+    fireEvent.press(screen.getByLabelText("1手戻る"));
+    expect(screen.queryByTestId("drop-tile")).toBeNull();
+
+    // 1手進む（0→1）: 置かれた打牌1枚だけに演出が付く。
+    fireEvent.press(screen.getByLabelText("1手進む"));
+    expect(screen.getByTestId("drop-tile")).toBeTruthy();
+
+    // 次の巡目（1→3 の2手ジャンプ）: 演出しない。
+    fireEvent.press(screen.getByLabelText("次の巡目"));
+    expect(screen.queryByTestId("drop-tile")).toBeNull();
+  });
+
+  it("1手進めたとき、手牌に入ったツモ牌にフライイン演出が付く（ツモ切りは付けない）", () => {
+    const k = makeKifu(
+      {
+        east: {
+          hand: [
+            { tile: "1m", confidence: 1 },
+            { tile: "9p", confidence: 1 },
+          ],
+        },
+      },
+      {
+        timeline: [
+          // 1手目: 3m をツモって 1m を手出し。2手目: 4m をツモ切り。
+          {
+            kind: "discard",
+            seat: "east",
+            draw: "3m",
+            tile: "1m",
+            tsumogiri: false,
+            riichi: false,
+            confidence: 1,
+          },
+          {
+            kind: "discard",
+            seat: "east",
+            draw: "4m",
+            tile: "4m",
+            tsumogiri: true,
+            riichi: false,
+            confidence: 1,
+          },
+        ],
+      },
+    );
+    render(<KifuPlayer logs={[log(1, k)]} />);
+
+    // 初期の全表示では演出しない。
+    expect(screen.queryByTestId("draw-tile")).toBeNull();
+
+    // 先頭へ戻して1手進む（手出し）: ツモ牌にフライインが付く。
+    fireEvent.press(screen.getByLabelText("1手戻る"));
+    fireEvent.press(screen.getByLabelText("1手戻る"));
+    fireEvent.press(screen.getByLabelText("1手進む"));
+    expect(screen.getByTestId("draw-tile")).toBeTruthy();
+
+    // もう1手進む（ツモ切り）: 手牌のフライインは無し。河の drop だけ。
+    fireEvent.press(screen.getByLabelText("1手進む"));
+    expect(screen.queryByTestId("draw-tile")).toBeNull();
+    expect(screen.getByTestId("drop-tile")).toBeTruthy();
+  });
+
   it("手牌トグルで相手の手牌が表(牌)/裏に切り替わる", () => {
     render(<KifuPlayer logs={[log(1, kifuOppHand())]} />);
     // 既定は相手手牌を裏向き（發は出ない）。

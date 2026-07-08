@@ -1,6 +1,6 @@
 import { KifuSchema, type Kifu, type TimelineEvent } from "@rigel/schema";
 import { describe, expect, it } from "vitest";
-import { buildPlaybackState, playbackKifu } from "./playback";
+import { buildPlaybackFrame, buildPlaybackState, drawnTileIndex, playbackKifu } from "./playback";
 
 const kifu = (over: Record<string, unknown> = {}): Kifu =>
   KifuSchema.parse({
@@ -129,6 +129,45 @@ describe("buildPlaybackState（再生ステップの局面導出）", () => {
     expect(state.activeDraw).toBeNull();
   });
 
+  it("直近に河へ置かれた打牌の位置（activeDiscard）を返す。0手目は null", () => {
+    const k = kifu({
+      seats: {
+        east: { hand: hand(["1m", "2m", "3m"]) },
+        south: { hand: hand(["4m", "5m"]) },
+        west: {},
+        north: {},
+      },
+      timeline: [
+        discard({ seat: "east", tile: "1m", draw: "6m" }),
+        discard({ seat: "south", tile: "4m", draw: "7m" }),
+        discard({ seat: "east", tile: "2m", draw: "8m" }),
+      ],
+    });
+
+    expect(buildPlaybackState(k, 0).activeDiscard).toBeNull();
+    expect(buildPlaybackState(k, 1).activeDiscard).toEqual({ seat: "east", riverIndex: 0 });
+    expect(buildPlaybackState(k, 2).activeDiscard).toEqual({ seat: "south", riverIndex: 0 });
+    expect(buildPlaybackState(k, 3).activeDiscard).toEqual({ seat: "east", riverIndex: 1 });
+  });
+
+  it("未編集（timeline 空）でも河に置いた直近打牌を activeDiscard として返す", () => {
+    const k = kifu({
+      seats: {
+        east: {
+          river: [
+            { order: 1, tile: "9m", riichi: false, tsumogiri: false, confidence: 1 },
+            { order: 2, tile: "8m", riichi: false, tsumogiri: false, confidence: 1 },
+          ],
+        },
+        south: {},
+        west: {},
+        north: {},
+      },
+    });
+
+    expect(buildPlaybackState(k, 2).activeDiscard).toEqual({ seat: "east", riverIndex: 1 });
+  });
+
   it("playbackKifu は再生局面の seats と供託を Kifu として返す", () => {
     const k = kifu({
       seats: { east: { hand: hand(["1m", "2m"]) }, south: {}, west: {}, north: {} },
@@ -139,5 +178,85 @@ describe("buildPlaybackState（再生ステップの局面導出）", () => {
 
     expect(out.seats.east.hand.map((t) => t.tile)).toEqual(["2m"]);
     expect(out.seats.east.river.map((d) => d.tile)).toEqual(["1m"]);
+  });
+});
+
+describe("drawnTileIndex（手牌に入ったツモ牌の表示位置）", () => {
+  it("手出し後のツモ牌の位置を理牌後の並びで返す", () => {
+    const k = kifu({
+      // 配牌 1m,9p → 3m をツモって 1m を切る → 手牌は理牌で [9p, 3m] ではなく [3m, 9p]。
+      seats: { east: { hand: hand(["1m", "9p"]) }, south: {}, west: {}, north: {} },
+      timeline: [discard({ draw: "3m", tile: "1m" })],
+    });
+
+    const state = buildPlaybackState(k, 1);
+
+    expect(drawnTileIndex(state)).toEqual({ seat: "east", index: 0 });
+  });
+
+  it("ツモ切りは手牌に入らないので null（河の drop 演出だけにする）", () => {
+    const k = kifu({
+      seats: { east: { hand: hand(["1m", "2m"]) }, south: {}, west: {}, north: {} },
+      timeline: [discard({ draw: "3m", tile: "3m", tsumogiri: true })],
+    });
+
+    const state = buildPlaybackState(k, 1);
+
+    expect(drawnTileIndex(state)).toBeNull();
+  });
+
+  it("ツモ不明（draw=null や未編集）は null", () => {
+    const k = kifu({
+      seats: { east: { hand: hand(["1m"]) }, south: {}, west: {}, north: {} },
+      timeline: [discard({ draw: null, tile: "1m" })],
+    });
+
+    expect(drawnTileIndex(buildPlaybackState(k, 1))).toBeNull();
+    expect(drawnTileIndex(buildPlaybackState(k, 0))).toBeNull();
+  });
+});
+
+describe("buildPlaybackFrame（web/mobile ビューア共通の再生フレーム導出）", () => {
+  // 東の2打牌（親=東）。巡目・末尾判定・河の推移を1つの牌譜で見る。
+  const base = () =>
+    kifu({
+      seats: { east: { hand: hand(["1m", "2m", "3m"]) }, south: {}, west: {}, north: {} },
+      timeline: [discard({ tile: "1m", draw: "4m" }), discard({ tile: "2m", draw: "5m" })],
+    });
+
+  it("reveal=-1（初期の全表示）は全打牌を見せ、atEnd にはしない", () => {
+    const f = buildPlaybackFrame({ kifu: base(), prevKifus: [], reveal: -1 });
+
+    expect(f.shown).toBe(2);
+    expect(f.order).toEqual(["east", "east"]);
+    expect(f.viewKifu.seats.east.river.map((d) => d.tile)).toEqual(["1m", "2m"]);
+    expect(f.atEnd).toBe(false);
+  });
+
+  it("reveal が打牌数以上なら atEnd（和了演出を出してよい）", () => {
+    const f = buildPlaybackFrame({ kifu: base(), prevKifus: [], reveal: 2 });
+
+    expect(f.atEnd).toBe(true);
+    expect(f.shown).toBe(2);
+  });
+
+  it("途中の reveal は河をそこまでだけ見せ、巡目は親の打牌数（最小1）", () => {
+    const zero = buildPlaybackFrame({ kifu: base(), prevKifus: [], reveal: 0 });
+    expect(zero.viewKifu.seats.east.river).toEqual([]);
+    expect(zero.curJunme).toBe(1); // 0巡は出さない
+
+    const one = buildPlaybackFrame({ kifu: base(), prevKifus: [], reveal: 1 });
+    expect(one.viewKifu.seats.east.river.map((d) => d.tile)).toEqual(["1m"]);
+    expect(one.curJunme).toBe(1);
+    expect(one.atEnd).toBe(false);
+  });
+
+  it("席の向き・親・開始持ち点（rules.start 起点）を導出する", () => {
+    const f = buildPlaybackFrame({ kifu: base(), prevKifus: [], reveal: -1 });
+
+    expect(f.bottomSeat).toBe("east");
+    expect(f.dealer).toBe("east");
+    const start = Number(base().rules.start);
+    expect(f.startPoints).toEqual({ east: start, south: start, west: start, north: start });
   });
 });
