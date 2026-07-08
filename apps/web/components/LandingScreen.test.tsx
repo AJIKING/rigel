@@ -16,8 +16,6 @@ describe("LandingScreen", () => {
     expect(screen.getByRole("link", { name: /Google ではじめる/ }).getAttribute("href")).toBe(
       "/login",
     );
-    expect(screen.getByRole("link", { name: "公開牌譜を見る" }).getAttribute("href")).toBe(
-      "/kifu",
-    );
+    expect(screen.getByRole("link", { name: "公開牌譜を見る" }).getAttribute("href")).toBe("/kifu");
   });
 });
