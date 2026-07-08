@@ -23,6 +23,7 @@ import {
   PROBLEM_KIND_LABELS,
   SEAT_ORDER,
   SUITS,
+  type DraftRiverTile,
   type PickerSuit,
 } from "@rigel/ui";
 import { useRouter } from "next/navigation";
@@ -72,7 +73,53 @@ function SeatSelect({
   );
 }
 
-/** 入力済み牌のチップ行（タップで外す）。ドラ・河で共用。空なら描かない。 */
+/** 河のチップ行。タップで手出し⇄ツモ切りを切替（ツモ切りはグレー表示）、✕で外す。
+ *  空なら描かない。 */
+function RiverChipRow({
+  seat,
+  tiles,
+  onToggle,
+  onRemove,
+}: {
+  seat: Seat;
+  tiles: DraftRiverTile[];
+  onToggle: (index: number) => void;
+  onRemove: (index: number) => void;
+}) {
+  if (tiles.length === 0) return null;
+  return (
+    <div className={s.row}>
+      <span className={s.rowLabel}>{seatLabel(seat)}家の河</span>
+      <span className={s.tiles}>
+        {tiles.map((d, i) => (
+          <span key={`${d.tile}-${i}`} className={s.riverChip}>
+            <button
+              type="button"
+              className={`${s.handTileSmall} ${d.tsumogiri ? s.tsumogiriChip : ""}`}
+              aria-pressed={d.tsumogiri}
+              aria-label={`${seatLabel(seat)}家の河の ${tileLabel(d.tile)} を${
+                d.tsumogiri ? "手出し" : "ツモ切り"
+              }にする`}
+              onClick={() => onToggle(i)}
+            >
+              <OssTileFace code={d.tile} />
+            </button>
+            <button
+              type="button"
+              className={s.chipX}
+              aria-label={`${seatLabel(seat)}家の河の ${tileLabel(d.tile)} を外す`}
+              onClick={() => onRemove(i)}
+            >
+              ×
+            </button>
+          </span>
+        ))}
+      </span>
+    </div>
+  );
+}
+
+/** 入力済み牌のチップ行（タップで外す）。ドラ・ツモ牌で共用。空なら描かない。 */
 function TileChipRow({
   label,
   tiles,
@@ -121,7 +168,7 @@ export function ProblemEditorScreen({ initial }: { initial?: ProblemPost }) {
   );
   const [melds, setMelds] = useState<Meld[]>(p0 ? p0.seats[p0.pov].melds : []);
   const [drawn, setDrawn] = useState<Tile | null>(p0?.drawn ?? null);
-  const [rivers, setRivers] = useState<Record<Seat, Tile[]>>(() => problemRiverTiles(p0));
+  const [rivers, setRivers] = useState<Record<Seat, DraftRiverTile[]>>(() => problemRiverTiles(p0));
   const [dora, setDora] = useState<Tile[]>(p0?.meta.dora ?? []);
   const [targetSeat, setTargetSeat] = useState<Seat>(p0?.targetSeat ?? "south");
   const [roundWind, setRoundWind] = useState<Seat | null>(p0?.meta.roundWind ?? "east");
@@ -192,7 +239,8 @@ export function ProblemEditorScreen({ initial }: { initial?: ProblemPost }) {
       setDora((cur) => [...cur, code]);
     } else if (target.startsWith("river:")) {
       const seat = target.slice("river:".length) as Seat;
-      setRivers((cur) => ({ ...cur, [seat]: [...cur[seat], code] }));
+      // 置くときは手出し。ツモ切りはチップのタップで後から切り替える。
+      setRivers((cur) => ({ ...cur, [seat]: [...cur[seat], { tile: code, tsumogiri: false }] }));
     } else if (target.startsWith("meld:")) {
       const type = target.slice("meld:".length) as "pon" | "chi" | "kan";
       // 副露の生成と手牌の3枚換算圧迫は共有純関数（mobile と同一挙動）。
@@ -462,16 +510,24 @@ export function ProblemEditorScreen({ initial }: { initial?: ProblemPost }) {
           onRemove={(i) => setDora((cur) => cur.filter((_, j) => j !== i))}
         />
         {SEAT_ORDER.map((seat) => (
-          <TileChipRow
+          <RiverChipRow
             key={seat}
-            label={`${seatLabel(seat)}家の河`}
+            seat={seat}
             tiles={rivers[seat]}
-            removeLabel={(t) => `${seatLabel(seat)}家の河の ${tileLabel(t)} を外す`}
+            onToggle={(i) =>
+              setRivers((cur) => ({
+                ...cur,
+                [seat]: cur[seat].map((d, j) => (j === i ? { ...d, tsumogiri: !d.tsumogiri } : d)),
+              }))
+            }
             onRemove={(i) =>
               setRivers((cur) => ({ ...cur, [seat]: cur[seat].filter((_, j) => j !== i) }))
             }
           />
         ))}
+        {SEAT_ORDER.some((seat) => rivers[seat].length > 0) && (
+          <p className={s.hint}>河の牌はタップでツモ切り⇄手出しを切り替えられます。</p>
+        )}
 
         {/* 入力先セレクタ＋牌グリッド */}
         <div className={s.answerBox} role="group" aria-label="入力先">

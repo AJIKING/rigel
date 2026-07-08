@@ -93,14 +93,22 @@ function AnswerBody({ post, token }: { post: ProblemPost; token: string | null }
   // 卓サイズは KifuEditor のプレビューと同じ算出（画面幅に合わせて clamp）。
   const boardSize = Math.max(240, Math.min(width - 28, 340));
 
-  const [selTile, setSelTile] = useState<Tile | null>(null);
+  // 選択は「どの牌を・どこから（手牌 or ツモ牌）」で持つ。同じ牌コードが手牌と
+  // ツモの両方にあっても区別し、ツモ牌タップ＝ツモ切りとして集計される。
+  const [picked, setPicked] = useState<{ tile: Tile; drawn: boolean } | null>(null);
   const [riichi, setRiichi] = useState(false);
   const [call, setCall] = useState<"pass" | CallType | null>(null);
   const [answered, setAnswered] = useState<ProblemAction | null>(null);
   const [stats, setStats] = useState<ProblemStats | null>(null);
 
   // 選択状態→アクションの組み立ては共有純関数（web と同一挙動）。
-  const sel = { kind: problem.kind, tile: selTile, riichi, call };
+  const sel = {
+    kind: problem.kind,
+    tile: picked?.tile ?? null,
+    riichi,
+    tsumogiri: problem.kind === "discard" && (picked?.drawn ?? false),
+    call,
+  };
   const needsTile = answerNeedsTile(sel);
   const pending = buildProblemAnswer(sel);
   const canSubmit = canSubmitProblemAnswer(sel);
@@ -124,9 +132,9 @@ function AnswerBody({ post, token }: { post: ProblemPost; token: string | null }
     setStats(null);
   }
 
-  function pickTile(tile: Tile) {
+  function pickTile(tile: Tile, drawn: boolean) {
     if (answered || !needsTile) return;
-    setSelTile((cur) => (cur === tile ? null : tile));
+    setPicked((cur) => (cur?.tile === tile && cur.drawn === drawn ? null : { tile, drawn }));
   }
 
   /** 公開問題の共有（web 公開ページ /p/:id を OS 共有シートで）。 */
@@ -197,36 +205,39 @@ function AnswerBody({ post, token }: { post: ProblemPost; token: string | null }
       {/* 自分の手牌（理牌済み）＋ツモ牌 */}
       <Text style={styles.section}>手牌</Text>
       <View style={styles.hand}>
-        {hand.map((t, i) =>
-          t.tile ? (
+        {hand.map((t, i) => {
+          const on = picked !== null && !picked.drawn && picked.tile === t.tile;
+          return t.tile ? (
             <Pressable
               key={i}
-              style={selTile === t.tile ? styles.sel : null}
+              style={on ? styles.sel : null}
               disabled={answered !== null || !needsTile}
-              onPress={() => pickTile(t.tile!)}
+              onPress={() => pickTile(t.tile!, false)}
               accessibilityRole="button"
               accessibilityLabel={tileLabel(t.tile)}
-              accessibilityState={{ selected: selTile === t.tile }}
+              accessibilityState={{ selected: on }}
             >
               <MiniTile code={t.tile} w={30} h={42} />
             </Pressable>
-          ) : null,
-        )}
+          ) : null;
+        })}
         {problem.drawn ? (
           <Pressable
-            style={[styles.drawn, selTile === problem.drawn ? styles.sel : null]}
+            style={[styles.drawn, picked?.drawn ? styles.sel : null]}
             disabled={answered !== null}
-            onPress={() => pickTile(problem.drawn!)}
+            onPress={() => pickTile(problem.drawn!, true)}
             accessibilityRole="button"
             accessibilityLabel={tileLabel(problem.drawn)}
-            accessibilityState={{ selected: selTile === problem.drawn }}
+            accessibilityState={{ selected: picked?.drawn === true }}
           >
             <MiniTile code={problem.drawn} w={30} h={42} />
           </Pressable>
         ) : null}
       </View>
       {/* ツモ牌は手牌の右に離して置く。初見でも分かるよう言葉でも添える（web と同一文言）。 */}
-      {problem.drawn ? <Text style={styles.drawnNote}>右端はツモ牌</Text> : null}
+      {problem.drawn ? (
+        <Text style={styles.drawnNote}>右端はツモ牌（タップするとツモ切りになります）</Text>
+      ) : null}
 
       {/* 回答 UI */}
       {!answered ? (
@@ -248,7 +259,7 @@ function AnswerBody({ post, token }: { post: ProblemPost; token: string | null }
                     on={call === key}
                     onPress={() => {
                       setCall(key);
-                      if (key === "pass" || key === "kan") setSelTile(null);
+                      if (key === "pass" || key === "kan") setPicked(null);
                     }}
                   />
                 ))}

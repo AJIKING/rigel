@@ -421,6 +421,8 @@ const DiscardActionSchema = z.object({
   tile: TileSchema,
   /** リーチ宣言するか。 */
   riichi: z.boolean().default(false),
+  /** ツモ切りか（ツモ牌をそのまま切る）。false=手出し。既定 false（既存データ互換）。 */
+  tsumogiri: z.boolean().default(false),
 });
 
 const CallActionSchema = z.object({
@@ -452,11 +454,17 @@ export type ProblemAction = z.infer<typeof ProblemActionSchema>;
 
 /**
  * 回答の直列化キー（分布集計の単位）。同じ手は必ず同じキーになる。
- * 例: "discard:5p" / "discard:5p:riichi" / "call:pon:2m" / "call:kan" / "pass"
+ * 同じ牌でもリーチ有無・ツモ切り/手出しは別の手として数える。
+ * 例: "discard:5p" / "discard:5p:riichi" / "discard:5p:tsumogiri" /
+ *     "discard:5p:riichi:tsumogiri" / "call:pon:2m" / "call:kan" / "pass"
+ * サフィックスは riichi → tsumogiri の順で固定（既存キーは不変）。
  */
 export function choiceKey(action: ProblemAction): string {
   if (action.type === "discard") {
-    return action.riichi ? `discard:${action.tile}:riichi` : `discard:${action.tile}`;
+    const parts = [`discard:${action.tile}`];
+    if (action.riichi) parts.push("riichi");
+    if (action.tsumogiri) parts.push("tsumogiri");
+    return parts.join(":");
   }
   if (action.type === "call") {
     return action.discard ? `call:${action.call}:${action.discard}` : `call:${action.call}`;
@@ -588,6 +596,8 @@ export function isValidAnswer(problem: Problem, action: ProblemAction): boolean 
   const hand = problem.seats[problem.pov].hand.map((t) => t.tile);
   if (problem.kind === "discard") {
     if (action.type !== "discard") return false;
+    // ツモ切りはツモ牌と一致する打牌だけ（手牌の牌をツモ切りとは言えない）。
+    if (action.tsumogiri) return action.tile === problem.drawn;
     return hand.includes(action.tile) || action.tile === problem.drawn;
   }
   if (action.type === "pass") return true;

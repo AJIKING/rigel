@@ -45,7 +45,7 @@ AI(Gemini) は関与しない（全て手入力）。
 
 | 層 | 内容 |
 |---|---|
-| packages/schema | `ProblemSchema` / `ProblemActionSchema`（discard+riichi / call+切る牌 / pass）/ `choiceKey()` |
+| packages/schema | `ProblemSchema` / `ProblemActionSchema`（discard+riichi+tsumogiri / call+切る牌 / pass）/ `choiceKey()`（2026-07: 打牌はツモ切り/手出しを別キーで集計。河の編集もツモ切り指定可） |
 | packages/ui | `problemToKifu()`（BoardTable 描画再利用）・回答表示ラベル・分布%計算・`PROBLEM_LIMIT` |
 | packages/client | Problem DTO と API メソッド |
 | apps/api | D1 `problems` / `problem_answers` ＋ routes（CRUD / 一覧 / mine / answers / stats） |

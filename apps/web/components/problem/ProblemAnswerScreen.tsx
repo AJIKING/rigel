@@ -49,7 +49,9 @@ export function ProblemAnswerScreen({ post }: { post: ProblemPost }) {
   const targetTile = problemTargetTile(problem);
   const dealer = problem.meta.dealer;
 
-  const [selTile, setSelTile] = useState<Tile | null>(null);
+  // 選択は「どの牌を・どこから（手牌 or ツモ牌）」で持つ。同じ牌コードが手牌と
+  // ツモの両方にあっても区別し、ツモ牌タップ＝ツモ切りとして集計される。
+  const [picked, setPicked] = useState<{ tile: Tile; drawn: boolean } | null>(null);
   const [riichi, setRiichi] = useState(false);
   const [call, setCall] = useState<"pass" | CallType | null>(null);
   const [answered, setAnswered] = useState<ProblemAction | null>(null);
@@ -57,7 +59,13 @@ export function ProblemAnswerScreen({ post }: { post: ProblemPost }) {
   const [shareLabel, setShareLabel] = useState("共有");
 
   // 選択状態→アクションの組み立ては共有純関数（mobile と同一挙動）。
-  const sel = { kind: problem.kind, tile: selTile, riichi, call };
+  const sel = {
+    kind: problem.kind,
+    tile: picked?.tile ?? null,
+    riichi,
+    tsumogiri: problem.kind === "discard" && (picked?.drawn ?? false),
+    call,
+  };
   const needsTile = answerNeedsTile(sel);
   const pending = buildProblemAnswer(sel);
   const canSubmit = canSubmitProblemAnswer(sel);
@@ -81,9 +89,9 @@ export function ProblemAnswerScreen({ post }: { post: ProblemPost }) {
     setStats(null);
   }
 
-  function pickTile(tile: Tile) {
+  function pickTile(tile: Tile, drawn: boolean) {
     if (answered || !needsTile) return;
-    setSelTile((cur) => (cur === tile ? null : tile));
+    setPicked((cur) => (cur?.tile === tile && cur.drawn === drawn ? null : { tile, drawn }));
   }
 
   /** 公開問題の共有（URLコピー）。 */
@@ -176,36 +184,39 @@ export function ProblemAnswerScreen({ post }: { post: ProblemPost }) {
         <div className={s.handRow}>
           <span className={s.rowLabel}>手牌</span>
           <span className={s.hand}>
-            {hand.map((t, i) =>
-              t.tile ? (
+            {hand.map((t, i) => {
+              const on = picked !== null && !picked.drawn && picked.tile === t.tile;
+              return t.tile ? (
                 <button
                   key={i}
                   type="button"
-                  className={`${s.handTile} ${selTile === t.tile ? s.sel : ""}`}
+                  className={`${s.handTile} ${on ? s.sel : ""}`}
                   aria-label={tileLabel(t.tile)}
-                  aria-pressed={selTile === t.tile}
+                  aria-pressed={on}
                   disabled={answered !== null || !needsTile}
-                  onClick={() => pickTile(t.tile!)}
+                  onClick={() => pickTile(t.tile!, false)}
                 >
                   <OssTileFace code={t.tile} />
                 </button>
-              ) : null,
-            )}
+              ) : null;
+            })}
             {problem.drawn && (
               <button
                 type="button"
-                className={`${s.handTile} ${s.drawn} ${selTile === problem.drawn ? s.sel : ""}`}
+                className={`${s.handTile} ${s.drawn} ${picked?.drawn ? s.sel : ""}`}
                 aria-label={tileLabel(problem.drawn)}
-                aria-pressed={selTile === problem.drawn}
+                aria-pressed={picked?.drawn === true}
                 disabled={answered !== null}
-                onClick={() => pickTile(problem.drawn!)}
+                onClick={() => pickTile(problem.drawn!, true)}
               >
                 <OssTileFace code={problem.drawn} />
               </button>
             )}
           </span>
         </div>
-        {problem.drawn && <p className={s.drawnNote}>右端はツモ牌</p>}
+        {problem.drawn && (
+          <p className={s.drawnNote}>右端はツモ牌（タップするとツモ切りになります）</p>
+        )}
 
         {/* 回答 UI */}
         {!answered && (
@@ -233,7 +244,7 @@ export function ProblemAnswerScreen({ post }: { post: ProblemPost }) {
                       aria-pressed={call === key}
                       onClick={() => {
                         setCall(key);
-                        if (key === "pass" || key === "kan") setSelTile(null);
+                        if (key === "pass" || key === "kan") setPicked(null);
                       }}
                     >
                       {label}

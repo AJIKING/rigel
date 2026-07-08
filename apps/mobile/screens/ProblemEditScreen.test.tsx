@@ -197,6 +197,38 @@ describe("ProblemEditScreen（何切る問題の作成/編集）", () => {
     });
   });
 
+  it("河の牌はタップでツモ切り⇄手出しを切替でき、保存 problem の river に乗る", async () => {
+    mockCreateProblem.mockResolvedValue({ ok: true, status: 200 });
+    render(<ProblemEditScreen />);
+    inputFullHand();
+    inputDrawn5p();
+
+    // 東家の河に 9筒 を置く（既定は手出し。手牌・プレビューに無い牌でラベル衝突を避ける）。
+    fireEvent.press(screen.getByLabelText("東家の河に追加"));
+    fireEvent.press(screen.getByText("筒"));
+    fireEvent.press(screen.getByLabelText("9筒"));
+    fireEvent.press(screen.getByText("閉じる"));
+
+    // チップタップでツモ切りへ（もう一度で手出しに戻せる）。
+    fireEvent.press(screen.getByLabelText("東家の河1（9筒）をツモ切りにする"));
+    expect(screen.getByLabelText("東家の河1（9筒）を手出しにする")).toBeTruthy();
+
+    fireEvent.press(screen.getByText("下書き保存"));
+    await waitFor(() => expect(mockCreateProblem).toHaveBeenCalledTimes(1));
+    const [, input] = mockCreateProblem.mock.calls[0] as [string, { problem: Problem }];
+    expect(input.problem.seats.east.river.map((d) => d.tsumogiri)).toEqual([true]);
+  });
+
+  it("河の✕で牌を削除できる（タップは切替に変わったため）", () => {
+    render(<ProblemEditScreen />);
+    fireEvent.press(screen.getByLabelText("東家の河に追加"));
+    fireEvent.press(screen.getByLabelText("1萬"));
+    fireEvent.press(screen.getByText("閉じる"));
+
+    fireEvent.press(screen.getByLabelText("東家の河1（1萬）を外す"));
+    expect(screen.queryByLabelText("東家の河1（1萬）をツモ切りにする")).toBeNull();
+  });
+
   it("problemId 付きは既存の問題を読み込み、保存で updateProblem を呼ぶ", async () => {
     mockParams = { problemId: "p1" };
     mockGetProblem.mockResolvedValue(makePost({ id: "p1", title: "既存の問題" }));

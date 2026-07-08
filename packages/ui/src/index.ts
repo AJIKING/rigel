@@ -421,6 +421,8 @@ export interface ProblemAnswerSelection {
   tile: Tile | null;
   /** リーチ宣言（何切るのみ意味を持つ）。 */
   riichi: boolean;
+  /** ツモ切り（何切るのみ意味を持つ。ツモ牌をタップした=true、手牌から=false）。 */
+  tsumogiri: boolean;
   /** 鳴き判断の選択（未選択は null）。 */
   call: "pass" | CallType | null;
 }
@@ -429,7 +431,9 @@ export interface ProblemAnswerSelection {
  *  スルー/カンは牌不要、ポン/チーは切る牌が必要（カンは嶺上ツモがあるため打牌を問わない）。 */
 export function buildProblemAnswer(sel: ProblemAnswerSelection): ProblemAction | null {
   if (sel.kind === "discard") {
-    return sel.tile ? { type: "discard", tile: sel.tile, riichi: sel.riichi } : null;
+    return sel.tile
+      ? { type: "discard", tile: sel.tile, riichi: sel.riichi, tsumogiri: sel.tsumogiri }
+      : null;
   }
   if (sel.call === "pass") return { type: "pass" };
   if (sel.call === "kan") return { type: "call", call: "kan", discard: null };
@@ -461,12 +465,20 @@ export function problemRoundLabel(meta: { roundWind: Seat | null; junme: number 
   return `${wind}${meta.junme}巡目`;
 }
 
-/** 問題の各席の河を牌配列へ写す（編集画面の初期状態用。読めない牌はスキップ）。 */
-export function problemRiverTiles(problem?: Problem): Record<Seat, Tile[]> {
-  const rivers: Record<Seat, Tile[]> = { east: [], south: [], west: [], north: [] };
+/** 編集画面の河の1牌（ツモ切り/手出しを持つ。リーチ表示は問題では扱わない）。 */
+export interface DraftRiverTile {
+  tile: Tile;
+  tsumogiri: boolean;
+}
+
+/** 問題の各席の河をツモ切りフラグ付きで写す（編集画面の初期状態用。読めない牌はスキップ）。 */
+export function problemRiverTiles(problem?: Problem): Record<Seat, DraftRiverTile[]> {
+  const rivers: Record<Seat, DraftRiverTile[]> = { east: [], south: [], west: [], north: [] };
   if (!problem) return rivers;
   for (const seat of SEAT_ORDER) {
-    rivers[seat] = problem.seats[seat].river.flatMap((d) => (d.tile ? [d.tile] : []));
+    rivers[seat] = problem.seats[seat].river.flatMap((d) =>
+      d.tile ? [{ tile: d.tile, tsumogiri: d.tsumogiri }] : [],
+    );
   }
   return rivers;
 }
@@ -495,7 +507,7 @@ export interface ProblemDraft {
   drawn: Tile | null;
   /** 鳴き判断の対象席（kind=call のときだけ使われる）。 */
   targetSeat: Seat;
-  rivers: Record<Seat, Tile[]>;
+  rivers: Record<Seat, DraftRiverTile[]>;
   meta: {
     dealer: Seat | null;
     roundWind: Seat | null;
@@ -530,11 +542,11 @@ export function draftToKifu(draft: ProblemBoardDraft): Kifu {
             ? sortHandTiles(draft.hand.map((tile) => ({ tile, confidence: 1 })))
             : [],
         melds: seat === draft.pov ? draft.melds : [],
-        river: draft.rivers[seat].map((tile, i) => ({
+        river: draft.rivers[seat].map((d, i) => ({
           order: i + 1,
-          tile,
+          tile: d.tile,
           riichi: false,
-          tsumogiri: false,
+          tsumogiri: d.tsumogiri,
           confidence: 1,
         })),
       },
@@ -562,11 +574,11 @@ export function assembleProblem(draft: ProblemDraft): { problem?: Problem; error
       {
         hand: seat === draft.pov ? draft.hand.map((t) => ({ tile: t, confidence: 1 })) : [],
         melds: seat === draft.pov ? draft.melds : [],
-        river: draft.rivers[seat].map((tile, i) => ({
+        river: draft.rivers[seat].map((d, i) => ({
           order: i + 1,
-          tile,
+          tile: d.tile,
           riichi: false,
-          tsumogiri: false,
+          tsumogiri: d.tsumogiri,
           confidence: 1,
         })),
       },
@@ -597,10 +609,12 @@ export function assembleProblem(draft: ProblemDraft): { problem?: Problem; error
   return { problem: parsed.data };
 }
 
-/** 回答アクションの人間向けラベル（例: "5筒切り・リーチ" / "ポンして2萬切り" / "スルー"）。 */
+/** 回答アクションの人間向けラベル
+ *  （例: "5筒切り・リーチ" / "5筒ツモ切り" / "ポンして2萬切り" / "スルー"）。 */
 export function actionLabel(action: ProblemAction): string {
   if (action.type === "discard") {
-    return `${tileLabel(action.tile)}切り${action.riichi ? "・リーチ" : ""}`;
+    const cut = action.tsumogiri ? "ツモ切り" : "切り";
+    return `${tileLabel(action.tile)}${cut}${action.riichi ? "・リーチ" : ""}`;
   }
   if (action.type === "call") {
     const call = CALL_LABELS[action.call];
@@ -613,18 +627,31 @@ export function actionLabel(action: ProblemAction): string {
  *  不明なキーはそのまま返す（表示を壊さない）。 */
 export function choiceKeyLabel(key: string): string {
   if (key === "pass") return "スルー";
-  const [head, a, b] = key.split(":");
+  const [head, a, ...rest] = key.split(":");
   const tileOf = (v: string | undefined): Tile | null => {
     const parsed = TileSchema.safeParse(v);
     return parsed.success ? parsed.data : null;
   };
   if (head === "discard") {
     const tile = tileOf(a);
-    if (tile) return actionLabel({ type: "discard", tile, riichi: b === "riichi" });
+    // サフィックスは riichi / tsumogiri のみ（choiceKey の生成順に依らず集合で解釈）。
+    const flags = new Set(rest);
+    const known = [...flags].every((f) => f === "riichi" || f === "tsumogiri");
+    if (tile && known) {
+      return actionLabel({
+        type: "discard",
+        tile,
+        riichi: flags.has("riichi"),
+        tsumogiri: flags.has("tsumogiri"),
+      });
+    }
   }
   if (head === "call" && (a === "pon" || a === "chi" || a === "kan")) {
+    const b = rest[0];
     const tile = b === undefined ? null : tileOf(b);
-    if (b === undefined || tile) return actionLabel({ type: "call", call: a, discard: tile });
+    if (rest.length === 0 || (rest.length === 1 && tile)) {
+      return actionLabel({ type: "call", call: a, discard: tile });
+    }
   }
   return key;
 }

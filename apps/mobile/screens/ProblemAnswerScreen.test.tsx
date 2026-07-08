@@ -59,34 +59,36 @@ describe("ProblemAnswerScreen（何切る回答画面）", () => {
     expect(screen.queryByText("テスト解説")).toBeNull();
   });
 
-  it("牌タップ+リーチ→回答すると answerProblem が呼ばれ、出題者の答えは出さずコメント・分布が出る", async () => {
+  it("ツモ牌タップ+リーチ→回答するとツモ切りとして送信され、分布も別キーで出る", async () => {
     mockGetProblem.mockResolvedValue(makePost());
     mockAnswerProblem.mockResolvedValue({ ok: true, status: 200 });
     mockGetProblemStats.mockResolvedValue({
-      counts: { "discard:5p:riichi": 2, "discard:1m": 1 },
+      counts: { "discard:5p:riichi:tsumogiri": 2, "discard:1m": 1 },
       total: 3,
-      myChoiceKey: "discard:5p:riichi",
-      myAction: { type: "discard", tile: "5p", riichi: true },
+      myChoiceKey: "discard:5p:riichi:tsumogiri",
+      myAction: { type: "discard", tile: "5p", riichi: true, tsumogiri: true },
     });
     render(<ProblemAnswerScreen />);
 
-    fireEvent.press(await screen.findByRole("button", { name: "5筒" })); // ツモ牌 5p を選ぶ
+    // 右端のツモ牌 5p をタップ → ツモ切り扱い。
+    fireEvent.press(await screen.findByRole("button", { name: "5筒" }));
     fireEvent.press(screen.getByText("リーチ"));
     fireEvent.press(screen.getByText("回答する"));
 
-    expect(await screen.findByText("あなたの回答: 5筒切り・リーチ")).toBeTruthy();
+    expect(await screen.findByText("あなたの回答: 5筒ツモ切り・リーチ")).toBeTruthy();
     expect(mockAnswerProblem).toHaveBeenCalledWith("t", "p1", {
       type: "discard",
       tile: "5p",
       riichi: true,
+      tsumogiri: true,
     });
     // 正解は設けない（出題者の答えは表示しない）。コメントは見出し付きで出す。
     expect(screen.queryByText("出題者の答え")).toBeNull();
     expect(screen.getByText("出題者のコメント")).toBeTruthy();
     expect(screen.getByText("テスト解説")).toBeTruthy();
-    // 分布（choiceKeyLabel + % + 自分の回答に印）。
+    // 分布（choiceKeyLabel + % + 自分の回答に印）。同じ 5p でもツモ切りは別の行。
     expect(await screen.findByText("回答分布（3人）")).toBeTruthy();
-    expect(screen.getByText("5筒切り・リーチ（あなた）")).toBeTruthy();
+    expect(screen.getByText("5筒ツモ切り・リーチ（あなた）")).toBeTruthy();
     expect(screen.getByText("67%")).toBeTruthy();
     expect(screen.getByText("1萬切り")).toBeTruthy();
   });
@@ -99,21 +101,22 @@ describe("ProblemAnswerScreen（何切る回答画面）", () => {
     expect(await screen.findByText("テスト問題")).toBeTruthy();
     expect(screen.queryByText(/選択中:/)).toBeNull();
 
+    // 右端＝ツモ牌のタップはツモ切りとして表示される。
     fireEvent.press(screen.getByRole("button", { name: "5筒" }));
-    expect(screen.getByText("選択中: 5筒切り")).toBeTruthy();
+    expect(screen.getByText("選択中: 5筒ツモ切り")).toBeTruthy();
 
     fireEvent.press(screen.getByText("リーチ"));
-    expect(screen.getByText("選択中: 5筒切り・リーチ")).toBeTruthy();
+    expect(screen.getByText("選択中: 5筒ツモ切り・リーチ")).toBeTruthy();
   });
 
   it("回答分布で自分の回答のバーだけアクセント色で強調される", async () => {
     mockGetProblem.mockResolvedValue(makePost());
     mockAnswerProblem.mockResolvedValue({ ok: true, status: 200 });
     mockGetProblemStats.mockResolvedValue({
-      counts: { "discard:5p:riichi": 2, "discard:1m": 1 },
+      counts: { "discard:5p:riichi:tsumogiri": 2, "discard:1m": 1 },
       total: 3,
-      myChoiceKey: "discard:5p:riichi",
-      myAction: { type: "discard", tile: "5p", riichi: true },
+      myChoiceKey: "discard:5p:riichi:tsumogiri",
+      myAction: { type: "discard", tile: "5p", riichi: true, tsumogiri: true },
     });
     render(<ProblemAnswerScreen />);
 
@@ -123,7 +126,9 @@ describe("ProblemAnswerScreen（何切る回答画面）", () => {
     expect(await screen.findByText("回答分布（3人）")).toBeTruthy();
 
     // 自分のバーはアクセント色（web の statBarMine と同じ意図）、他のバーは別色。
-    const mine = StyleSheet.flatten(screen.getByTestId("stat-bar-discard:5p:riichi").props.style);
+    const mine = StyleSheet.flatten(
+      screen.getByTestId("stat-bar-discard:5p:riichi:tsumogiri").props.style,
+    );
     const other = StyleSheet.flatten(screen.getByTestId("stat-bar-discard:1m").props.style);
     expect(mine.backgroundColor).toBe(colors.accent);
     expect(other.backgroundColor).not.toBe(colors.accent);
@@ -135,22 +140,22 @@ describe("ProblemAnswerScreen（何切る回答画面）", () => {
     mockGetProblemStats.mockResolvedValue({
       counts: { "discard:5p": 1 },
       total: 1,
-      myChoiceKey: "discard:5p",
-      myAction: { type: "discard", tile: "5p", riichi: false },
+      myChoiceKey: "discard:5p:tsumogiri",
+      myAction: { type: "discard", tile: "5p", riichi: false, tsumogiri: true },
     });
     render(<ProblemAnswerScreen />);
 
-    // 1回目: 5p を切る。
+    // 1回目: ツモ牌 5p をツモ切り。
     fireEvent.press(await screen.findByRole("button", { name: "5筒" }));
     fireEvent.press(screen.getByText("回答する"));
-    expect(await screen.findByText("あなたの回答: 5筒切り")).toBeTruthy();
+    expect(await screen.findByText("あなたの回答: 5筒ツモ切り")).toBeTruthy();
 
     // やり直し → 回答 UI に戻る（選択は保持されている）。
     fireEvent.press(screen.getByText("回答をやり直す"));
     expect(screen.queryByText(/あなたの回答:/)).toBeNull();
-    expect(screen.getByText("選択中: 5筒切り")).toBeTruthy();
+    expect(screen.getByText("選択中: 5筒ツモ切り")).toBeTruthy();
 
-    // 2回目: 1m に選び直して再回答 → サーバ upsert 前提で2回目の内容が送られる。
+    // 2回目: 手牌の 1m に選び直して再回答（手出し）→ upsert 前提で2回目の内容が送られる。
     fireEvent.press(screen.getByRole("button", { name: "1萬" }));
     fireEvent.press(screen.getByText("回答する"));
     expect(await screen.findByText("あなたの回答: 1萬切り")).toBeTruthy();
@@ -159,6 +164,7 @@ describe("ProblemAnswerScreen（何切る回答画面）", () => {
       type: "discard",
       tile: "1m",
       riichi: false,
+      tsumogiri: false,
     });
   });
 
@@ -167,10 +173,10 @@ describe("ProblemAnswerScreen（何切る回答画面）", () => {
     mockGetProblem.mockResolvedValue(makePost());
     render(<ProblemAnswerScreen />);
 
-    fireEvent.press(await screen.findByRole("button", { name: "5筒" }));
+    fireEvent.press(await screen.findByRole("button", { name: "5筒" })); // ツモ牌＝ツモ切り
     fireEvent.press(screen.getByText("回答する"));
 
-    expect(await screen.findByText("あなたの回答: 5筒切り")).toBeTruthy();
+    expect(await screen.findByText("あなたの回答: 5筒ツモ切り")).toBeTruthy();
     expect(mockAnswerProblem).not.toHaveBeenCalled();
     expect(screen.getByText(/ログインすると回答分布が見られます/)).toBeTruthy();
   });
@@ -204,7 +210,7 @@ describe("ProblemAnswerScreen（何切る回答画面）", () => {
     render(<ProblemAnswerScreen />);
 
     expect(await screen.findByText("テスト問題")).toBeTruthy();
-    const note = screen.queryByText("右端はツモ牌");
+    const note = screen.queryByText(/右端はツモ牌/);
     if (shown) expect(note).toBeTruthy();
     else expect(note).toBeNull();
   });

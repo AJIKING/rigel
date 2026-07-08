@@ -28,10 +28,10 @@ function renderScreen(post: ProblemPost) {
 beforeEach(() => {
   h.answerProblemAction.mockReset().mockResolvedValue({ ok: true, status: 200 });
   h.getProblemStatsAction.mockReset().mockResolvedValue({
-    counts: { "discard:1m:riichi": 2, "discard:5p": 1 },
-    total: 3,
+    counts: { "discard:1m:riichi": 2, "discard:5p": 1, "discard:5p:tsumogiri": 1 },
+    total: 4,
     myChoiceKey: "discard:1m:riichi",
-    myAction: { type: "discard", tile: "1m", riichi: true },
+    myAction: { type: "discard", tile: "1m", riichi: true, tsumogiri: false },
   });
 });
 
@@ -75,6 +75,7 @@ describe("ProblemAnswerScreen: 何切る", () => {
         type: "discard",
         tile: "2m",
         riichi: false,
+        tsumogiri: false,
       }),
     );
   });
@@ -104,6 +105,7 @@ describe("ProblemAnswerScreen: 何切る", () => {
         type: "discard",
         tile: "1m",
         riichi: true,
+        tsumogiri: false,
       }),
     );
     // 「出題者の答え（正解）」は出さない。自分の回答・出題者のコメント・みんなの分布を出す。
@@ -111,7 +113,27 @@ describe("ProblemAnswerScreen: 何切る", () => {
     expect(screen.getAllByText(/1萬切り・リーチ/).length).toBeGreaterThan(0);
     expect(screen.getByText(/ピンズの伸び/)).toBeTruthy();
     expect(await screen.findByText(/回答分布/)).toBeTruthy();
-    expect(screen.getByText("67%")).toBeTruthy();
+    expect(screen.getByText("50%")).toBeTruthy(); // 2/4件
+  });
+
+  it("ツモ牌をタップして回答するとツモ切りとして送信・表示される（分布ラベルも区別）", async () => {
+    stubMe("free");
+    renderScreen(discardPost());
+    fireEvent.click(await screen.findByRole("button", { name: "5筒" })); // 右端＝ツモ牌
+    expect(screen.getByText(/5筒ツモ切り/)).toBeTruthy(); // 選択中の手のラベル
+    fireEvent.click(screen.getByRole("button", { name: "回答する" }));
+    await waitFor(() =>
+      expect(h.answerProblemAction).toHaveBeenCalledWith("p1", {
+        type: "discard",
+        tile: "5p",
+        riichi: false,
+        tsumogiri: true,
+      }),
+    );
+    // 分布では同じ 5p でも手出し（5筒切り）とツモ切り（5筒ツモ切り）が別の行になる。
+    expect(await screen.findByText(/回答分布/)).toBeTruthy();
+    expect(screen.getByText("5筒切り")).toBeTruthy();
+    expect(screen.getAllByText(/5筒ツモ切り/).length).toBeGreaterThan(0);
   });
 
   it("未ログインでも回答体験はできるが、集計は呼ばずログイン導線を出す", async () => {

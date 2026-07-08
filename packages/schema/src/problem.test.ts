@@ -66,14 +66,14 @@ function callProblem(overrides: Record<string, unknown> = {}) {
 }
 
 describe("ProblemActionSchema（回答アクション）", () => {
-  it("打牌アクションを受け付ける（リーチ既定 false）", () => {
+  it("打牌アクションを受け付ける（リーチ・ツモ切りの既定 false）", () => {
     const a = ProblemActionSchema.parse({ type: "discard", tile: "5p" });
-    expect(a).toEqual({ type: "discard", tile: "5p", riichi: false });
+    expect(a).toEqual({ type: "discard", tile: "5p", riichi: false, tsumogiri: false });
   });
 
   it("リーチ付き打牌を受け付ける", () => {
     const a = ProblemActionSchema.parse({ type: "discard", tile: "0m", riichi: true });
-    expect(a).toEqual({ type: "discard", tile: "0m", riichi: true });
+    expect(a).toEqual({ type: "discard", tile: "0m", riichi: true, tsumogiri: false });
   });
 
   it("不正な牌コードを弾く", () => {
@@ -100,11 +100,33 @@ describe("ProblemActionSchema（回答アクション）", () => {
 
 describe("choiceKey（回答の直列化＝分布集計のキー）", () => {
   it("同じ手は同じキー・異なる手は異なるキーになる", () => {
-    expect(choiceKey({ type: "discard", tile: "5p", riichi: false })).toBe("discard:5p");
-    expect(choiceKey({ type: "discard", tile: "5p", riichi: true })).toBe("discard:5p:riichi");
+    expect(choiceKey({ type: "discard", tile: "5p", riichi: false, tsumogiri: false })).toBe(
+      "discard:5p",
+    );
+    expect(choiceKey({ type: "discard", tile: "5p", riichi: true, tsumogiri: false })).toBe(
+      "discard:5p:riichi",
+    );
     expect(choiceKey({ type: "call", call: "pon", discard: "2m" })).toBe("call:pon:2m");
     expect(choiceKey({ type: "call", call: "kan", discard: null })).toBe("call:kan");
     expect(choiceKey({ type: "pass" })).toBe("pass");
+  });
+
+  it("同じ牌でもツモ切り/手出しは別キーになる（リーチとの組合せ込み）", () => {
+    expect(choiceKey({ type: "discard", tile: "5p", riichi: false, tsumogiri: true })).toBe(
+      "discard:5p:tsumogiri",
+    );
+    expect(choiceKey({ type: "discard", tile: "5p", riichi: true, tsumogiri: true })).toBe(
+      "discard:5p:riichi:tsumogiri",
+    );
+  });
+
+  it("tsumogiri の既定は false（既存データ・キーは不変）", () => {
+    expect(ProblemActionSchema.parse({ type: "discard", tile: "5p" })).toEqual({
+      type: "discard",
+      tile: "5p",
+      riichi: false,
+      tsumogiri: false,
+    });
   });
 });
 
@@ -198,10 +220,29 @@ describe("ProblemSchema: 鳴き判断（call）", () => {
 describe("isValidAnswer（回答者のアクション検証。API が分布に入れる前に使う）", () => {
   it("何切る: 手牌かツモ牌の打牌だけが有効", () => {
     const p = ProblemSchema.parse(discardProblem());
-    expect(isValidAnswer(p, { type: "discard", tile: "1m", riichi: false })).toBe(true);
-    expect(isValidAnswer(p, { type: "discard", tile: "5p", riichi: true })).toBe(true); // ツモ切り
-    expect(isValidAnswer(p, { type: "discard", tile: "9s", riichi: false })).toBe(false); // 手牌に無い
+    expect(isValidAnswer(p, { type: "discard", tile: "1m", riichi: false, tsumogiri: false })).toBe(
+      true,
+    );
+    expect(isValidAnswer(p, { type: "discard", tile: "5p", riichi: true, tsumogiri: false })).toBe(
+      true,
+    );
+    expect(isValidAnswer(p, { type: "discard", tile: "9s", riichi: false, tsumogiri: false })).toBe(
+      false,
+    ); // 手牌に無い
     expect(isValidAnswer(p, { type: "pass" })).toBe(false); // kind 不一致
+  });
+
+  it("何切る: ツモ切り(tsumogiri=true)はツモ牌と一致する打牌だけが有効", () => {
+    const p = ProblemSchema.parse(discardProblem()); // drawn=5p
+    expect(isValidAnswer(p, { type: "discard", tile: "5p", riichi: false, tsumogiri: true })).toBe(
+      true,
+    );
+    expect(isValidAnswer(p, { type: "discard", tile: "5p", riichi: true, tsumogiri: true })).toBe(
+      true,
+    ); // ツモ切りリーチ
+    expect(isValidAnswer(p, { type: "discard", tile: "1m", riichi: false, tsumogiri: true })).toBe(
+      false,
+    ); // 手牌の牌をツモ切りとは言えない
   });
 
   it("鳴き判断: call か pass だけが有効。鳴いた後に切る牌は手牌から", () => {
@@ -210,6 +251,8 @@ describe("isValidAnswer（回答者のアクション検証。API が分布に�
     expect(isValidAnswer(p, { type: "call", call: "chi", discard: "2m" })).toBe(true);
     expect(isValidAnswer(p, { type: "call", call: "kan", discard: null })).toBe(true);
     expect(isValidAnswer(p, { type: "call", call: "pon", discard: "9s" })).toBe(false); // 手牌に無い
-    expect(isValidAnswer(p, { type: "discard", tile: "1m", riichi: false })).toBe(false); // kind 不一致
+    expect(isValidAnswer(p, { type: "discard", tile: "1m", riichi: false, tsumogiri: false })).toBe(
+      false,
+    ); // kind 不一致
   });
 });

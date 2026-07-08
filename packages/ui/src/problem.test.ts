@@ -89,12 +89,25 @@ describe("problemToKifu（盤面描画の再利用のための変換）", () => 
 
 describe("actionLabel（回答の人間向けラベル）", () => {
   it("打牌・リーチ・鳴き・スルーを日本語にする", () => {
-    expect(actionLabel({ type: "discard", tile: "5p", riichi: false })).toBe("5筒切り");
-    expect(actionLabel({ type: "discard", tile: "1z", riichi: true })).toBe("東切り・リーチ");
+    expect(actionLabel({ type: "discard", tile: "5p", riichi: false, tsumogiri: false })).toBe(
+      "5筒切り",
+    );
+    expect(actionLabel({ type: "discard", tile: "1z", riichi: true, tsumogiri: false })).toBe(
+      "東切り・リーチ",
+    );
     expect(actionLabel({ type: "call", call: "pon", discard: "2m" })).toBe("ポンして2萬切り");
     expect(actionLabel({ type: "call", call: "chi", discard: "0s" })).toBe("チーして赤5索切り");
     expect(actionLabel({ type: "call", call: "kan", discard: null })).toBe("カン");
     expect(actionLabel({ type: "pass" })).toBe("スルー");
+  });
+
+  it("ツモ切りは手出しと区別したラベルにする", () => {
+    expect(actionLabel({ type: "discard", tile: "5p", riichi: false, tsumogiri: true })).toBe(
+      "5筒ツモ切り",
+    );
+    expect(actionLabel({ type: "discard", tile: "5p", riichi: true, tsumogiri: true })).toBe(
+      "5筒ツモ切り・リーチ",
+    );
   });
 });
 
@@ -106,8 +119,13 @@ describe("choiceKeyLabel（分布キー→日本語ラベル）", () => {
     expect(choiceKeyLabel("call:kan")).toBe("カン");
     expect(choiceKeyLabel("pass")).toBe("スルー");
   });
+  it("ツモ切り・リーチ付きのキーも戻せる", () => {
+    expect(choiceKeyLabel("discard:5p:tsumogiri")).toBe("5筒ツモ切り");
+    expect(choiceKeyLabel("discard:5p:riichi:tsumogiri")).toBe("5筒ツモ切り・リーチ");
+  });
   it("不明なキーはそのまま返す（表示を壊さない）", () => {
     expect(choiceKeyLabel("garbage:x")).toBe("garbage:x");
+    expect(choiceKeyLabel("discard:5p:unknown")).toBe("discard:5p:unknown");
   });
 });
 
@@ -125,42 +143,97 @@ describe("statsRatios（分布の割合計算）", () => {
 });
 
 describe("buildProblemAnswer / answerNeedsTile（回答UIの選択状態→アクション）", () => {
-  it("何切る: 牌が選ばれていればリーチ込みで組み立てる（未選択は null）", () => {
-    expect(buildProblemAnswer({ kind: "discard", tile: "5p", riichi: true, call: null })).toEqual({
-      type: "discard",
-      tile: "5p",
-      riichi: true,
-    });
+  it("何切る: 牌が選ばれていればリーチ・ツモ切り込みで組み立てる（未選択は null）", () => {
     expect(
-      buildProblemAnswer({ kind: "discard", tile: null, riichi: false, call: null }),
+      buildProblemAnswer({
+        kind: "discard",
+        tile: "5p",
+        riichi: true,
+        tsumogiri: false,
+        call: null,
+      }),
+    ).toEqual({ type: "discard", tile: "5p", riichi: true, tsumogiri: false });
+    expect(
+      buildProblemAnswer({
+        kind: "discard",
+        tile: "5p",
+        riichi: false,
+        tsumogiri: true,
+        call: null,
+      }),
+    ).toEqual({ type: "discard", tile: "5p", riichi: false, tsumogiri: true });
+    expect(
+      buildProblemAnswer({
+        kind: "discard",
+        tile: null,
+        riichi: false,
+        tsumogiri: false,
+        call: null,
+      }),
     ).toBeNull();
   });
 
   it("鳴き判断: スルー/カンは牌不要、ポン/チーは切る牌が必要", () => {
-    expect(buildProblemAnswer({ kind: "call", tile: null, riichi: false, call: "pass" })).toEqual({
-      type: "pass",
-    });
-    expect(buildProblemAnswer({ kind: "call", tile: null, riichi: false, call: "kan" })).toEqual({
-      type: "call",
-      call: "kan",
-      discard: null,
-    });
-    expect(buildProblemAnswer({ kind: "call", tile: "2m", riichi: false, call: "pon" })).toEqual({
-      type: "call",
-      call: "pon",
-      discard: "2m",
-    });
-    expect(buildProblemAnswer({ kind: "call", tile: null, riichi: false, call: "pon" })).toBeNull();
-    expect(buildProblemAnswer({ kind: "call", tile: null, riichi: false, call: null })).toBeNull();
+    expect(
+      buildProblemAnswer({
+        kind: "call",
+        tile: null,
+        riichi: false,
+        tsumogiri: false,
+        call: "pass",
+      }),
+    ).toEqual({ type: "pass" });
+    expect(
+      buildProblemAnswer({
+        kind: "call",
+        tile: null,
+        riichi: false,
+        tsumogiri: false,
+        call: "kan",
+      }),
+    ).toEqual({ type: "call", call: "kan", discard: null });
+    expect(
+      buildProblemAnswer({
+        kind: "call",
+        tile: "2m",
+        riichi: false,
+        tsumogiri: false,
+        call: "pon",
+      }),
+    ).toEqual({ type: "call", call: "pon", discard: "2m" });
+    expect(
+      buildProblemAnswer({
+        kind: "call",
+        tile: null,
+        riichi: false,
+        tsumogiri: false,
+        call: "pon",
+      }),
+    ).toBeNull();
+    expect(
+      buildProblemAnswer({ kind: "call", tile: null, riichi: false, tsumogiri: false, call: null }),
+    ).toBeNull();
   });
 
   it("canSubmit は組み立て可能と同値、needsTile は何切るとポン/チーだけ true", () => {
-    expect(canSubmitProblemAnswer({ kind: "call", tile: null, riichi: false, call: "pass" })).toBe(
-      true,
-    );
-    expect(canSubmitProblemAnswer({ kind: "discard", tile: null, riichi: false, call: null })).toBe(
-      false,
-    );
+    expect(
+      canSubmitProblemAnswer({
+        kind: "call",
+        tile: null,
+        riichi: false,
+        tsumogiri: false,
+        call: "pass",
+      }),
+    ).toBe(true);
+    expect(
+      canSubmitProblemAnswer({
+        kind: "discard",
+        tile: null,
+        riichi: false,
+        tsumogiri: false,
+        call: null,
+      }),
+    ).toBe(false);
     expect(answerNeedsTile({ kind: "discard", call: null })).toBe(true);
     expect(answerNeedsTile({ kind: "call", call: "chi" })).toBe(true);
     expect(answerNeedsTile({ kind: "call", call: "kan" })).toBe(false);
@@ -177,7 +250,12 @@ describe("assembleProblem（編集状態→Problem の組み立て・検証。we
       melds: [],
       drawn: "5p",
       targetSeat: "south",
-      rivers: { east: [], south: ["1z"], west: [], north: [] },
+      rivers: {
+        east: [],
+        south: [{ tile: "1z", tsumogiri: false }],
+        west: [],
+        north: [],
+      },
       meta: { dealer: "east", roundWind: "east", honba: 1, kyotaku: 0, junme: 6, dora: ["3z"] },
       scores: { east: "25000", south: "24000", west: "26000", north: "25000" },
       // rules は省略＝既定（Mリーグ相当）に任せる
@@ -209,6 +287,23 @@ describe("assembleProblem（編集状態→Problem の組み立て・検証。we
   it("scores が null なら点数状況なしで組み立てる", () => {
     expect(assembleProblem(draft({ scores: null })).problem?.scores).toBeNull();
   });
+
+  it("河のツモ切り指定が Problem の river に写る", () => {
+    const { problem } = assembleProblem(
+      draft({
+        rivers: {
+          east: [],
+          south: [
+            { tile: "1z", tsumogiri: false },
+            { tile: "5p", tsumogiri: true },
+          ],
+          west: [],
+          north: [],
+        },
+      }),
+    );
+    expect(problem?.seats.south.river.map((d) => d.tsumogiri)).toEqual([false, true]);
+  });
 });
 
 describe("draftToKifu（編集途中の盤面プレビュー変換）", () => {
@@ -217,12 +312,14 @@ describe("draftToKifu（編集途中の盤面プレビュー変換）", () => {
       pov: "south",
       hand: ["9m", "1m"], // 2枚しかない編集途中
       melds: [],
-      rivers: { east: [], south: [], west: ["5p"], north: [] },
+      rivers: { east: [], south: [], west: [{ tile: "5p", tsumogiri: true }], north: [] },
       meta: { dealer: "east", roundWind: "east", honba: 1, kyotaku: 0, junme: 3, dora: ["3z"] },
     });
     expect(kifu.cameraBottomSeat).toBe("south");
     expect(kifu.seats.south.hand.map((t) => t.tile)).toEqual(["1m", "9m"]); // 理牌
     expect(kifu.seats.west.river.map((d) => d.order)).toEqual([1]);
+    // ツモ切り指定はプレビューにもそのまま写る（グレー表示になる）。
+    expect(kifu.seats.west.river.map((d) => d.tsumogiri)).toEqual([true]);
     expect(kifu.meta.dora).toEqual(["3z"]);
   });
 });
@@ -251,9 +348,9 @@ describe("problemHandMax / addDraftMeld / problemRiverTiles（編集画面の共
     expect(addDraftMeld([], [], "kan", "1z").melds[0]?.type).toBe("kan_open");
   });
 
-  it("problemRiverTiles は各席の河を牌配列へ写す（未指定は空）", () => {
+  it("problemRiverTiles は各席の河をツモ切りフラグ付きで写す（未指定は空）", () => {
     expect(problemRiverTiles()).toEqual({ east: [], south: [], west: [], north: [] });
-    expect(problemRiverTiles(makeProblem()).west).toEqual(["5p"]);
+    expect(problemRiverTiles(makeProblem()).west).toEqual([{ tile: "5p", tsumogiri: false }]);
   });
 });
 

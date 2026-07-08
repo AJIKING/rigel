@@ -20,6 +20,7 @@ import {
   tileLabel,
   LIMIT_MESSAGES,
   SEAT_ORDER,
+  type DraftRiverTile,
   type MeldPick,
 } from "@rigel/ui";
 import { useEffect, useMemo, useState } from "react";
@@ -103,7 +104,7 @@ function EditorBody({ initial, token }: { initial?: ProblemPost; token: string |
   );
   const [melds, setMelds] = useState<Meld[]>(p0 ? p0.seats[p0.pov].melds : []);
   const [drawn, setDrawn] = useState<Tile | null>(p0?.drawn ?? null);
-  const [rivers, setRivers] = useState<Record<Seat, Tile[]>>(() => problemRiverTiles(p0));
+  const [rivers, setRivers] = useState<Record<Seat, DraftRiverTile[]>>(() => problemRiverTiles(p0));
   const [dora, setDora] = useState<Tile[]>(p0?.meta.dora ?? []);
   const [targetSeat, setTargetSeat] = useState<Seat>(p0?.targetSeat ?? "south");
   const [roundWind, setRoundWind] = useState<Seat>(p0?.meta.roundWind ?? "east");
@@ -186,7 +187,8 @@ function EditorBody({ initial, token }: { initial?: ProblemPost; token: string |
     }
     if (target.startsWith("river:")) {
       const seat = target.slice("river:".length) as Seat;
-      setRivers((cur) => ({ ...cur, [seat]: [...cur[seat], code] }));
+      // 置くときは手出し。ツモ切りはチップのタップで後から切り替える。
+      setRivers((cur) => ({ ...cur, [seat]: [...cur[seat], { tile: code, tsumogiri: false }] }));
       return;
     }
     const type = target.slice("meld:".length) as MeldPick;
@@ -473,20 +475,27 @@ function EditorBody({ initial, token }: { initial?: ProblemPost; token: string |
           ))}
         </View>
 
-        {/* 各席の河 */}
+        {/* 各席の河（チップタップで手出し⇄ツモ切り、✕で削除） */}
         {SEAT_ORDER.map((seat) => (
-          <TileRow
+          <RiverRow
             key={seat}
-            label={`${seatLabel(seat)}家の河`}
+            seat={seat}
             tiles={rivers[seat]}
-            removeLabel={(t, i) => `${seatLabel(seat)}家の河${i + 1}（${tileLabel(t)}）を外す`}
+            onToggle={(i) =>
+              setRivers((cur) => ({
+                ...cur,
+                [seat]: cur[seat].map((d, j) => (j === i ? { ...d, tsumogiri: !d.tsumogiri } : d)),
+              }))
+            }
             onRemove={(i) =>
               setRivers((cur) => ({ ...cur, [seat]: cur[seat].filter((_, j) => j !== i) }))
             }
-            addLabel={`${seatLabel(seat)}家の河に追加`}
             onAdd={() => setTarget(`river:${seat}`)}
           />
         ))}
+        {SEAT_ORDER.some((seat) => rivers[seat].length > 0) ? (
+          <Text style={styles.riverHint}>河の牌はタップでツモ切り⇄手出しを切り替えられます。</Text>
+        ) : null}
 
         {/* 正解は設けない（多様な正解を前提に、回答の分布を見る）。コメントだけ書ける。 */}
         <TextInput
@@ -531,7 +540,53 @@ function EditorBody({ initial, token }: { initial?: ProblemPost; token: string |
 
 /* ---- 小物 ---- */
 
-/** ラベル + 牌列（タップで削除）+ 追加ボタンの行（ドラ・河で共用）。 */
+/** 河の行。チップタップで手出し⇄ツモ切りを切替（ツモ切りはグレー表示）、✕で外す。 */
+function RiverRow({
+  seat,
+  tiles,
+  onToggle,
+  onRemove,
+  onAdd,
+}: {
+  seat: Seat;
+  tiles: DraftRiverTile[];
+  onToggle: (index: number) => void;
+  onRemove: (index: number) => void;
+  onAdd: () => void;
+}) {
+  return (
+    <View style={styles.segRow}>
+      <Text style={styles.rowLabel}>{`${seatLabel(seat)}家の河`}</Text>
+      <View style={styles.tilesInRow}>
+        {tiles.map((d, i) => (
+          <View key={`${d.tile}-${i}`} style={styles.riverChip}>
+            <Pressable
+              onPress={() => onToggle(i)}
+              accessibilityRole="button"
+              accessibilityState={{ selected: d.tsumogiri }}
+              accessibilityLabel={`${seatLabel(seat)}家の河${i + 1}（${tileLabel(d.tile)}）を${
+                d.tsumogiri ? "手出し" : "ツモ切り"
+              }にする`}
+            >
+              <MiniTile code={d.tile} w={26} h={36} tsumogiri={d.tsumogiri} />
+            </Pressable>
+            <Pressable
+              style={styles.chipX}
+              onPress={() => onRemove(i)}
+              accessibilityRole="button"
+              accessibilityLabel={`${seatLabel(seat)}家の河${i + 1}（${tileLabel(d.tile)}）を外す`}
+            >
+              <Text style={styles.chipXText}>×</Text>
+            </Pressable>
+          </View>
+        ))}
+        <AddButton label={`${seatLabel(seat)}家の河に追加`} onPress={onAdd} small />
+      </View>
+    </View>
+  );
+}
+
+/** ラベル + 牌列（タップで削除）+ 追加ボタンの行（ドラで使用）。 */
 function TileRow({
   label,
   tiles,
@@ -632,6 +687,21 @@ const styles = StyleSheet.create({
   prevWrap: { alignItems: "center", marginTop: 6 },
   tiles: { flexDirection: "row", flexWrap: "wrap", gap: 5, alignItems: "center" },
   tilesInRow: { flex: 1, flexDirection: "row", flexWrap: "wrap", gap: 5, alignItems: "center" },
+  // 河チップ（タップで手出し⇄ツモ切り、右上の✕で削除）。
+  riverChip: { position: "relative", paddingTop: 6, paddingRight: 6 },
+  chipX: {
+    position: "absolute",
+    top: 0,
+    right: 0,
+    width: 15,
+    height: 15,
+    borderRadius: 8,
+    backgroundColor: "rgba(0,0,0,0.55)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  chipXText: { color: "rgba(255,255,255,0.85)", fontSize: 10, lineHeight: 12 },
+  riverHint: { color: colors.w45, fontSize: 11 },
   meldChip: {
     flexDirection: "row",
     gap: 2,

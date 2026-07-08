@@ -199,6 +199,45 @@ describe("ProblemEditorScreen: 袋小路（無反応・解決不能なエラー�
   });
 });
 
+describe("ProblemEditorScreen: 河のツモ切り指定", () => {
+  it("河チップのタップでツモ切り⇄手出しを切替でき、保存 problem の river に乗る", async () => {
+    stubMe("free");
+    renderEditor();
+    await screen.findByRole("group", { name: "牌を選ぶ" });
+    fillHand(); // 13枚 → 入力先は自動でツモ牌へ
+    pick("5筒"); // ツモ牌
+
+    // 東家の河に 1筒 を置く（既定は手出し）。
+    fireEvent.click(screen.getByRole("button", { name: "東家の河" }));
+    pick("1筒");
+    const toggle = screen.getByRole("button", { name: "東家の河の 1筒 をツモ切りにする" });
+    expect(toggle.getAttribute("aria-pressed")).toBe("false");
+
+    // タップでツモ切りへ（もう一度で手出しに戻せる）。
+    fireEvent.click(toggle);
+    expect(
+      screen
+        .getByRole("button", { name: "東家の河の 1筒 を手出しにする" })
+        .getAttribute("aria-pressed"),
+    ).toBe("true");
+
+    fireEvent.click(screen.getByRole("button", { name: "下書き保存" }));
+    await waitFor(() => expect(h.createProblemAction).toHaveBeenCalled());
+    const [input] = h.createProblemAction.mock.calls[0] as [{ problem: Problem }];
+    expect(input.problem.seats.east.river.map((d) => d.tsumogiri)).toEqual([true]);
+  });
+
+  it("河チップの✕で牌を削除できる（タップは切替に変わったため）", async () => {
+    stubMe("free");
+    renderEditor();
+    await screen.findByRole("group", { name: "牌を選ぶ" });
+    fireEvent.click(screen.getByRole("button", { name: "東家の河" }));
+    pick("1萬");
+    fireEvent.click(screen.getByRole("button", { name: "東家の河の 1萬 を外す" }));
+    expect(screen.queryByRole("button", { name: "東家の河の 1萬 をツモ切りにする" })).toBeNull();
+  });
+});
+
 describe("ProblemEditorScreen: 既存問題の編集", () => {
   it("初期値を読み込み、更新は updateProblemAction を呼ぶ", async () => {
     stubMe("free");

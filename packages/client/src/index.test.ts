@@ -431,12 +431,18 @@ describe("problems（何切る問題）", () => {
           type: "discard",
           tile: "5p",
           riichi: true,
+          tsumogiri: false,
         });
         return json({ ok: true });
       }),
     );
     expect(
-      await client.answerProblem("tok", "p1", { type: "discard", tile: "5p", riichi: true }),
+      await client.answerProblem("tok", "p1", {
+        type: "discard",
+        tile: "5p",
+        riichi: true,
+        tsumogiri: false,
+      }),
     ).toEqual({ ok: true, status: 200 });
   });
 

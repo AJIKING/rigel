@@ -45,6 +45,40 @@ describe("AnswerProblem（回答の upsert）", () => {
     expect(await d.answers.countsByProblem("p1")).toEqual({ "discard:1m": 1 });
   });
 
+  it("同じ牌でもリーチ有無・ツモ切り/手出しは別キーで集計される", async () => {
+    const d = deps();
+    await d.problems.save(post("p1", "owner"));
+    const uc = new AnswerProblem(d);
+    await uc.execute({ userId: "u1", problemId: "p1", action: { type: "discard", tile: "5p" } });
+    await uc.execute({
+      userId: "u2",
+      problemId: "p1",
+      action: { type: "discard", tile: "5p", tsumogiri: true },
+    });
+    await uc.execute({
+      userId: "u3",
+      problemId: "p1",
+      action: { type: "discard", tile: "5p", riichi: true, tsumogiri: true },
+    });
+    expect(await d.answers.countsByProblem("p1")).toEqual({
+      "discard:5p": 1,
+      "discard:5p:tsumogiri": 1,
+      "discard:5p:riichi:tsumogiri": 1,
+    });
+  });
+
+  it("ツモ切り(tsumogiri=true)なのにツモ牌と違う牌は invalid", async () => {
+    const d = deps();
+    await d.problems.save(post("p1", "owner"));
+    expect(
+      await new AnswerProblem(d).execute({
+        userId: "u1",
+        problemId: "p1",
+        action: { type: "discard", tile: "1m", tsumogiri: true },
+      }),
+    ).toEqual({ ok: false, reason: "invalid" });
+  });
+
   it("出題形式に合わない・手牌に無い牌の回答は invalid（分布を荒らさない）", async () => {
     const d = deps();
     await d.problems.save(post("p1", "owner"));
@@ -93,7 +127,7 @@ describe("GetProblemStats（分布＋自分の回答）", () => {
       counts: { "discard:5p": 2, "discard:1m": 1 },
       total: 3,
       myChoiceKey: "discard:5p",
-      myAction: { type: "discard", tile: "5p", riichi: false },
+      myAction: { type: "discard", tile: "5p", riichi: false, tsumogiri: false },
     });
   });
 
