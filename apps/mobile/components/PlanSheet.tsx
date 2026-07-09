@@ -5,8 +5,9 @@ import { BottomSheet, SheetCloseButton } from "./BottomSheet";
 
 /**
  * プラン変更のボトムシート。各プランの提供内容（PLAN_FEATURES）と月額を並べ、
- * 選んで onSelect に渡す。アプリは App Store（アプリ内課金）経由の販売になるため、
- * 価格は手数料込みの planMonthlyPriceAppStore（30%割増）を表示する（web の価格とは異なる）。
+ * 選んで onSelect に渡す。アプリはストア（アプリ内課金）経由の販売のため、価格は
+ * ストア掲載価格の planMonthlyPriceAppStore（Next ¥700 / Pro ¥1,800）を表示する
+ * （web=Stripe の価格とは異なる。表示専用＝実際の請求はストア設定が正）。
  */
 export function PlanSheet({
   targets,

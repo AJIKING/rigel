@@ -206,12 +206,13 @@ export function planCanAnalyze(plan: Plan): boolean {
   return PLAN_MONTHLY_AI_QUOTA[plan] > 0;
 }
 
-/** App Store 決済の手数料率（Apple の 30%）。IAP 経由の販売価格に上乗せする。 */
-export const APP_STORE_FEE_RATE = 0.3;
+/** ストア（アプリ内課金）経由の月額（円）。ストア手数料を織り込んだ掲載価格で、
+ *  **App Store Connect / Play Console の設定値と必ず一致させる**（[決定] 2026-07-09。
+ *  web=Stripe の ¥480/¥1,480 より高い。表示専用＝実際の請求はストアの設定が正）。 */
+const PLAN_MONTHLY_PRICE_STORE: Record<Plan, number> = { free: 0, next: 700, pro: 1800 };
 
-/** App Store（アプリ内課金）経由の月額（円）。手数料ぶん 30% 割増した価格。 */
 export function planMonthlyPriceAppStore(plan: Plan): number {
-  return Math.round(PLAN_MONTHLY_PRICE[plan] * (1 + APP_STORE_FEE_RATE));
+  return PLAN_MONTHLY_PRICE_STORE[plan];
 }
 
 /** いまのプランからアップグレード可能な有料プラン（上位のみ）。 */

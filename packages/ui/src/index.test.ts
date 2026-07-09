@@ -134,10 +134,10 @@ describe("プラン表示", () => {
     expect(planLabel("pro")).toBe("Pro");
     expect(planMonthlyPrice("next")).toBe(480);
   });
-  it("planMonthlyPriceAppStore は App Store 手数料ぶん 30% 割増", () => {
+  it("planMonthlyPriceAppStore はストア掲載価格（App Store Connect の設定値と一致）", () => {
     expect(planMonthlyPriceAppStore("free")).toBe(0);
-    expect(planMonthlyPriceAppStore("next")).toBe(624); // 480 × 1.3
-    expect(planMonthlyPriceAppStore("pro")).toBe(1924); // 1480 × 1.3
+    expect(planMonthlyPriceAppStore("next")).toBe(700);
+    expect(planMonthlyPriceAppStore("pro")).toBe(1800);
   });
   it("upgradeTargets は上位プランだけ返す", () => {
     expect(upgradeTargets("free")).toEqual(["next", "pro"]);

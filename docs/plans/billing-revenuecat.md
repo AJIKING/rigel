@@ -49,7 +49,8 @@ Zod 検証を通し、`users.plan` への反映だけを内部に許す。
        **EXPIRATION のみ free へ落とす**。CANCELLATION は自動更新オフ（期限まで有効）なので**何もしない**。
        未知イベント（**TRANSFER 含む**）は 200 で無視しログ。
   3. **Expo での SDK**: `react-native-purchases` は Expo Go 不可（dev build / EAS 必須）
-  4. **IAP 価格**（ストア手数料 15–30% を転嫁するか吸収するか）
+  4. ~~IAP 価格~~ → **[決定] 2026-07-09**: App Store 掲載価格 Next **¥700** / Pro **¥1,800**
+     （手数料転嫁。`planMonthlyPriceAppStore` の確定値テーブルとストア設定を一致させる）
   5. ~~エンタイトルメント識別子~~ → **[決定] `next` / `pro` に作り直し済み**（2026-07-09。
      採取時の "RIGEL Next" は識別子変更不可のため Entitlements を再作成）
   6. **TRANSFER（購読の別アカウント移動）の扱い**: 実ペイロード未採取・未実装。現状は
