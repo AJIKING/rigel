@@ -27,6 +27,7 @@ import {
   APPSTORE_TEST_CONFIG,
   FakeAppStoreVerifier,
   FakeBillingGateway,
+  REVENUECAT_TEST_AUTH,
 } from "../../test-support/billing";
 import { InMemoryUserRepository } from "../../test-support/in-memory";
 import { createApp } from "./app";
@@ -415,5 +416,104 @@ describe("IAP ルート（実 JWS 検証）", () => {
       fakeEnv,
     );
     expect(res.status).toBe(400);
+  });
+});
+
+// ------------------------------------------------------------
+// RevenueCat Webhook: エンタイトルメントの真実源（web=Stripe / アプリ=IAP 横串）
+// ------------------------------------------------------------
+
+describe("POST /billing/revenuecat/webhook", () => {
+  const rcBody = (over: Record<string, unknown> = {}) => ({
+    api_version: "1.0",
+    event: {
+      id: "E1",
+      type: "INITIAL_PURCHASE",
+      app_user_id: "u1",
+      entitlement_ids: ["pro"],
+      environment: "PRODUCTION",
+      ...over,
+    },
+  });
+
+  const rcInit = (auth: string | null, payload: unknown): RequestInit => ({
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      ...(auth ? { authorization: auth } : {}),
+    },
+    body: JSON.stringify(payload),
+  });
+
+  function rcApp(users: InMemoryUserRepository) {
+    return createApp({
+      container: billingTestContainer({
+        users,
+        gateway: new FakeBillingGateway(),
+        verifier: new FakeAppStoreVerifier(tx()),
+      }),
+    });
+  }
+
+  it("正しい Authorization + 購入イベントで plan が反映される（再送は二重適用しない）", async () => {
+    const users = new InMemoryUserRepository([makeFreeUser("u1")]);
+    const app = rcApp(users);
+
+    const r1 = await app.request(
+      "/billing/revenuecat/webhook",
+      rcInit(REVENUECAT_TEST_AUTH, rcBody()),
+      fakeEnv,
+    );
+    expect(r1.status).toBe(200);
+    expect(await r1.json()).toEqual({ received: true, handled: true });
+    expect((await users.findById("u1"))?.plan).toBe("pro");
+
+    // 同一 event.id の再送 → 200 だが適用しない。
+    const r2 = await app.request(
+      "/billing/revenuecat/webhook",
+      rcInit(REVENUECAT_TEST_AUTH, rcBody()),
+      fakeEnv,
+    );
+    expect(await r2.json()).toEqual({ received: true, handled: false });
+  });
+
+  it("Authorization 不一致・欠落は 401 で、プランは動かない", async () => {
+    const users = new InMemoryUserRepository([makeFreeUser("u1")]);
+    const app = rcApp(users);
+
+    const bad = await app.request(
+      "/billing/revenuecat/webhook",
+      rcInit("Bearer wrong", rcBody()),
+      fakeEnv,
+    );
+    expect(bad.status).toBe(401);
+    const missing = await app.request(
+      "/billing/revenuecat/webhook",
+      rcInit(null, rcBody()),
+      fakeEnv,
+    );
+    expect(missing.status).toBe(401);
+    expect((await users.findById("u1"))?.plan).toBe("free");
+  });
+
+  it("スキーマ違反の body は 400", async () => {
+    const app = rcApp(new InMemoryUserRepository([makeFreeUser("u1")]));
+    const res = await app.request(
+      "/billing/revenuecat/webhook",
+      rcInit(REVENUECAT_TEST_AUTH, { nope: 1 }),
+      fakeEnv,
+    );
+    expect(res.status).toBe(400);
+  });
+
+  it("未知イベント（TEST 等）は 200 で handled: false（再送させない）", async () => {
+    const app = rcApp(new InMemoryUserRepository([makeFreeUser("u1")]));
+    const res = await app.request(
+      "/billing/revenuecat/webhook",
+      rcInit(REVENUECAT_TEST_AUTH, rcBody({ type: "TEST", entitlement_ids: null })),
+      fakeEnv,
+    );
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ received: true, handled: false });
   });
 });

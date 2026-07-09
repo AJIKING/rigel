@@ -91,6 +91,23 @@ export function registerBillingRoutes(app: Hono<AppEnv>): void {
     }
   });
 
+  // 課金: RevenueCat Webhook（エンタイトルメントの真実源。web=Stripe/アプリ=IAP を横串で
+  // 一元管理し、これだけが users.plan を書く）。認証は Authorization 共有シークレット照合。
+  app.post("/billing/revenuecat/webhook", async (c) => {
+    const container = c.get("container");
+    if (!container.revenueCatEnabled) return c.json({ error: "revenuecat not configured" }, 501);
+    if (c.req.header("authorization") !== container.revenueCatWebhookAuth) {
+      return c.json({ error: "unauthorized" }, 401);
+    }
+    const body = await c.req.json().catch(() => null);
+    try {
+      const result = await container.handleRevenueCatWebhook.execute({ body });
+      return c.json({ received: true, handled: result.handled });
+    } catch {
+      return c.json({ error: "invalid webhook" }, 400);
+    }
+  });
+
   // 課金: Stripe Webhook（署名検証。認証は通さない＝Stripe から直接呼ばれる）。
   app.post("/billing/webhook", async (c) => {
     const container = c.get("container");

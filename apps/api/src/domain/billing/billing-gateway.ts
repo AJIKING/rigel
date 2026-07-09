@@ -11,7 +11,14 @@ export type PaidPlan = "next" | "pro";
 
 /** Webhook を解釈した結果。アプリ層はこの3種だけ知っていればよい。 */
 export type BillingEvent =
-  | { type: "subscribed"; userId: string; plan: PaidPlan }
+  | {
+      type: "subscribed";
+      userId: string;
+      plan: PaidPlan;
+      /** Stripe の購読ID（sub_...）。初回 Checkout 完了のときだけ入り、RevenueCat への
+       *  購読登録（横串一元管理の起点）に使う。Portal 変更等は登録済みのため null。 */
+      subscriptionId: string | null;
+    }
   | { type: "unsubscribed"; userId: string }
   /** 関心の無いイベント（無視してよい）。 */
   | { type: "ignored" };

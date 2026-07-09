@@ -162,6 +162,11 @@ describe("HTTP app (Hono)", () => {
     expect(res.status).toBe(501);
   });
 
+  it("POST /billing/revenuecat/webhook は RevenueCat 未設定なら 501", async () => {
+    const res = await app.request("/billing/revenuecat/webhook", { method: "POST" }, fakeEnv);
+    expect(res.status).toBe(501);
+  });
+
   it("DELETE /kifu/:id はトークン無しで 401", async () => {
     const res = await app.request("/kifu/l1", { method: "DELETE" }, fakeEnv);
     expect(res.status).toBe(401);

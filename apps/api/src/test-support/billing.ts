@@ -20,15 +20,19 @@ import type {
 import { User } from "../domain/user/user";
 import { HandleAppStoreNotification } from "../application/handle-appstore-notification.usecase";
 import { HandleBillingWebhook } from "../application/handle-billing-webhook.usecase";
+import { HandleRevenueCatWebhook } from "../application/handle-revenuecat-webhook.usecase";
 import { OpenBillingPortal } from "../application/open-billing-portal.usecase";
 import { RedeemAppStorePurchase } from "../application/redeem-appstore-purchase.usecase";
 import { StartCheckout } from "../application/start-checkout.usecase";
 import type { AppContainer } from "../composition-root";
 import type { Env } from "../env";
 import { JwtSessionService } from "../infrastructure/auth/jwt-session-service";
-import { InMemoryUserRepository } from "./in-memory";
+import { InMemoryRevenueCatEventRepository, InMemoryUserRepository } from "./in-memory";
 
 export const TEST_SESSION_SECRET = "test-secret";
+
+/** RevenueCat Webhook の Authorization 照合値（テスト用）。 */
+export const REVENUECAT_TEST_AUTH = "Bearer test-rc-secret";
 
 /** mobile の IAP_PRODUCT_IDS / wrangler.toml と同じ体系のテスト設定。 */
 export const APPSTORE_TEST_CONFIG: AppStoreConfig = {
@@ -114,6 +118,13 @@ export function billingTestContainer(opts: BillingContainerOptions): (env: Env) 
       verifier: opts.verifier,
       users: opts.users,
       config,
+    }),
+    revenueCatEnabled: true,
+    revenueCatWebhookAuth: REVENUECAT_TEST_AUTH,
+    handleRevenueCatWebhook: new HandleRevenueCatWebhook({
+      users: opts.users,
+      events: new InMemoryRevenueCatEventRepository(),
+      allowSandbox: false,
     }),
   } as Partial<AppContainer> as AppContainer;
   return () => container;

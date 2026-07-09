@@ -14,15 +14,16 @@ function sub(overrides: Record<string, unknown> = {}) {
 }
 
 describe("subscriptionUpdatedEvent（Portal でのプラン変更の正規化）", () => {
-  it("active なサブスクの価格IDからプランを引いて subscribed にする", () => {
+  it("active なサブスクの価格IDからプランを引いて subscribed にする（RC 登録は初回 Checkout 済みのため無し）", () => {
     expect(subscriptionUpdatedEvent(sub(), PRICES)).toEqual({
       type: "subscribed",
       userId: "u1",
       plan: "pro",
+      subscriptionId: null,
     });
     expect(
       subscriptionUpdatedEvent(sub({ items: { data: [{ price: { id: "price_next" } }] } }), PRICES),
-    ).toEqual({ type: "subscribed", userId: "u1", plan: "next" });
+    ).toEqual({ type: "subscribed", userId: "u1", plan: "next", subscriptionId: null });
   });
 
   it("userId メタデータが無ければ無視", () => {
@@ -69,7 +70,26 @@ describe("StripeBillingGateway.parseEvent（実SDKの署名検証）", () => {
     return [body, stripe.webhooks.generateTestHeaderString({ payload: body, secret })];
   }
 
-  it("checkout.session.completed → subscribed（client_reference_id と tier から）", async () => {
+  it("checkout.session.completed → subscribed（client_reference_id と tier から。subscription id は RevenueCat 登録用に添える）", async () => {
+    const [body, sig] = signed({
+      type: "checkout.session.completed",
+      data: {
+        object: {
+          client_reference_id: "u1",
+          metadata: { tier: "next" },
+          subscription: "sub_123",
+        },
+      },
+    });
+    expect(await gateway.parseEvent(body, sig)).toEqual({
+      type: "subscribed",
+      userId: "u1",
+      plan: "next",
+      subscriptionId: "sub_123",
+    });
+  });
+
+  it("checkout.session.completed で subscription が無くても subscribed は成立する（登録だけ諦める）", async () => {
     const [body, sig] = signed({
       type: "checkout.session.completed",
       data: { object: { client_reference_id: "u1", metadata: { tier: "next" } } },
@@ -78,6 +98,7 @@ describe("StripeBillingGateway.parseEvent（実SDKの署名検証）", () => {
       type: "subscribed",
       userId: "u1",
       plan: "next",
+      subscriptionId: null,
     });
   });
 
@@ -117,6 +138,7 @@ describe("StripeBillingGateway.parseEvent（実SDKの署名検証）", () => {
       type: "subscribed",
       userId: "u1",
       plan: "pro",
+      subscriptionId: null, // Portal 経由は初回 Checkout で登録済みのため RC 登録しない。
     });
   });
 

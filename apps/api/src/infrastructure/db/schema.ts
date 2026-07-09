@@ -144,6 +144,15 @@ export const problemAnswers = sqliteTable(
   ],
 );
 
+/** 処理済みの RevenueCat Webhook イベント（冪等キー = event.id）。
+ *  失効後に古い購入イベントが再送されてもプランが復活しないよう記録する。 */
+export const revenuecatEvents = sqliteTable("revenuecat_events", {
+  id: text("id").primaryKey(),
+  processedAt: integer("processed_at", { mode: "timestamp_ms" })
+    .notNull()
+    .$defaultFn(() => new Date()),
+});
+
 export type UserRow = typeof users.$inferSelect;
 export type NewUserRow = typeof users.$inferInsert;
 export type GameRow = typeof games.$inferSelect;

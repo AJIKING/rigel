@@ -4,11 +4,23 @@ import type {
   BillingGateway,
   CheckoutParams,
 } from "../domain/billing/billing-gateway";
+import type { RevenueCatGateway } from "../domain/billing/revenuecat";
 import { User } from "../domain/user/user";
 import { InMemoryUserRepository } from "../test-support/in-memory";
 import { HandleBillingWebhook } from "./handle-billing-webhook.usecase";
 import { OpenBillingPortal } from "./open-billing-portal.usecase";
 import { StartCheckout } from "./start-checkout.usecase";
+
+/** registerStripeSubscription の呼び出しを記録するフェイク（fail で失敗を再現）。 */
+class FakeRevenueCatGateway implements RevenueCatGateway {
+  calls: { appUserId: string; subscriptionId: string }[] = [];
+  constructor(private readonly fail = false) {}
+  registerStripeSubscription(params: { appUserId: string; subscriptionId: string }): Promise<void> {
+    if (this.fail) return Promise.reject(new Error("rc down"));
+    this.calls.push(params);
+    return Promise.resolve();
+  }
+}
 
 function freeUser(id: string): User {
   return new User({
@@ -91,7 +103,12 @@ describe("OpenBillingPortal", () => {
 describe("HandleBillingWebhook", () => {
   it("subscribed でプランを申し込んだ tier にして保存する", async () => {
     const users = new InMemoryUserRepository([freeUser("u1")]);
-    const gateway = new FakeBillingGateway({ type: "subscribed", userId: "u1", plan: "next" });
+    const gateway = new FakeBillingGateway({
+      type: "subscribed",
+      userId: "u1",
+      plan: "next",
+      subscriptionId: "sub_1",
+    });
     const result = await new HandleBillingWebhook(gateway, users).execute({
       payload: "{}",
       signature: "sig",
@@ -126,11 +143,71 @@ describe("HandleBillingWebhook", () => {
 
   it("対象ユーザーが居なければ handled=false", async () => {
     const users = new InMemoryUserRepository([]);
-    const gateway = new FakeBillingGateway({ type: "subscribed", userId: "ghost", plan: "pro" });
+    const gateway = new FakeBillingGateway({
+      type: "subscribed",
+      userId: "ghost",
+      plan: "pro",
+      subscriptionId: null,
+    });
     const result = await new HandleBillingWebhook(gateway, users).execute({
       payload: "{}",
       signature: "sig",
     });
     expect(result.handled).toBe(false);
+  });
+
+  it("subscribed（Checkout 完了）で購読を RevenueCat に登録する（横串の起点）", async () => {
+    const users = new InMemoryUserRepository([freeUser("u1")]);
+    const gateway = new FakeBillingGateway({
+      type: "subscribed",
+      userId: "u1",
+      plan: "next",
+      subscriptionId: "sub_123",
+    });
+    const rc = new FakeRevenueCatGateway();
+    const result = await new HandleBillingWebhook(gateway, users, rc).execute({
+      payload: "{}",
+      signature: "sig",
+    });
+    expect(result.handled).toBe(true);
+    expect(rc.calls).toEqual([{ appUserId: "u1", subscriptionId: "sub_123" }]);
+  });
+
+  it("RevenueCat 登録が失敗しても plan 反映は壊れない（登録は再購読/手動リカバリに委ねる）", async () => {
+    const users = new InMemoryUserRepository([freeUser("u1")]);
+    const gateway = new FakeBillingGateway({
+      type: "subscribed",
+      userId: "u1",
+      plan: "pro",
+      subscriptionId: "sub_123",
+    });
+    const result = await new HandleBillingWebhook(
+      gateway,
+      users,
+      new FakeRevenueCatGateway(true),
+    ).execute({ payload: "{}", signature: "sig" });
+    expect(result.handled).toBe(true);
+    expect((await users.findById("u1"))?.plan).toBe("pro");
+  });
+
+  it("subscription id が無い subscribed（Portal 変更）や unsubscribed では登録しない", async () => {
+    const rc = new FakeRevenueCatGateway();
+    const users = new InMemoryUserRepository([freeUser("u1")]);
+    await new HandleBillingWebhook(
+      new FakeBillingGateway({
+        type: "subscribed",
+        userId: "u1",
+        plan: "next",
+        subscriptionId: null,
+      }),
+      users,
+      rc,
+    ).execute({ payload: "{}", signature: "sig" });
+    await new HandleBillingWebhook(
+      new FakeBillingGateway({ type: "unsubscribed", userId: "u1" }),
+      users,
+      rc,
+    ).execute({ payload: "{}", signature: "sig" });
+    expect(rc.calls).toEqual([]);
   });
 });

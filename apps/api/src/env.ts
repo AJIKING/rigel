@@ -34,4 +34,12 @@ export interface Env {
   APPSTORE_PRODUCT_NEXT?: string;
   /** App Store の商品ID（RIGEL Pro 月額）。mobile の PRODUCT_IDS と一致させる。 */
   APPSTORE_PRODUCT_PRO?: string;
+  /** RevenueCat Webhook の Authorization ヘッダ照合値（Secret。ダッシュボードの
+   *  Webhooks 設定と同じ文字列。未設定なら受け口は 501）。 */
+  REVENUECAT_WEBHOOK_AUTH?: string;
+  /** "true" なら SANDBOX 環境のイベントも plan に適用する（開発用。本番は未設定）。 */
+  REVENUECAT_ALLOW_SANDBOX?: string;
+  /** RevenueCat の Stripe アプリの Public API key（strp_...。環境ごとに別値。
+   *  未設定なら Checkout 完了時の RevenueCat 登録をスキップ）。 */
+  REVENUECAT_STRIPE_PUBLIC_KEY?: string;
 }

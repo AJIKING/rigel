@@ -46,7 +46,8 @@ export function subscriptionUpdatedEvent(
   if (sub.status !== "active" && sub.status !== "trialing") return { type: "ignored" };
   const priceId = sub.items?.data?.[0]?.price?.id;
   const plan = priceId === prices.pricePro ? "pro" : priceId === prices.priceNext ? "next" : null;
-  return plan ? { type: "subscribed", userId, plan } : { type: "ignored" };
+  // Portal 変更は初回 Checkout で RevenueCat 登録済みのため subscriptionId は載せない。
+  return plan ? { type: "subscribed", userId, plan, subscriptionId: null } : { type: "ignored" };
 }
 
 export class StripeBillingGateway implements BillingGateway {
@@ -90,7 +91,14 @@ export class StripeBillingGateway implements BillingGateway {
         const session = event.data.object;
         const userId = session.client_reference_id;
         const plan = asPaidPlan(session.metadata?.tier);
-        return userId && plan ? { type: "subscribed", userId, plan } : { type: "ignored" };
+        // 購読ID（sub_...）。RevenueCat への登録（fetch_token）に使う。expand なしだと文字列。
+        const subscriptionId =
+          typeof session.subscription === "string"
+            ? session.subscription
+            : (session.subscription?.id ?? null);
+        return userId && plan
+          ? { type: "subscribed", userId, plan, subscriptionId }
+          : { type: "ignored" };
       }
       case "customer.subscription.deleted": {
         const subscription = event.data.object;

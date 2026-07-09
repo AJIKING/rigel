@@ -1,6 +1,7 @@
 // テスト用の in-memory リポジトリ（ポートのフェイク実装）。本番バンドルには含まれない。
 
 import type { AnalysisCommitInput, AnalysisStore } from "../domain/analysis/analysis-store";
+import type { RevenueCatEventRepository } from "../domain/billing/revenuecat";
 import type { Game } from "../domain/game/game";
 import type { GameRepository } from "../domain/game/game.repository";
 import type { GameLog, KifuStatus, Visibility } from "../domain/kifu/game-log";
@@ -58,6 +59,19 @@ export class InMemoryUserRepository implements UserRepository {
 
   get size(): number {
     return this.byId.size;
+  }
+}
+
+export class InMemoryRevenueCatEventRepository implements RevenueCatEventRepository {
+  private processed = new Set<string>();
+
+  isProcessed(eventId: string): Promise<boolean> {
+    return Promise.resolve(this.processed.has(eventId));
+  }
+
+  markProcessed(eventId: string): Promise<void> {
+    this.processed.add(eventId);
+    return Promise.resolve();
   }
 }
 

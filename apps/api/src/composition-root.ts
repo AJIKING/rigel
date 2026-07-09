@@ -21,6 +21,7 @@ import { GetPublicGameDetail } from "./application/get-public-game-detail.usecas
 import { GetUser } from "./application/get-user.usecase";
 import { HandleAppStoreNotification } from "./application/handle-appstore-notification.usecase";
 import { HandleBillingWebhook } from "./application/handle-billing-webhook.usecase";
+import { HandleRevenueCatWebhook } from "./application/handle-revenuecat-webhook.usecase";
 import { OpenBillingPortal } from "./application/open-billing-portal.usecase";
 import { RedeemAppStorePurchase } from "./application/redeem-appstore-purchase.usecase";
 import { ListGames } from "./application/list-games.usecase";
@@ -43,6 +44,8 @@ import type { Env } from "./env";
 import { JoseGoogleTokenVerifier } from "./infrastructure/auth/jose-google-token-verifier";
 import { JwtSessionService } from "./infrastructure/auth/jwt-session-service";
 import { AppleAppStoreVerifier } from "./infrastructure/billing/apple-appstore-verifier";
+import { DrizzleRevenueCatEventRepository } from "./infrastructure/billing/drizzle-revenuecat-event.repository";
+import { HttpRevenueCatGateway } from "./infrastructure/billing/http-revenuecat-gateway";
 import { StripeBillingGateway } from "./infrastructure/billing/stripe-billing-gateway";
 import { DrizzleAnalysisStore } from "./infrastructure/analysis/drizzle-analysis-store";
 import { createDb } from "./infrastructure/db/client";
@@ -93,10 +96,15 @@ export interface AppContainer {
   handleBillingWebhook: HandleBillingWebhook;
   redeemAppStorePurchase: RedeemAppStorePurchase;
   handleAppStoreNotification: HandleAppStoreNotification;
+  handleRevenueCatWebhook: HandleRevenueCatWebhook;
   /** Stripe 鍵が揃っているか。未設定なら課金ルートは 501 を返す。 */
   billingEnabled: boolean;
   /** IAP（App Store）設定が揃っているか。未設定なら IAP ルートは 501 を返す。 */
   iapEnabled: boolean;
+  /** RevenueCat Webhook の設定が揃っているか。未設定なら受け口は 501 を返す。 */
+  revenueCatEnabled: boolean;
+  /** RevenueCat Webhook の Authorization ヘッダ照合値（共有シークレット）。 */
+  revenueCatWebhookAuth: string;
   /** 認証ミドルウェアが Bearer トークン検証に使う。 */
   session: SessionService;
 }
@@ -159,6 +167,13 @@ export function buildContainer(env: Env): AppContainer {
   );
   const appStoreVerifier = new AppleAppStoreVerifier();
 
+  // RevenueCat（エンタイトルメントの真実源。web=Stripe / アプリ=IAP を横串で一元管理）。
+  const revenueCatWebhookAuth = env.REVENUECAT_WEBHOOK_AUTH ?? "";
+  const revenueCatEnabled = Boolean(revenueCatWebhookAuth);
+  const revenueCatGateway = env.REVENUECAT_STRIPE_PUBLIC_KEY
+    ? new HttpRevenueCatGateway({ stripePublicKey: env.REVENUECAT_STRIPE_PUBLIC_KEY })
+    : null;
+
   return {
     analyzeAndSaveKifu: new AnalyzeAndSaveKifu({
       users,
@@ -206,7 +221,7 @@ export function buildContainer(env: Env): AppContainer {
     getProblemStats: new GetProblemStats({ problems, answers: problemAnswers }),
     startCheckout: new StartCheckout(billing, users),
     openBillingPortal: new OpenBillingPortal(billing),
-    handleBillingWebhook: new HandleBillingWebhook(billing, users),
+    handleBillingWebhook: new HandleBillingWebhook(billing, users, revenueCatGateway),
     redeemAppStorePurchase: new RedeemAppStorePurchase({
       verifier: appStoreVerifier,
       users,
@@ -218,8 +233,15 @@ export function buildContainer(env: Env): AppContainer {
       users,
       config: appStoreConfig,
     }),
+    handleRevenueCatWebhook: new HandleRevenueCatWebhook({
+      users,
+      events: new DrizzleRevenueCatEventRepository(db),
+      allowSandbox: env.REVENUECAT_ALLOW_SANDBOX === "true",
+    }),
     billingEnabled,
     iapEnabled,
+    revenueCatEnabled,
+    revenueCatWebhookAuth,
     session,
   };
 }
