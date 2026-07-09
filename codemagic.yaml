@@ -16,6 +16,9 @@
 #                                              CFBundleURLSchemes の逆ドメインと対。web 用の値ではない）
 #       EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID … Android 用 OAuth クライアントID（package+SHA-1 検証。
 #                                              どちらも api の GOOGLE_CLIENT_ID にカンマ追記して aud を許可）
+#       EXPO_PUBLIC_REVENUECAT_IOS_KEY       … RevenueCat の iOS Public SDK キー（appl_...。
+#                                              未設定ビルドはアプリ内購入が無効になるだけで動作する）
+#       EXPO_PUBLIC_REVENUECAT_ANDROID_KEY   … 同 Android（goog_...。Play 対応時に追加）
 # 4. App Store Connect に App（Bundle ID: jp.co.plaria.rigel）を登録しておく
 #    （app.json の ios.bundleIdentifier と一致させる）。
 # 5. アプリ設定で「Switch to codemagic.yaml configuration」を選ぶ。

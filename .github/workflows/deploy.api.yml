@@ -14,6 +14,9 @@ name: Deploy rigel-api
 #       CLOUDFLARE_AI_GATEWAY_URL … AI Gateway の google-ai-studio ベースURL
 #       STRIPE_SECRET_KEY      … Stripe シークレット（rk_/sk_。未設定なら /billing/* は 501）
 #       STRIPE_WEBHOOK_SECRET  … Stripe Webhook 署名シークレット（whsec_...）
+#       REVENUECAT_WEBHOOK_AUTH        … RevenueCat Webhook の Authorization 照合値
+#                                        （ダッシュボードの Webhooks 設定と同一文字列。未設定なら受け口は 501）
+#       REVENUECAT_STRIPE_PUBLIC_KEY   … RevenueCat の本番 Stripe config の Public API key（strp_...）
 #   - apps/api/wrangler.toml の d1_databases[0].database_id は反映済み（`wrangler d1 create rigel`）
 #   - [vars]（GOOGLE_CLIENT_ID / STRIPE_PRICE_NEXT|PRO / GEMINI_*_MODEL）は wrangler.toml にコミット済み
 #
@@ -142,9 +145,15 @@ jobs:
             CLOUDFLARE_AI_GATEWAY_URL
             STRIPE_SECRET_KEY
             STRIPE_WEBHOOK_SECRET
+            REVENUECAT_WEBHOOK_AUTH
+            REVENUECAT_STRIPE_PUBLIC_KEY
         env:
           SESSION_SECRET: ${{ secrets.SESSION_SECRET }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           CLOUDFLARE_AI_GATEWAY_URL: ${{ secrets.CLOUDFLARE_AI_GATEWAY_URL }}
           STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
           STRIPE_WEBHOOK_SECRET: ${{ secrets.STRIPE_WEBHOOK_SECRET }}
+          # RevenueCat（課金の横串一元管理）: Webhook の Authorization 照合値 と
+          # Stripe 購読登録用の strp_ Public API key（本番 config のもの）。
+          REVENUECAT_WEBHOOK_AUTH: ${{ secrets.REVENUECAT_WEBHOOK_AUTH }}
+          REVENUECAT_STRIPE_PUBLIC_KEY: ${{ secrets.REVENUECAT_STRIPE_PUBLIC_KEY }}
