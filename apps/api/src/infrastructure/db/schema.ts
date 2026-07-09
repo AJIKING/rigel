@@ -32,8 +32,6 @@ export const users = sqliteTable("users", {
   analysisCountThisMonth: integer("analysis_count_this_month").notNull().default(0),
   /** この時刻を過ぎたら当月カウントをリセットする（次のリセット境界）。 */
   countResetAt: integer("count_reset_at", { mode: "timestamp_ms" }).notNull(),
-  /** App Store サブスクの元トランザクションID（IAP 購入者のみ。更新/失効通知の照合キー）。 */
-  appStoreOriginalTransactionId: text("appstore_original_transaction_id").unique(),
   createdAt: integer("created_at", { mode: "timestamp_ms" })
     .notNull()
     .$defaultFn(() => new Date()),

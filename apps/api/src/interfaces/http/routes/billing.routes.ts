@@ -1,6 +1,7 @@
 // interfaces/http/routes — 課金のルート。
-// Stripe（web: Checkout / Portal / Webhook）と App Store IAP（redeem / Server Notifications）。
-// 未設定の環境では 501 を返す（billingEnabled / iapEnabled）。
+// Stripe（web: Checkout / Portal / Webhook）と RevenueCat Webhook（エンタイトルメントの
+// 真実源。アプリの IAP は RevenueCat SDK → RevenueCat → この Webhook で届く）。
+// 未設定の環境では 501 を返す（billingEnabled / revenueCatEnabled）。
 
 import type { Hono } from "hono";
 import { requireAuth, type AppEnv } from "../shared";
@@ -53,41 +54,6 @@ export function registerBillingRoutes(app: Hono<AppEnv>): void {
       return c.json({ url: result.url });
     } catch {
       return c.json({ error: "portal の作成に失敗しました" }, 502);
-    }
-  });
-
-  // IAP: 購入の引き換え（アプリが StoreKit 2 の署名済みトランザクション JWS を送る。要認証）。
-  app.post("/billing/appstore/redeem", requireAuth, async (c) => {
-    const container = c.get("container");
-    if (!container.iapEnabled) return c.json({ error: "iap not configured" }, 501);
-    const body = (await c.req.json().catch(() => null)) as { jws?: unknown } | null;
-    if (typeof body?.jws !== "string") return c.json({ error: "jws required" }, 400);
-    const result = await container.redeemAppStorePurchase.execute({
-      userId: c.get("userId")!,
-      jws: body.jws,
-    });
-    if (!result.ok) {
-      const status = result.reason === "not_found" ? 404 : result.reason === "expired" ? 410 : 400;
-      return c.json({ ok: false, reason: result.reason }, status);
-    }
-    return c.json({ ok: true, plan: result.plan });
-  });
-
-  // IAP: App Store Server Notifications V2（Apple から直接。x5c 署名検証で真正性を担保）。
-  app.post("/billing/appstore/notifications", async (c) => {
-    const container = c.get("container");
-    if (!container.iapEnabled) return c.json({ error: "iap not configured" }, 501);
-    const body = (await c.req.json().catch(() => null)) as { signedPayload?: unknown } | null;
-    if (typeof body?.signedPayload !== "string") {
-      return c.json({ error: "signedPayload required" }, 400);
-    }
-    try {
-      const result = await container.handleAppStoreNotification.execute({
-        signedPayload: body.signedPayload,
-      });
-      return c.json({ received: true, handled: result.handled });
-    } catch {
-      return c.json({ error: "invalid notification" }, 400);
     }
   });
 

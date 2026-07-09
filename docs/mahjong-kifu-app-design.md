@@ -184,16 +184,36 @@
 - private の保存上限は**解析前にプリフライト判定**して、無料ユーザーの Gemini 枠を無駄にしない（`private_limit`）。
 - **保存済み牌譜の閲覧**: public は誰でも、private は所有者のみ（`GET /kifu/:id` と一覧で制御）。新規解析だけ枠で制限する。
 
-### 実装状況（2026-06 時点）
-- **3プラン＋呼び出し課金を実装**: `User.plan`（free/next/pro）、`MONTHLY_CALL_QUOTA`（20/100/320）、`PRIVATE_KIFU_LIMIT`（free=4・有料=無制限）。`recordGeminiCalls` が成功時のみ実呼び出し数を加算、枠超過は `/analyze` が 402、private 上限超過は 403。
-- **公開範囲**: `game_logs.visibility`（既定 private）。`PATCH /kifu/:id/visibility`（所有者のみ・`SetKifuVisibility`）。`GET /kifu/:id` と `/users/:id/kifu` は public のみ他者に見せる。
-- **Stripe サブスク**: `POST /billing/checkout`（plan→price_id 選択・Checkout 作成）→ Webhook（`checkout.session.completed`→申込 tier /`customer.subscription.deleted`→free）で `User.changePlan`。tier は session.metadata、userId は client_reference_id / subscription.metadata に載せ、顧客ID保存は不要。
-- web/mobile に Next/Pro のアップグレード導線（Stripe Checkout 遷移）と公開範囲トグル（web）。
-- **鍵が未設定なら課金は無効**: `STRIPE_SECRET_KEY`/`STRIPE_WEBHOOK_SECRET`/`STRIPE_PRICE_NEXT`/`STRIPE_PRICE_PRO` が揃わなければ `/billing/*` は 501。
+### [決定]（2026-07）課金アーキテクチャ: RevenueCat 横串一元管理
+Web=Stripe（安い本命導線）／アプリ=IAP（App Store / Play。RevenueCat SDK が吸収）の2導線とし、
+**エンタイトルメントの真実源は RevenueCat**。`app_user_id` = rigel の `users.id`（Google 認証を
+web/アプリで共有）なので**どこで買っても同一アカウントで解放**される。
+`users.plan`（D1）は射影（キャッシュ）で、枠判定・保存上限判定は従来どおり D1 で完結する。
+Plan・sandbox 実測: [docs/plans/billing-revenuecat.md](plans/billing-revenuecat.md)
+
+```
+web (Next)   ── Stripe Checkout ─▶ Stripe ──(checkout完了時に fetch_token 登録)──┐
+                                                                                ├─▶ RevenueCat（真実源）
+mobile (Expo)── react-native-purchases ─▶ App Store / Play ─────────────────────┘        │ Webhook
+apps/api  POST /billing/revenuecat/webhook ─▶ User.changePlan ─▶ D1 users.plan（射影）◀──┘
+```
+
+### 実装状況（2026-07 時点）
+- **3プラン＋呼び出し課金**: `User.plan`（free/next/pro）、`MONTHLY_CALL_QUOTA`（20/100/320）、`PRIVATE_KIFU_LIMIT`（free=5・有料=無制限）。`recordGeminiCalls` が成功時のみ実呼び出し数を加算、枠超過は `/analyze` が 402、private 上限超過は 403。
+- **公開範囲**: `game_logs.visibility`（既定 private）。公開範囲は半荘単位（`PATCH /games/:id/visibility`）。
+- **Stripe サブスク（web）**: `POST /billing/checkout` → Webhook で `User.changePlan` ＋ **subscription id を RevenueCat へ receipt 登録**（登録失敗でも plan 反映は壊さない）。以後の更新・解約は RevenueCat が Stripe から直接追跡。
+- **RevenueCat Webhook**: `POST /billing/revenuecat/webhook`（Authorization 照合・`event.id` 冪等・SANDBOX は本番で無視）。付与イベント→next/pro、**EXPIRATION のみ free**、CANCELLATION（自動更新オフ）は変更なし。**この Webhook だけが plan を書く**のが最終形。
+- **アプリの IAP**: `react-native-purchases`（dev build 必須）。ログインで `logIn(users.id)`、設定画面から購入（iOS/Android とも）。**アプリ内から web 決済への誘導はしない**（アンチステアリング）。加入中の「管理」はストア購読なら RevenueCat の管理URL、web 購入なら Stripe ポータル。
+- **鍵が未設定なら各機能は無効（501/スキップ）**: Stripe=`STRIPE_*` 4種 / RevenueCat=`REVENUECAT_WEBHOOK_AUTH`（受け口）・`REVENUECAT_STRIPE_PUBLIC_KEY`（receipt 登録）・`EXPO_PUBLIC_REVENUECAT_IOS_KEY`/`_ANDROID_KEY`（アプリ SDK）。
+- 旧 App Store 直結実装（StoreKit2 JWS redeem / Server Notifications / `appstore_original_transaction_id`）は **RevenueCat に置換して撤去**（migration 0010）。
 
 ### [未確定]（=運用・調整待ち）
 - 無料/有料の機能差を呼び出し枠・public/private 上限以外にも設けるか。
 - 呼び出し枠の数値（20/100/320）はコスト実測で再調整しうる。
+- IAP のストア価格（手数料 15–30% を転嫁するか吸収するか。表示は現状 30% 割増の `planMonthlyPriceAppStore`）。
+- 実機での購入疎通（iOS sandbox / Play。dev build と RevenueCat の Offerings 設定が前提）。
+- TRANSFER（購読の別アカウント移動）: 実ペイロード未採取のため未実装（現状は受けて無視＝旧ユーザーの
+  plan は EXPIRATION 到達で free に収束）。実形を採取してから旧ユーザー free 化を実装する。
 
 ---
 

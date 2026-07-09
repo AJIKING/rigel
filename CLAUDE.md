@@ -77,7 +77,8 @@ Gemini が正しく読むための**前処理（4分割＋正立）・出力ス�
 ## 4. リポジトリ構成
 
 > 中核ループ（撮影→解析→半荘に保存→閲覧→修正→保存）まで実装済み。残るは外部依存
-> （Gemini鍵/AI Gateway・Photon WASM ランタイム・ラベル画像・デプロイ・OAuth設定・料金）。
+> （Gemini鍵/AI Gateway・Photon WASM ランタイム・ラベル画像・デプロイ・OAuth設定・
+> 課金鍵の本番設定とストア商品登録＝Stripe/RevenueCat/App Store/Play）。
 > ディレクトリを新設するときはこの構成に沿わせる。逸脱するなら先に本ファイルを更新して合意する。
 
 ```
@@ -122,6 +123,7 @@ rigel/
 | バックエンド | **Cloudflare Workers (TS) + Hono** | HTTP は Hono。api は DDD レイヤード（[開発ガイド/05](docs/開発ガイド/05_APIアーキテクチャ.md)） |
 | DB / ORM | **Cloudflare D1 (SQLite) + Drizzle** | 撮影画像は保存しない。`Kifu` JSON のみ。スキーマ=`apps/api/src/infrastructure/db/schema.ts` |
 | 認証 | **Google認証のみ** | 実装は後回し（M8） |
+| 課金 | **Web=Stripe / アプリ=IAP（RevenueCat SDK）** | **真実源=RevenueCat**（Webhook だけが plan を書く）。`users.plan` は D1 射影。設計7章・[docs/plans/billing-revenuecat.md](docs/plans/billing-revenuecat.md) |
 | AI | **Gemini API + Cloudflare AI Gateway** | モデル名はハードコードしない。河=Gemini 3 Flash、手牌=Flash-Lite 系 |
 | 画像保存 | **しない** | 解析後 JSON のみ |
 | モノレポ | turborepo / pnpm workspace | `packages/schema`,`packages/ui`,`apps/{mobile,web,api}` |

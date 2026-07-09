@@ -5,6 +5,7 @@ import { ActivityIndicator, StyleSheet, View } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { AuthProvider, useAuth } from "./lib/auth";
 import type { RootStackParamList } from "./lib/navigation";
+import { configurePurchases } from "./lib/purchases";
 import { colors } from "./lib/theme";
 import { BoardScreen } from "./screens/BoardScreen";
 import { CaptureScreen } from "./screens/CaptureScreen";
@@ -17,6 +18,9 @@ import { ProblemEditScreen } from "./screens/ProblemEditScreen";
 import { PublicGameScreen } from "./screens/PublicGameScreen";
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
+
+// RevenueCat（アプリ内課金）。キー未設定（Expo Go / CI）では何もしない。
+configurePurchases();
 
 // ダークテーマ（docs/rigel-mobile4.html のトーンに合わせる）。
 const navTheme = {

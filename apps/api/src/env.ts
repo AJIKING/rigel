@@ -28,12 +28,6 @@ export interface Env {
   STRIPE_PRICE_NEXT?: string;
   /** RIGEL Pro の価格ID（price_...）。 */
   STRIPE_PRICE_PRO?: string;
-  /** iOS アプリの bundleId（IAP 検証。未設定なら IAP ルートは 501）。 */
-  APPLE_BUNDLE_ID?: string;
-  /** App Store の商品ID（RIGEL Next 月額）。mobile の PRODUCT_IDS と一致させる。 */
-  APPSTORE_PRODUCT_NEXT?: string;
-  /** App Store の商品ID（RIGEL Pro 月額）。mobile の PRODUCT_IDS と一致させる。 */
-  APPSTORE_PRODUCT_PRO?: string;
   /** RevenueCat Webhook の Authorization ヘッダ照合値（Secret。ダッシュボードの
    *  Webhooks 設定と同じ文字列。未設定なら受け口は 501）。 */
   REVENUECAT_WEBHOOK_AUTH?: string;

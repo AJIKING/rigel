@@ -40,13 +40,6 @@ export class InMemoryUserRepository implements UserRepository {
     return Promise.resolve(null);
   }
 
-  findByAppStoreOriginalTransactionId(originalTransactionId: string): Promise<User | null> {
-    for (const u of this.byId.values()) {
-      if (u.appStoreOriginalTransactionId === originalTransactionId) return Promise.resolve(u);
-    }
-    return Promise.resolve(null);
-  }
-
   save(user: User): Promise<void> {
     this.byId.set(user.id, user);
     return Promise.resolve();

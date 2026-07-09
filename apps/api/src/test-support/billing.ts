@@ -1,28 +1,20 @@
 // ============================================================
-// test-support — 課金（Stripe / App Store IAP）テストの共有部品
+// test-support — 課金（Stripe / RevenueCat）テストの共有部品
 // ------------------------------------------------------------
 // マネタイズの中核なので、HTTP 統合（ルート→ユースケース→リポジトリ）を
 // 実物のユースケースと in-memory リポジトリで通せるコンテナを提供する。
-// gateway / verifier は呼び出し側が実物（実署名検証）とフェイクを選ぶ。
+// gateway は呼び出し側が実物（実署名検証）とフェイクを選ぶ。
 // ============================================================
 
-import type {
-  AppStoreConfig,
-  AppStoreNotification,
-  AppStoreTransaction,
-  AppStoreVerifier,
-} from "../domain/billing/appstore";
 import type {
   BillingEvent,
   BillingGateway,
   CheckoutParams,
 } from "../domain/billing/billing-gateway";
 import { User } from "../domain/user/user";
-import { HandleAppStoreNotification } from "../application/handle-appstore-notification.usecase";
 import { HandleBillingWebhook } from "../application/handle-billing-webhook.usecase";
 import { HandleRevenueCatWebhook } from "../application/handle-revenuecat-webhook.usecase";
 import { OpenBillingPortal } from "../application/open-billing-portal.usecase";
-import { RedeemAppStorePurchase } from "../application/redeem-appstore-purchase.usecase";
 import { StartCheckout } from "../application/start-checkout.usecase";
 import type { AppContainer } from "../composition-root";
 import type { Env } from "../env";
@@ -33,13 +25,6 @@ export const TEST_SESSION_SECRET = "test-secret";
 
 /** RevenueCat Webhook の Authorization 照合値（テスト用）。 */
 export const REVENUECAT_TEST_AUTH = "Bearer test-rc-secret";
-
-/** mobile の IAP_PRODUCT_IDS / wrangler.toml と同じ体系のテスト設定。 */
-export const APPSTORE_TEST_CONFIG: AppStoreConfig = {
-  bundleId: "jp.co.plaria.rigel",
-  productNext: "rigel.next.monthly",
-  productPro: "rigel.pro.monthly",
-};
 
 export function makeFreeUser(id: string): User {
   return new User({
@@ -70,27 +55,9 @@ export class FakeBillingGateway implements BillingGateway {
   }
 }
 
-/** verifyTransaction / parseNotification が固定値（または例外）のフェイク。 */
-export class FakeAppStoreVerifier implements AppStoreVerifier {
-  constructor(
-    private readonly transaction: AppStoreTransaction | Error,
-    private readonly notification: AppStoreNotification = { type: "ignored" },
-  ) {}
-  verifyTransaction(): Promise<AppStoreTransaction> {
-    if (this.transaction instanceof Error) return Promise.reject(this.transaction);
-    return Promise.resolve(this.transaction);
-  }
-  parseNotification(): Promise<AppStoreNotification> {
-    return Promise.resolve(this.notification);
-  }
-}
-
 export interface BillingContainerOptions {
   users: InMemoryUserRepository;
   gateway: BillingGateway;
-  verifier: AppStoreVerifier;
-  config?: AppStoreConfig;
-  now?: () => Date;
 }
 
 /**
@@ -99,26 +66,12 @@ export interface BillingContainerOptions {
  * のため未定義（呼ぶと落ちる＝テストの誤用がすぐ分かる）。
  */
 export function billingTestContainer(opts: BillingContainerOptions): (env: Env) => AppContainer {
-  const config = opts.config ?? APPSTORE_TEST_CONFIG;
-  const now = opts.now ?? (() => new Date());
   const container = {
     billingEnabled: true,
-    iapEnabled: true,
     session: new JwtSessionService({ secret: TEST_SESSION_SECRET }),
     startCheckout: new StartCheckout(opts.gateway, opts.users),
     openBillingPortal: new OpenBillingPortal(opts.gateway),
     handleBillingWebhook: new HandleBillingWebhook(opts.gateway, opts.users),
-    redeemAppStorePurchase: new RedeemAppStorePurchase({
-      verifier: opts.verifier,
-      users: opts.users,
-      config,
-      now,
-    }),
-    handleAppStoreNotification: new HandleAppStoreNotification({
-      verifier: opts.verifier,
-      users: opts.users,
-      config,
-    }),
     revenueCatEnabled: true,
     revenueCatWebhookAuth: REVENUECAT_TEST_AUTH,
     handleRevenueCatWebhook: new HandleRevenueCatWebhook({

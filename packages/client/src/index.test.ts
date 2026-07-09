@@ -178,31 +178,6 @@ describe("createApiClient", () => {
     });
   });
 
-  it("redeemAppStorePurchase は JWS を送ってプランを返す（失敗は status+reason）", async () => {
-    const ok = createApiClient(
-      "https://api.test",
-      fakeFetch2((url, init) => {
-        expect(url).toBe("https://api.test/billing/appstore/redeem");
-        expect(String(init?.body ?? "")).toContain("signed-jws");
-        return json({ ok: true, plan: "pro" });
-      }),
-    );
-    expect(await ok.redeemAppStorePurchase("tok", { jws: "signed-jws" })).toEqual({
-      ok: true,
-      plan: "pro",
-    });
-
-    const ng = createApiClient(
-      "https://api.test",
-      fakeFetch(() => json({ ok: false, reason: "invalid_transaction" }, 400)),
-    );
-    expect(await ng.redeemAppStorePurchase("tok", { jws: "bad" })).toEqual({
-      ok: false,
-      status: 400,
-      reason: "invalid_transaction",
-    });
-  });
-
   it("createCheckout は課金未設定(501)で ok:false", async () => {
     const client = createApiClient(
       "https://api.test",

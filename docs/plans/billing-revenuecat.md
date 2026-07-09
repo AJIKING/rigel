@@ -47,10 +47,14 @@ Zod 検証を通し、`users.plan` への反映だけを内部に許す。
        `app_user_id` / `entitlement_ids` / `environment`（"SANDBOX"|"PRODUCTION"）/ `store`（"STRIPE"…）。
      - 写像: INITIAL_PURCHASE / RENEWAL / UNCANCELLATION / PRODUCT_CHANGE → entitlement に応じ next/pro。
        **EXPIRATION のみ free へ落とす**。CANCELLATION は自動更新オフ（期限まで有効）なので**何もしない**。
-       未知イベントは 200 で無視しログ。TRANSFER は旧ユーザー free 化で対応。
+       未知イベント（**TRANSFER 含む**）は 200 で無視しログ。
   3. **Expo での SDK**: `react-native-purchases` は Expo Go 不可（dev build / EAS 必須）
   4. **IAP 価格**（ストア手数料 15–30% を転嫁するか吸収するか）
-  5. **エンタイトルメント識別子**: 現 sandbox は "RIGEL Next"。`next`/`pro` へ作り直すか要決定
+  5. ~~エンタイトルメント識別子~~ → **[決定] `next` / `pro` に作り直し済み**（2026-07-09。
+     採取時の "RIGEL Next" は識別子変更不可のため Entitlements を再作成）
+  6. **TRANSFER（購読の別アカウント移動）の扱い**: 実ペイロード未採取・未実装。現状は
+     「受けて無視」= 旧ユーザーの plan が期限まで残りうる（EXPIRATION 到達で free に収束）。
+     `transferred_from`/`transferred_to` の実形を採取してから旧ユーザー free 化を実装する
 
 ## 5. 影響範囲 / アーキテクチャ
 
@@ -75,33 +79,36 @@ apps/api  POST /billing/revenuecat/webhook ─▶ User.changePlan ─▶ D1 user
 - Zod 検証: RevenueCat Webhook payload / Stripe イベントとも parse してから使用。
   不明イベントは 200 で無視（再送地獄防止）しログ
 - 認証: RevenueCat Webhook は Authorization 共有シークレット照合。鍵未設定なら 501（既存パターン踏襲）
-- 冪等・整合: event id で重複適用防止。TRANSFER（別アカウントへの購読移動）は旧ユーザーを free へ
+- 冪等・整合: event id で重複適用防止。TRANSFER は `[未確定]`（§4-6。現状は受けて無視）
 - 不変条件: `recordGeminiCalls`（成功時のみ加算）・枠/上限判定ロジックは一切触らない
 - 画像非保存: 該当なし
 
 ## 7. 受け入れ条件（= 最初に書く失敗テストの集合）
 
-- [ ] RevenueCat Webhook（entitlement=next の INITIAL_PURCHASE）を受けると `users.plan` が next になる
-- [ ] EXPIRATION で free に戻る／同一 event id の再送は二重適用されない
-- [ ] Authorization 不一致は 401、鍵未設定は 501
-- [ ] Stripe `checkout.session.completed` 後、subscription id が RevenueCat に receipt 登録される
+- [x] RevenueCat Webhook（entitlement=next の INITIAL_PURCHASE）を受けると `users.plan` が next になる
+- [x] EXPIRATION で free に戻る／同一 event id の再送は二重適用されない
+- [x] Authorization 不一致は 401、鍵未設定は 501
+- [x] Stripe `checkout.session.completed` 後、subscription id が RevenueCat に receipt 登録される
       （登録失敗でも plan 反映は壊れない）
-- [ ] mobile: ログイン後に `logIn(userId)` され、購入完了で plan が反映される
+- [x] mobile: ログイン後に `logIn(userId)` され、購入完了で plan が反映される
       （SDK 部はモック、結線は実機検証）
-- [ ] App Store 直結ルート（redeem / notifications）が撤去され、既存テストが RevenueCat 経路に置き換わる
+- [x] App Store 直結ルート（redeem / notifications）が撤去され、既存テストが RevenueCat 経路に置き換わる
 
 > `[未確定]` 由来の条件（webhook の実ペイロード形）は、Task 1 の実測で期待値を確定してから Red にする。
 
 ## 8. Task 分解（1つ＝1つの振る舞い）
 
-1. [ ] **検証（人間と分担）**: RevenueCat sandbox で Stripe 連携・iOS/Android 購入・Webhook 実ペイロード採取
-       → §4 の `[未確定]` を `[決定]` 化し本ファイルに追記
-2. [ ] api: Webhook payload の Zod スキーマ + event→plan 写像（純関数） → Red: `it("INITIAL_PURCHASE(next)→next", ...)`
-3. [ ] api: `POST /billing/revenuecat/webhook`（認証・冪等・changePlan） → Red: 401/501/冪等
-4. [ ] api: Stripe webhook 拡張（checkout 完了 → RC へ fetch_token 登録。失敗しても既存 plan 反映は維持）
-5. [ ] mobile: SDK 導入 + `logIn`/`logOut` 結線 + ペイウォール（offerings 表示・購入・リストア）
-6. [ ] 撤去: App Store 直結（routes / usecases / verifier / カラム。マイグレーション含む）
-7. [ ] 設計ドキュメント7章・CLAUDE.md 更新（構成図・鍵一覧）
+1. [x] **検証（人間と分担）**: sandbox 実測完了（2026-07-09。ペイロード3種採取・§4 に反映）
+2. [x] api: Webhook payload の Zod スキーマ + event→plan 写像（`domain/billing/revenuecat.ts`）
+3. [x] api: `POST /billing/revenuecat/webhook`（Authorization 照合 401・鍵未設定 501・event.id 冪等・
+       SANDBOX 制御。D1 `revenuecat_events` + migration 0009）
+4. [x] api: Stripe webhook 拡張（checkout 完了 → `HttpRevenueCatGateway` で fetch_token 登録。
+       登録失敗でも plan 反映は維持）
+5. [x] mobile: `react-native-purchases` + `lib/purchases.ts` ラッパ + auth の `logIn`/`logOut` 結線 +
+       設定画面の購入/管理導線（expo-iap を撤去）。実機購入疎通は鍵設定・dev build 後
+6. [x] 撤去: App Store 直結（routes / usecases / verifier / `appstore_original_transaction_id` +
+       migration 0010。client の redeem も削除）
+7. [x] 設計ドキュメント7章・CLAUDE.md 更新（構成図・鍵一覧）
 
 ## 9. 検証 / eval 方針
 
@@ -118,10 +125,16 @@ apps/api  POST /billing/revenuecat/webhook ─▶ User.changePlan ─▶ D1 user
 - RevenueCat 費用: MTR $2.5k/月まで無料 → 当面ゼロ円
 - 過渡期の二重経路（既存 Stripe webhook 直反映 vs RC webhook）→ 最終形は
   「**RC webhook のみが plan を書く**」に寄せ、Stripe webhook は receipt 登録専任へ
+- **既知の穴（2026-07-09 信頼ゲート監査より・非ブロッカー）**:
+  - 冪等は event.id 単位のみで timestamp 比較なし → 別 event.id の古い RENEWAL が
+    EXPIRATION の後に着弾すると plan が復活しうる（次の EXPIRATION で収束）。
+    対策案: ユーザー単位で最終適用 event_timestamp_ms を記録し古いイベントを棄却
+  - Webhook Authorization 照合（===）はタイミングセーフでない（シークレット長で実害小）
+  - TRANSFER 未対応（§4-6 の [未確定]）
 
 ## 11. 完了の定義
 
-- [ ] 全受け入れ条件が緑
-- [ ] [04 検証とCIゲート](../開発ガイド/04_検証とCIゲート.md) のゲート通過
-- [ ] 信頼ゲート（/trust-check）通過
-- [ ] 確定した `[未確定]` は設計ドキュメント7章を更新済み
+- [x] 全受け入れ条件が緑
+- [x] [04 検証とCIゲート](../開発ガイド/04_検証とCIゲート.md) のゲート通過
+- [x] 信頼ゲート（/trust-check）通過
+- [x] 確定した `[未確定]` は設計ドキュメント7章を更新済み

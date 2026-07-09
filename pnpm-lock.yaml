@@ -96,9 +96,6 @@ importers:
       expo-crypto:
         specifier: ~14.0.2
         version: 14.0.2(expo@52.0.49(@babel/core@7.29.7)(@babel/preset-env@7.29.7(@babel/core@7.29.7))(react-native@0.76.5(@babel/core@7.29.7)(@babel/preset-env@7.29.7(@babel/core@7.29.7))(@types/react@19.2.17)(react@18.3.1))(react@18.3.1))
-      expo-iap:
-        specifier: ^2.9.4
-        version: 2.9.4(expo@52.0.49(@babel/core@7.29.7)(@babel/preset-env@7.29.7(@babel/core@7.29.7))(react-native@0.76.5(@babel/core@7.29.7)(@babel/preset-env@7.29.7(@babel/core@7.29.7))(@types/react@19.2.17)(react@18.3.1))(react@18.3.1))(react-native@0.76.5(@babel/core@7.29.7)(@babel/preset-env@7.29.7(@babel/core@7.29.7))(@types/react@19.2.17)(react@18.3.1))(react@18.3.1)
       expo-image-picker:
         specifier: ~16.0.6
         version: 16.0.6(expo@52.0.49(@babel/core@7.29.7)(@babel/preset-env@7.29.7(@babel/core@7.29.7))(react-native@0.76.5(@babel/core@7.29.7)(@babel/preset-env@7.29.7(@babel/core@7.29.7))(@types/react@19.2.17)(react@18.3.1))(react@18.3.1))
@@ -117,6 +114,9 @@ importers:
       react-native:
         specifier: 0.76.5
         version: 0.76.5(@babel/core@7.29.7)(@babel/preset-env@7.29.7(@babel/core@7.29.7))(@types/react@19.2.17)(react@18.3.1)
+      react-native-purchases:
+        specifier: ^10.4.2
+        version: 10.4.2(react-native@0.76.5(@babel/core@7.29.7)(@babel/preset-env@7.29.7(@babel/core@7.29.7))(@types/react@19.2.17)(react@18.3.1))(react@18.3.1)
       react-native-safe-area-context:
         specifier: 4.12.0
         version: 4.12.0(react-native@0.76.5(@babel/core@7.29.7)(@babel/preset-env@7.29.7(@babel/core@7.29.7))(@types/react@19.2.17)(react@18.3.1))(react@18.3.1)
@@ -3004,6 +3004,15 @@ packages:
   '@react-navigation/routers@7.6.0':
     resolution: {integrity: sha512-lblhDXfS75jLc7G2K7BZGM+7cjqQXk13X/MA4fq/12r62zM+fBhhreLzYflSitrDDXFRJpSvJXy0ziiGU04Xow==}
 
+  '@revenuecat/purchases-js-hybrid-mappings@18.19.0':
+    resolution: {integrity: sha512-Oa9wKcOeax/ZDpF7l5mGZ9OWO0mVru+64lyg3bL45mL/cPqvam33CEY/JU7EDYKzj6xmVlNv5Xbe+hwtVLOO5Q==}
+
+  '@revenuecat/purchases-js@1.47.0':
+    resolution: {integrity: sha512-bytRHMnz4LKSeZLNE4crLo6FjbS2f80iJO+P4ZJ6U+qMJNMtWTkURVufCM3tHszVizhLtW8JYe8TdbLNADhiEQ==}
+
+  '@revenuecat/purchases-typescript-internal@18.19.0':
+    resolution: {integrity: sha512-XKOJ2CS+hYXnv0EUoQ7hV3AvHBcx0HqkLpnqYVMaAQyZ/BT/+CmUexVbXSfRAXGPBw0LTqR2gBQ4JrZEsYPxpw==}
+
   '@rolldown/pluginutils@1.0.0-beta.27':
     resolution: {integrity: sha512-+d0F4MKMCbeVUJwG96uQ4SgAznZNSq93I3V+9NHA4OpvqG8mRCpGdKmK8l/dl02h2CCDHwW2FqilnTyDcAnqjA==}
 
@@ -4802,14 +4811,6 @@ packages:
       expo: '*'
       react: '*'
 
-  expo-iap@2.9.4:
-    resolution: {integrity: sha512-yMYi3DM2NdZ8rabJNQnaFv19mYi0T6/BOKgZzLkgIZMK7EHBT3HD4huI6qruMaCeCIPmvUDKURcPMhG945yqbw==}
-    deprecated: ⚠️ This version has known issues. Please upgrade to 2.9.5 or later.
-    peerDependencies:
-      expo: '*'
-      react: '*'
-      react-native: '*'
-
   expo-image-loader@5.0.0:
     resolution: {integrity: sha512-Eg+5FHtyzv3Jjw9dHwu2pWy4xjf8fu3V0Asyy42kO+t/FbvW/vjUixpTjPtgKQLQh+2/9Nk4JjFDV6FwCnF2ZA==}
     peerDependencies:
@@ -6547,6 +6548,16 @@ packages:
 
   react-is@19.2.7:
     resolution: {integrity: sha512-kZFnouyVv7eP/Phmrlo9FK+zcAdriZJvzxXHF1Sl1P377WSGe2G/JxVolhTrB/jeV47lKImhNUsijjHAAbcl/A==}
+
+  react-native-purchases@10.4.2:
+    resolution: {integrity: sha512-v/V3hGyBuGY6LvVRlBd5RmmQXMKK61CerRfMEIeYwz8VvtEQmy0qTYA3IImPf4qeEdykBTDv6+dqlz+QngkSiw==}
+    peerDependencies:
+      react: '>= 16.6.3'
+      react-native: '>= 0.73.0'
+      react-native-web: '*'
+    peerDependenciesMeta:
+      react-native-web:
+        optional: true
 
   react-native-safe-area-context@4.12.0:
     resolution: {integrity: sha512-ukk5PxcF4p3yu6qMZcmeiZgowhb5AsKRnil54YFUUAXVIS7PJcMHGGC+q44fCiBg44/1AJk5njGMez1m9H0BVQ==}
@@ -11071,6 +11082,14 @@ snapshots:
     dependencies:
       nanoid: 3.3.15
 
+  '@revenuecat/purchases-js-hybrid-mappings@18.19.0':
+    dependencies:
+      '@revenuecat/purchases-js': 1.47.0
+
+  '@revenuecat/purchases-js@1.47.0': {}
+
+  '@revenuecat/purchases-typescript-internal@18.19.0': {}
+
   '@rolldown/pluginutils@1.0.0-beta.27': {}
 
   '@rollup/rollup-android-arm-eabi@4.62.2':
@@ -13020,12 +13039,6 @@ snapshots:
       expo: 52.0.49(@babel/core@7.29.7)(@babel/preset-env@7.29.7(@babel/core@7.29.7))(react-native@0.76.5(@babel/core@7.29.7)(@babel/preset-env@7.29.7(@babel/core@7.29.7))(@types/react@19.2.17)(react@18.3.1))(react@18.3.1)
       fontfaceobserver: 2.3.0
       react: 18.3.1
-
-  expo-iap@2.9.4(expo@52.0.49(@babel/core@7.29.7)(@babel/preset-env@7.29.7(@babel/core@7.29.7))(react-native@0.76.5(@babel/core@7.29.7)(@babel/preset-env@7.29.7(@babel/core@7.29.7))(@types/react@19.2.17)(react@18.3.1))(react@18.3.1))(react-native@0.76.5(@babel/core@7.29.7)(@babel/preset-env@7.29.7(@babel/core@7.29.7))(@types/react@19.2.17)(react@18.3.1))(react@18.3.1):
-    dependencies:
-      expo: 52.0.49(@babel/core@7.29.7)(@babel/preset-env@7.29.7(@babel/core@7.29.7))(react-native@0.76.5(@babel/core@7.29.7)(@babel/preset-env@7.29.7(@babel/core@7.29.7))(@types/react@19.2.17)(react@18.3.1))(react@18.3.1)
-      react: 18.3.1
-      react-native: 0.76.5(@babel/core@7.29.7)(@babel/preset-env@7.29.7(@babel/core@7.29.7))(@types/react@19.2.17)(react@18.3.1)
 
   expo-image-loader@5.0.0(expo@52.0.49(@babel/core@7.29.7)(@babel/preset-env@7.29.7(@babel/core@7.29.7))(react-native@0.76.5(@babel/core@7.29.7)(@babel/preset-env@7.29.7(@babel/core@7.29.7))(@types/react@19.2.17)(react@18.3.1))(react@18.3.1)):
     dependencies:
@@ -15116,6 +15129,13 @@ snapshots:
   react-is@18.3.1: {}
 
   react-is@19.2.7: {}
+
+  react-native-purchases@10.4.2(react-native@0.76.5(@babel/core@7.29.7)(@babel/preset-env@7.29.7(@babel/core@7.29.7))(@types/react@19.2.17)(react@18.3.1))(react@18.3.1):
+    dependencies:
+      '@revenuecat/purchases-js-hybrid-mappings': 18.19.0
+      '@revenuecat/purchases-typescript-internal': 18.19.0
+      react: 18.3.1
+      react-native: 0.76.5(@babel/core@7.29.7)(@babel/preset-env@7.29.7(@babel/core@7.29.7))(@types/react@19.2.17)(react@18.3.1)
 
   react-native-safe-area-context@4.12.0(react-native@0.76.5(@babel/core@7.29.7)(@babel/preset-env@7.29.7(@babel/core@7.29.7))(@types/react@19.2.17)(react@18.3.1))(react@18.3.1):
     dependencies:

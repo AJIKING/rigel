@@ -61,8 +61,6 @@ export interface UserProps {
   handle?: string | null;
   /** 表示名（他ユーザーに見える名前）。 */
   displayName?: string;
-  /** App Store サブスクの元トランザクションID（IAP 購入者のみ。更新/失効通知の照合キー）。 */
-  appStoreOriginalTransactionId?: string | null;
 }
 
 export interface ProfileUpdate {
@@ -84,7 +82,6 @@ export class User {
   private _email: string | null;
   private _handle: string | null;
   private _displayName: string;
-  private _appStoreOriginalTransactionId: string | null;
 
   constructor(props: UserProps) {
     this.id = props.id;
@@ -95,7 +92,6 @@ export class User {
     this._email = props.email ?? null;
     this._handle = props.handle ?? null;
     this._displayName = props.displayName ?? "";
-    this._appStoreOriginalTransactionId = props.appStoreOriginalTransactionId ?? null;
   }
 
   /** 新規ユーザー（Google認証の sub 紐付け）。無料プランで作成する。
@@ -182,19 +178,10 @@ export class User {
 
   /**
    * プランを変更する（課金 Webhook / IAP 引き換えから呼ぶ）。
-   * 決済の成立/解約は外部(Stripe / App Store)の真実なので、ここでは結果のプランを反映するだけ。
+   * 決済の成立/解約は外部(Stripe / RevenueCat)の真実なので、ここでは結果のプランを反映するだけ。
    */
   changePlan(plan: Plan): void {
     this._plan = plan;
-  }
-
-  get appStoreOriginalTransactionId(): string | null {
-    return this._appStoreOriginalTransactionId;
-  }
-
-  /** App Store サブスクを紐付ける（IAP 購入の引き換え時）。更新/失効通知の照合に使う。 */
-  linkAppStoreSubscription(originalTransactionId: string): void {
-    this._appStoreOriginalTransactionId = originalTransactionId;
   }
 
   /** 永続化用のスナップショット。 */
@@ -208,7 +195,6 @@ export class User {
       email: this._email,
       handle: this._handle,
       displayName: this._displayName,
-      appStoreOriginalTransactionId: this._appStoreOriginalTransactionId,
     };
   }
 }

@@ -71,6 +71,13 @@
       "when": 1783571003535,
       "tag": "0009_luxuriant_frank_castle",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "6",
+      "when": 1783581175018,
+      "tag": "0010_amazing_tyger_tiger",
+      "breakpoints": true
     }
   ]
 }

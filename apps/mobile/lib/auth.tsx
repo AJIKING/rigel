@@ -1,6 +1,7 @@
 import * as SecureStore from "expo-secure-store";
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
 import { authWithGoogle, fetchMe, type AuthUser } from "./api";
+import { logInPurchases, logOutPurchases } from "./purchases";
 
 const TOKEN_KEY = "rigel.session";
 
@@ -34,6 +35,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (u) {
         setUser(u);
         setToken(saved);
+        // RevenueCat に userId を紐づける（web=Stripe/アプリ=IAP 横串の要）。
+        void logInPurchases(u.id);
       } else {
         await SecureStore.deleteItemAsync(TOKEN_KEY);
       }
@@ -46,10 +49,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await SecureStore.setItemAsync(TOKEN_KEY, sessionToken);
     setToken(sessionToken);
     setUser(u);
+    // RevenueCat に userId を紐づける（購入がこのアカウントに乗る）。
+    void logInPurchases(u.id);
   }, []);
 
   const signOut = useCallback(() => {
     void SecureStore.deleteItemAsync(TOKEN_KEY);
+    void logOutPurchases();
     setToken(null);
     setUser(null);
   }, []);
