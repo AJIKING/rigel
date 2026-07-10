@@ -2,6 +2,8 @@
 
 import {
   checkoutErrorMessage,
+  isStoreManagedSubscription,
+  planCardSubLabel,
   planLabel,
   planMonthlyPrice,
   PLAN_FEATURES,
@@ -22,10 +24,6 @@ import { AppHeader } from "../AppHeader";
 import s from "./account.module.css";
 
 type Plan = "free" | "next" | "pro";
-
-function priceLabel(plan: Plan): string {
-  return plan === "free" ? "無料" : `¥${planMonthlyPrice(plan).toLocaleString()} / 月`;
-}
 
 // 提供内容は @rigel/ui の PLAN_FEATURES（mobile のプランシートと共通）。
 const PLAN_CARDS: { key: Plan; reco?: boolean; feats: readonly string[] }[] = [
@@ -62,6 +60,8 @@ export function SettingsShell() {
     );
 
   const plan: Plan = user.plan ?? "free";
+  // 現在プラン行のサブ表示（価格は出さない）。出し分けは @rigel/ui（mobile と共通）。
+  const planSub = planCardSubLabel(plan, user.remainingCalls, user.monthlyCallQuota);
 
   async function onSaveProfile() {
     setSave("saving");
@@ -75,8 +75,17 @@ export function SettingsShell() {
   }
 
   /** 加入中のプラン変更・解約は Stripe Billing Portal で行う。
-   *  Checkout の作り直しは別サブスクを追加してしまい二重課金になる（api 側でも 409 で拒否）。 */
+   *  Checkout の作り直しは別サブスクを追加してしまい二重課金になる（api 側でも 409 で拒否）。
+   *  アプリ内課金（IAP）購読は Stripe ポータルでは扱えない（404 になる）ため、
+   *  購入経路（planStore）を見てストアの購読設定へ案内する。 */
   async function openPortal() {
+    if (isStoreManagedSubscription(user?.planStore)) {
+      setSave(
+        "アプリ内課金で購読中です。プランの変更・解約は、購入した端末の購読設定（App Store / Google Play）から行ってください。",
+      );
+      setPlanOpen(false);
+      return;
+    }
     const res = await createPortalAction({ returnUrl: `${window.location.origin}/settings` });
     if (res.ok) redirectTo(res.url);
     else {
@@ -179,7 +188,7 @@ export function SettingsShell() {
           <div className={s.curplan}>
             <div>
               <div className={s.cpName}>{planLabel(plan)}</div>
-              <div className={s.cpPrice}>{priceLabel(plan)}</div>
+              {planSub ? <div className={s.cpPrice}>{planSub}</div> : null}
             </div>
             <button className={`${s.btn} ${s.ghost}`} onClick={() => setPlanOpen(true)}>
               プラン変更

@@ -1,8 +1,11 @@
 import { KifuSchema, type Kifu } from "@rigel/schema";
 import { describe, expect, it } from "vitest";
 import {
+  analysisQuotaLabel,
   analyzeErrorMessage,
   applyTileEdit,
+  isStoreManagedSubscription,
+  planCardSubLabel,
   authorLabel,
   cameraLabel,
   checkoutErrorMessage,
@@ -150,6 +153,26 @@ describe("プラン表示", () => {
     expect(planCanAnalyze("pro")).toBe(true);
     expect(planMonthlyAiQuota("next")).toBe(100);
     expect(planMonthlyAiQuota("pro")).toBe(320);
+  });
+  it("analysisQuotaLabel: 当月の残枠/枠を表示し、未取得（auth 直後）や free（枠0）は null", () => {
+    expect(analysisQuotaLabel(92, 100)).toBe("解析枠 残り 92 / 100（今月）");
+    expect(analysisQuotaLabel(0, 320)).toBe("解析枠 残り 0 / 320（今月）");
+    expect(analysisQuotaLabel(undefined, 100)).toBeNull();
+    expect(analysisQuotaLabel(92, undefined)).toBeNull();
+    expect(analysisQuotaLabel(0, 0)).toBeNull();
+  });
+  it("planCardSubLabel: free は「無料」、有料は解析枠、枠未取得は null（web/mobile 共通の出し分け）", () => {
+    expect(planCardSubLabel("free")).toBe("無料");
+    expect(planCardSubLabel("next", 92, 100)).toBe("解析枠 残り 92 / 100（今月）");
+    expect(planCardSubLabel("pro")).toBeNull();
+  });
+  it("isStoreManagedSubscription: IAP はストア管理、STRIPE/経路不明はポータル。未知 store は安全側（ストア）", () => {
+    expect(isStoreManagedSubscription("APP_STORE")).toBe(true);
+    expect(isStoreManagedSubscription("PLAY_STORE")).toBe(true);
+    expect(isStoreManagedSubscription("AMAZON")).toBe(true); // 将来値はポータル 404 を避ける側へ
+    expect(isStoreManagedSubscription("STRIPE")).toBe(false);
+    expect(isStoreManagedSubscription(null)).toBe(false);
+    expect(isStoreManagedSubscription(undefined)).toBe(false);
   });
   it("PLAN_FEATURES は全プランに説明があり、上限は半荘単位の文言", () => {
     expect(PLAN_FEATURES.free.some((f) => f.includes("半荘"))).toBe(true);

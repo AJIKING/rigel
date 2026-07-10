@@ -206,6 +206,28 @@ export function planCanAnalyze(plan: Plan): boolean {
   return PLAN_MONTHLY_AI_QUOTA[plan] > 0;
 }
 
+/** 当月の解析枠の表示（設定のプランカード・撮影画面で共用）。
+ *  /me が枠を返す前（auth 直後）や free（枠0）は null = 出さない。 */
+export function analysisQuotaLabel(remaining?: number, quota?: number): string | null {
+  if (remaining === undefined || quota === undefined || quota <= 0) return null;
+  return `解析枠 残り ${remaining} / ${quota}（今月）`;
+}
+
+/** 設定画面の現在プランカードのサブ表示（web/mobile 共通）。
+ *  価格は出さない（実際の請求額は購入経路=Stripe/ストアで異なる）。
+ *  free は「無料」、有料は当月の解析枠、枠未取得（auth 直後）は null。 */
+export function planCardSubLabel(plan: Plan, remaining?: number, quota?: number): string | null {
+  return plan === "free" ? "無料" : analysisQuotaLabel(remaining, quota);
+}
+
+/** ストア（アプリ内課金）管理の購読か。/me の planStore（RevenueCat の store 値）で判定する。
+ *  IAP 購読は Stripe ポータルでは扱えない（404）ためストアの購読設定へ案内する。
+ *  未知の将来 store 値は安全側（ストア案内）に倒し、STRIPE と経路不明（null=既存加入者）だけ
+ *  ポータルへ流す。 */
+export function isStoreManagedSubscription(planStore?: string | null): boolean {
+  return !!planStore && planStore !== "STRIPE";
+}
+
 /** ストア（アプリ内課金）経由の月額（円）。ストア手数料を織り込んだ掲載価格で、
  *  **App Store Connect / Play Console の設定値と必ず一致させる**（[決定] 2026-07-09。
  *  web=Stripe の ¥480/¥1,480 より高い。表示専用＝実際の請求はストアの設定が正）。 */

@@ -21,8 +21,8 @@ vi.mock("../../lib/navigation", () => ({ redirectTo }));
 import { SettingsShell } from "./SettingsShell";
 
 /** ログイン済み（plan 指定）で設定画面を表示し、認証の復元完了まで待つ。 */
-async function renderSettings(plan: string) {
-  stubMe(plan);
+async function renderSettings(plan: string, extra: Record<string, unknown> = {}) {
+  stubMe(plan, extra);
   render(
     <AuthProvider>
       <SettingsShell />
@@ -102,16 +102,25 @@ describe("SettingsShell: プラン購入（free → 有料）", () => {
 });
 
 describe("SettingsShell: 加入中ユーザー", () => {
-  it("現在のプラン名と月額が表示され、モーダルでは現在プランが「利用中」で無効になる", async () => {
-    await renderSettings("next");
+  it("現在のプラン名と解析枠が表示され、モーダルでは現在プランが「利用中」で無効になる", async () => {
+    await renderSettings("next", { remainingCalls: 92, monthlyCallQuota: 100 });
 
     expect(screen.getByText("Next")).toBeTruthy();
-    expect(screen.getByText("¥480 / 月")).toBeTruthy();
+    // 価格は出さない（アプリ内課金の購入者には web=Stripe の ¥480 は誤りのため）。
+    expect(screen.getByText("解析枠 残り 92 / 100（今月）")).toBeTruthy();
+    expect(screen.queryByText(/¥/)).toBeNull();
 
     fireEvent.click(screen.getByRole("button", { name: "プラン変更" }));
     const current = planCardButton("Next");
     expect(current.textContent).toBe("利用中");
     expect(current).toHaveProperty("disabled", true);
+  });
+
+  it("free の現在プランは「無料」を表示する", async () => {
+    await renderSettings("free");
+
+    expect(screen.getByText("無料")).toBeTruthy();
+    expect(screen.queryByText(/解析枠/)).toBeNull();
   });
 
   it("加入中のプラン変更はポータルを開く（Checkout の作り直しはしない＝二重課金防止）", async () => {
@@ -128,6 +137,28 @@ describe("SettingsShell: 加入中ユーザー", () => {
     );
     await waitFor(() => expect(redirectTo).toHaveBeenCalledWith("https://stripe.test/portal"));
     expect(h.createCheckoutAction).not.toHaveBeenCalled();
+  });
+
+  it("IAP（App Store）購読者がプラン変更を選ぶとポータルではなくアプリの購読設定への案内を出す", async () => {
+    await renderSettings("next", { planStore: "APP_STORE" });
+
+    fireEvent.click(screen.getByRole("button", { name: "プラン変更" }));
+    fireEvent.click(planCardButton("Pro"));
+
+    expect(await screen.findByText(/アプリ内課金で購読中/)).toBeTruthy();
+    // Stripe ポータルは IAP 購読を扱えない（404 になる）ので呼ばない。
+    expect(h.createPortalAction).not.toHaveBeenCalled();
+    expect(redirectTo).not.toHaveBeenCalled();
+  });
+
+  it("Stripe（web）購読者は従来どおりポータルへ（planStore=STRIPE）", async () => {
+    h.createPortalAction.mockResolvedValue({ ok: true, url: "https://stripe.test/portal" });
+    await renderSettings("next", { planStore: "STRIPE" });
+
+    fireEvent.click(screen.getByRole("button", { name: "プラン変更" }));
+    fireEvent.click(planCardButton("Pro"));
+
+    await waitFor(() => expect(redirectTo).toHaveBeenCalledWith("https://stripe.test/portal"));
   });
 
   it("ポータルが開けない（404）と案内文言を出し遷移しない", async () => {

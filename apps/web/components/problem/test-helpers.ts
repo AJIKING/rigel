@@ -68,13 +68,14 @@ export function makeCallPost(overrides: Partial<ProblemPost> = {}): ProblemPost 
 }
 
 /** /api/me をスタブしてログイン状態を差し込む（AuthProvider が起動時に読む）。
- *  plan=null で未ログイン。afterEach で vi.unstubAllGlobals() を呼ぶこと。 */
-export function stubMe(plan: string | null) {
+ *  plan=null で未ログイン。extra で /me の追加フィールド（解析枠など）を足せる。
+ *  afterEach で vi.unstubAllGlobals() を呼ぶこと。 */
+export function stubMe(plan: string | null, extra: Record<string, unknown> = {}) {
   vi.stubGlobal(
     "fetch",
     vi.fn(async () => ({
       ok: true,
-      json: async () => ({ user: plan ? { id: "u1", plan } : null }),
+      json: async () => ({ user: plan ? { id: "u1", plan, ...extra } : null }),
     })),
   );
 }
