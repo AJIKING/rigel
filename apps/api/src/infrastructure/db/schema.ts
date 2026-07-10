@@ -24,6 +24,9 @@ export const users = sqliteTable("users", {
   plan: text("plan", { enum: ["free", "next", "pro"] })
     .notNull()
     .default("free"),
+  /** 有料プランの購入経路（RevenueCat の store 値: "APP_STORE"|"PLAY_STORE"|"STRIPE"等）。
+   *  web の購読管理の出し分けに使う。free / 不明（既存加入者）は null。 */
+  planStore: text("plan_store"),
   /** 公開ハンドル(@xxx。共有URLに使う)。未設定は null。一意。 */
   handle: text("handle").unique(),
   /** 表示名（他ユーザーに見える名前）。 */

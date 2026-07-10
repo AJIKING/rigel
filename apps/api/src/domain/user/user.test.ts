@@ -65,6 +65,27 @@ describe("User.recordGeminiCalls（成功時のみ実呼び出し数を加算）
   });
 });
 
+describe("User.changePlan（購入経路 store の記録）", () => {
+  it("有料化で購入経路を記録し、free へ落とすとクリアされる", () => {
+    const user = User.create({ id: "u1", googleSub: "g1", now: NOW });
+    expect(user.planStore).toBeNull();
+
+    user.changePlan("next", "APP_STORE");
+    expect(user.planStore).toBe("APP_STORE");
+    expect(user.toProps().planStore).toBe("APP_STORE");
+
+    user.changePlan("free");
+    expect(user.planStore).toBeNull();
+  });
+
+  it("store 省略の有料化は経路不明（null）として記録する", () => {
+    const user = User.create({ id: "u1", googleSub: "g1", now: NOW });
+    user.changePlan("pro");
+    expect(user.plan).toBe("pro");
+    expect(user.planStore).toBeNull();
+  });
+});
+
 describe("privateKifuLimit（非公開の保存上限）", () => {
   it("free は 5、有料は無制限(null)", () => {
     expect(privateKifuLimit("free")).toBe(5);

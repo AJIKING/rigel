@@ -48,6 +48,15 @@ describe("HandleRevenueCatWebhook（RevenueCat Webhook → plan 反映）", () =
     expect((await users.findById("u1"))!.plan).toBe("free");
   });
 
+  it("購入経路（store）を plan と一緒に記録し、失効でクリアする", async () => {
+    const { users, uc } = setup();
+    await uc.execute({ body: body({ id: "E1", store: "APP_STORE" }) });
+    expect((await users.findById("u1"))!.planStore).toBe("APP_STORE");
+
+    await uc.execute({ body: body({ id: "E2", type: "EXPIRATION", store: "APP_STORE" }) });
+    expect((await users.findById("u1"))!.planStore).toBeNull();
+  });
+
   it("CANCELLATION（自動更新オフ）は plan を変えない", async () => {
     const { users, uc } = setup();
     await uc.execute({ body: body({ id: "E1" }) });
@@ -56,13 +65,14 @@ describe("HandleRevenueCatWebhook（RevenueCat Webhook → plan 反映）", () =
     expect((await users.findById("u1"))!.plan).toBe("next");
   });
 
-  it("同一 event.id の再送は二重適用しない（失効後に古い購入イベントが再送されても復活しない）", async () => {
+  it("同一 event.id の再送は二重適用しない（失効後の再送で plan も planStore も復活しない）", async () => {
     const { users, uc } = setup();
-    await uc.execute({ body: body({ id: "E1" }) }); // next
+    await uc.execute({ body: body({ id: "E1", store: "APP_STORE" }) }); // next
     await uc.execute({ body: body({ id: "E2", type: "EXPIRATION" }) }); // free
-    const replay = await uc.execute({ body: body({ id: "E1" }) }); // E1 再送
+    const replay = await uc.execute({ body: body({ id: "E1", store: "APP_STORE" }) }); // E1 再送
     expect(replay).toEqual({ handled: false });
     expect((await users.findById("u1"))!.plan).toBe("free");
+    expect((await users.findById("u1"))!.planStore).toBeNull();
   });
 
   it("対象ユーザーが居なければ何もしない（handled: false。例外にしない）", async () => {

@@ -17,6 +17,7 @@ function toDomain(row: UserRow): User {
     email: row.email,
     handle: row.handle,
     displayName: row.displayName,
+    planStore: row.planStore,
   });
 }
 
@@ -45,6 +46,7 @@ export class DrizzleUserRepository implements UserRepository {
       googleSub: p.googleSub,
       email: p.email,
       plan: p.plan,
+      planStore: p.planStore,
       handle: p.handle,
       displayName: p.displayName,
       analysisCountThisMonth: p.analysisCountThisMonth,
@@ -58,6 +60,7 @@ export class DrizzleUserRepository implements UserRepository {
         set: {
           email: p.email,
           plan: p.plan,
+          planStore: p.planStore,
           handle: p.handle,
           displayName: p.displayName,
           analysisCountThisMonth: p.analysisCountThisMonth,

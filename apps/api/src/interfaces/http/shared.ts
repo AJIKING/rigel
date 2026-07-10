@@ -42,6 +42,9 @@ export function userProfileJson(user: User) {
   return {
     id: user.id,
     plan: user.plan,
+    /** 有料プランの購入経路（"APP_STORE"|"PLAY_STORE"|"STRIPE"等・free は null）。
+     *  web の購読管理の出し分け（Stripe ポータル vs ストアの購読設定）に使う。 */
+    planStore: user.planStore,
     handle: user.handle,
     displayName: user.displayName,
   };

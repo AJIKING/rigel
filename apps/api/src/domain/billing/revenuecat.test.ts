@@ -67,6 +67,15 @@ describe("RevenueCatWebhookSchema（Webhook payload の検証）", () => {
     expect(parsed.event.app_user_id).toBe("rigel-test-1");
     expect(parsed.event.entitlement_ids).toEqual(["next"]);
     expect(parsed.event.environment).toBe("SANDBOX");
+    expect(parsed.event.store).toBe("STRIPE");
+  });
+
+  it("store が無いイベントも通る（null 扱い。将来イベントで受け口を壊さない）", () => {
+    expect(event({ store: undefined }).store).toBeNull();
+  });
+
+  it("store が空文字でもイベント全体を落とさない（null 扱い。400→再送地獄にしない）", () => {
+    expect(event({ store: "" }).store).toBeNull();
   });
 
   it("未知のイベント種別・環境値でも parse は通る（将来の追加で受け口を壊さない）", () => {
@@ -89,34 +98,34 @@ describe("RevenueCatWebhookSchema（Webhook payload の検証）", () => {
 describe("planChangeForRevenueCatEvent（event→plan の写像）", () => {
   const cases = [
     {
-      name: "INITIAL_PURCHASE(next) は next を付与",
-      over: { type: "INITIAL_PURCHASE", entitlement_ids: ["next"] },
-      want: { action: "set", plan: "next" },
+      name: "INITIAL_PURCHASE(next) は next を付与（購入経路 store も一緒に返す）",
+      over: { type: "INITIAL_PURCHASE", entitlement_ids: ["next"], store: "APP_STORE" },
+      want: { action: "set", plan: "next", store: "APP_STORE" },
     },
     {
       name: "RENEWAL(pro) は pro を付与",
-      over: { type: "RENEWAL", entitlement_ids: ["pro"] },
-      want: { action: "set", plan: "pro" },
+      over: { type: "RENEWAL", entitlement_ids: ["pro"], store: "STRIPE" },
+      want: { action: "set", plan: "pro", store: "STRIPE" },
     },
     {
       name: "UNCANCELLATION(next) は next を再付与",
-      over: { type: "UNCANCELLATION", entitlement_ids: ["next"] },
-      want: { action: "set", plan: "next" },
+      over: { type: "UNCANCELLATION", entitlement_ids: ["next"], store: "APP_STORE" },
+      want: { action: "set", plan: "next", store: "APP_STORE" },
     },
     {
       name: "PRODUCT_CHANGE(pro) はアップグレード先の pro",
-      over: { type: "PRODUCT_CHANGE", entitlement_ids: ["pro"] },
-      want: { action: "set", plan: "pro" },
+      over: { type: "PRODUCT_CHANGE", entitlement_ids: ["pro"], store: "PLAY_STORE" },
+      want: { action: "set", plan: "pro", store: "PLAY_STORE" },
     },
     {
       name: "複数 entitlement は上位（pro）を採る",
       over: { type: "INITIAL_PURCHASE", entitlement_ids: ["next", "pro"] },
-      want: { action: "set", plan: "pro" },
+      want: { action: "set", plan: "pro", store: null },
     },
     {
-      name: "EXPIRATION は free へ落とす",
-      over: { type: "EXPIRATION", entitlement_ids: ["next"] },
-      want: { action: "set", plan: "free" },
+      name: "EXPIRATION は free へ落とす（購入経路もクリア）",
+      over: { type: "EXPIRATION", entitlement_ids: ["next"], store: "APP_STORE" },
+      want: { action: "set", plan: "free", store: null },
     },
     {
       name: "CANCELLATION（自動更新オフ）は期限まで有効なので変更しない",

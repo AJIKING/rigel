@@ -24,6 +24,14 @@ const RevenueCatEventSchema = z.object({
   entitlement_ids: z.array(z.string()).nullable().default(null),
   /** "SANDBOX" | "PRODUCTION"（将来値も通す）。本番受け口の環境フィルタに使う。 */
   environment: z.string().min(1),
+  /** 購入経路（"APP_STORE" | "PLAY_STORE" | "STRIPE" 等。将来値も通す）。
+   *  web の購読管理の出し分け（Stripe ポータル vs ストアの購読設定）に使う。
+   *  補助情報なので欠損・空文字でイベント全体を落とさない（400→再送地獄を防ぐ）。 */
+  store: z
+    .string()
+    .nullable()
+    .default(null)
+    .transform((s) => s || null),
 });
 export type RevenueCatEvent = z.infer<typeof RevenueCatEventSchema>;
 
@@ -39,7 +47,8 @@ const ENTITLEMENT_TO_PLAN: Record<string, Plan> = { next: "next", pro: "pro" };
 /** プランを付与するイベント種別（購読の開始・継続・復帰・変更）。 */
 const GRANT_EVENTS = new Set(["INITIAL_PURCHASE", "RENEWAL", "UNCANCELLATION", "PRODUCT_CHANGE"]);
 
-export type RevenueCatPlanChange = { action: "set"; plan: Plan } | { action: "none" };
+export type RevenueCatPlanChange =
+  { action: "set"; plan: Plan; store: string | null } | { action: "none" };
 
 /** 処理済み Webhook イベントの記録（冪等キー = event.id）。実体は D1。 */
 export interface RevenueCatEventRepository {
@@ -70,8 +79,9 @@ export function planChangeForRevenueCatEvent(event: RevenueCatEvent): RevenueCat
       return plan ? [plan] : [];
     });
     const plan = PLAN_PRIORITY.find((p) => plans.includes(p));
-    return plan ? { action: "set", plan } : { action: "none" };
+    return plan ? { action: "set", plan, store: event.store } : { action: "none" };
   }
-  if (event.type === "EXPIRATION") return { action: "set", plan: "free" };
+  // 失効は購入経路もクリアする（free に購読管理の導線は不要）。
+  if (event.type === "EXPIRATION") return { action: "set", plan: "free", store: null };
   return { action: "none" };
 }

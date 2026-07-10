@@ -11,10 +11,10 @@
 
 import Stripe from "stripe";
 import { describe, expect, it } from "vitest";
-import type { Env } from "../../env";
 import { StripeBillingGateway } from "../../infrastructure/billing/stripe-billing-gateway";
 import {
   billingTestContainer,
+  fakeEnv,
   issueTestToken,
   makeFreeUser,
   FakeBillingGateway,
@@ -22,14 +22,6 @@ import {
 } from "../../test-support/billing";
 import { InMemoryUserRepository } from "../../test-support/in-memory";
 import { createApp } from "./app";
-
-const fakeEnv = {
-  DB: {} as unknown as D1Database,
-  GEMINI_API_KEY: "",
-  CLOUDFLARE_AI_GATEWAY_URL: "",
-  GOOGLE_CLIENT_ID: "test-client-id",
-  SESSION_SECRET: "test-secret",
-} satisfies Env;
 
 const jsonAuth = (token: string, body: unknown): RequestInit => ({
   method: "POST",

@@ -56,6 +56,12 @@ Zod 検証を通し、`users.plan` への反映だけを内部に許す。
   6. **TRANSFER（購読の別アカウント移動）の扱い**: 実ペイロード未採取・未実装。現状は
      「受けて無視」= 旧ユーザーの plan が期限まで残りうる（EXPIRATION 到達で free に収束）。
      `transferred_from`/`transferred_to` の実形を採取してから旧ユーザー free 化を実装する
+  7. **[決定] 2026-07-10 購入経路（store）の記録**: Webhook の `store` を `users.plan_store` に
+     plan と一緒に記録（EXPIRATION で null・migration 0011）。`/me` の `planStore` で web の
+     購読管理を出し分け（IAP 購読者は Stripe ポータルではなくストアの購読設定へ案内。
+     ポータル 404 の穴を解消）。store は補助情報なので欠損・空文字でもイベントを落とさない
+     （null 扱い。400 を返すと RevenueCat が再送し続けるため）。既存加入者の plan_store は
+     null 始まり＝従来どおりポータルへ（次の RENEWAL で自然にバックフィル）
 
 ## 5. 影響範囲 / アーキテクチャ
 

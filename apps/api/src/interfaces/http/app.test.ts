@@ -1,17 +1,9 @@
 import { describe, expect, it } from "vitest";
 import type { Env } from "../../env";
 import { JwtSessionService } from "../../infrastructure/auth/jwt-session-service";
+import { fakeEnv } from "../../test-support/billing";
 import { minimalKifuInput } from "../../test-support/kifu";
 import { createApp } from "./app";
-
-// /health・/kifu/validate・/analyze は DB を使わないので、DB はダミーで足りる。
-const fakeEnv = {
-  DB: {} as unknown as D1Database,
-  GEMINI_API_KEY: "",
-  CLOUDFLARE_AI_GATEWAY_URL: "",
-  GOOGLE_CLIENT_ID: "test-client-id",
-  SESSION_SECRET: "test-secret",
-} satisfies Env;
 
 const jsonInit = (body: unknown): RequestInit => ({
   method: "POST",

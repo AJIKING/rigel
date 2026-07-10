@@ -12,6 +12,7 @@ import type {
   CheckoutParams,
 } from "../domain/billing/billing-gateway";
 import { User } from "../domain/user/user";
+import { GetUser } from "../application/get-user.usecase";
 import { HandleBillingWebhook } from "../application/handle-billing-webhook.usecase";
 import { HandleRevenueCatWebhook } from "../application/handle-revenuecat-webhook.usecase";
 import { OpenBillingPortal } from "../application/open-billing-portal.usecase";
@@ -22,6 +23,15 @@ import { JwtSessionService } from "../infrastructure/auth/jwt-session-service";
 import { InMemoryRevenueCatEventRepository, InMemoryUserRepository } from "./in-memory";
 
 export const TEST_SESSION_SECRET = "test-secret";
+
+/** HTTP テスト共通の Env（DB を使わないルート/コンテナ注入前提。DB はダミー）。 */
+export const fakeEnv = {
+  DB: {} as unknown as D1Database,
+  GEMINI_API_KEY: "",
+  CLOUDFLARE_AI_GATEWAY_URL: "",
+  GOOGLE_CLIENT_ID: "test-client-id",
+  SESSION_SECRET: TEST_SESSION_SECRET,
+} satisfies Env;
 
 /** RevenueCat Webhook の Authorization 照合値（テスト用）。 */
 export const REVENUECAT_TEST_AUTH = "Bearer test-rc-secret";
@@ -57,7 +67,8 @@ export class FakeBillingGateway implements BillingGateway {
 
 export interface BillingContainerOptions {
   users: InMemoryUserRepository;
-  gateway: BillingGateway;
+  /** 省略時はフェイク（checkout/portal を呼ばないテスト用）。 */
+  gateway?: BillingGateway;
 }
 
 /**
@@ -66,12 +77,14 @@ export interface BillingContainerOptions {
  * のため未定義（呼ぶと落ちる＝テストの誤用がすぐ分かる）。
  */
 export function billingTestContainer(opts: BillingContainerOptions): (env: Env) => AppContainer {
+  const gateway = opts.gateway ?? new FakeBillingGateway();
   const container = {
     billingEnabled: true,
     session: new JwtSessionService({ secret: TEST_SESSION_SECRET }),
-    startCheckout: new StartCheckout(opts.gateway, opts.users),
-    openBillingPortal: new OpenBillingPortal(opts.gateway),
-    handleBillingWebhook: new HandleBillingWebhook(opts.gateway, opts.users),
+    getUser: new GetUser(opts.users),
+    startCheckout: new StartCheckout(gateway, opts.users),
+    openBillingPortal: new OpenBillingPortal(gateway),
+    handleBillingWebhook: new HandleBillingWebhook(gateway, opts.users),
     revenueCatEnabled: true,
     revenueCatWebhookAuth: REVENUECAT_TEST_AUTH,
     handleRevenueCatWebhook: new HandleRevenueCatWebhook({

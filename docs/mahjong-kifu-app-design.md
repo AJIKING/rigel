@@ -206,6 +206,7 @@ apps/api  POST /billing/revenuecat/webhook ─▶ User.changePlan ─▶ D1 user
 - **公開範囲**: `game_logs.visibility`（既定 private）。公開範囲は半荘単位（`PATCH /games/:id/visibility`）。
 - **Stripe サブスク（web）**: `POST /billing/checkout` → Webhook で `User.changePlan` ＋ **subscription id を RevenueCat へ receipt 登録**（登録失敗でも plan 反映は壊さない）。以後の更新・解約は RevenueCat が Stripe から直接追跡。
 - **RevenueCat Webhook**: `POST /billing/revenuecat/webhook`（Authorization 照合・`event.id` 冪等・SANDBOX は本番で無視）。付与イベント→next/pro、**EXPIRATION のみ free**、CANCELLATION（自動更新オフ）は変更なし。**この Webhook だけが plan を書く**のが最終形。
+- **[決定]（2026-07-10）購入経路の記録**: Webhook 適用時に RevenueCat の `store`（"APP_STORE"/"PLAY_STORE"/"STRIPE" 等・enum 固定せず将来値も通す）を `users.plan_store` に記録し、EXPIRATION で null に戻す（migration 0011）。`/me`・`/auth/google` が `planStore` として返し（本人のみ・公開プロフィールには出さない）、**web の購読管理を出し分ける**: IAP 購読者には Stripe ポータル（404 になる）ではなくストアの購読設定への案内を表示。移行前からの加入者は null（従来どおりポータルへ。次の RENEWAL Webhook で自然にバックフィルされる）。
 - **アプリの IAP**: `react-native-purchases`（dev build 必須）。ログインで `logIn(users.id)`、設定画面から購入（iOS/Android とも）。**アプリ内から web 決済への誘導はしない**（アンチステアリング）。加入中の「管理」はストア購読なら RevenueCat の管理URL、web 購入なら Stripe ポータル。
 - **鍵が未設定なら各機能は無効（501/スキップ）**: Stripe=`STRIPE_*` 4種 / RevenueCat=`REVENUECAT_WEBHOOK_AUTH`（受け口）・`REVENUECAT_STRIPE_PUBLIC_KEY`（receipt 登録）・`EXPO_PUBLIC_REVENUECAT_IOS_KEY`/`_ANDROID_KEY`（アプリ SDK）。
 - 旧 App Store 直結実装（StoreKit2 JWS redeem / Server Notifications / `appstore_original_transaction_id`）は **RevenueCat に置換して撤去**（migration 0010）。

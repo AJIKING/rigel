@@ -39,6 +39,9 @@ export interface ProblemStats {
 export interface AuthUser {
   id: string;
   plan: Plan;
+  /** 有料プランの購入経路（RevenueCat の store 値: "APP_STORE"|"PLAY_STORE"|"STRIPE"等）。
+   *  free / 不明（旧データ）は null。web の購読管理の出し分けに使う。 */
+  planStore?: string | null;
   /** 公開ハンドル(@xxx)。未設定は null。 */
   handle?: string | null;
   /** 表示名。 */

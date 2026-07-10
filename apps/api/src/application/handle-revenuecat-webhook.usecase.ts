@@ -39,7 +39,7 @@ export class HandleRevenueCatWebhook {
     const user = await users.findById(event.app_user_id);
     if (!user) return { handled: false };
 
-    user.changePlan(change.plan);
+    user.changePlan(change.plan, change.store);
     await users.save(user);
     await events.markProcessed(event.id);
     return { handled: true };

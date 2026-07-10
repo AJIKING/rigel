@@ -115,6 +115,8 @@ describe("HandleBillingWebhook", () => {
     });
     expect(result.handled).toBe(true);
     expect((await users.findById("u1"))?.plan).toBe("next");
+    // 過渡期の Stripe 直反映経路でも購入経路を記録する（web の購読管理の出し分け用）。
+    expect((await users.findById("u1"))?.planStore).toBe("STRIPE");
   });
 
   it("unsubscribed でプランを free に戻す", async () => {

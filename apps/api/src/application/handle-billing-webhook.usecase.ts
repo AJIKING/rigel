@@ -29,7 +29,8 @@ export class HandleBillingWebhook {
     const user = await this.users.findById(event.userId);
     if (!user) return { handled: false };
 
-    user.changePlan(event.type === "subscribed" ? event.plan : "free");
+    // この経路は Stripe Webhook 専用なので購入経路は常に "STRIPE"（free 時は changePlan が null にする）。
+    user.changePlan(event.type === "subscribed" ? event.plan : "free", "STRIPE");
     await this.users.save(user);
 
     // 初回 Checkout（subscriptionId あり）だけ RevenueCat に登録。plan 反映後に行い、

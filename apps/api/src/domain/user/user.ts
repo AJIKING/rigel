@@ -61,6 +61,9 @@ export interface UserProps {
   handle?: string | null;
   /** 表示名（他ユーザーに見える名前）。 */
   displayName?: string;
+  /** 有料プランの購入経路（RevenueCat の store 値: "APP_STORE" | "PLAY_STORE" | "STRIPE" 等）。
+   *  web の購読管理の出し分けに使う。free は null。 */
+  planStore?: string | null;
 }
 
 export interface ProfileUpdate {
@@ -82,6 +85,7 @@ export class User {
   private _email: string | null;
   private _handle: string | null;
   private _displayName: string;
+  private _planStore: string | null;
 
   constructor(props: UserProps) {
     this.id = props.id;
@@ -92,6 +96,7 @@ export class User {
     this._email = props.email ?? null;
     this._handle = props.handle ?? null;
     this._displayName = props.displayName ?? "";
+    this._planStore = props.planStore ?? null;
   }
 
   /** 新規ユーザー（Google認証の sub 紐付け）。無料プランで作成する。
@@ -119,6 +124,11 @@ export class User {
 
   get plan(): Plan {
     return this._plan;
+  }
+
+  /** 有料プランの購入経路（free / 不明は null）。 */
+  get planStore(): string | null {
+    return this._planStore;
   }
 
   get handle(): string | null {
@@ -177,11 +187,13 @@ export class User {
   }
 
   /**
-   * プランを変更する（課金 Webhook / IAP 引き換えから呼ぶ）。
+   * プランを変更する（課金 Webhook から呼ぶ）。
    * 決済の成立/解約は外部(Stripe / RevenueCat)の真実なので、ここでは結果のプランを反映するだけ。
+   * store は購入経路（RevenueCat の store 値）。free へ落とすときは常にクリアする。
    */
-  changePlan(plan: Plan): void {
+  changePlan(plan: Plan, store: string | null = null): void {
     this._plan = plan;
+    this._planStore = plan === "free" ? null : store;
   }
 
   /** 永続化用のスナップショット。 */
@@ -195,6 +207,7 @@ export class User {
       email: this._email,
       handle: this._handle,
       displayName: this._displayName,
+      planStore: this._planStore,
     };
   }
 }
