@@ -4,7 +4,12 @@
    ============================================================ */
 
 .app {
-  /* 全画面スキャフォールドとテーマ変数は app/theme.css の .themeBoard が供給する。 */
+  /* 全画面スキャフォールドとテーマ変数は app/theme.css の .themeBoard が供給する
+     （同一要素・fixed inset:0 なので高さは常に viewport。min-height は不要）。
+     縦 flex で余りを .wrap（卓面）に配り、ヘッダー・サイドを消す全画面/noSide でも
+     卓面の下に地の帯が出ないようにする（e2e: fullscreen-fill）。 */
+  display: flex;
+  flex-direction: column;
   background: var(--chrome);
   color: var(--white);
   font-family: var(--round);
@@ -162,6 +167,8 @@
 .wrap {
   display: grid;
   grid-template-columns: 1fr 320px;
+  /* .app の残り高さを全て使う（グリッド項目の stretch で .main/.side も伸びる）。 */
+  flex: 1;
 }
 .wrap.noSide {
   grid-template-columns: 1fr;
@@ -181,7 +188,6 @@
   border-left: 1px solid var(--line);
   background: var(--chrome);
   padding: 6px 20px 50px;
-  min-height: calc(100vh - 110px);
 }
 
 /* board */
@@ -752,7 +758,6 @@
   .side {
     border-left: 0;
     border-top: 1px solid var(--line);
-    min-height: auto;
   }
 }
 
@@ -761,11 +766,6 @@
    情報は下からのボトムシートにする。デスクトップの回転卓・再生ロジックは共通のまま。
    ============================================================ */
 @media (max-width: 640px) {
-  .app {
-    display: flex;
-    flex-direction: column;
-    min-height: 100dvh;
-  }
   /* ブランドのパンくずバーは省いて卓の面積を稼ぐ。 */
   .bar {
     display: none;
@@ -800,12 +800,12 @@
     height: 18px;
   }
 
-  /* 本体: 1カラムで縦に伸ばし、卓を中央に最大化。背景はダーク（卓だけ緑）。 */
+  /* 本体: 1カラムで縦に伸ばし、卓を中央に最大化。背景はダーク（卓だけ緑）。
+     余り高さの受け取り（flex:1）はベースの .wrap が担う。 */
   .wrap,
   .wrap.noSide {
     display: flex;
     flex-direction: column;
-    flex: 1;
     min-height: 0;
   }
   .main {
@@ -866,7 +866,6 @@
     border-left: 0;
     border-top: 1px solid var(--line);
     border-radius: 12px 12px 0 0;
-    min-height: auto;
     max-height: 64vh;
     overflow-y: auto;
     padding: 8px 16px calc(24px + env(safe-area-inset-bottom));

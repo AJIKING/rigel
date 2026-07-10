@@ -243,7 +243,8 @@ export function KifuViewer({ detail, gameId }: { detail: PublicGameDetail; gameI
       )}
 
       <div className={`${s.wrap} ${!sideOpen || fs ? s.noSide : ""}`}>
-        <div className={s.main} ref={mainRef}>
+        {/* data-main はレイアウト検証（Playwright）用の安定フック（全画面時の下端充填を測る）。 */}
+        <div className={s.main} ref={mainRef} data-main="">
           <div className={s.boardcol}>
             {/* 卓の描画は ViewBoard（何切ると共有）。 */}
             <ViewBoard
