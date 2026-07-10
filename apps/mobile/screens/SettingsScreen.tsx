@@ -1,10 +1,4 @@
-import {
-  planLabel,
-  planMonthlyPriceAppStore,
-  upgradeTargets,
-  type PaidPlan,
-  type Plan,
-} from "@rigel/ui";
+import { planCardSubLabel, planLabel, upgradeTargets, type PaidPlan, type Plan } from "@rigel/ui";
 import { useEffect, useState } from "react";
 import { Linking, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import Svg, { Circle, Path } from "react-native-svg";
@@ -20,16 +14,16 @@ import { colors, radius } from "../lib/theme";
 // TODO(deep-link): アプリへ直接戻すならユニバーサルリンク/カスタムスキームを設定する。
 const BILLING_RETURN_URL = `${SITE_ORIGIN}/settings`;
 
-// アプリは App Store（アプリ内課金）経由の販売のため、手数料込み価格を表示する。
-function priceLabel(plan: Plan): string {
-  return plan === "free" ? "無料" : `¥${planMonthlyPriceAppStore(plan).toLocaleString()} / 月`;
-}
-
 export function SettingsScreen() {
   const { user, token, signOut, refresh } = useAuth();
   const [handle, setHandle] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [note, setNote] = useState<string | null>(null);
+  // 課金系メッセージはプロフィール保存行と別領域（料金プラン節の全幅行）に出す。
+  // 長文（購入お礼など）を保存ボタンと横並びにするとレイアウトが崩れるため。
+  const [billingNote, setBillingNote] = useState<string | null>(null);
+  // 購入直後に反映を待っているプラン。webhook（サーバ側）反映まで /me を追いかける。
+  const [pendingPlan, setPendingPlan] = useState<PaidPlan | null>(null);
   const [saving, setSaving] = useState(false);
   const [delArm, setDelArm] = useState(false);
   const [planOpen, setPlanOpen] = useState(false);
@@ -42,6 +36,28 @@ export function SettingsScreen() {
 
   const plan: Plan = user?.plan ?? "free";
   const targets = token ? upgradeTargets(plan) : [];
+  // 現在プラン行のサブ表示（価格は出さない）。出し分けは @rigel/ui（web と共通）。
+  const planSub = planCardSubLabel(plan, user?.remainingCalls, user?.monthlyCallQuota);
+
+  // 購入後ポーリング: plan は RevenueCat Webhook → users.plan 経由で数秒遅れて変わるため、
+  // 反映されるまで /me を定期再取得する。30秒で打ち切り（webhook 遅延・障害時に無限に叩かない）。
+  useEffect(() => {
+    if (!pendingPlan) return;
+    if (plan === pendingPlan) {
+      setPendingPlan(null);
+      setBillingNote("プランが反映されました");
+      return;
+    }
+    const poll = setInterval(() => void refresh(), 3000);
+    const giveUp = setTimeout(() => {
+      setPendingPlan(null);
+      setBillingNote("反映に時間がかかっています。しばらくしてからこの画面を開き直してください");
+    }, 30000);
+    return () => {
+      clearInterval(poll);
+      clearTimeout(giveUp);
+    };
+  }, [pendingPlan, plan, refresh]);
 
   async function onSaveProfile() {
     if (!token) return;
@@ -64,17 +80,20 @@ export function SettingsScreen() {
   async function onSelectPlan(plan: PaidPlan) {
     setPlanOpen(false);
     if (!token) return;
-    setNote(null);
+    setBillingNote(null);
 
     const outcome = await purchasePlan(plan);
     if (outcome === "purchased") {
       // plan 反映はサーバ側（RevenueCat Webhook → users.plan）経由のため数秒遅れることがある。
-      setNote("購入ありがとうございます。プランを反映しています…（数秒かかることがあります）");
+      setBillingNote(
+        "購入ありがとうございます。プランを反映しています…（数秒かかることがあります）",
+      );
+      setPendingPlan(plan);
       void refresh();
     } else if (outcome === "failed") {
-      setNote("購入に失敗しました");
+      setBillingNote("購入に失敗しました");
     } else if (outcome === "unavailable") {
-      setNote("アプリ内購入は現在利用できません");
+      setBillingNote("アプリ内購入は現在利用できません");
     }
     // cancelled はユーザーの意思なので黙る。
   }
@@ -83,23 +102,25 @@ export function SettingsScreen() {
   // web 購入（Stripe）は決済ポータルへ（Checkout の作り直しは二重課金になる）。
   async function onOpenPortal() {
     if (!token) return;
-    setNote(null);
+    setBillingNote(null);
     const managementUrl = await purchasesManagementUrl();
     if (managementUrl) {
-      await Linking.openURL(managementUrl).catch(() => setNote("購読管理を開けませんでした"));
+      await Linking.openURL(managementUrl).catch(() =>
+        setBillingNote("購読管理を開けませんでした"),
+      );
       return;
     }
     try {
       const res = await createPortal(token, { returnUrl: BILLING_RETURN_URL });
       if (res.ok) await Linking.openURL(res.url);
       else
-        setNote(
+        setBillingNote(
           res.status === 404
             ? "加入中のプランが見つかりませんでした"
             : "ポータルを開けませんでした",
         );
     } catch {
-      setNote("通信に失敗しました。");
+      setBillingNote("通信に失敗しました。");
     }
   }
 
@@ -148,7 +169,13 @@ export function SettingsScreen() {
           </Item>
         </Group>
         <View style={styles.saveRow}>
-          {note ? <Text style={styles.note}>{note}</Text> : <View />}
+          {note ? (
+            <Text style={styles.note} testID="profile-note">
+              {note}
+            </Text>
+          ) : (
+            <View />
+          )}
           <Pressable
             style={[styles.saveBtn, (saving || !token) && styles.disabled]}
             disabled={saving || !token}
@@ -164,7 +191,7 @@ export function SettingsScreen() {
             <Text style={styles.pin}>現在</Text>
             <View style={{ flex: 1 }}>
               <Text style={styles.planName}>{planLabel(plan)}</Text>
-              <Text style={styles.planPrice}>{priceLabel(plan)}</Text>
+              {planSub ? <Text style={styles.planPrice}>{planSub}</Text> : null}
             </View>
             {token && plan === "free" && targets.length > 0 ? (
               <Pressable
@@ -188,6 +215,11 @@ export function SettingsScreen() {
             ) : null}
           </View>
         </Group>
+        {billingNote ? (
+          <Text style={styles.billingNote} testID="billing-note">
+            {billingNote}
+          </Text>
+        ) : null}
 
         <SectionTitle>アカウント</SectionTitle>
         <Group>
@@ -363,7 +395,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     marginBottom: 4,
   },
-  note: { color: colors.w70, fontSize: 12 },
+  // flexShrink: 長めのエラー文言でも保存ボタンを押し出さず折り返す。
+  note: { color: colors.w70, fontSize: 12, flexShrink: 1, marginRight: 8 },
+  billingNote: { color: colors.w70, fontSize: 12, paddingHorizontal: 16, marginBottom: 4 },
   saveBtn: {
     backgroundColor: colors.accent,
     borderRadius: radius.base,

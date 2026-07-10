@@ -2,8 +2,8 @@
 // ログイン成立（新規/起動復元）で logInPurchases(userId)、ログアウトで logOutPurchases が
 // 呼ばれることを固定する（これが無いと購入が別ユーザー扱いになり「どこで買っても解放」が壊れる）。
 
-import { fireEvent, render, screen, waitFor } from "@testing-library/react-native";
-import { Pressable, Text } from "react-native";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react-native";
+import { AppState, Pressable, Text } from "react-native";
 import { AuthProvider, useAuth } from "./auth";
 
 const mockStore = new Map<string, string>();
@@ -77,6 +77,30 @@ describe("AuthProvider と RevenueCat の紐づけ", () => {
 
     expect(await screen.findByText("u2")).toBeTruthy();
     await waitFor(() => expect(mockLogIn).toHaveBeenCalledWith("u2"));
+  });
+
+  it("フォアグラウンド復帰で /me を再取得する（web購入・失効など外で起きた plan 変化を拾う）", async () => {
+    const listeners: ((s: string) => void)[] = [];
+    jest.spyOn(AppState, "addEventListener").mockImplementation((_type, handler) => {
+      listeners.push(handler as (s: string) => void);
+      return { remove: jest.fn() } as never;
+    });
+    mockStore.set("rigel.session", "saved-tok");
+    mockFetchMe.mockResolvedValue({ id: "u2" });
+    render(
+      <AuthProvider>
+        <Probe />
+      </AuthProvider>,
+    );
+    await screen.findByText("u2");
+
+    mockFetchMe.mockClear();
+    await act(async () => {
+      listeners.forEach((l) => l("active"));
+    });
+    expect(mockFetchMe).toHaveBeenCalledWith("saved-tok");
+
+    jest.restoreAllMocks();
   });
 
   it("ログアウトで RevenueCat の紐づけを解除する", async () => {

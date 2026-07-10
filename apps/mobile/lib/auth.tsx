@@ -1,5 +1,6 @@
 import * as SecureStore from "expo-secure-store";
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
+import { AppState } from "react-native";
 import { authWithGoogle, fetchMe, type AuthUser } from "./api";
 import { logInPurchases, logOutPurchases } from "./purchases";
 
@@ -65,6 +66,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const u = await fetchMe(token);
     if (u) setUser(u);
   }, [token]);
+
+  // フォアグラウンド復帰で /me を再取得する。plan はアプリの外（web=Stripe 購入・
+  // 購読の失効・購読管理での変更）でも変わるため、開き直しなしで表示に追従させる。
+  useEffect(() => {
+    const sub = AppState.addEventListener("change", (state) => {
+      if (state === "active") void refresh();
+    });
+    return () => sub.remove();
+  }, [refresh]);
 
   return (
     <AuthContext.Provider value={{ user, token, loading, signInWithGoogle, signOut, refresh }}>

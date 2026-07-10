@@ -2,6 +2,7 @@ import { useNavigation, useRoute, type RouteProp } from "@react-navigation/nativ
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { SeatSchema, type Seat } from "@rigel/schema";
 import {
+  analysisQuotaLabel,
   analyzeErrorMessage,
   cameraLabel,
   planCanAnalyze,
@@ -29,6 +30,8 @@ export function CaptureScreen() {
   const { token, user } = useAuth();
   // 写真からのAI再現は有料プランのみ（free は解析枠0）。フリーには写真入力を出さない。
   const canAnalyze = planCanAnalyze(user?.plan ?? "free");
+  // 残枠は撮る前に見せる（送信後の 403 で知るのでは撮影の手間が無駄になる）。
+  const quotaLabel = analysisQuotaLabel(user?.remainingCalls, user?.monthlyCallQuota);
   const [seat, setSeat] = useState<Seat>("east");
   // 作成する局（東一局=1〜北四局=16）。半荘内の好きな局を1つだけ作れる。
   const [seq, setSeq] = useState(1);
@@ -122,6 +125,8 @@ export function CaptureScreen() {
       {/* 写真からのAI再現は有料プランのみ（free は枠0）。フリーには写真入力を出さない。 */}
       {canAnalyze ? (
         <>
+          {quotaLabel ? <Text style={styles.quota}>{quotaLabel}</Text> : null}
+
           {/* 席は写真の向き（相対→絶対変換）にだけ必要。手入力は東固定で選択不要。 */}
           <Text style={styles.label}>撮影時に手前だった席</Text>
           <View style={styles.seatRow}>
@@ -212,6 +217,7 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.bg },
   container: { padding: 16, gap: 10 },
   addNote: { color: colors.accent, fontSize: 12.5, fontWeight: "700" },
+  quota: { color: colors.w45, fontSize: 12 },
   label: { color: colors.w70, fontSize: 13, marginTop: 6 },
   seatRow: { flexDirection: "row", gap: 8 },
   seatBtn: {
