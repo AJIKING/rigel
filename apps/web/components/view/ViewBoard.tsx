@@ -1,7 +1,7 @@
 "use client";
 
 import { toAbsoluteSeat, type CameraSeat, type Kifu, type Seat, type Tile } from "@rigel/schema";
-import { sortHandTiles, type TsumoWinDisplay } from "@rigel/ui";
+import { splitTsumoHand, type TsumoWinDisplay } from "@rigel/ui";
 import { chunk, windOf } from "../../lib/board";
 import { OssTileFace } from "../OssTileFace";
 import s from "./kifu-view.module.css";
@@ -125,13 +125,8 @@ export function ViewBoard({
           const wind = windOf(seat, dealer);
           const back = hideOpp && seat !== bottomSeat;
           // 表示は理牌（保存順が乱れた既存データも萬→筒→索→字で見せる）。
-          const sorted = sortHandTiles(board.hand);
-          // ツモ和了牌は手牌本体から離して置く（スナップショット手牌なら該当1枚を抜く）。
-          const tsumoHere = tsumoWin?.seat === seat ? tsumoWin : null;
-          const handShown =
-            tsumoHere && tsumoHere.handIndex !== null
-              ? sorted.filter((_, i) => i !== tsumoHere.handIndex)
-              : sorted;
+          // ツモ和了牌は手牌本体から離して置く（分割は @rigel/ui。mobile と共通）。
+          const { hand: handShown, tsumoTile } = splitTsumoHand(board.hand, tsumoWin, seat);
           const riverShown = board.river.slice(0, revealed?.[seat] ?? board.river.length);
           const name = (seat === bottomSeat && bottomName) || `${wind}家`;
           return (
@@ -177,9 +172,9 @@ export function ViewBoard({
                         flyIn={animateDraw?.seat === seat && animateDraw.index === hi}
                       />
                     ))}
-                {tsumoHere && (
+                {tsumoTile !== null && (
                   <span className={s.tsumoWin} data-tsumo="">
-                    <ViewTile code={back ? undefined : tsumoHere.tile} back={back} />
+                    <ViewTile code={back ? undefined : tsumoTile} back={back} />
                   </span>
                 )}
                 {board.melds.length > 0 && (

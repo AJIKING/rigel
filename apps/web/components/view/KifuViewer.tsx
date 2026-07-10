@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { type PublicGameDetail } from "../../lib/api";
 import { useAuth } from "../../lib/auth-context";
-import { buildPlaybackFrame, drawnTileIndex, resultLabel, tsumoWinDisplay } from "@rigel/ui";
+import { buildPlaybackFrame, drawnTileIndex, resultLabel } from "@rigel/ui";
 import { SEAT_ORDER, roundNameForSeq, windOf } from "../../lib/board";
 import { useBoardScale } from "../../lib/use-board-scale";
 import { fmtDate } from "../../lib/format";
@@ -145,6 +145,7 @@ export function KifuViewer({ detail, gameId }: { detail: PublicGameDetail; gameI
     viewKifu,
     bottomSeat,
     dealer,
+    tsumoWin,
   } = frame;
 
   const round = roundNameForSeq(log.seq);
@@ -249,7 +250,7 @@ export function KifuViewer({ detail, gameId }: { detail: PublicGameDetail; gameI
               kifu={viewKifu}
               bottomSeat={bottomSeat}
               dealer={dealer}
-              tsumoWin={tsumoWinDisplay(viewKifu, shown >= order.length)}
+              tsumoWin={tsumoWin}
               scale={scale}
               hideOpp={hideOpp}
               animateDiscard={animateDiscard}

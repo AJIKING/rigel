@@ -176,24 +176,36 @@ export function drawnTileIndex(state: PlaybackState): { seat: Seat; index: numbe
 export interface TsumoWinDisplay {
   seat: Seat;
   tile: Tile;
-  /** 理牌後の手牌 index（スナップショット手牌に和了牌がいる場合＝その1枚を離す）。
-   *  手牌に無い（編集済の最終手牌13枚）場合は null ＝ 14枚目として追加描画する。 */
-  handIndex: number | null;
 }
 
 /**
- * 最終局面のツモ和了牌を手牌の横に離して見せるための導出（web/mobile 共通）。
- * 正は Kifu.agari（winner / from=null がツモ / winTile）。最終ツモは打牌イベントに
- * しない（河へ捨てる誤演出になる）ので、timeline ではなくここから導出する。
- * final=「表示中の局面が最終局面（全打牌を見せている）」のときだけ返す。
+ * ツモ和了牌の導出（web/mobile 共通）。正は Kifu.agari（winner / from=null がツモ /
+ * winTile）。最終ツモは打牌イベントにしない（河へ捨てる誤演出になる）ので、
+ * timeline ではなくここから導出する。最終局面でだけ意味を持つ値なので、
+ * ビューアは buildPlaybackFrame 経由（frame.tsumoWin）で受け取る。
  */
-export function tsumoWinDisplay(kifu: Kifu, final: boolean): TsumoWinDisplay | null {
-  if (!final) return null;
+export function tsumoWinDisplay(kifu: Kifu): TsumoWinDisplay | null {
   const agari = kifu.agari.find((a) => a.from === null && a.winTile !== null);
-  if (!agari?.winTile) return null;
-  const hand = sortHandTiles(kifu.seats[agari.winner].hand);
-  const index = hand.findIndex((t) => t.tile === agari.winTile);
-  return { seat: agari.winner, tile: agari.winTile, handIndex: index >= 0 ? index : null };
+  return agari?.winTile ? { seat: agari.winner, tile: agari.winTile } : null;
+}
+
+/**
+ * 席の手牌を「本体（理牌済み）」と「離して置くツモ和了牌」に割る（レンダラ共通）。
+ * スナップショット手牌（和了牌を含む14枚）は該当1枚を本体から抜き、
+ * 編集済（13枚・含まない）は本体そのまま＋ツモ牌を14枚目として返す。
+ */
+export function splitTsumoHand(
+  hand: ReadTile[],
+  tsumoWin: TsumoWinDisplay | null,
+  seat: Seat,
+): { hand: ReadTile[]; tsumoTile: Tile | null } {
+  const sorted = sortHandTiles(hand);
+  if (!tsumoWin || tsumoWin.seat !== seat) return { hand: sorted, tsumoTile: null };
+  const i = sorted.findIndex((t) => t.tile === tsumoWin.tile);
+  return {
+    hand: i >= 0 ? sorted.filter((_, idx) => idx !== i) : sorted,
+    tsumoTile: tsumoWin.tile,
+  };
 }
 
 /** ビューアが1ステップぶんの描画に使う値一式（KifuViewer/KifuPlayer が共有）。 */
@@ -212,6 +224,9 @@ export interface PlaybackFrame extends RiverPlayback {
   viewKifu: Kifu;
   /** 再生が末尾に達したか（和了演出の発火に使う。初期の全表示 reveal=-1 は false）。 */
   atEnd: boolean;
+  /** ツモ和了牌（手牌の横に離して描く）。最終局面＝全打牌を見せているときだけ非 null。
+   *  atEnd と違い、初期の全表示（reveal=-1）でも出す（盤面の見た目は常に本来の演出）。 */
+  tsumoWin: TsumoWinDisplay | null;
 }
 
 /**
@@ -242,5 +257,6 @@ export function buildPlaybackFrame(args: {
     playback,
     viewKifu: playbackStateToKifu(kifu, playback),
     atEnd: river.order.length > 0 && reveal >= river.order.length,
+    tsumoWin: shown >= river.order.length ? tsumoWinDisplay(kifu) : null,
   };
 }

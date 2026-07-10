@@ -1,5 +1,5 @@
 import { toAbsoluteSeat, type CameraSeat, type Kifu, type Seat, type Tile } from "@rigel/schema";
-import { chunk, seatResult, sortHandTiles, windOf, type TsumoWinDisplay } from "@rigel/ui";
+import { chunk, seatResult, splitTsumoHand, windOf, type TsumoWinDisplay } from "@rigel/ui";
 import { useEffect, useRef } from "react";
 import { Animated, Easing, Pressable, StyleSheet, Text, View, type ViewStyle } from "react-native";
 import { colors } from "../lib/theme";
@@ -169,16 +169,11 @@ export function BoardTable({
         const riverCols = Math.min(6, Math.max(1, river.length));
         const rtW = fitTileW(rt, riverCols, seatW * 0.7);
         const rtHt = rtW * GEO.tileAspect;
-        // ツモ和了牌は手牌本体から離して置く（スナップショット手牌なら該当1枚を抜く）。
-        const tsumoHere = tsumoWin?.seat === seat ? tsumoWin : null;
-        const sorted = sortHandTiles(board.hand);
-        const handShown =
-          tsumoHere && tsumoHere.handIndex !== null
-            ? sorted.filter((_, i) => i !== tsumoHere.handIndex)
-            : sorted;
+        // ツモ和了牌は手牌本体から離して置く（分割は @rigel/ui。web と共通）。
+        const { hand: handShown, tsumoTile } = splitTsumoHand(board.hand, tsumoWin, seat);
         // 手牌＋鳴きは1列。総枚数が席幅の 92% に収まる牌サイズにする（重なり・はみ出し防止）。
         const meldTileCount = board.melds.reduce((n, m) => n + m.tiles.length, 0);
-        const handUnits = handShown.length + (tsumoHere ? 1 : 0) + meldTileCount;
+        const handUnits = handShown.length + (tsumoTile ? 1 : 0) + meldTileCount;
         const htW = fitTileW(ht, handUnits, seatW * 0.92, board.melds.length * 4);
         const htHt = htW * GEO.tileAspect;
 
@@ -262,9 +257,9 @@ export function BoardTable({
                   tile
                 );
               })}
-              {tsumoHere ? (
+              {tsumoTile !== null ? (
                 <View testID="tsumo-tile" style={{ marginLeft: htW * 0.55 }}>
-                  <MiniTile code={hand ? tsumoHere.tile : null} w={htW} h={htHt} back={!hand} />
+                  <MiniTile code={hand ? tsumoTile : null} w={htW} h={htHt} back={!hand} />
                 </View>
               ) : null}
               {board.melds.map((m, mi) => (

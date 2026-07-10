@@ -5,7 +5,6 @@ import {
   drawnTileIndex,
   resultLabel,
   roundNameForSeq,
-  tsumoWinDisplay,
   windOf,
   SEAT_ORDER,
 } from "@rigel/ui";
@@ -105,6 +104,7 @@ export function KifuPlayer({
     viewKifu,
     bottomSeat,
     dealer,
+    tsumoWin,
   } = frame;
 
   const roundLabel = roundNameForSeq(log.seq);
@@ -180,7 +180,7 @@ export function KifuPlayer({
           activeDraw={reveal >= 0 ? playback.activeDraw : null}
           animateDiscard={animateDiscard}
           animateDraw={animateDraw}
-          tsumoWin={tsumoWinDisplay(viewKifu, shown >= order.length)}
+          tsumoWin={tsumoWin}
         />
       </View>
 

@@ -175,7 +175,7 @@
   margin-top: 10px;
   font-size: 12px;
   line-height: 1.6;
-  color: var(--w70, #aaa);
+  color: var(--w70);
 }
 
 /* toggle switch */
