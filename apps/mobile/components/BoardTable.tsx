@@ -1,5 +1,5 @@
 import { toAbsoluteSeat, type CameraSeat, type Kifu, type Seat, type Tile } from "@rigel/schema";
-import { chunk, seatResult, sortHandTiles, windOf } from "@rigel/ui";
+import { chunk, seatResult, sortHandTiles, windOf, type TsumoWinDisplay } from "@rigel/ui";
 import { useEffect, useRef } from "react";
 import { Animated, Easing, Pressable, StyleSheet, Text, View, type ViewStyle } from "react-native";
 import { colors } from "../lib/theme";
@@ -91,6 +91,7 @@ export function BoardTable({
   activeDraw = null,
   animateDiscard = null,
   animateDraw = null,
+  tsumoWin = null,
 }: {
   kifu: Kifu;
   bottomSeat: Seat;
@@ -116,6 +117,8 @@ export function BoardTable({
   /** フライイン演出を付ける手牌の1枚（理牌後の位置）。ツモ→打牌の順に見せるため
    *  指定時は同席の drop を遅延させる。 */
   animateDraw?: { seat: Seat; index: number } | null;
+  /** ツモ和了牌（最終局面で手牌の横に離して置く）。導出は @rigel/ui の tsumoWinDisplay。 */
+  tsumoWin?: TsumoWinDisplay | null;
 }) {
   const B = size;
   const rt = B * GEO.riverTileW;
@@ -166,9 +169,16 @@ export function BoardTable({
         const riverCols = Math.min(6, Math.max(1, river.length));
         const rtW = fitTileW(rt, riverCols, seatW * 0.7);
         const rtHt = rtW * GEO.tileAspect;
+        // ツモ和了牌は手牌本体から離して置く（スナップショット手牌なら該当1枚を抜く）。
+        const tsumoHere = tsumoWin?.seat === seat ? tsumoWin : null;
+        const sorted = sortHandTiles(board.hand);
+        const handShown =
+          tsumoHere && tsumoHere.handIndex !== null
+            ? sorted.filter((_, i) => i !== tsumoHere.handIndex)
+            : sorted;
         // 手牌＋鳴きは1列。総枚数が席幅の 92% に収まる牌サイズにする（重なり・はみ出し防止）。
         const meldTileCount = board.melds.reduce((n, m) => n + m.tiles.length, 0);
-        const handUnits = board.hand.length + meldTileCount;
+        const handUnits = handShown.length + (tsumoHere ? 1 : 0) + meldTileCount;
         const htW = fitTileW(ht, handUnits, seatW * 0.92, board.melds.length * 4);
         const htHt = htW * GEO.tileAspect;
 
@@ -233,7 +243,7 @@ export function BoardTable({
             </View>
             <View style={styles.hand}>
               {/* 表示は理牌（保存順が乱れた既存データも萬→筒→索→字で見せる）。 */}
-              {sortHandTiles(board.hand).map((h, hi) => {
+              {handShown.map((h, hi) => {
                 const tile = (
                   <MiniTile key={hi} code={hand ? h.tile : null} w={htW} h={htHt} back={!hand} />
                 );
@@ -252,6 +262,11 @@ export function BoardTable({
                   tile
                 );
               })}
+              {tsumoHere ? (
+                <View testID="tsumo-tile" style={{ marginLeft: htW * 0.55 }}>
+                  <MiniTile code={hand ? tsumoHere.tile : null} w={htW} h={htHt} back={!hand} />
+                </View>
+              ) : null}
               {board.melds.map((m, mi) => (
                 <View key={`m${mi}`} style={styles.meld}>
                   {m.tiles.map((t, ti) => (

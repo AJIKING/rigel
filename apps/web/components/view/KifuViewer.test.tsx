@@ -286,6 +286,45 @@ describe("KifuViewer", () => {
     expect(container.querySelectorAll("[data-drop]")).toHaveLength(1);
   });
 
+  it("ツモ和了は最終局面で和了牌を手牌の横に離して出す（河へ捨てる誤演出をしない）", () => {
+    const d = detail([
+      makeKifu(
+        {
+          east: {
+            // 撮影スナップショット手牌（和了牌 5p を含む）。理牌後 [1m,2m,5p]。
+            hand: [
+              { tile: "1m", confidence: 1 },
+              { tile: "5p", confidence: 1 },
+              { tile: "2m", confidence: 1 },
+            ],
+            river: [{ order: 1, tile: "9m", confidence: 1 }],
+          },
+        },
+        { result: "tsumo", agari: [{ winner: "east", winTile: "5p" }] },
+      ),
+    ]);
+    const { container } = renderViewer(d);
+
+    // 全表示（最終局面）: 和了牌 5筒 が手牌本体と別枠（data-tsumo）に出る。
+    const tsumo = container.querySelectorAll("[data-tsumo]");
+    expect(tsumo).toHaveLength(1);
+    const tsumoAlts = Array.from(tsumo[0]!.querySelectorAll("img"))
+      .map((img) => img.getAttribute("alt"))
+      .filter((alt) => alt);
+    expect(tsumoAlts).toEqual(["5筒"]);
+    // 手牌本体からはその1枚が抜ける（河には捨てられない）。
+    const handAlts = Array.from(
+      container.querySelectorAll('[data-tile="hand"]:not([data-tsumo] *) img'),
+    )
+      .map((img) => img.getAttribute("alt"))
+      .filter((alt) => alt);
+    expect(handAlts).toEqual(["1萬", "2萬"]);
+
+    // 最終局面から離れると（1手戻る）和了牌の別枠は出さない。
+    fireEvent.click(screen.getByLabelText("1手戻る"));
+    expect(container.querySelector("[data-tsumo]")).toBeNull();
+  });
+
   it("本場は牌譜の実データを表示する（ハードコードしない）", () => {
     renderViewer(detail([makeKifu({}, { meta: { dealer: "east", honba: 2 } })]));
     // 卓中央・サイドパネルとも実データ（2本場）。ハードコードの「0本場」が残っていないこと。

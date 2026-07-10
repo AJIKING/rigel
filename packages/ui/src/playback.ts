@@ -172,6 +172,30 @@ export function drawnTileIndex(state: PlaybackState): { seat: Seat; index: numbe
   return index >= 0 ? { seat: draw.seat, index } : null;
 }
 
+/** ツモ和了牌の表示（手牌の横に離して置く）。 */
+export interface TsumoWinDisplay {
+  seat: Seat;
+  tile: Tile;
+  /** 理牌後の手牌 index（スナップショット手牌に和了牌がいる場合＝その1枚を離す）。
+   *  手牌に無い（編集済の最終手牌13枚）場合は null ＝ 14枚目として追加描画する。 */
+  handIndex: number | null;
+}
+
+/**
+ * 最終局面のツモ和了牌を手牌の横に離して見せるための導出（web/mobile 共通）。
+ * 正は Kifu.agari（winner / from=null がツモ / winTile）。最終ツモは打牌イベントに
+ * しない（河へ捨てる誤演出になる）ので、timeline ではなくここから導出する。
+ * final=「表示中の局面が最終局面（全打牌を見せている）」のときだけ返す。
+ */
+export function tsumoWinDisplay(kifu: Kifu, final: boolean): TsumoWinDisplay | null {
+  if (!final) return null;
+  const agari = kifu.agari.find((a) => a.from === null && a.winTile !== null);
+  if (!agari?.winTile) return null;
+  const hand = sortHandTiles(kifu.seats[agari.winner].hand);
+  const index = hand.findIndex((t) => t.tile === agari.winTile);
+  return { seat: agari.winner, tile: agari.winTile, handIndex: index >= 0 ? index : null };
+}
+
 /** ビューアが1ステップぶんの描画に使う値一式（KifuViewer/KifuPlayer が共有）。 */
 export interface PlaybackFrame extends RiverPlayback {
   /** 手前席（カメラ相対 bottom）。 */

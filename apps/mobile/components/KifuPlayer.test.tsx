@@ -81,6 +81,31 @@ describe("KifuPlayer", () => {
     expect(screen.getByText("立直")).toBeTruthy();
   });
 
+  it("ツモ和了は最終局面で和了牌を手牌の横に離して出す（河へ捨てる誤演出をしない）", () => {
+    // 編集済相当（最終手牌13枚型＝手牌に和了牌が無い）→ 14枚目として別枠に追加描画。
+    const k = makeKifu(
+      {
+        east: {
+          hand: [
+            { tile: "1m", confidence: 1 },
+            { tile: "2m", confidence: 1 },
+          ],
+          river: [{ order: 1, tile: "9m", confidence: 1 }],
+        },
+      },
+      { result: "tsumo", agari: [{ winner: "east", winTile: "7z" }] },
+    );
+    render(<KifuPlayer logs={[log(1, k)]} />);
+
+    // 初期の全表示＝最終局面: 和了牌（中）が手牌本体と別枠に出る。
+    expect(screen.getByTestId("tsumo-tile")).toBeTruthy();
+    expect(screen.getByLabelText("中")).toBeTruthy();
+
+    // 最終局面から離れると（1手戻る）別枠は出ない。
+    fireEvent.press(screen.getByLabelText("1手戻る"));
+    expect(screen.queryByTestId("tsumo-tile")).toBeNull();
+  });
+
   it("局送りは配列位置ではなく局順(seq)で局名を出す（公開サブセット）", () => {
     // seq 1 と 3 だけ公開された半荘（非連続）。gi 基準なら東二局、seq 基準なら東三局。
     render(<KifuPlayer logs={[log(1, emptyKifu()), log(3, emptyKifu())]} />);

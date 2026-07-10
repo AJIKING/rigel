@@ -242,6 +242,11 @@
   gap: 2px;
   align-items: flex-end;
 }
+/* ツモ和了牌（最終局面で手牌本体から離して置く。実卓の「ツモ牌は右に離す」演出）。 */
+.tsumoWin {
+  display: inline-flex;
+  margin-left: 10px;
+}
 /* 手牌が無い席の透明スペーサ（13枚ぶん）。席ブロックの幅・高さを
    牌譜（常に手牌あり）と同じにして、左右席の位置計算を成立させる。 */
 .handGhost {

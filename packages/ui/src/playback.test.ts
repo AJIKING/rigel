@@ -1,6 +1,12 @@
 import { KifuSchema, type Kifu, type TimelineEvent } from "@rigel/schema";
 import { describe, expect, it } from "vitest";
-import { buildPlaybackFrame, buildPlaybackState, drawnTileIndex, playbackKifu } from "./playback";
+import {
+  buildPlaybackFrame,
+  buildPlaybackState,
+  drawnTileIndex,
+  playbackKifu,
+  tsumoWinDisplay,
+} from "./playback";
 
 const kifu = (over: Record<string, unknown> = {}): Kifu =>
   KifuSchema.parse({
@@ -258,5 +264,47 @@ describe("buildPlaybackFrame（web/mobile ビューア共通の再生フレー�
     expect(f.dealer).toBe("east");
     const start = Number(base().rules.start);
     expect(f.startPoints).toEqual({ east: start, south: start, west: start, north: start });
+  });
+});
+
+describe("tsumoWinDisplay（ツモ和了牌を手牌の横に離す表示）", () => {
+  const seats = (eastHand: string[]) => ({
+    east: { hand: hand(eastHand) },
+    south: {},
+    west: {},
+    north: {},
+  });
+  const tsumoAgari = { winner: "east", from: null, winTile: "5p" };
+
+  it("最終局面のツモ和了は和了牌を手牌の横へ（スナップショット手牌は理牌後の位置）", () => {
+    // 理牌後は ["1m","2m","5p"] → 和了牌 5p は index 2。
+    const k = kifu({ agari: [tsumoAgari], seats: seats(["1m", "5p", "2m"]) });
+
+    expect(tsumoWinDisplay(k, true)).toEqual({ seat: "east", tile: "5p", handIndex: 2 });
+  });
+
+  it("編集済（最終手牌13枚に和了牌が無い）は handIndex null = 14枚目として追加描画", () => {
+    const k = kifu({ agari: [tsumoAgari], seats: seats(["1m", "2m"]) });
+
+    expect(tsumoWinDisplay(k, true)).toEqual({ seat: "east", tile: "5p", handIndex: null });
+  });
+
+  it("最終局面でなければ出さない（再生途中で和了牌を離すと不自然）", () => {
+    const k = kifu({ agari: [tsumoAgari], seats: seats(["1m", "5p"]) });
+
+    expect(tsumoWinDisplay(k, false)).toBeNull();
+  });
+
+  it("ロン（from あり）・winTile 未入力・和了なしは出さない", () => {
+    const ron = kifu({
+      agari: [{ winner: "east", from: "south", winTile: "5p" }],
+      seats: seats(["1m"]),
+    });
+    expect(tsumoWinDisplay(ron, true)).toBeNull();
+
+    const noTile = kifu({ agari: [{ winner: "east" }], seats: seats(["1m"]) });
+    expect(tsumoWinDisplay(noTile, true)).toBeNull();
+
+    expect(tsumoWinDisplay(kifu({ seats: seats(["1m"]) }), true)).toBeNull();
   });
 });

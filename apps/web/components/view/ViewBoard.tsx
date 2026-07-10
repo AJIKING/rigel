@@ -1,7 +1,7 @@
 "use client";
 
 import { toAbsoluteSeat, type CameraSeat, type Kifu, type Seat, type Tile } from "@rigel/schema";
-import { sortHandTiles } from "@rigel/ui";
+import { sortHandTiles, type TsumoWinDisplay } from "@rigel/ui";
 import { chunk, windOf } from "../../lib/board";
 import { OssTileFace } from "../OssTileFace";
 import s from "./kifu-view.module.css";
@@ -87,6 +87,7 @@ export function ViewBoard({
   points = null,
   animateDiscard = null,
   animateDraw = null,
+  tsumoWin = null,
 }: {
   kifu: Kifu;
   bottomSeat: Seat;
@@ -109,6 +110,8 @@ export function ViewBoard({
   /** フライイン演出を付ける手牌の1枚（理牌後の位置）。ツモ→打牌の順に見せるため
    *  指定時は同席の drop を遅延させる。 */
   animateDraw?: { seat: Seat; index: number } | null;
+  /** ツモ和了牌（最終局面で手牌の横に離して置く）。導出は @rigel/ui の tsumoWinDisplay。 */
+  tsumoWin?: TsumoWinDisplay | null;
 }) {
   return (
     <div className={s.stage} style={{ height: 768 * scale }}>
@@ -122,7 +125,13 @@ export function ViewBoard({
           const wind = windOf(seat, dealer);
           const back = hideOpp && seat !== bottomSeat;
           // 表示は理牌（保存順が乱れた既存データも萬→筒→索→字で見せる）。
-          const handShown = sortHandTiles(board.hand);
+          const sorted = sortHandTiles(board.hand);
+          // ツモ和了牌は手牌本体から離して置く（スナップショット手牌なら該当1枚を抜く）。
+          const tsumoHere = tsumoWin?.seat === seat ? tsumoWin : null;
+          const handShown =
+            tsumoHere && tsumoHere.handIndex !== null
+              ? sorted.filter((_, i) => i !== tsumoHere.handIndex)
+              : sorted;
           const riverShown = board.river.slice(0, revealed?.[seat] ?? board.river.length);
           const name = (seat === bottomSeat && bottomName) || `${wind}家`;
           return (
@@ -168,6 +177,11 @@ export function ViewBoard({
                         flyIn={animateDraw?.seat === seat && animateDraw.index === hi}
                       />
                     ))}
+                {tsumoHere && (
+                  <span className={s.tsumoWin} data-tsumo="">
+                    <ViewTile code={back ? undefined : tsumoHere.tile} back={back} />
+                  </span>
+                )}
                 {board.melds.length > 0 && (
                   <div className={s.melds}>
                     {board.melds.map((md, mi) => (
