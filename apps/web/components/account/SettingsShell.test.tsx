@@ -93,7 +93,10 @@ describe("SettingsShell: プラン購入（free → 有料）", () => {
       fireEvent.click(screen.getByRole("button", { name: "プラン変更" }));
       fireEvent.click(planCardButton("Next"));
 
-      expect(await screen.findByText(message)).toBeTruthy();
+      const note = await screen.findByText(message);
+      // checkout のエラーも料金プランセクション内に出す（保存ボタン横ではなく）。
+      const planSection = screen.getByRole("heading", { name: "料金プラン" }).closest("section")!;
+      expect(planSection.contains(note)).toBe(true);
       expect(redirectTo).not.toHaveBeenCalled();
       // モーダルは閉じる（エラー文言が隠れないように）。
       expect(screen.queryByRole("button", { name: "このプランにする" })).toBeNull();
@@ -145,7 +148,11 @@ describe("SettingsShell: 加入中ユーザー", () => {
     fireEvent.click(screen.getByRole("button", { name: "プラン変更" }));
     fireEvent.click(planCardButton("Pro"));
 
-    expect(await screen.findByText(/アプリ内課金で購読中/)).toBeTruthy();
+    const note = await screen.findByText(/アプリ内課金で購読中/);
+    // 課金メッセージは料金プランセクション内（プラン変更ボタンの下）に出す。
+    // プロフィールの保存ボタン横に出すと場所的に不自然（mobile と同じ分離）。
+    const planSection = screen.getByRole("heading", { name: "料金プラン" }).closest("section")!;
+    expect(planSection.contains(note)).toBe(true);
     // Stripe ポータルは IAP 購読を扱えない（404 になる）ので呼ばない。
     expect(h.createPortalAction).not.toHaveBeenCalled();
     expect(redirectTo).not.toHaveBeenCalled();

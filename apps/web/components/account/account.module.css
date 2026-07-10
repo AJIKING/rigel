@@ -170,6 +170,13 @@
   font-size: 12px;
   color: var(--vermilion);
 }
+/* 課金メッセージ（IAP 案内・checkout/ポータルのエラー）。料金プランカードの下の全幅行。 */
+.billingNote {
+  margin-top: 10px;
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--w70, #aaa);
+}
 
 /* toggle switch */
 .switch {

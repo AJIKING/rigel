@@ -39,6 +39,9 @@ export function SettingsShell() {
   const [handle, setHandle] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [save, setSave] = useState<"idle" | "saving" | "saved" | string>("idle");
+  // 課金系メッセージ（IAP 案内・checkout/ポータルのエラー）はプロフィール保存行と
+  // 別領域（料金プランカードの下）に出す。保存ボタン横に出すと場所的に不自然なため。
+  const [billingNote, setBillingNote] = useState<string | null>(null);
   const [planOpen, setPlanOpen] = useState(false);
   const [delArm, setDelArm] = useState(false);
 
@@ -80,7 +83,7 @@ export function SettingsShell() {
    *  購入経路（planStore）を見てストアの購読設定へ案内する。 */
   async function openPortal() {
     if (isStoreManagedSubscription(user?.planStore)) {
-      setSave(
+      setBillingNote(
         "アプリ内課金で購読中です。プランの変更・解約は、購入した端末の購読設定（App Store / Google Play）から行ってください。",
       );
       setPlanOpen(false);
@@ -89,7 +92,7 @@ export function SettingsShell() {
     const res = await createPortalAction({ returnUrl: `${window.location.origin}/settings` });
     if (res.ok) redirectTo(res.url);
     else {
-      setSave(
+      setBillingNote(
         res.status === 404 ? "加入中のプランが見つかりませんでした" : "ポータルを開けませんでした",
       );
       setPlanOpen(false);
@@ -98,6 +101,7 @@ export function SettingsShell() {
 
   async function onPickPlan(target: Plan) {
     if (target === plan) return;
+    setBillingNote(null);
     // 加入中（有料プラン）はアップ/ダウングレード・解約ともポータルへ。
     if (plan !== "free") {
       await openPortal();
@@ -112,7 +116,7 @@ export function SettingsShell() {
     });
     if (res.ok) redirectTo(res.url);
     else {
-      setSave(checkoutErrorMessage(res.status));
+      setBillingNote(checkoutErrorMessage(res.status));
       setPlanOpen(false);
     }
   }
@@ -194,6 +198,7 @@ export function SettingsShell() {
               プラン変更
             </button>
           </div>
+          {billingNote ? <p className={s.billingNote}>{billingNote}</p> : null}
         </section>
 
         {/* アカウント */}
