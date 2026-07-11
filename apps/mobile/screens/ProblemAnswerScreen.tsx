@@ -14,7 +14,6 @@ import {
   tileLabel,
   windOf,
   CALL_CHOICES,
-  SEAT_ORDER,
 } from "@rigel/ui";
 import { useEffect, useMemo, useState } from "react";
 import {
@@ -178,7 +177,8 @@ function AnswerBody({ post, token }: { post: ProblemPost; token: string | null }
             : ""}
       </Text>
 
-      {/* 盤面（牌譜と同じ回転卓）。ドラ・本場・供託は BoardTable が卓中央に表示する。 */}
+      {/* 盤面（牌譜と同じ回転卓）。ドラ・本場・供託は BoardTable が卓中央に表示する。
+          点数（手入力の記録）も牌譜再生と同じくネームプレートに出す（盤面外だと見えない）。 */}
       <View style={styles.boardWrap}>
         <BoardTable
           kifu={boardKifu}
@@ -187,20 +187,10 @@ function AnswerBody({ post, token }: { post: ProblemPost; token: string | null }
           roundLabel={roundLabel}
           showHands={false}
           size={boardSize}
+          points={problem.scores}
           highlightRiver={highlightRiver}
         />
       </View>
-
-      {/* 点数状況（手入力の記録のみ） */}
-      {problem.scores ? (
-        <Row label="点数">
-          <Text style={styles.scores}>
-            {SEAT_ORDER.map(
-              (seat) => `${seatLabel(seat)} ${problem.scores![seat].toLocaleString()}`,
-            ).join("　")}
-          </Text>
-        </Row>
-      ) : null}
 
       {/* 自分の手牌（理牌済み）＋ツモ牌 */}
       <Text style={styles.section}>手牌</Text>
@@ -334,15 +324,6 @@ function AnswerBody({ post, token }: { post: ProblemPost; token: string | null }
   );
 }
 
-function Row({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <View style={styles.row}>
-      <Text style={styles.rowLabel}>{label}</Text>
-      <View style={styles.rowTiles}>{children}</View>
-    </View>
-  );
-}
-
 function ShareIcon({ color }: { color: string }) {
   return (
     <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
@@ -363,10 +344,6 @@ const styles = StyleSheet.create({
   title: { flex: 1, color: colors.white, fontSize: 17, fontWeight: "800" },
   draftBadge: { color: colors.vermilion, fontSize: 12, fontWeight: "700" },
   meta: { color: colors.w45, fontSize: 12 },
-  row: { flexDirection: "row", alignItems: "center", gap: 10 },
-  rowLabel: { color: colors.w45, fontSize: 12, fontWeight: "700", width: 64 },
-  rowTiles: { flex: 1, flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: 4 },
-  scores: { color: colors.w70, fontSize: 12.5 },
   boardWrap: { alignItems: "center", marginTop: 2 },
   question: { color: colors.white, fontSize: 16, fontWeight: "800", marginTop: 2 },
   section: { color: colors.w45, fontSize: 12, fontWeight: "800", marginTop: 6 },

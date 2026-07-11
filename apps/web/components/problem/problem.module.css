@@ -181,13 +181,6 @@
   display: flex;
   gap: 2px;
 }
-.scores {
-  display: inline-flex;
-  gap: 12px;
-  font-size: 13px;
-  font-variant-numeric: tabular-nums;
-}
-
 .handRow {
   margin-top: 16px;
   align-items: flex-end;

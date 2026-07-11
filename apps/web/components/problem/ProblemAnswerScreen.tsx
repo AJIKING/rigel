@@ -1,12 +1,6 @@
 "use client";
 
-import {
-  problemTargetTile,
-  type CallType,
-  type ProblemAction,
-  type Seat,
-  type Tile,
-} from "@rigel/schema";
+import { problemTargetTile, type CallType, type ProblemAction, type Tile } from "@rigel/schema";
 import {
   actionLabel,
   answerNeedsTile,
@@ -19,7 +13,6 @@ import {
   statsRatios,
   tileLabel,
   CALL_CHOICES,
-  SEAT_ORDER,
   windOf,
 } from "@rigel/ui";
 import Link from "next/link";
@@ -155,30 +148,17 @@ export function ProblemAnswerScreen({ post }: { post: ProblemPost }) {
 
         {/* 盤面は牌譜ビューアと同じ卓（河・鳴きは卓上に。鳴き判断は対象牌を強調）。 */}
         <div className={s.boardPanel}>
+          {/* 点数（手入力の記録）は牌譜再生と同じくネームプレートに出す（盤面外だと見えない）。 */}
           <ViewBoard
             kifu={boardKifu}
             bottomSeat={pov}
             dealer={dealer ?? pov}
             scale={scale}
-            bottomName="あなた"
+            points={problem.scores}
             highlightRiver={highlightRiver}
             center={<ProblemBoardCenter meta={problem.meta} />}
           />
         </div>
-
-        {/* 点数状況（手入力の記録のみ） */}
-        {problem.scores && (
-          <div className={s.row}>
-            <span className={s.rowLabel}>点数</span>
-            <span className={s.scores}>
-              {SEAT_ORDER.map((seat: Seat) => (
-                <span key={seat} className={s.score}>
-                  {seatLabel(seat)} {problem.scores![seat].toLocaleString()}
-                </span>
-              ))}
-            </span>
-          </div>
-        )}
 
         {/* 自分の手牌（理牌済み）＋ツモ牌 */}
         <div className={s.handRow}>

@@ -40,6 +40,36 @@ afterEach(() => {
 });
 
 describe("ProblemAnswerScreen: 何切る", () => {
+  it("点数は牌譜と同じくネームプレート（席の横）に出す。盤面外の点数行は出さない", async () => {
+    stubMe("free");
+    const post = makeDiscardPost();
+    post.problem = {
+      ...post.problem,
+      scores: { east: 25000, south: 11600, west: 38400, north: 25000 },
+    };
+    const { container } = renderScreen(post);
+    await screen.findByText("あなたなら何を切る？");
+
+    // ネームプレート（[data-seat] 内）に各席の点数が出る（牌譜ビューアと同一様式）。
+    const seatText = Array.from(container.querySelectorAll("[data-seat]"))
+      .map((el) => el.textContent)
+      .join(" ");
+    expect(seatText).toContain("11,600点");
+    expect(seatText).toContain("38,400点");
+    // 旧: 盤面外の「点数」ラベル行は出さない。
+    expect(screen.queryByText("点数")).toBeNull();
+  });
+
+  it("点数未入力（scores=null）はネームプレートに点数を出さない", async () => {
+    stubMe("free");
+    const { container } = renderScreen(makeDiscardPost());
+    await screen.findByText("あなたなら何を切る？");
+    const seatText = Array.from(container.querySelectorAll("[data-seat]"))
+      .map((el) => el.textContent)
+      .join(" ");
+    expect(seatText).not.toContain("点");
+  });
+
   it("回答前は質問見出しを出し、解説・分布は出さない（正解は存在しない）", async () => {
     stubMe("free");
     renderScreen(discardPost());

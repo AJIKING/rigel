@@ -50,6 +50,25 @@ describe("ProblemAnswerScreen（何切る回答画面）", () => {
     expect(screen.queryByText(/を鳴きますか/)).toBeNull();
   });
 
+  it("点数は牌譜と同じくネームプレート（席の横）に出す。盤面外の点数行は出さない", async () => {
+    const post = makePost();
+    post.problem = {
+      ...post.problem,
+      scores: { east: 25000, south: 11600, west: 38400, north: 25000 },
+    };
+    mockGetProblem.mockResolvedValue(post);
+    render(<ProblemAnswerScreen />);
+
+    expect(await screen.findByText("テスト問題")).toBeTruthy();
+    // ネームプレートに各席の点数（牌譜ビューアと同一様式）。
+    expect(screen.getByText("11,600点")).toBeTruthy();
+    expect(screen.getByText("38,400点")).toBeTruthy();
+    // 旧: 盤面外の「点数」ラベル行は出さない。
+    expect(screen.queryByText("点数")).toBeNull();
+    // 手前席も牌譜と同じ「○家」表記（「あなた」とは表示しない）。
+    expect(screen.queryByText("あなた")).toBeNull();
+  });
+
   it("回答前は出題者のコメントを表示しない", async () => {
     mockGetProblem.mockResolvedValue(makePost());
     render(<ProblemAnswerScreen />);
