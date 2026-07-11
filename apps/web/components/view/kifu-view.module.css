@@ -615,6 +615,19 @@
   color: var(--w45);
   font-weight: 700;
 }
+/* ルールの折りたたみ見出し（.ssec h4 と同格の見た目＋開閉マーカー）。 */
+.rulesum {
+  margin: 0 0 12px;
+  font-size: 11px;
+  letter-spacing: 0.13em;
+  color: var(--w45);
+  font-weight: 700;
+  cursor: pointer;
+  user-select: none;
+}
+details[open] > .rulesum {
+  color: var(--w85);
+}
 .snav {
   display: flex;
   align-items: center;

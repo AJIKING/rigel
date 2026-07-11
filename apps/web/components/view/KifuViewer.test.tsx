@@ -479,6 +479,17 @@ describe("KifuViewer", () => {
     expect(bottomPlate()).toContain("太郎");
   });
 
+  it("サイドパネルで半荘ルールを確認できる（プリセット名＋各項目の値）", () => {
+    renderViewer(detail([kifu()]));
+    // 見出しに一致プリセット名（既定ルール＝Mリーグ相当）。
+    expect(screen.getByText("ルール（Mリーグ）")).toBeTruthy();
+    // 項目名と値のペアが出る（値ラベルは共有の ruleSummaryRows 由来）。
+    expect(screen.getByText("切り上げ満貫")).toBeTruthy();
+    expect(screen.getByText("ウマ")).toBeTruthy();
+    expect(screen.getByText("10-30")).toBeTruthy();
+    expect(screen.getByText("喰いタン")).toBeTruthy();
+  });
+
   it("本場は牌譜の実データを表示する（ハードコードしない）", () => {
     renderViewer(detail([makeKifu({}, { meta: { dealer: "east", honba: 2 } })]));
     // 卓中央・サイドパネルとも実データ（2本場）。ハードコードの「0本場」が残っていないこと。

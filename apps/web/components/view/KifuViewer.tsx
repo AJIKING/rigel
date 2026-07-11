@@ -9,6 +9,8 @@ import {
   buildPlaybackFrame,
   playbackKifu,
   resultLabel,
+  rulePresetLabel,
+  ruleSummaryRows,
   stepDisplay,
   stepHasDraw,
   type StepPhase,
@@ -544,6 +546,17 @@ export function KifuViewer({ detail, gameId }: { detail: PublicGameDetail; gameI
                 </div>
               ))}
             </div>
+
+            {/* 半荘ルール（半荘単位＝全局共通）。項目が多いので折りたたみで出す。 */}
+            <details className={s.ssec}>
+              <summary className={s.rulesum}>ルール（{rulePresetLabel(kifu.rules)}）</summary>
+              {ruleSummaryRows(kifu.rules).map((r) => (
+                <div key={r.title} className={s.irow}>
+                  <span>{r.title}</span>
+                  <b>{r.value}</b>
+                </div>
+              ))}
+            </details>
           </aside>
         )}
       </div>

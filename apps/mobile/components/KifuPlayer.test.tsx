@@ -403,6 +403,18 @@ describe("KifuPlayer", () => {
     expect(screen.queryByLabelText("發")).toBeNull();
   });
 
+  it("情報シートで半荘ルールを確認できる（プリセット名＋各項目の値）", () => {
+    render(<KifuPlayer logs={[log(1, emptyKifu())]} />);
+    fireEvent.press(screen.getByText("情報"));
+    // 見出しに一致プリセット名（既定ルール＝Mリーグ相当）。
+    expect(screen.getByText("ルール（Mリーグ）")).toBeTruthy();
+    // 項目名と値のペアが出る（値ラベルは共有の ruleSummaryRows 由来）。
+    expect(screen.getByText("切り上げ満貫")).toBeTruthy();
+    expect(screen.getByText("ウマ")).toBeTruthy();
+    expect(screen.getByText("10-30")).toBeTruthy();
+    expect(screen.getByText("喰いタン")).toBeTruthy();
+  });
+
   it("手牌トグルで相手の手牌が表(牌)/裏に切り替わる", () => {
     render(<KifuPlayer logs={[log(1, kifuOppHand())]} />);
     // 既定は相手手牌を裏向き（發は出ない）。

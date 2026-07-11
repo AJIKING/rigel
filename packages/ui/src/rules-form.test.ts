@@ -1,6 +1,6 @@
 import { RULE_PRESETS, RulesSchema } from "@rigel/schema";
 import { describe, expect, it } from "vitest";
-import { RULES_FORM, RULE_PRESET_OPTIONS } from "./rules-form";
+import { RULES_FORM, RULE_PRESET_OPTIONS, rulePresetLabel, ruleSummaryRows } from "./rules-form";
 
 describe("RULES_FORM（ルール設定フォームの共有定義）", () => {
   const defaults = RulesSchema.parse({});
@@ -42,5 +42,34 @@ describe("RULES_FORM（ルール設定フォームの共有定義）", () => {
   it("主要な15項目を網羅する（合計行数）", () => {
     const rows = RULES_FORM.flatMap((g) => g.rows);
     expect(rows).toHaveLength(15);
+  });
+});
+
+describe("ruleSummaryRows（ルールの読み取り専用表示。ビューアの情報パネルで使う）", () => {
+  it("RULES_FORM の全項目を「項目名＋値ラベル」に展開する", () => {
+    const rows = ruleSummaryRows(RULE_PRESETS.mleague);
+    expect(rows).toHaveLength(15);
+    // toggle は あり/なし、seg は選択肢の表示名になる。
+    expect(rows).toContainEqual({ title: "切り上げ満貫", value: "あり" });
+    expect(rows).toContainEqual({ title: "トビ終了", value: "なし" });
+    expect(rows).toContainEqual({ title: "赤ドラ", value: "各1枚" });
+    expect(rows).toContainEqual({ title: "親の連荘", value: "聴牌連荘" });
+    expect(rows).toContainEqual({ title: "ウマ", value: "10-30" });
+    expect(rows).toContainEqual({ title: "持ち点 / 返し", value: "25000/30000" });
+  });
+
+  it("天鳳プリセットでは値が変わる（切り上げなし・ダブロンあり）", () => {
+    const rows = ruleSummaryRows(RULE_PRESETS.tenhou);
+    expect(rows).toContainEqual({ title: "切り上げ満貫", value: "なし" });
+    expect(rows).toContainEqual({ title: "ダブロン", value: "あり" });
+    expect(rows).toContainEqual({ title: "ウマ", value: "10-20" });
+  });
+});
+
+describe("rulePresetLabel（一致するプリセット名。無ければカスタム）", () => {
+  it("プリセット一致で表示名、変更ありで「カスタム」を返す", () => {
+    expect(rulePresetLabel(RULE_PRESETS.mleague)).toBe("Mリーグ");
+    expect(rulePresetLabel(RULE_PRESETS.tenhou)).toBe("天鳳");
+    expect(rulePresetLabel({ ...RULE_PRESETS.mleague, kuitan: false })).toBe("カスタム");
   });
 });

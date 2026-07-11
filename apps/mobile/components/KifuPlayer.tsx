@@ -5,6 +5,8 @@ import {
   playbackKifu,
   resultLabel,
   roundNameForSeq,
+  rulePresetLabel,
+  ruleSummaryRows,
   stepDisplay,
   stepHasDraw,
   windOf,
@@ -324,6 +326,11 @@ export function KifuPlayer({
                 k={`${windOf(seat, dealer)}家`}
                 v={`手牌${viewKifu.seats[seat].hand.length}枚 / 河${viewKifu.seats[seat].river.length}${` / ${startPoints[seat].toLocaleString()}点`}`}
               />
+            ))}
+            {/* 半荘ルール（半荘単位＝全局共通）。web のサイドパネルと同じ要約行。 */}
+            <Text style={styles.h3}>ルール（{rulePresetLabel(kifu.rules)}）</Text>
+            {ruleSummaryRows(kifu.rules).map((r) => (
+              <KV key={r.title} k={r.title} v={r.value} />
             ))}
           </ScrollView>
         </BottomSheet>

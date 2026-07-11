@@ -2,7 +2,7 @@
 // web の RulesDialog / mobile の RulesSheet が同じグループ・項目・選択肢を描く。
 // レンダリング（Switch/Segment 等）は各アプリ側。ここは「何を出すか」の設定だけ。
 
-import type { Rules, RULE_PRESETS } from "@rigel/schema";
+import { RULE_PRESETS, type Rules } from "@rigel/schema";
 
 type PresetKey = keyof typeof RULE_PRESETS;
 
@@ -158,4 +158,24 @@ export function matchPreset(rules: Rules, presets: Record<PresetKey, Rules>): st
   return (
     RULE_PRESET_OPTIONS.find((p) => JSON.stringify(presets[p.key]) === target)?.key ?? "custom"
   );
+}
+
+/** 一致するプリセットの表示名（無ければ「カスタム」）。ビューアの見出しで使う。 */
+export function rulePresetLabel(rules: Rules): string {
+  const key = matchPreset(rules, RULE_PRESETS);
+  return RULE_PRESET_OPTIONS.find((p) => p.key === key)?.label ?? "カスタム";
+}
+
+/** ルールの読み取り専用表示行（項目名＋値ラベル）。RULES_FORM から導出するため、
+ *  フォームの項目定義と表示が乖離しない。ビューアの情報パネル（web/mobile）で使う。 */
+export function ruleSummaryRows(rules: Rules): { title: string; value: string }[] {
+  return RULES_FORM.flatMap((g) => g.rows).map((row) => ({
+    title: row.title,
+    value:
+      row.kind === "toggle"
+        ? rules[row.key]
+          ? "あり"
+          : "なし"
+        : (row.options.find(([v]) => v === String(rules[row.key]))?.[1] ?? String(rules[row.key])),
+  }));
 }
