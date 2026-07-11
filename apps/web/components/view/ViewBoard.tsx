@@ -1,7 +1,7 @@
 "use client";
 
 import { toAbsoluteSeat, type CameraSeat, type Kifu, type Seat, type Tile } from "@rigel/schema";
-import { splitTsumoHand, type TsumoWinDisplay } from "@rigel/ui";
+import { splitDrawnTile, type DrawnTile } from "@rigel/ui";
 import { chunk, windOf } from "../../lib/board";
 import { OssTileFace } from "../OssTileFace";
 import s from "./kifu-view.module.css";
@@ -22,7 +22,6 @@ export function ViewTile({
   back,
   highlight,
   drop,
-  dropDelayed,
   flyIn,
 }: {
   code?: Tile | null;
@@ -34,9 +33,7 @@ export function ViewTile({
   highlight?: boolean;
   /** 打牌の drop-in 演出（いま河に置かれた1枚）。 */
   drop?: boolean;
-  /** drop をツモ演出の後に遅らせる（ツモ→打牌の順に見せる）。 */
-  dropDelayed?: boolean;
-  /** ツモ牌のフライイン演出（中央方向から手牌へ入った1枚）。 */
+  /** フライイン演出（手牌右端のスロットへ入った1枚）。 */
   flyIn?: boolean;
 }) {
   const cls = [
@@ -48,7 +45,6 @@ export function ViewTile({
     back ? s.back : "",
     highlight ? s.target : "",
     drop ? s.drop : "",
-    drop && dropDelayed ? s.dropDelay : "",
     flyIn ? s.flyIn : "",
   ]
     .filter(Boolean)
@@ -86,8 +82,7 @@ export function ViewBoard({
   highlightRiver = null,
   points = null,
   animateDiscard = null,
-  animateDraw = null,
-  tsumoWin = null,
+  drawnTile = null,
 }: {
   kifu: Kifu;
   bottomSeat: Seat;
@@ -105,14 +100,11 @@ export function ViewBoard({
   highlightRiver?: { seat: Seat; index: number } | null;
   /** 再生中の点棒。指定時はネームプレートに表示する。 */
   points?: Record<Seat, number> | null;
-  /** drop-in 演出を付ける河の1枚（いま置かれた打牌）。1手進めたときだけ渡す。 */
+  /** drop-in 演出を付ける河の1枚（いま置かれた打牌）。演出の第2段でだけ渡す。 */
   animateDiscard?: { seat: Seat; index: number } | null;
-  /** フライイン演出を付ける手牌の1枚（理牌後の位置）。ツモ→打牌の順に見せるため
-   *  指定時は同席の drop を遅延させる。 */
-  animateDraw?: { seat: Seat; index: number } | null;
-  /** ツモ和了牌（手牌の横に離して置く）。出すタイミングは frame.tsumoWin
-   *  （buildPlaybackFrame＝再生末尾のみ）が決める。ここは受けて描くだけ。 */
-  tsumoWin?: TsumoWinDisplay | null;
+  /** 手牌の右端に離して置く1枚（再生中の一時ツモ／末尾のツモ和了牌）。出現時に
+   *  フライインする。出すタイミングは呼び出し側（演出フェーズ／frame.tsumoWin）が決める。 */
+  drawnTile?: DrawnTile | null;
 }) {
   return (
     <div className={s.stage} style={{ height: 768 * scale }}>
@@ -126,8 +118,12 @@ export function ViewBoard({
           const wind = windOf(seat, dealer);
           const back = hideOpp && seat !== bottomSeat;
           // 表示は理牌（保存順が乱れた既存データも萬→筒→索→字で見せる）。
-          // ツモ和了牌は手牌本体から離して置く（分割は @rigel/ui。mobile と共通）。
-          const { hand: handShown, tsumoTile } = splitTsumoHand(board.hand, tsumoWin, seat);
+          // 右端スロットの1枚は手牌本体から離して置く（分割は @rigel/ui。mobile と共通）。
+          const { hand: handShown, drawnTile: slotTile } = splitDrawnTile(
+            board.hand,
+            drawnTile,
+            seat,
+          );
           const riverShown = board.river.slice(0, revealed?.[seat] ?? board.river.length);
           const name = (seat === bottomSeat && bottomName) || `${wind}家`;
           return (
@@ -146,7 +142,6 @@ export function ViewBoard({
                           highlightRiver?.seat === seat && highlightRiver.index === ri * 6 + ci
                         }
                         drop={animateDiscard?.seat === seat && animateDiscard.index === ri * 6 + ci}
-                        dropDelayed={animateDraw?.seat === seat}
                       />
                     ))}
                   </div>
@@ -166,16 +161,11 @@ export function ViewBoard({
                 )}
                 {back
                   ? handShown.map((_, hi) => <ViewTile key={hi} back />)
-                  : handShown.map((h, hi) => (
-                      <ViewTile
-                        key={hi}
-                        code={h.tile}
-                        flyIn={animateDraw?.seat === seat && animateDraw.index === hi}
-                      />
-                    ))}
-                {tsumoTile !== null && (
+                  : handShown.map((h, hi) => <ViewTile key={hi} code={h.tile} />)}
+                {slotTile !== null && (
                   <span className={s.tsumoWin} data-tsumo="">
-                    <ViewTile code={back ? undefined : tsumoTile} back={back} />
+                    {/* key=牌: 連続ステップで牌が変わったら差し替えてフライインを掛け直す。 */}
+                    <ViewTile key={slotTile} code={back ? undefined : slotTile} back={back} flyIn />
                   </span>
                 )}
                 {board.melds.length > 0 && (

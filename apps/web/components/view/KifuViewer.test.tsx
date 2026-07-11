@@ -1,6 +1,7 @@
 import { KifuSchema, type Kifu } from "@rigel/schema";
-import { fireEvent, render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { AGARI_DELAY_MS, STEP_DRAW_MS } from "@rigel/ui";
+import { act, fireEvent, render, screen } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { type PublicGameDetail } from "../../lib/api";
 import { AuthProvider } from "../../lib/auth-context";
 import { KifuViewer } from "./KifuViewer";
@@ -57,6 +58,10 @@ function renderViewer(d: PublicGameDetail) {
 }
 
 describe("KifuViewer", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it("props で受け取った公開半荘を『読み込み中』なしで描画する", () => {
     renderViewer(detail([kifu()]));
     expect(screen.getByText("公開テスト卓")).toBeTruthy();
@@ -87,13 +92,17 @@ describe("KifuViewer", () => {
     expect(toggle.getAttribute("aria-pressed")).toBe("false");
   });
 
-  it("再生を末尾まで進めると和了演出（役）が現れる", () => {
+  it("再生を末尾まで進めると、最後の演出を見せてから和了演出（役）が現れる（二段階）", () => {
+    vi.useFakeTimers();
     renderViewer(detail([kifuWithAgari()]));
     // 初期の全表示では和了は出さない（リロード時のポップ防止）。
     expect(screen.queryByText("立直")).toBeNull();
-    // 1手戻ってから末尾へ進めると atEnd になり和了演出が出る。
+    // 1手戻ってから末尾へ進める。到達直後は最後の演出（打牌の drop）を見せる間で、まだ出さない。
     fireEvent.click(screen.getByLabelText("1手戻る"));
     fireEvent.click(screen.getByLabelText("1手進む"));
+    expect(screen.queryByText("立直")).toBeNull();
+    // 遅延の後に和了演出が出る。
+    act(() => vi.advanceTimersByTime(AGARI_DELAY_MS));
     expect(screen.getByText("立直")).toBeTruthy();
   });
 
@@ -226,7 +235,8 @@ describe("KifuViewer", () => {
     expect(container.querySelector("[data-drop]")).toBeNull();
   });
 
-  it("1手進めたとき、手牌に入ったツモ牌にフライイン演出が付く（ツモ切りは付けない）", () => {
+  it("1手進めると二段階で演出する（ツモ牌が手牌右端に入る → 打牌が河へ落ちる）", () => {
+    vi.useFakeTimers();
     const d = detail([
       makeKifu(
         {
@@ -264,25 +274,40 @@ describe("KifuViewer", () => {
       ),
     ]);
     const { container } = renderViewer(d);
+    const handAlts = () =>
+      Array.from(container.querySelectorAll('[data-tile="hand"]:not([data-tsumo] *) img'))
+        .map((img) => img.getAttribute("alt"))
+        .filter((alt) => alt);
+    const slotAlts = () =>
+      Array.from(container.querySelectorAll("[data-tsumo] img"))
+        .map((img) => img.getAttribute("alt"))
+        .filter((alt) => alt);
 
     // 初期の全表示では演出しない。
     expect(container.querySelector("[data-draw]")).toBeNull();
 
-    // 先頭へ戻して1手進む（手出し）: ツモ牌 3萬 にフライインが付く。
+    // 先頭へ戻して1手進む（手出し）。
     fireEvent.click(screen.getByLabelText("1手戻る"));
     fireEvent.click(screen.getByLabelText("1手戻る"));
     fireEvent.click(screen.getByLabelText("1手進む"));
-    const drawn = container.querySelectorAll("[data-draw]");
-    expect(drawn).toHaveLength(1);
-    // OssTileFace は台座 Front.svg（alt=""）＋柄の2枚。柄の alt で牌種を確認する。
-    const alts = Array.from(drawn[0]!.querySelectorAll("img"))
-      .map((img) => img.getAttribute("alt"))
-      .filter((alt) => alt);
-    expect(alts).toEqual(["3萬"]);
 
-    // もう1手進む（ツモ切り）: 手牌のフライインは無し。河の drop だけ。
+    // 第1段: 盤面は1手前のまま、ツモ牌 3萬 が手牌右端のスロットへフライイン。河にはまだ落ちない。
+    expect(slotAlts()).toEqual(["3萬"]);
+    expect(handAlts()).toEqual(["1萬", "9筒"]);
+    expect(container.querySelector("[data-drop]")).toBeNull();
+
+    // 第2段: 打牌 1萬 が河へ drop し、手牌が理牌される（スロットは消える）。
+    act(() => vi.advanceTimersByTime(STEP_DRAW_MS));
+    expect(container.querySelector("[data-tsumo]")).toBeNull();
+    expect(handAlts()).toEqual(["3萬", "9筒"]);
+    expect(container.querySelectorAll("[data-drop]")).toHaveLength(1);
+
+    // もう1手進む（ツモ切り）: ツモ切りも同じ二段階（右端に入ってからそのまま河へ）。
     fireEvent.click(screen.getByLabelText("1手進む"));
-    expect(container.querySelector("[data-draw]")).toBeNull();
+    expect(slotAlts()).toEqual(["4萬"]);
+    act(() => vi.advanceTimersByTime(STEP_DRAW_MS));
+    expect(container.querySelector("[data-tsumo]")).toBeNull();
+    expect(handAlts()).toEqual(["3萬", "9筒"]); // ツモ切りは手牌が変わらない。
     expect(container.querySelectorAll("[data-drop]")).toHaveLength(1);
   });
 

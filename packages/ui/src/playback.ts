@@ -157,26 +157,22 @@ export function playbackKifu(kifu: Kifu, shownDiscards: number): Kifu {
   return playbackStateToKifu(kifu, buildPlaybackState(kifu, shownDiscards));
 }
 
-/**
- * 直近のステップで手牌に入ったツモ牌の表示位置（理牌後の index）を返す。
- * 描画側のツモ演出（中央→手牌のフライイン）の対象決めに使う。
- * ツモ切り（手牌に入らない）・ツモ不明（draw=null / 未編集）は null。
- */
-export function drawnTileIndex(state: PlaybackState): { seat: Seat; index: number } | null {
-  const draw = state.activeDraw;
-  if (!draw || draw.tile === null) return null;
-  const last = state.activeDiscard;
-  if (last && state.seats[last.seat].river[last.riverIndex]?.tsumogiri) return null;
-  // 表示は理牌（ViewBoard/BoardTable と同じ並び）なので、理牌後の位置で探す。
-  const index = sortHandTiles(state.seats[draw.seat].hand).findIndex((t) => t.tile === draw.tile);
-  return index >= 0 ? { seat: draw.seat, index } : null;
-}
-
-/** ツモ和了牌の表示（手牌の横に離して置く）。 */
-export interface TsumoWinDisplay {
+/** 手牌の右端に離して置く1枚（再生中の一時ツモ／末尾のツモ和了牌の両用）。 */
+export interface DrawnTile {
   seat: Seat;
   tile: Tile;
 }
+
+/** ステップ演出のフェーズ。draw=ツモ牌が右端スロットへ（盤面は1手前のまま）／
+ *  drop=打牌が河へ落ち手牌が理牌される。null=演出なし（初期表示・ジャンプ・戻る）。 */
+export type StepPhase = "draw" | "drop";
+
+/** ステップ演出の第1段（ツモ牌が手牌右端に入る）を見せる時間。第2段（打牌が河へ）は
+ *  この後に始まる。web/mobile で同一テンポにするためここで一元定義する。 */
+export const STEP_DRAW_MS = 500;
+/** 末尾到達（atEnd）から和了ダイアログ表示までの遅延。最後の演出
+ *  （ロン=打牌の drop / ツモ=和了牌のフライイン）を見せ切ってから開く。 */
+export const AGARI_DELAY_MS = 900;
 
 /**
  * ツモ和了牌の導出（web/mobile 共通）。正は Kifu.agari（winner / from=null がツモ /
@@ -184,27 +180,27 @@ export interface TsumoWinDisplay {
  * timeline ではなくここから導出する。最終局面でだけ意味を持つ値なので、
  * ビューアは buildPlaybackFrame 経由（frame.tsumoWin）で受け取る。
  */
-export function tsumoWinDisplay(kifu: Kifu): TsumoWinDisplay | null {
+export function tsumoWinDisplay(kifu: Kifu): DrawnTile | null {
   const agari = kifu.agari.find((a) => a.from === null && a.winTile !== null);
   return agari?.winTile ? { seat: agari.winner, tile: agari.winTile } : null;
 }
 
 /**
- * 席の手牌を「本体（理牌済み）」と「離して置くツモ和了牌」に割る（レンダラ共通）。
- * スナップショット手牌（和了牌を含む14枚）は該当1枚を本体から抜き、
- * 編集済（13枚・含まない）は本体そのまま＋ツモ牌を14枚目として返す。
+ * 席の手牌を「本体（理牌済み）」と「右端に離して置く1枚」に割る（レンダラ共通）。
+ * 手牌にその牌がある（スナップショットのツモ和了牌）なら該当1枚を本体から抜き、
+ * 無い（編集済の最終手牌／再生中の一時ツモ）なら本体そのまま＋14枚目として返す。
  */
-export function splitTsumoHand(
+export function splitDrawnTile(
   hand: ReadTile[],
-  tsumoWin: TsumoWinDisplay | null,
+  drawn: DrawnTile | null,
   seat: Seat,
-): { hand: ReadTile[]; tsumoTile: Tile | null } {
+): { hand: ReadTile[]; drawnTile: Tile | null } {
   const sorted = sortHandTiles(hand);
-  if (!tsumoWin || tsumoWin.seat !== seat) return { hand: sorted, tsumoTile: null };
-  const i = sorted.findIndex((t) => t.tile === tsumoWin.tile);
+  if (!drawn || drawn.seat !== seat) return { hand: sorted, drawnTile: null };
+  const i = sorted.findIndex((t) => t.tile === drawn.tile);
   return {
     hand: i >= 0 ? sorted.filter((_, idx) => idx !== i) : sorted,
-    tsumoTile: tsumoWin.tile,
+    drawnTile: drawn.tile,
   };
 }
 
@@ -226,7 +222,47 @@ export interface PlaybackFrame extends RiverPlayback {
   atEnd: boolean;
   /** ツモ和了牌（手牌の横に離して描く）。再生で末尾に達したとき（=atEnd）だけ非 null。
    *  和了演出と同じ発火条件で、初期の全表示（reveal=-1）では出さない。 */
-  tsumoWin: TsumoWinDisplay | null;
+  tsumoWin: DrawnTile | null;
+}
+
+/** 直近のステップで引いたツモ牌（右端スロット表示の形）。ツモ不明・0手目は null。 */
+export function activeDrawnTile(state: PlaybackState): DrawnTile | null {
+  const draw = state.activeDraw;
+  return draw?.tile ? { seat: draw.seat, tile: draw.tile } : null;
+}
+
+/** ステップ演出フェーズ → 盤面表示物の写像（web/mobile 共通の純関数）。 */
+export interface StepDisplay {
+  /** 卓に描く局面。draw 段階は1手前（prevKifu）、それ以外は現在（frame.viewKifu）。 */
+  kifu: Kifu;
+  /** 手牌右端スロットの1枚。draw 段階=一時ツモ牌、それ以外=末尾のツモ和了牌。 */
+  drawnTile: DrawnTile | null;
+  /** drop 演出を付ける河の1枚。drop 段階だけ。 */
+  animateDiscard: { seat: Seat; index: number } | null;
+  /** draw 段階（盤面が1手前）を表示中か。和了ダイアログの発火抑制に使う。 */
+  drawing: boolean;
+}
+
+/**
+ * 二段階ステップ演出の表示導出。フェーズのタイマー（draw→drop 遷移）だけを各ビューアが
+ * 持ち、フェーズ→表示物の規則はここに一元化する（web/mobile の演出乖離を防ぐ）。
+ * prevKifu は draw 段階で見せる1手前の局面（playbackKifu(kifu, shown-1)）。
+ */
+export function stepDisplay(
+  phase: StepPhase | null,
+  frame: PlaybackFrame,
+  prevKifu: Kifu | null,
+): StepDisplay {
+  const stepDraw = activeDrawnTile(frame.playback);
+  const drawing = phase === "draw" && stepDraw !== null && prevKifu !== null;
+  const discard = frame.playback.activeDiscard;
+  return {
+    kifu: drawing ? prevKifu : frame.viewKifu,
+    drawnTile: drawing ? stepDraw : frame.tsumoWin,
+    animateDiscard:
+      phase === "drop" && discard ? { seat: discard.seat, index: discard.riverIndex } : null,
+    drawing,
+  };
 }
 
 /**

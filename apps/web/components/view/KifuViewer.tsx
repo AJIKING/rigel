@@ -5,7 +5,16 @@ import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { type PublicGameDetail } from "../../lib/api";
 import { useAuth } from "../../lib/auth-context";
-import { buildPlaybackFrame, drawnTileIndex, resultLabel } from "@rigel/ui";
+import {
+  AGARI_DELAY_MS,
+  STEP_DRAW_MS,
+  activeDrawnTile,
+  buildPlaybackFrame,
+  playbackKifu,
+  resultLabel,
+  stepDisplay,
+  type StepPhase,
+} from "@rigel/ui";
 import { SEAT_ORDER, roundNameForSeq, windOf } from "../../lib/board";
 import { useBoardScale } from "../../lib/use-board-scale";
 import { fmtDate } from "../../lib/format";
@@ -95,21 +104,48 @@ export function KifuViewer({ detail, gameId }: { detail: PublicGameDetail; gameI
   // （リロード時に一瞬ポップするのを防ぐ）。reveal が実インデックスで末尾以上のときのみ。
   const atEnd = frame?.atEnd ?? false;
 
-  // 打牌の drop-in 演出は「同じ局で1手だけ進んだとき」に限る（初期の全表示・
-  // 巡目/局ジャンプ・戻る操作では出さない）。直前描画の再生位置を ref に持ち比較する。
+  // ステップ演出の二段階: draw（ツモ牌が手牌右端に入る。盤面は1手前のまま）→
+  // drop（打牌が河へ落ち、手牌が理牌される）。ツモ牌が不明な手は drop のみ。
+  // フェーズのタイマーだけをここが持ち、フェーズ→表示物の写像は @rigel/ui（stepDisplay）。
+  const [stepPhase, setStepPhase] = useState<StepPhase | null>(null);
+  const shown = frame?.shown ?? 0;
   const prevStepRef = useRef<{ gi: number; shown: number } | null>(null);
-  const prevStep = prevStepRef.current;
-  const stepped =
-    frame !== null && prevStep !== null && prevStep.gi === gi && frame.shown === prevStep.shown + 1;
   useEffect(() => {
-    prevStepRef.current = frame ? { gi, shown: frame.shown } : null;
-  });
-  const animateDiscard =
-    stepped && frame.playback.activeDiscard
-      ? { seat: frame.playback.activeDiscard.seat, index: frame.playback.activeDiscard.riverIndex }
-      : null;
-  // ツモ牌のフライイン（中央→手牌）。対象の決定は @rigel/ui（ツモ切り・不明は null）。
-  const animateDraw = stepped ? drawnTileIndex(frame.playback) : null;
+    // 演出は「同じ局で1手だけ進んだとき」に限る（初期の全表示・巡目/局ジャンプ・
+    // 戻る操作では出さない）。直前の再生位置と比較して判定する。
+    const prev = prevStepRef.current;
+    prevStepRef.current = frame ? { gi, shown } : null;
+    if (!frame || !prev || prev.gi !== gi || shown !== prev.shown + 1) {
+      setStepPhase(null);
+      return;
+    }
+    if (activeDrawnTile(frame.playback)) {
+      setStepPhase("draw");
+      const t = setTimeout(() => setStepPhase("drop"), STEP_DRAW_MS);
+      return () => clearTimeout(t);
+    }
+    setStepPhase("drop");
+  }, [gi, shown]);
+
+  // draw 段階で見せる1手前の局面。Zod parse を含むため draw 演出中だけ導出する。
+  const prevKifu = useMemo(
+    () => (stepPhase === "draw" && kifu && shown > 0 ? playbackKifu(kifu, shown - 1) : null),
+    [kifu, shown, stepPhase],
+  );
+  const step = frame ? stepDisplay(stepPhase, frame, prevKifu) : null;
+
+  // 和了ダイアログは「盤面が最終局面を見せてから」遅延して開く（最後の演出=ロンの drop /
+  // ツモ和了牌のフライインを見せ切る二段階）。和了のない局はタイマー不要。
+  const boardAtEnd = atEnd && !(step?.drawing ?? false);
+  const [agariReady, setAgariReady] = useState(false);
+  useEffect(() => {
+    if (!boardAtEnd || (kifu?.agari.length ?? 0) === 0) {
+      setAgariReady(false);
+      return;
+    }
+    const t = setTimeout(() => setAgariReady(true), AGARI_DELAY_MS);
+    return () => clearTimeout(t);
+  }, [boardAtEnd, kifu]);
   useEffect(() => {
     if (!atEnd) setAgariClosed(false);
   }, [atEnd]);
@@ -126,7 +162,7 @@ export function KifuViewer({ detail, gameId }: { detail: PublicGameDetail; gameI
   }
 
   // 取得・not-found は Server Component 側で処理済み。ここは局が空のときだけ守る。
-  if (!log || !kifu || !frame)
+  if (!log || !kifu || !frame || !step)
     return (
       <Shell>
         <p className={s.notice}>
@@ -139,14 +175,14 @@ export function KifuViewer({ detail, gameId }: { detail: PublicGameDetail; gameI
     order,
     junmeStops: dstops,
     maxTurn: maxLen,
-    shown,
     curJunme,
     startPoints,
     viewKifu,
     bottomSeat,
     dealer,
-    tsumoWin,
   } = frame;
+  // 卓の表示物（局面・右端スロット・drop 対象）はフェーズ写像（@rigel/ui）から得る。
+  const { kifu: boardKifu, drawnTile, animateDiscard } = step;
 
   const round = roundNameForSeq(log.seq);
   const authorName = detail.owner.handle ?? detail.owner.id.slice(0, 6);
@@ -248,32 +284,31 @@ export function KifuViewer({ detail, gameId }: { detail: PublicGameDetail; gameI
           <div className={s.boardcol}>
             {/* 卓の描画は ViewBoard（何切ると共有）。 */}
             <ViewBoard
-              kifu={viewKifu}
+              kifu={boardKifu}
               bottomSeat={bottomSeat}
               dealer={dealer}
-              tsumoWin={tsumoWin}
+              drawnTile={drawnTile}
               scale={scale}
               hideOpp={hideOpp}
               animateDiscard={animateDiscard}
-              animateDraw={animateDraw}
               bottomName={detail.owner.displayName || detail.owner.handle}
               points={startPoints}
               center={
                 <>
                   <div className={s.rd}>
-                    {round} <span className={s.hb}>{viewKifu.meta.honba}本場</span>
+                    {round} <span className={s.hb}>{boardKifu.meta.honba}本場</span>
                   </div>
-                  {viewKifu.meta.kyotaku > 0 && (
+                  {boardKifu.meta.kyotaku > 0 && (
                     <div className={s.kyotaku}>
-                      供託 <b>{viewKifu.meta.kyotaku}</b>本
+                      供託 <b>{boardKifu.meta.kyotaku}</b>本
                     </div>
                   )}
                   {/* ドラは実卓と同じく中央に常設（mobile と同一）。ツモは中央に出さない
-                      （手牌へのフライイン演出で分かるため）。 */}
-                  {viewKifu.meta.dora.length > 0 && (
+                      （手牌右端スロットへのフライイン演出で分かるため）。 */}
+                  {boardKifu.meta.dora.length > 0 && (
                     <div className={s.dora}>
                       <span>ドラ</span>
-                      <DoraTiles codes={viewKifu.meta.dora} />
+                      <DoraTiles codes={boardKifu.meta.dora} />
                     </div>
                   )}
                 </>
@@ -395,7 +430,8 @@ export function KifuViewer({ detail, gameId }: { detail: PublicGameDetail; gameI
             </div>
           </div>
 
-          {atEnd && kifu.agari.length > 0 && !agariClosed && (
+          {/* 和了は最後の演出（drop / 和了牌のフライイン）を見せ切ってから遅延して開く。 */}
+          {boardAtEnd && agariReady && kifu.agari.length > 0 && !agariClosed && (
             <AgariOverlay kifu={viewKifu} dealer={dealer} onClose={() => setAgariClosed(true)} />
           )}
         </div>

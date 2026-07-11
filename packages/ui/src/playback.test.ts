@@ -1,11 +1,12 @@
 import { KifuSchema, type Kifu, type TimelineEvent } from "@rigel/schema";
 import { describe, expect, it } from "vitest";
 import {
+  activeDrawnTile,
   buildPlaybackFrame,
   buildPlaybackState,
-  drawnTileIndex,
   playbackKifu,
-  splitTsumoHand,
+  splitDrawnTile,
+  stepDisplay,
   tsumoWinDisplay,
 } from "./playback";
 
@@ -188,41 +189,6 @@ describe("buildPlaybackState（再生ステップの局面導出）", () => {
   });
 });
 
-describe("drawnTileIndex（手牌に入ったツモ牌の表示位置）", () => {
-  it("手出し後のツモ牌の位置を理牌後の並びで返す", () => {
-    const k = kifu({
-      // 配牌 1m,9p → 3m をツモって 1m を切る → 手牌は理牌で [9p, 3m] ではなく [3m, 9p]。
-      seats: { east: { hand: hand(["1m", "9p"]) }, south: {}, west: {}, north: {} },
-      timeline: [discard({ draw: "3m", tile: "1m" })],
-    });
-
-    const state = buildPlaybackState(k, 1);
-
-    expect(drawnTileIndex(state)).toEqual({ seat: "east", index: 0 });
-  });
-
-  it("ツモ切りは手牌に入らないので null（河の drop 演出だけにする）", () => {
-    const k = kifu({
-      seats: { east: { hand: hand(["1m", "2m"]) }, south: {}, west: {}, north: {} },
-      timeline: [discard({ draw: "3m", tile: "3m", tsumogiri: true })],
-    });
-
-    const state = buildPlaybackState(k, 1);
-
-    expect(drawnTileIndex(state)).toBeNull();
-  });
-
-  it("ツモ不明（draw=null や未編集）は null", () => {
-    const k = kifu({
-      seats: { east: { hand: hand(["1m"]) }, south: {}, west: {}, north: {} },
-      timeline: [discard({ draw: null, tile: "1m" })],
-    });
-
-    expect(drawnTileIndex(buildPlaybackState(k, 1))).toBeNull();
-    expect(drawnTileIndex(buildPlaybackState(k, 0))).toBeNull();
-  });
-});
-
 describe("buildPlaybackFrame（web/mobile ビューア共通の再生フレーム導出）", () => {
   // 東の2打牌（親=東）。巡目・末尾判定・河の推移を1つの牌譜で見る。
   const base = () =>
@@ -268,7 +234,7 @@ describe("buildPlaybackFrame（web/mobile ビューア共通の再生フレー�
   });
 });
 
-describe("tsumoWinDisplay / splitTsumoHand（ツモ和了牌を手牌の横に離す表示）", () => {
+describe("tsumoWinDisplay / splitDrawnTile（ツモ和了牌を手牌の横に離す表示）", () => {
   const seats = (eastHand: string[]) => ({
     east: { hand: hand(eastHand) },
     south: {},
@@ -290,31 +256,31 @@ describe("tsumoWinDisplay / splitTsumoHand（ツモ和了牌を手牌の横に�
     expect(tsumoWinDisplay(kifu({ seats: seats(["1m"]) }))).toBeNull();
   });
 
-  it("splitTsumoHand: スナップショット手牌（和了牌入り）は理牌して該当1枚を本体から抜く", () => {
+  it("splitDrawnTile: スナップショット手牌（和了牌入り）は理牌して該当1枚を本体から抜く", () => {
     const k = kifu({ seats: seats(["1m", "5p", "2m"]) });
-    const split = splitTsumoHand(k.seats.east.hand, win, "east");
+    const split = splitDrawnTile(k.seats.east.hand, win, "east");
 
     expect(split.hand.map((t) => t.tile)).toEqual(["1m", "2m"]);
-    expect(split.tsumoTile).toBe("5p");
+    expect(split.drawnTile).toBe("5p");
   });
 
-  it("splitTsumoHand: 編集済（和了牌を含まない13枚型）は本体そのまま＋14枚目として返す", () => {
+  it("splitDrawnTile: 編集済（和了牌を含まない13枚型）は本体そのまま＋14枚目として返す", () => {
     const k = kifu({ seats: seats(["1m", "2m"]) });
-    const split = splitTsumoHand(k.seats.east.hand, win, "east");
+    const split = splitDrawnTile(k.seats.east.hand, win, "east");
 
     expect(split.hand.map((t) => t.tile)).toEqual(["1m", "2m"]);
-    expect(split.tsumoTile).toBe("5p");
+    expect(split.drawnTile).toBe("5p");
   });
 
-  it("splitTsumoHand: 他家・ツモ和了なしは理牌のみ（離す牌なし）", () => {
+  it("splitDrawnTile: 他家・ツモ和了なしは理牌のみ（離す牌なし）", () => {
     const k = kifu({ seats: seats(["2m", "1m"]) });
 
-    const other = splitTsumoHand(k.seats.east.hand, win, "south");
-    expect(other.tsumoTile).toBeNull();
+    const other = splitDrawnTile(k.seats.east.hand, win, "south");
+    expect(other.drawnTile).toBeNull();
 
-    const none = splitTsumoHand(k.seats.east.hand, null, "east");
+    const none = splitDrawnTile(k.seats.east.hand, null, "east");
     expect(none.hand.map((t) => t.tile)).toEqual(["1m", "2m"]);
-    expect(none.tsumoTile).toBeNull();
+    expect(none.drawnTile).toBeNull();
   });
 
   it("buildPlaybackFrame: 再生で末尾に達したときだけ frame.tsumoWin を出す（初期の全表示では出さない）", () => {
@@ -332,5 +298,77 @@ describe("tsumoWinDisplay / splitTsumoHand（ツモ和了牌を手牌の横に�
     expect(buildPlaybackFrame({ kifu: k, prevKifus: [], reveal: -1 }).tsumoWin).toBeNull();
     expect(buildPlaybackFrame({ kifu: k, prevKifus: [], reveal: 1 }).tsumoWin).toEqual(win);
     expect(buildPlaybackFrame({ kifu: k, prevKifus: [], reveal: 0 }).tsumoWin).toBeNull();
+  });
+});
+
+describe("activeDrawnTile / stepDisplay（二段階ステップ演出の表示導出）", () => {
+  // 東が 3m をツモって 1m を手出しする1手（配牌 [1m,9p]）＋ツモ和了なし。
+  const stepKifu = () =>
+    kifu({
+      seats: { east: { hand: hand(["1m", "9p"]) }, south: {}, west: {}, north: {} },
+      timeline: [discard({ draw: "3m", tile: "1m" })],
+    });
+
+  it("activeDrawnTile: 直近ステップのツモ牌を右端スロット表示の形で返す（不明は null）", () => {
+    expect(activeDrawnTile(buildPlaybackState(stepKifu(), 1))).toEqual({
+      seat: "east",
+      tile: "3m",
+    });
+    // ツモ不明（draw=null）・0手目は null。
+    const noDraw = kifu({
+      seats: { east: { hand: hand(["1m"]) }, south: {}, west: {}, north: {} },
+      timeline: [discard({ draw: null, tile: "1m" })],
+    });
+    expect(activeDrawnTile(buildPlaybackState(noDraw, 1))).toBeNull();
+    expect(activeDrawnTile(buildPlaybackState(stepKifu(), 0))).toBeNull();
+  });
+
+  it("stepDisplay: draw 段階は1手前の盤面＋右端スロットにツモ牌（河にはまだ落とさない）", () => {
+    const k = stepKifu();
+    const frame = buildPlaybackFrame({ kifu: k, prevKifus: [], reveal: 1 });
+    const prevKifu = playbackKifu(k, 0);
+
+    const draw = stepDisplay("draw", frame, prevKifu);
+    expect(draw.drawing).toBe(true);
+    expect(draw.kifu.seats.east.river).toEqual([]); // 盤面は1手前
+    expect(draw.drawnTile).toEqual({ seat: "east", tile: "3m" });
+    expect(draw.animateDiscard).toBeNull();
+  });
+
+  it("stepDisplay: drop 段階は現在の盤面＋直近打牌に drop 演出（スロットは tsumoWin に戻す）", () => {
+    const k = stepKifu();
+    const frame = buildPlaybackFrame({ kifu: k, prevKifus: [], reveal: 1 });
+
+    const drop = stepDisplay("drop", frame, null);
+    expect(drop.drawing).toBe(false);
+    expect(drop.kifu.seats.east.river.map((d) => d.tile)).toEqual(["1m"]);
+    expect(drop.animateDiscard).toEqual({ seat: "east", index: 0 });
+    expect(drop.drawnTile).toBeNull(); // ツモ和了なし＝frame.tsumoWin(null)
+  });
+
+  it("stepDisplay: フェーズなし（ジャンプ・初期表示）は現在の盤面のみ（演出なし）", () => {
+    const k = stepKifu();
+    const frame = buildPlaybackFrame({ kifu: k, prevKifus: [], reveal: 1 });
+
+    const idle = stepDisplay(null, frame, null);
+    expect(idle.drawing).toBe(false);
+    expect(idle.animateDiscard).toBeNull();
+    expect(idle.kifu.seats.east.river.map((d) => d.tile)).toEqual(["1m"]);
+  });
+
+  it("stepDisplay: 末尾のツモ和了牌（frame.tsumoWin）は draw 段階以外でスロットに出す", () => {
+    const k = kifu({
+      agari: [{ winner: "east", from: null, winTile: "5p" }],
+      seats: {
+        east: { hand: hand(["1m"]), river: [{ order: 1, tile: "9m", confidence: 1 }] },
+        south: {},
+        west: {},
+        north: {},
+      },
+    });
+    const frame = buildPlaybackFrame({ kifu: k, prevKifus: [], reveal: 1 });
+
+    expect(stepDisplay("drop", frame, null).drawnTile).toEqual({ seat: "east", tile: "5p" });
+    expect(stepDisplay(null, frame, null).drawnTile).toEqual({ seat: "east", tile: "5p" });
   });
 });

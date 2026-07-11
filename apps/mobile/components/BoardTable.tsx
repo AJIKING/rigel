@@ -1,5 +1,5 @@
 import { toAbsoluteSeat, type CameraSeat, type Kifu, type Seat } from "@rigel/schema";
-import { chunk, seatResult, splitTsumoHand, windOf, type TsumoWinDisplay } from "@rigel/ui";
+import { chunk, seatResult, splitDrawnTile, windOf, type DrawnTile } from "@rigel/ui";
 import { useEffect, useRef } from "react";
 import { Animated, Easing, Pressable, StyleSheet, Text, View, type ViewStyle } from "react-native";
 import { colors } from "../lib/theme";
@@ -26,15 +26,12 @@ function TileFx({
   distance,
   fromOpacity,
   fromScale,
-  delay = 0,
   testID,
 }: {
   children: React.ReactNode;
   distance: number;
   fromOpacity: number;
   fromScale: number;
-  /** ツモ→打牌の順に見せるための開始遅延（ms）。 */
-  delay?: number;
   testID: string;
 }) {
   const v = useRef(new Animated.Value(0)).current;
@@ -42,11 +39,10 @@ function TileFx({
     Animated.timing(v, {
       toValue: 1,
       duration: 220,
-      delay,
       easing: Easing.out(Easing.cubic),
       useNativeDriver: true,
     }).start();
-  }, [delay, v]);
+  }, [v]);
   return (
     <Animated.View
       testID={testID}
@@ -89,8 +85,7 @@ export function BoardTable({
   highlightRiver = null,
   points = null,
   animateDiscard = null,
-  animateDraw = null,
-  tsumoWin = null,
+  drawnTile = null,
 }: {
   kifu: Kifu;
   bottomSeat: Seat;
@@ -109,14 +104,11 @@ export function BoardTable({
   highlightRiver?: { seat: Seat; index: number } | null;
   /** 再生中の点棒。指定時はネームプレートに表示する。 */
   points?: Record<Seat, number> | null;
-  /** drop-in 演出を付ける河の1枚（いま置かれた打牌）。1手進めたときだけ渡す。 */
+  /** drop-in 演出を付ける河の1枚（いま置かれた打牌）。演出の第2段でだけ渡す。 */
   animateDiscard?: { seat: Seat; index: number } | null;
-  /** フライイン演出を付ける手牌の1枚（理牌後の位置）。ツモ→打牌の順に見せるため
-   *  指定時は同席の drop を遅延させる。 */
-  animateDraw?: { seat: Seat; index: number } | null;
-  /** ツモ和了牌（手牌の横に離して置く）。出すタイミングは frame.tsumoWin
-   *  （buildPlaybackFrame＝再生末尾のみ）が決める。ここは受けて描くだけ。 */
-  tsumoWin?: TsumoWinDisplay | null;
+  /** 手牌の右端に離して置く1枚（再生中の一時ツモ／末尾のツモ和了牌）。出現時に
+   *  フライインする。出すタイミングは呼び出し側（演出フェーズ／frame.tsumoWin）が決める。 */
+  drawnTile?: DrawnTile | null;
 }) {
   const B = size;
   const rt = B * GEO.riverTileW;
@@ -167,11 +159,15 @@ export function BoardTable({
         const riverCols = Math.min(6, Math.max(1, river.length));
         const rtW = fitTileW(rt, riverCols, seatW * 0.7);
         const rtHt = rtW * GEO.tileAspect;
-        // ツモ和了牌は手牌本体から離して置く（分割は @rigel/ui。web と共通）。
-        const { hand: handShown, tsumoTile } = splitTsumoHand(board.hand, tsumoWin, seat);
+        // 右端スロットの1枚は手牌本体から離して置く（分割は @rigel/ui。web と共通）。
+        const { hand: handShown, drawnTile: slotTile } = splitDrawnTile(
+          board.hand,
+          drawnTile,
+          seat,
+        );
         // 手牌＋鳴きは1列。総枚数が席幅の 92% に収まる牌サイズにする（重なり・はみ出し防止）。
         const meldTileCount = board.melds.reduce((n, m) => n + m.tiles.length, 0);
-        const handUnits = handShown.length + (tsumoTile ? 1 : 0) + meldTileCount;
+        const handUnits = handShown.length + (slotTile ? 1 : 0) + meldTileCount;
         const htW = fitTileW(ht, handUnits, seatW * 0.92, board.melds.length * 4);
         const htHt = htW * GEO.tileAspect;
 
@@ -211,7 +207,6 @@ export function BoardTable({
                         distance={rtHt * 0.5}
                         fromOpacity={0.25}
                         fromScale={1.15}
-                        delay={animateDraw?.seat === seat ? 140 : 0}
                       >
                         {tile}
                       </TileFx>
@@ -236,29 +231,22 @@ export function BoardTable({
             </View>
             <View style={styles.hand}>
               {/* 表示は理牌（保存順が乱れた既存データも萬→筒→索→字で見せる）。 */}
-              {handShown.map((h, hi) => {
-                const tile = (
-                  <MiniTile key={hi} code={hand ? h.tile : null} w={htW} h={htHt} back={!hand} />
-                );
-                // ツモ牌のフライイン（中央方向→手牌）。手牌が見えている席だけ。
-                return hand && animateDraw?.seat === seat && animateDraw.index === hi ? (
-                  <TileFx
-                    key={`f${hi}`}
-                    testID="draw-tile"
-                    distance={-B * 0.32}
-                    fromOpacity={0}
-                    fromScale={0.72}
-                  >
-                    {tile}
-                  </TileFx>
-                ) : (
-                  tile
-                );
-              })}
-              {tsumoTile !== null ? (
-                <View testID="tsumo-tile" style={{ marginLeft: htW * 0.55 }}>
-                  <MiniTile code={hand ? tsumoTile : null} w={htW} h={htHt} back={!hand} />
-                </View>
+              {handShown.map((h, hi) => (
+                <MiniTile key={hi} code={hand ? h.tile : null} w={htW} h={htHt} back={!hand} />
+              ))}
+              {slotTile !== null ? (
+                // key=牌: 連続ステップで牌が変わったら差し替えてフライインを掛け直す。
+                <TileFx
+                  key={slotTile}
+                  testID="tsumo-tile"
+                  distance={-B * 0.32}
+                  fromOpacity={0}
+                  fromScale={0.72}
+                >
+                  <View style={{ marginLeft: htW * 0.55 }}>
+                    <MiniTile code={hand ? slotTile : null} w={htW} h={htHt} back={!hand} />
+                  </View>
+                </TileFx>
               ) : null}
               {board.melds.map((m, mi) => (
                 <View key={`m${mi}`} style={styles.meld}>

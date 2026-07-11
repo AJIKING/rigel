@@ -1,6 +1,7 @@
 import type { GameLog } from "@rigel/client";
 import { KifuSchema, type Kifu } from "@rigel/schema";
-import { fireEvent, render, screen } from "@testing-library/react-native";
+import { AGARI_DELAY_MS, STEP_DRAW_MS } from "@rigel/ui";
+import { act, fireEvent, render, screen } from "@testing-library/react-native";
 import { KifuPlayer } from "./KifuPlayer";
 
 /** 親=東・手前=東の局を最小の指定で組む。seats は指定した席だけ上書き、その他は空。 */
@@ -57,19 +58,31 @@ function log(seq: number, kifu: Kifu): GameLog {
 }
 
 describe("KifuPlayer", () => {
-  it("再生を末尾まで進めると和了演出（役）が現れる", () => {
+  beforeEach(() => jest.useFakeTimers());
+  afterEach(() => jest.useRealTimers());
+
+  /** 末尾へ進めて和了シートの遅延ぶんタイマーを進める。 */
+  function stepToEndAndWait() {
+    fireEvent.press(screen.getByLabelText("1手進む"));
+    act(() => jest.advanceTimersByTime(AGARI_DELAY_MS));
+  }
+
+  it("再生を末尾まで進めると、最後の演出を見せてから和了演出（役）が現れる（二段階）", () => {
     render(<KifuPlayer logs={[log(1, kifuWithAgari())]} />);
     // 初期の全表示では和了は出さない（リロード時のポップ防止）。
     expect(screen.queryByText("立直")).toBeNull();
     fireEvent.press(screen.getByLabelText("1手戻る"));
+    // 到達直後は最後の演出（打牌の drop）を見せる間で、まだ出さない。
     fireEvent.press(screen.getByLabelText("1手進む"));
+    expect(screen.queryByText("立直")).toBeNull();
+    act(() => jest.advanceTimersByTime(AGARI_DELAY_MS));
     expect(screen.getByText("立直")).toBeTruthy();
   });
 
   it("和了シートを閉じても、末尾へ再度進めれば再表示される", () => {
     render(<KifuPlayer logs={[log(1, kifuWithAgari())]} />);
     fireEvent.press(screen.getByLabelText("1手戻る"));
-    fireEvent.press(screen.getByLabelText("1手進む"));
+    stepToEndAndWait();
     expect(screen.getByText("立直")).toBeTruthy();
 
     fireEvent.press(screen.getByText("閉じる"));
@@ -77,8 +90,47 @@ describe("KifuPlayer", () => {
 
     // 末尾から離れて再び末尾へ → 再表示される（atEnd リセットの検証）。
     fireEvent.press(screen.getByLabelText("1手戻る"));
-    fireEvent.press(screen.getByLabelText("1手進む"));
+    stepToEndAndWait();
     expect(screen.getByText("立直")).toBeTruthy();
+  });
+
+  it("1手進めると二段階で演出する（ツモ牌が右端スロットに入る → 打牌が河へ落ちる）", () => {
+    const k = makeKifu(
+      {
+        east: {
+          hand: [
+            { tile: "1m", confidence: 1 },
+            { tile: "9p", confidence: 1 },
+          ],
+        },
+      },
+      {
+        timeline: [
+          {
+            kind: "discard",
+            seat: "east",
+            draw: "3m",
+            tile: "1m",
+            tsumogiri: false,
+            riichi: false,
+            confidence: 1,
+          },
+        ],
+      },
+    );
+    render(<KifuPlayer logs={[log(1, k)]} />);
+
+    fireEvent.press(screen.getByLabelText("1手戻る"));
+    fireEvent.press(screen.getByLabelText("1手進む"));
+
+    // 第1段: ツモ牌 3萬 が右端スロットへ（河にはまだ落ちない）。
+    expect(screen.getByTestId("tsumo-tile")).toBeTruthy();
+    expect(screen.queryByTestId("drop-tile")).toBeNull();
+
+    // 第2段: 打牌が河へ drop し、スロットは消える。
+    act(() => jest.advanceTimersByTime(STEP_DRAW_MS));
+    expect(screen.queryByTestId("tsumo-tile")).toBeNull();
+    expect(screen.getByTestId("drop-tile")).toBeTruthy();
   });
 
   it("ツモ和了は最終局面で和了牌を手牌の横に離して出す（河へ捨てる誤演出をしない）", () => {
@@ -247,7 +299,7 @@ describe("KifuPlayer", () => {
     expect(screen.queryByTestId("drop-tile")).toBeNull();
   });
 
-  it("1手進めたとき、手牌に入ったツモ牌にフライイン演出が付く（ツモ切りは付けない）", () => {
+  it("ツモ切りの1手も同じ二段階（右端スロットに入ってからそのまま河へ）", () => {
     const k = makeKifu(
       {
         east: {
@@ -284,17 +336,21 @@ describe("KifuPlayer", () => {
     render(<KifuPlayer logs={[log(1, k)]} />);
 
     // 初期の全表示では演出しない。
-    expect(screen.queryByTestId("draw-tile")).toBeNull();
+    expect(screen.queryByTestId("tsumo-tile")).toBeNull();
 
-    // 先頭へ戻して1手進む（手出し）: ツモ牌にフライインが付く。
+    // 先頭へ戻して2手目（ツモ切り）まで進める。1手目の演出は流し切る。
     fireEvent.press(screen.getByLabelText("1手戻る"));
     fireEvent.press(screen.getByLabelText("1手戻る"));
     fireEvent.press(screen.getByLabelText("1手進む"));
-    expect(screen.getByTestId("draw-tile")).toBeTruthy();
+    act(() => jest.advanceTimersByTime(STEP_DRAW_MS));
 
-    // もう1手進む（ツモ切り）: 手牌のフライインは無し。河の drop だけ。
     fireEvent.press(screen.getByLabelText("1手進む"));
-    expect(screen.queryByTestId("draw-tile")).toBeNull();
+    // 第1段: ツモ切りでも右端スロットに 4萬 が入る（河にはまだ落ちない）。
+    expect(screen.getByTestId("tsumo-tile")).toBeTruthy();
+    expect(screen.queryByTestId("drop-tile")).toBeNull();
+    // 第2段: そのまま河へ drop（手牌は変わらない）。
+    act(() => jest.advanceTimersByTime(STEP_DRAW_MS));
+    expect(screen.queryByTestId("tsumo-tile")).toBeNull();
     expect(screen.getByTestId("drop-tile")).toBeTruthy();
   });
 

@@ -1,12 +1,17 @@
 import type { GameLog } from "@rigel/client";
 import type { Kifu } from "@rigel/schema";
 import {
+  AGARI_DELAY_MS,
+  STEP_DRAW_MS,
+  activeDrawnTile,
   buildPlaybackFrame,
-  drawnTileIndex,
+  playbackKifu,
   resultLabel,
   roundNameForSeq,
+  stepDisplay,
   windOf,
   SEAT_ORDER,
+  type StepPhase,
 } from "@rigel/ui";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -76,38 +81,58 @@ export function KifuPlayer({
     if (!atEnd) setAgariClosed(false);
   }, [atEnd]);
 
-  // 打牌の drop-in 演出は「同じ局で1手だけ進んだとき」に限る（初期の全表示・
-  // 巡目/局ジャンプ・戻る操作では出さない）。直前描画の再生位置を ref に持ち比較する。
+  // ステップ演出の二段階: draw（ツモ牌が手牌右端に入る。盤面は1手前のまま）→
+  // drop（打牌が河へ落ち、手牌が理牌される）。ツモ牌が不明な手は drop のみ。
+  // フェーズのタイマーだけをここが持ち、フェーズ→表示物の写像は @rigel/ui（stepDisplay）。
+  const [stepPhase, setStepPhase] = useState<StepPhase | null>(null);
+  const shown = frame?.shown ?? 0;
   const prevStepRef = useRef<{ gi: number; shown: number } | null>(null);
-  const prevStep = prevStepRef.current;
-  const stepped =
-    frame !== null && prevStep !== null && prevStep.gi === gi && frame.shown === prevStep.shown + 1;
   useEffect(() => {
-    prevStepRef.current = frame ? { gi, shown: frame.shown } : null;
-  });
-  const animateDiscard =
-    stepped && frame.playback.activeDiscard
-      ? { seat: frame.playback.activeDiscard.seat, index: frame.playback.activeDiscard.riverIndex }
-      : null;
-  // ツモ牌のフライイン（中央→手牌）。対象の決定は @rigel/ui（ツモ切り・不明は null）。
-  const animateDraw = stepped ? drawnTileIndex(frame.playback) : null;
+    // 演出は「同じ局で1手だけ進んだとき」に限る（初期の全表示・巡目/局ジャンプ・
+    // 戻る操作では出さない）。直前の再生位置と比較して判定する。
+    const prev = prevStepRef.current;
+    prevStepRef.current = frame ? { gi, shown } : null;
+    if (!frame || !prev || prev.gi !== gi || shown !== prev.shown + 1) {
+      setStepPhase(null);
+      return;
+    }
+    if (activeDrawnTile(frame.playback)) {
+      setStepPhase("draw");
+      const t = setTimeout(() => setStepPhase("drop"), STEP_DRAW_MS);
+      return () => clearTimeout(t);
+    }
+    setStepPhase("drop");
+  }, [gi, shown]);
 
-  if (!log || !kifu || !frame) return <CenterState message="この半荘には局がありません。" />;
+  // draw 段階で見せる1手前の局面。Zod parse を含むため draw 演出中だけ導出する。
+  const prevKifu = useMemo(
+    () => (stepPhase === "draw" && kifu && shown > 0 ? playbackKifu(kifu, shown - 1) : null),
+    [kifu, shown, stepPhase],
+  );
+  const step = frame ? stepDisplay(stepPhase, frame, prevKifu) : null;
 
-  const {
-    order,
-    junmeStops,
-    shown,
-    curJunme,
-    startPoints,
-    viewKifu,
-    bottomSeat,
-    dealer,
-    tsumoWin,
-  } = frame;
+  // 和了シートは「盤面が最終局面を見せてから」遅延して開く（最後の演出=ロンの drop /
+  // ツモ和了牌のフライインを見せ切る二段階）。和了のない局はタイマー不要。
+  const boardAtEnd = atEnd && !(step?.drawing ?? false);
+  const [agariReady, setAgariReady] = useState(false);
+  useEffect(() => {
+    if (!boardAtEnd || (kifu?.agari.length ?? 0) === 0) {
+      setAgariReady(false);
+      return;
+    }
+    const t = setTimeout(() => setAgariReady(true), AGARI_DELAY_MS);
+    return () => clearTimeout(t);
+  }, [boardAtEnd, kifu]);
+
+  if (!log || !kifu || !frame || !step)
+    return <CenterState message="この半荘には局がありません。" />;
+
+  const { order, junmeStops, curJunme, startPoints, viewKifu, bottomSeat, dealer } = frame;
+  // 卓の表示物（局面・右端スロット・drop 対象）はフェーズ写像（@rigel/ui）から得る。
+  const { kifu: boardKifu, drawnTile, animateDiscard } = step;
 
   const roundLabel = roundNameForSeq(log.seq);
-  const showAgari = atEnd && kifu.agari.length > 0 && !agariClosed;
+  const showAgari = boardAtEnd && agariReady && kifu.agari.length > 0 && !agariClosed;
   // 卓は横幅いっぱいまで拡大（上限は大画面向けの保険）。縦は上部バー(全画面時は無し)＋場ナビ分を控える。
   const boardSize = Math.max(240, Math.min(width - 8, height - (fs ? 150 : 240), 520));
 
@@ -168,7 +193,7 @@ export function KifuPlayer({
       {/* 盤面 */}
       <View style={styles.stage}>
         <BoardTable
-          kifu={viewKifu}
+          kifu={boardKifu}
           bottomSeat={bottomSeat}
           dealer={dealer}
           roundLabel={roundLabel}
@@ -177,8 +202,7 @@ export function KifuPlayer({
           size={boardSize}
           points={startPoints}
           animateDiscard={animateDiscard}
-          animateDraw={animateDraw}
-          tsumoWin={tsumoWin}
+          drawnTile={drawnTile}
         />
       </View>
 

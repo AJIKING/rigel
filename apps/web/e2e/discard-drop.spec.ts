@@ -21,8 +21,12 @@ test("1手進めたとき、直近の打牌1枚に drop-in アニメーション
   expect(animation).not.toBe("none");
 });
 
-// timeline を持つ編集済み牌譜（/dev/playback）でツモ演出を検証する。
-test("手出しの1手はツモ牌がフライインし、打牌の drop は遅れて始まる", async ({ page }) => {
+// timeline を持つ編集済み牌譜（/dev/playback）で二段階のステップ演出を検証する。
+// 第1段: ツモ牌が手牌右端のスロット（data-tsumo/data-draw）へフライイン（盤面は1手前のまま）。
+// 第2段: 打牌が河へ drop し、スロットは消えて手牌が理牌される。
+test("手出しの1手は、ツモ牌が右端スロットへ入ってから打牌が河へ落ちる（二段階）", async ({
+  page,
+}) => {
   await page.goto("/dev/playback");
   await page.waitForSelector("[data-seat] [data-tile]");
   await expect(page.locator("[data-draw]")).toHaveCount(0);
@@ -31,25 +35,34 @@ test("手出しの1手はツモ牌がフライインし、打牌の drop は遅�
   for (let i = 0; i < 5; i++) await page.getByLabel("1手戻る").click();
   await page.getByLabel("1手進む").click();
 
+  // 第1段: スロットにフライインが掛かり、河の drop はまだ始まらない。
   const draw = page.locator("[data-draw]");
   await expect(draw).toHaveCount(1);
   expect(await draw.evaluate((el) => getComputedStyle(el).animationName)).not.toBe("none");
-  // 同じ手の打牌 drop はツモの後（遅延あり）。
+  await expect(page.locator("[data-drop]")).toHaveCount(0);
+
+  // 第2段: 打牌が河へ落ち、スロットは消える。
   const drop = page.locator("[data-drop]");
   await expect(drop).toHaveCount(1);
-  expect(await drop.evaluate((el) => getComputedStyle(el).animationDelay)).not.toBe("0s");
+  await expect(page.locator("[data-draw]")).toHaveCount(0);
+  expect(await drop.evaluate((el) => getComputedStyle(el).animationName)).not.toBe("none");
 });
 
-test("ツモ切りの1手は手牌のフライインを出さない（河の drop のみ・遅延なし）", async ({ page }) => {
+test("ツモ切りの1手も同じ二段階（右端スロットに入ってからそのまま河へ）", async ({ page }) => {
   await page.goto("/dev/playback");
   await page.waitForSelector("[data-seat] [data-tile]");
 
-  // 先頭へ戻して3手進む（3手目=東のツモ切り）。
+  // 先頭へ戻して2手進めてから3手目（=東のツモ切り）へ。
   for (let i = 0; i < 5; i++) await page.getByLabel("1手戻る").click();
-  for (let i = 0; i < 3; i++) await page.getByLabel("1手進む").click();
+  for (let i = 0; i < 2; i++) {
+    await page.getByLabel("1手進む").click();
+    // 前の手の演出（第2段まで）を待ってから次へ（連打の挙動はここでは対象外）。
+    await expect(page.locator("[data-drop]")).toHaveCount(1);
+  }
+  await page.getByLabel("1手進む").click();
 
+  await expect(page.locator("[data-draw]")).toHaveCount(1);
+  await expect(page.locator("[data-drop]")).toHaveCount(0);
+  await expect(page.locator("[data-drop]")).toHaveCount(1);
   await expect(page.locator("[data-draw]")).toHaveCount(0);
-  const drop = page.locator("[data-drop]");
-  await expect(drop).toHaveCount(1);
-  expect(await drop.evaluate((el) => getComputedStyle(el).animationDelay)).toBe("0s");
 });

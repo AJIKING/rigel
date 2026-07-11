@@ -420,11 +420,6 @@
     transform: translateY(45%) scale(1.15);
   }
 }
-/* drop をツモ演出の後に遅らせる（ツモ→打牌の順）。backwards で開始前は from の見た目。 */
-.tile.dropDelay {
-  animation-delay: 0.14s;
-  animation-fill-mode: backwards;
-}
 /* ツモ牌のフライイン（中央方向→手牌）。席ローカルの -Y ＝卓中央側。
    距離は中心〜手牌のおよそ（--seat-inner + 河4段 + 名前行）で固定近似。 */
 .tile.flyIn {
