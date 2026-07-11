@@ -260,7 +260,9 @@ export function stepDisplay(
   const drawing = phase === "draw" && stepDraw !== null && prevKifu !== null;
   const discard = frame.playback.activeDiscard;
   return {
-    kifu: drawing ? prevKifu : frame.viewKifu,
+    // prevKifu は素の kifu から導出されるため、viewKifu と同様にツモ和了牌を手牌から抜く
+    //（timeline あり＋和了牌が手牌に混ざったデータで draw 半歩中だけ14枚に戻るのを防ぐ）。
+    kifu: drawing ? withoutTsumoWinInHand(prevKifu, frame.tsumoWin) : frame.viewKifu,
     drawnTile: drawing ? stepDraw : phase === "winDraw" ? frame.tsumoWin : null,
     animateDiscard:
       phase === "drop" && discard ? { seat: discard.seat, index: discard.riverIndex } : null,

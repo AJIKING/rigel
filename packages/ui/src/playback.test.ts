@@ -470,3 +470,26 @@ describe("ツモ和了牌は手牌本体に混ぜない（frame.viewKifu の時�
     expect(f2.viewKifu.seats.east.hand.map((t) => t.tile)).toEqual(["1m", "5p"]);
   });
 });
+
+describe("stepDisplay: draw 半歩（1手前表示）でも和了牌を手牌に混ぜない", () => {
+  it("timeline あり＋手牌に和了牌が混ざったデータでも prevKifu から和了牌を抜く", () => {
+    // 編集済（timeline あり）だが手牌に和了牌 5p が混ざったまま保存されたデータ。
+    const k = kifu({
+      agari: [{ winner: "east", from: null, winTile: "5p" }],
+      seats: {
+        east: { hand: hand(["1m", "5p", "9p"]) },
+        south: {},
+        west: {},
+        north: {},
+      },
+      timeline: [discard({ seat: "east", draw: "3m", tile: "1m" })],
+    });
+    const frame = buildPlaybackFrame({ kifu: k, prevKifus: [], reveal: 1 });
+    const prevKifu = playbackKifu(k, 0);
+
+    const draw = stepDisplay("draw", frame, prevKifu);
+    expect(draw.drawing).toBe(true);
+    // 1手前の盤面でも和了牌 5p は手牌に出さない（winDraw まで見せない一貫性）。
+    expect(draw.kifu.seats.east.hand.map((t) => t.tile)).toEqual(["1m", "9p"]);
+  });
+});

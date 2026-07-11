@@ -1,14 +1,18 @@
 import { totalHan, type Agari, type Kifu, type Seat } from "@rigel/schema";
-import { agariDeltas, scoreAgari } from "@rigel/ui";
+import { agariDeltas, scoreAgari, sortHandTiles } from "@rigel/ui";
 import { SEAT_ORDER, windOf } from "../../lib/board";
 import { OssTileFace } from "../OssTileFace";
 import s from "./agari-overlay.module.css";
 
-/** 和了1件の表示（和了牌ポップ・裏ドラめくり・役・打点）。 */
+/** 和了1件の表示（和了手牌・裏ドラめくり・役・打点）。 */
 function WinBlock({ agari, kifu, dealer }: { agari: Agari; kifu: Kifu; dealer: Seat }) {
   const score = scoreAgari(agari, kifu.meta.dealer, kifu.rules);
   const han = totalHan(agari);
   const winnerRiichi = agari.riichi.includes(agari.winner);
+  // 和了牌単体ではなく手牌すべてを見せる。viewKifu の手牌はツモ和了牌が除去済み・
+  // ロン牌は元々含まれないので、理牌した手牌＋副露＋和了牌（白枠強調）で並べる。
+  const board = kifu.seats[agari.winner];
+  const handShown = sortHandTiles(board.hand);
 
   return (
     <div className={s.win}>
@@ -16,15 +20,30 @@ function WinBlock({ agari, kifu, dealer }: { agari: Agari; kifu: Kifu; dealer: S
         {windOf(agari.winner, dealer)}家{" "}
         <span className={s.kind}>{agari.from === null ? "ツモ" : "ロン"}</span>
       </div>
-      <div className={s.tiles}>
-        {agari.winTile && (
-          <div className={s.tileWrap}>
-            <span className={s.tlabel}>和了牌</span>
-            <span className={s.winTile}>
+      {(handShown.length > 0 || agari.winTile) && (
+        <div className={s.handRow} data-agari-hand="">
+          {handShown.map((t, i) => (
+            <span className={s.htile} key={i}>
+              <OssTileFace code={t.tile} />
+            </span>
+          ))}
+          {board.melds.map((m, mi) => (
+            <span className={s.meld} key={mi}>
+              {m.tiles.map((t, ti) => (
+                <span className={s.htile} key={ti}>
+                  <OssTileFace code={t.tile} />
+                </span>
+              ))}
+            </span>
+          ))}
+          {agari.winTile && (
+            <span className={s.winTile} data-agari-win="">
               <OssTileFace code={agari.winTile} />
             </span>
-          </div>
-        )}
+          )}
+        </div>
+      )}
+      <div className={s.tiles}>
         {winnerRiichi && kifu.meta.uraDora.length > 0 && (
           <div className={s.tileWrap}>
             <span className={s.tlabel}>裏ドラ ×{agari.ura}</span>

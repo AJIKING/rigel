@@ -1,5 +1,5 @@
 import { totalHan, type Agari, type Kifu, type Seat } from "@rigel/schema";
-import { agariDeltas, scoreAgari, windOf, SEAT_ORDER } from "@rigel/ui";
+import { agariDeltas, scoreAgari, sortHandTiles, windOf, SEAT_ORDER } from "@rigel/ui";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { colors, radius } from "../lib/theme";
 import { BottomSheet, SheetCloseButton } from "./BottomSheet";
@@ -57,7 +57,10 @@ export function AgariSheet({
 function WinBlock({ agari, kifu, dealer }: { agari: Agari; kifu: Kifu; dealer: Seat }) {
   const score = scoreAgari(agari, kifu.meta.dealer, kifu.rules);
   const han = totalHan(agari);
-  const hand = kifu.seats[agari.winner].hand;
+  // 手牌すべてを見せる（理牌＋副露＋白枠の和了牌。web の AgariOverlay と同一構成）。
+  // viewKifu の手牌はツモ和了牌が除去済み・ロン牌は元々含まれない。
+  const board = kifu.seats[agari.winner];
+  const handShown = sortHandTiles(board.hand);
 
   return (
     <View style={styles.win}>
@@ -70,12 +73,19 @@ function WinBlock({ agari, kifu, dealer }: { agari: Agari; kifu: Kifu; dealer: S
       </View>
 
       <View style={styles.hand}>
-        {hand.map((h, i) => (
-          <MiniTile key={i} code={h.tile} w={26} h={36} />
+        {handShown.map((h, i) => (
+          <MiniTile key={i} code={h.tile} w={24} h={34} />
+        ))}
+        {board.melds.map((m, mi) => (
+          <View key={`m${mi}`} style={styles.meld}>
+            {m.tiles.map((t, ti) => (
+              <MiniTile key={ti} code={t.tile} w={24} h={34} />
+            ))}
+          </View>
         ))}
         {agari.winTile ? (
-          <View style={styles.winTile}>
-            <MiniTile code={agari.winTile} w={26} h={36} />
+          <View style={styles.winTile} testID="agari-win-tile">
+            <MiniTile code={agari.winTile} w={24} h={34} />
           </View>
         ) : null}
       </View>
@@ -138,7 +148,9 @@ const styles = StyleSheet.create({
     borderRadius: radius.sm,
     marginBottom: 14,
   },
-  winTile: { marginLeft: 6, borderWidth: 2, borderColor: colors.accent, borderRadius: 3 },
+  meld: { flexDirection: "row", gap: 2, marginLeft: 8 },
+  // 和了牌は白枠で強調（どれが和了牌か一目で分かるように）。
+  winTile: { marginLeft: 8, borderWidth: 2, borderColor: colors.white, borderRadius: 3 },
   yaku: { gap: 7, marginBottom: 13 },
   yrow: { flexDirection: "row", justifyContent: "space-between" },
   yname: { fontSize: 13.5, color: colors.white },

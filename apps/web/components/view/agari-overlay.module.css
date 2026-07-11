@@ -2,7 +2,9 @@
    色・寸法は .themeBoard のテーマ変数。 */
 
 .ov {
-  position: absolute;
+  /* fixed で全画面（ヘッダー・サイドパネル込み）を覆う。themeBoard シェル自体が
+     fixed inset:0 のため、盤面カラム基準の absolute だとヘッダー分が暗くならない。 */
+  position: fixed;
   inset: 0;
   z-index: 60;
   display: grid;
@@ -117,11 +119,50 @@
   font-size: 12px;
   margin-left: 6px;
 }
+/* 和了手牌の行（理牌した手牌＋副露＋白枠の和了牌）。 */
+.handRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px;
+  padding: 10px;
+  background: rgba(0, 0, 0, 0.28);
+  border: 1px solid var(--line-2);
+  border-radius: 8px;
+  margin-bottom: 10px;
+}
+.htile {
+  position: relative;
+  width: 30px;
+  height: 42px;
+}
+.htile img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+.meld {
+  display: inline-flex;
+  gap: 2px;
+  margin-left: 8px;
+}
 .winTile {
   position: relative;
-  width: 46px;
-  height: 64px;
+  width: 30px;
+  height: 42px;
+  margin-left: 10px;
+  /* 白枠で和了牌を強調（どれが和了牌か一目で分かるように）。 */
+  outline: 2px solid #fff;
+  outline-offset: 1px;
+  border-radius: 3px;
   animation: winpop 0.55s var(--ease, ease) both;
+}
+.winTile img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
 }
 @keyframes winpop {
   0% {

@@ -373,6 +373,10 @@ describe("KifuViewer", () => {
     // もう一度次ボタン → 和了演出が開く（和了牌は出たまま）。
     fireEvent.click(screen.getByLabelText("1手進む"));
     expect(screen.getByText("門前清自摸和")).toBeTruthy();
+    // 和了演出には和了牌単体ではなく、和了牌を含めた手牌すべてを理牌して出す
+    //（末尾が白枠強調の和了牌 5筒。data-agari-hand / data-agari-win は検証フック）。
+    expect(alts("[data-agari-hand]")).toEqual(["1萬", "2萬", "5筒"]);
+    expect(alts("[data-agari-win]")).toEqual(["5筒"]);
 
     // 前ボタンで逆再生: 演出を閉じる → 和了牌を引っ込める。
     fireEvent.click(screen.getByLabelText("1手戻る"));
