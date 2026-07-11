@@ -421,6 +421,26 @@ describe("KifuViewer", () => {
     expect(container.querySelector("[data-center]")!.textContent).not.toContain("ツモ");
   });
 
+  it("ネームプレートで視点を切り替えられる（選んだ席が手前へ回り、撮影者名は元の席に付いたまま）", () => {
+    const { container } = renderViewer(detail([kifu()]));
+    const bottomPlate = () =>
+      container.querySelector('[data-seat="bottom"]')!.textContent as string;
+
+    // 既定は撮影者席（東）が手前で、撮影者名が付く。
+    expect(bottomPlate()).toContain("太郎");
+    expect(bottomPlate()).toContain("東");
+
+    // 南家の視点へ切り替えると南が手前に回る。撮影者名は手前から外れ、東家に付いたまま。
+    fireEvent.click(screen.getByLabelText("南家の視点にする"));
+    expect(bottomPlate()).toContain("南");
+    expect(bottomPlate()).not.toContain("太郎");
+    expect(container.textContent).toContain("太郎");
+
+    // 東家の視点に戻せる。
+    fireEvent.click(screen.getByLabelText("東家の視点にする"));
+    expect(bottomPlate()).toContain("太郎");
+  });
+
   it("本場は牌譜の実データを表示する（ハードコードしない）", () => {
     renderViewer(detail([makeKifu({}, { meta: { dealer: "east", honba: 2 } })]));
     // 卓中央・サイドパネルとも実データ（2本場）。ハードコードの「0本場」が残っていないこと。

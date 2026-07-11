@@ -77,7 +77,8 @@ export function ViewBoard({
   scale,
   revealed,
   hideOpp = false,
-  bottomName = null,
+  seatName = null,
+  onSeatSelect,
   center,
   highlightRiver = null,
   points = null,
@@ -92,8 +93,10 @@ export function ViewBoard({
   revealed?: Record<Seat, number>;
   /** 手前以外の手牌を裏向きにする。 */
   hideOpp?: boolean;
-  /** 手前席の表示名（無ければ「◯家」）。 */
-  bottomName?: string | null;
+  /** 表示名を付ける席（撮影者など）。視点を回しても席に付いたまま動く。無ければ全席「◯家」。 */
+  seatName?: { seat: Seat; name: string } | null;
+  /** ネームプレート押下（視点切替）。指定時のみプレートがボタンになる。 */
+  onSeatSelect?: (seat: Seat) => void;
   /** 卓中央の表示（局名・本場など。画面ごとに差し替える）。 */
   center: React.ReactNode;
   /** 強調する河の1枚（鳴き判断の対象牌）。 */
@@ -125,7 +128,14 @@ export function ViewBoard({
             seat,
           );
           const riverShown = board.river.slice(0, revealed?.[seat] ?? board.river.length);
-          const name = (seat === bottomSeat && bottomName) || `${wind}家`;
+          const name = (seatName?.seat === seat && seatName.name) || `${wind}家`;
+          const plate = (
+            <>
+              <span className={s.wd}>{wind}</span>
+              <span className={s.nm}>{name}</span>
+              {points && <span className={s.pts}>{points[seat].toLocaleString()}点</span>}
+            </>
+          );
           return (
             <div key={cam} className={`${s.seat} ${cls}`} data-seat={cam}>
               <div className={s.river}>
@@ -147,11 +157,18 @@ export function ViewBoard({
                   </div>
                 ))}
               </div>
-              <div className={s.nameplate}>
-                <span className={s.wd}>{wind}</span>
-                <span className={s.nm}>{name}</span>
-                {points && <span className={s.pts}>{points[seat].toLocaleString()}点</span>}
-              </div>
+              {onSeatSelect ? (
+                <button
+                  type="button"
+                  className={`${s.nameplate} ${s.plateBtn}`}
+                  aria-label={`${wind}家の視点にする`}
+                  onClick={() => onSeatSelect(seat)}
+                >
+                  {plate}
+                </button>
+              ) : (
+                <div className={s.nameplate}>{plate}</div>
+              )}
               <div className={s.hand}>
                 {/* 手牌が無い席（何切るの他家）は透明スペーサで席の外形を牌譜と同じにする。
                     左右席の引き戻し（--seat-lr-pull）は手牌の張り出し前提のため、

@@ -233,6 +233,21 @@ describe("buildPlaybackFrame（web/mobile ビューア共通の再生フレー�
     const start = Number(base().rules.start);
     expect(f.startPoints).toEqual({ east: start, south: start, west: start, north: start });
   });
+
+  it("povSeat 指定で手前席を上書きする（視点切替。牌譜の cameraBottomSeat より優先）", () => {
+    const f = buildPlaybackFrame({ kifu: base(), prevKifus: [], reveal: -1, povSeat: "south" });
+
+    expect(f.bottomSeat).toBe("south");
+    // 視点は表示上の回転のみ。親・巡目・河の進行は変わらない。
+    expect(f.dealer).toBe("east");
+    expect(f.curJunme).toBe(2);
+  });
+
+  it("povSeat 未指定（null）は従来どおり cameraBottomSeat（既定 east）", () => {
+    const f = buildPlaybackFrame({ kifu: base(), prevKifus: [], reveal: -1, povSeat: null });
+
+    expect(f.bottomSeat).toBe("east");
+  });
 });
 
 describe("tsumoWinDisplay / splitDrawnTile（ツモ和了牌を手牌の横に離す表示）", () => {

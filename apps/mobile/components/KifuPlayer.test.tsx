@@ -357,6 +357,20 @@ describe("KifuPlayer", () => {
     expect(screen.getByTestId("drop-tile")).toBeTruthy();
   });
 
+  it("席をタップすると視点が切り替わる（選んだ席が手前へ回り、その手牌が見える）", () => {
+    render(<KifuPlayer logs={[log(1, kifuOppHand())]} ownerName="太郎" />);
+    // 既定は撮影者（東）視点: 南家の手牌(發)は裏向き。
+    expect(screen.queryByLabelText("發")).toBeNull();
+    // 南家の視点へ: 南家が手前に回り、手前席として手牌が表で見える。
+    fireEvent.press(screen.getByLabelText("南家の視点にする"));
+    expect(screen.getByLabelText("發")).toBeTruthy();
+    // 撮影者名は撮影者の席（東）に付いたまま出続ける。
+    expect(screen.getByText("太郎")).toBeTruthy();
+    // 東家の視点に戻すと再び裏向きになる。
+    fireEvent.press(screen.getByLabelText("東家の視点にする"));
+    expect(screen.queryByLabelText("發")).toBeNull();
+  });
+
   it("手牌トグルで相手の手牌が表(牌)/裏に切り替わる", () => {
     render(<KifuPlayer logs={[log(1, kifuOppHand())]} />);
     // 既定は相手手牌を裏向き（發は出ない）。

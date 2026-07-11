@@ -315,6 +315,17 @@
 .seatT .nameplate {
   transform: rotate(180deg);
 }
+/* 視点切替（ネームプレートがボタンのとき）。見た目は通常プレートに寄せる。 */
+.plateBtn {
+  background: none;
+  border: 0;
+  font: inherit;
+  cursor: pointer;
+}
+.plateBtn:hover .nm {
+  color: #fff;
+  text-decoration: underline;
+}
 .nameplate .wd {
   font-weight: 800;
   font-size: 13px;

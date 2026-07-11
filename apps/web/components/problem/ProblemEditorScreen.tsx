@@ -450,7 +450,7 @@ export function ProblemEditorScreen({ initial }: { initial?: ProblemPost }) {
             bottomSeat={pov}
             dealer={dealer ?? pov}
             scale={scale}
-            bottomName="あなた"
+            seatName={{ seat: pov, name: "あなた" }}
             highlightRiver={previewHighlight}
             center={<ProblemBoardCenter meta={{ roundWind, junme, dora, honba, kyotaku }} />}
           />

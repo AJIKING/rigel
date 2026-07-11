@@ -81,10 +81,11 @@ export function BoardTable({
   roundLabel,
   revealed,
   showHands,
-  ownerName,
+  seatName,
   size = 330,
   selectedSeat,
   onSeatPress,
+  seatPressLabel,
   highlightRiver = null,
   points = null,
   animateDiscard = null,
@@ -97,12 +98,15 @@ export function BoardTable({
   /** 席ごとの河の公開枚数（再生用）。省略時は全表示。 */
   revealed?: Record<Seat, number>;
   showHands: boolean;
-  ownerName?: string | null;
+  /** 表示名を付ける席（撮影者など）。視点を回しても席に付いたまま動く。無ければ全席「◯家」。 */
+  seatName?: { seat: Seat; name: string } | null;
   size?: number;
   /** 編集対象としてハイライトする席（エディタのプレビュー用）。 */
   selectedSeat?: Seat;
   /** 席タップ時のコールバック。指定時のみ席が押せる。 */
   onSeatPress?: (seat: Seat) => void;
+  /** 席タップの読み上げラベル（既定「◯家を選択」。ビューアの視点切替では差し替える）。 */
+  seatPressLabel?: (wind: string) => string;
   /** 強調する河の1枚（何切るの鳴き判断の対象牌。web の highlightRiver と同じ意図）。 */
   highlightRiver?: { seat: Seat; index: number } | null;
   /** 再生中の点棒。指定時はネームプレートに表示する。 */
@@ -154,7 +158,7 @@ export function BoardTable({
         const wind = windOf(seat, dealer);
         const river = board.river.slice(0, revealed?.[seat] ?? board.river.length);
         const isBottom = seat === bottomSeat;
-        const name = isBottom ? ownerName || `${wind}家` : `${wind}家`;
+        const name = (seatName?.seat === seat && seatName.name) || `${wind}家`;
         const { cx, cy } = seatPos[cam];
         const seatStyle: ViewStyle = {
           position: "absolute",
@@ -187,7 +191,9 @@ export function BoardTable({
             style={[seatStyle, styles.seat, selected && styles.seatSel]}
             disabled={!onSeatPress}
             onPress={onSeatPress ? () => onSeatPress(seat) : undefined}
-            accessibilityLabel={onSeatPress ? `${wind}家を選択` : undefined}
+            accessibilityLabel={
+              onSeatPress ? (seatPressLabel?.(wind) ?? `${wind}家を選択`) : undefined
+            }
           >
             <View style={[styles.river, riverBox]}>
               {chunk(river, RIVER_COLS).map((row, ri) => (

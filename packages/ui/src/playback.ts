@@ -281,9 +281,12 @@ export function buildPlaybackFrame(args: {
   prevKifus: Kifu[];
   /** 再生位置（打牌数）。-1 は全表示。 */
   reveal: number;
+  /** 視点席（手前に置く席）。指定時は牌譜の cameraBottomSeat より優先する。
+   *  表示上の回転のみで、親・巡目・再生の進行には影響しない。 */
+  povSeat?: Seat | null;
 }): PlaybackFrame {
-  const { kifu, prevKifus, reveal } = args;
-  const bottomSeat: Seat = kifu.cameraBottomSeat ?? "east";
+  const { kifu, prevKifus, reveal, povSeat } = args;
+  const bottomSeat: Seat = povSeat ?? kifu.cameraBottomSeat ?? "east";
   const dealer: Seat = kifu.meta.dealer ?? bottomSeat;
   const river = buildRiverPlayback(kifu, dealer);
   const shown = reveal < 0 || reveal > river.order.length ? river.order.length : reveal;

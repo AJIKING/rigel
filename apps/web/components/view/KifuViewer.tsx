@@ -1,6 +1,6 @@
 "use client";
 
-import { type Kifu, type Tile } from "@rigel/schema";
+import { type Kifu, type Seat, type Tile } from "@rigel/schema";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { type PublicGameDetail } from "../../lib/api";
@@ -60,6 +60,8 @@ export function KifuViewer({ detail, gameId }: { detail: PublicGameDetail; gameI
   const [shareLabel, setShareLabel] = useState("共有");
   // 上がりオーバーレイ。次ボタンで開き、閉じるボタン/前ボタン/位置移動で閉じる。
   const [agariOpen, setAgariOpen] = useState(false);
+  // 視点席（ネームプレート押下で切替）。null は牌譜どおり（撮影者が手前）。局を跨いでも保つ。
+  const [povSeat, setPovSeat] = useState<Seat | null>(null);
 
   useEffect(() => {
     const onEsc = (e: KeyboardEvent) => {
@@ -94,9 +96,10 @@ export function KifuViewer({ detail, gameId }: { detail: PublicGameDetail; gameI
             kifu,
             prevKifus: detail.logs.slice(0, gi).map((l) => l.kifu),
             reveal,
+            povSeat,
           })
         : null,
-    [detail.logs, gi, kifu, reveal],
+    [detail.logs, gi, kifu, reveal, povSeat],
   );
 
   // ステップの半歩: draw（ツモ牌が手牌右端に入る。盤面は1手前のまま）→
@@ -308,7 +311,12 @@ export function KifuViewer({ detail, gameId }: { detail: PublicGameDetail; gameI
               scale={scale}
               hideOpp={hideOpp}
               animateDiscard={animateDiscard}
-              bottomName={detail.owner.displayName || detail.owner.handle}
+              // 撮影者名は撮影者の席（cameraBottomSeat）に付ける。視点を回しても席と一緒に動く。
+              seatName={{
+                seat: kifu.cameraBottomSeat ?? "east",
+                name: detail.owner.displayName || detail.owner.handle || "",
+              }}
+              onSeatSelect={setPovSeat}
               points={startPoints}
               center={
                 <>

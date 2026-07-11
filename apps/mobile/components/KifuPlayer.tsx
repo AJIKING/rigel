@@ -1,5 +1,5 @@
 import type { GameLog } from "@rigel/client";
-import type { Kifu } from "@rigel/schema";
+import type { Kifu, Seat } from "@rigel/schema";
 import {
   buildPlaybackFrame,
   playbackKifu,
@@ -59,6 +59,8 @@ export function KifuPlayer({
   // 和了シート。次ボタンで開き、閉じるボタン/前ボタン/位置移動で閉じる。
   const [agariOpen, setAgariOpen] = useState(false);
   const [fs, setFs] = useState(false); // 全画面（上部バーを畳んで卓を最大化）
+  // 視点席（席タップで切替）。null は牌譜どおり（撮影者が手前）。局を跨いでも保つ。
+  const [povSeat, setPovSeat] = useState<Seat | null>(null);
 
   const log = logs[gi];
   const kifu: Kifu | undefined = log?.kifu;
@@ -68,9 +70,14 @@ export function KifuPlayer({
   const frame = useMemo(
     () =>
       kifu
-        ? buildPlaybackFrame({ kifu, prevKifus: logs.slice(0, gi).map((l) => l.kifu), reveal })
+        ? buildPlaybackFrame({
+            kifu,
+            prevKifus: logs.slice(0, gi).map((l) => l.kifu),
+            reveal,
+            povSeat,
+          })
         : null,
-    [gi, kifu, logs, reveal],
+    [gi, kifu, logs, reveal, povSeat],
   );
   // ステップの半歩: draw（ツモ牌が手牌右端に入る。盤面は1手前のまま）→
   // drop（打牌が河へ落ち、手牌が理牌される）→ …末尾では winDraw（ツモ和了牌を右端へ）
@@ -214,7 +221,11 @@ export function KifuPlayer({
           dealer={dealer}
           roundLabel={roundLabel}
           showHands={showHands}
-          ownerName={ownerName}
+          // 撮影者名は撮影者の席（cameraBottomSeat）に付ける。視点を回しても席と一緒に動く。
+          seatName={{ seat: kifu.cameraBottomSeat ?? "east", name: ownerName ?? "" }}
+          // 席タップで視点切替（その席が手前へ回る）。
+          onSeatPress={setPovSeat}
+          seatPressLabel={(w) => `${w}家の視点にする`}
           size={boardSize}
           points={startPoints}
           animateDiscard={animateDiscard}
