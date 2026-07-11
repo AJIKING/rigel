@@ -57,6 +57,7 @@ export function AgariSheet({
 function WinBlock({ agari, kifu, dealer }: { agari: Agari; kifu: Kifu; dealer: Seat }) {
   const score = scoreAgari(agari, kifu.meta.dealer, kifu.rules);
   const han = totalHan(agari);
+  const winnerRiichi = agari.riichi.includes(agari.winner);
   // 手牌すべてを見せる（理牌＋副露＋白枠の和了牌。web の AgariOverlay と同一構成）。
   // viewKifu の手牌はツモ和了牌が除去済み・ロン牌は元々含まれない。
   const board = kifu.seats[agari.winner];
@@ -89,6 +90,32 @@ function WinBlock({ agari, kifu, dealer }: { agari: Agari; kifu: Kifu; dealer: S
           </View>
         ) : null}
       </View>
+
+      {/* ドラ表示牌・裏ドラ表示牌（裏はリーチ和了時のみ意味を持つ）。web の AgariOverlay と同一構成。 */}
+      {(kifu.meta.dora.length > 0 || (winnerRiichi && kifu.meta.uraDora.length > 0)) && (
+        <View style={styles.doraTiles}>
+          {kifu.meta.dora.length > 0 && (
+            <View style={styles.doraWrap} testID="agari-dora">
+              <Text style={styles.doraLbl}>ドラ表示</Text>
+              <View style={styles.doraRow}>
+                {kifu.meta.dora.map((t, i) => (
+                  <MiniTile key={`${t}-${i}`} code={t} w={22} h={31} />
+                ))}
+              </View>
+            </View>
+          )}
+          {winnerRiichi && kifu.meta.uraDora.length > 0 && (
+            <View style={styles.doraWrap} testID="agari-ura">
+              <Text style={styles.doraLbl}>裏ドラ表示 ×{agari.ura}</Text>
+              <View style={styles.doraRow}>
+                {kifu.meta.uraDora.map((t, i) => (
+                  <MiniTile key={`${t}-${i}`} code={t} w={22} h={31} />
+                ))}
+              </View>
+            </View>
+          )}
+        </View>
+      )}
 
       {agari.yaku.length > 0 ? (
         <View style={styles.yaku}>
@@ -151,6 +178,11 @@ const styles = StyleSheet.create({
   meld: { flexDirection: "row", gap: 2, marginLeft: 8 },
   // 和了牌は白枠で強調（どれが和了牌か一目で分かるように）。
   winTile: { marginLeft: 8, borderWidth: 2, borderColor: colors.white, borderRadius: 3 },
+  // ドラ表示・裏ドラ表示の段（横並び・中央寄せ）。
+  doraTiles: { flexDirection: "row", justifyContent: "center", gap: 18, marginBottom: 14 },
+  doraWrap: { alignItems: "center", gap: 4 },
+  doraLbl: { fontSize: 10.5, color: colors.w45, fontWeight: "700" },
+  doraRow: { flexDirection: "row", gap: 3 },
   yaku: { gap: 7, marginBottom: 13 },
   yrow: { flexDirection: "row", justifyContent: "space-between" },
   yname: { fontSize: 13.5, color: colors.white },

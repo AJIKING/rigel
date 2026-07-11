@@ -421,6 +421,44 @@ describe("KifuViewer", () => {
     expect(container.querySelector("[data-center]")!.textContent).not.toContain("ツモ");
   });
 
+  it("和了ダイアログにドラ表示牌と裏ドラ表示牌（リーチ和了時）を出す", () => {
+    const d = detail([
+      makeKifu(
+        { east: { river: [{ order: 1, tile: "1m", riichi: true, confidence: 1 }] } },
+        {
+          meta: { dealer: "east", dora: ["5z"], uraDora: ["6z"] },
+          result: "ron",
+          agari: [
+            {
+              winner: "east",
+              from: "south",
+              winTile: "3m",
+              riichi: ["east"],
+              yaku: [{ name: "立直", han: 1 }],
+              ura: 1,
+              fu: 40,
+            },
+          ],
+        },
+      ),
+    ]);
+    const { container } = renderViewer(d);
+    const alts = (sel: string) =>
+      Array.from(container.querySelectorAll(`${sel} img`))
+        .map((img) => img.getAttribute("alt"))
+        .filter((alt) => alt);
+
+    // 末尾まで進めて和了ダイアログを開く。
+    fireEvent.click(screen.getByLabelText("1手戻る"));
+    fireEvent.click(screen.getByLabelText("1手進む"));
+    fireEvent.click(screen.getByLabelText("1手進む"));
+    expect(screen.getByText("立直")).toBeTruthy();
+
+    // ドラ表示牌（白）と裏ドラ表示牌（發）が牌グリフで出る。
+    expect(alts("[data-agari-dora]")).toEqual(["白"]);
+    expect(alts("[data-agari-ura]")).toEqual(["發"]);
+  });
+
   it("ネームプレートで視点を切り替えられる（選んだ席が手前へ回り、撮影者名は元の席に付いたまま）", () => {
     const { container } = renderViewer(detail([kifu()]));
     const bottomPlate = () =>

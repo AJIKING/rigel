@@ -176,6 +176,17 @@
     transform: scale(1);
   }
 }
+/* ラベル下の牌の並び（ドラ表示・裏ドラ表示。複数枚は横に並べる）。 */
+.trow {
+  display: flex;
+  gap: 4px;
+}
+/* ドラ表示牌（めくり演出なし。裏ドラと同寸）。 */
+.doraT {
+  position: relative;
+  width: 34px;
+  height: 48px;
+}
 .ura {
   position: relative;
   width: 34px;

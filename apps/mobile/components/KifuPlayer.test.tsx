@@ -1,6 +1,6 @@
 import type { GameLog } from "@rigel/client";
 import { KifuSchema, type Kifu } from "@rigel/schema";
-import { fireEvent, render, screen } from "@testing-library/react-native";
+import { fireEvent, render, screen, within } from "@testing-library/react-native";
 import { KifuPlayer } from "./KifuPlayer";
 
 /** 親=東・手前=東の局を最小の指定で組む。seats は指定した席だけ上書き、その他は空。 */
@@ -355,6 +355,38 @@ describe("KifuPlayer", () => {
     fireEvent.press(screen.getByLabelText("1手進む"));
     expect(screen.queryByTestId("tsumo-tile")).toBeNull();
     expect(screen.getByTestId("drop-tile")).toBeTruthy();
+  });
+
+  it("和了シートにドラ表示牌と裏ドラ表示牌（リーチ和了時）を出す", () => {
+    const k = makeKifu(
+      { east: { river: [{ order: 1, tile: "1m", riichi: true, confidence: 1 }] } },
+      {
+        meta: { dealer: "east", dora: ["5z"], uraDora: ["6z"] },
+        result: "ron",
+        agari: [
+          {
+            winner: "east",
+            from: "south",
+            winTile: "3m",
+            riichi: ["east"],
+            yaku: [{ name: "立直", han: 1 }],
+            ura: 1,
+            fu: 40,
+          },
+        ],
+      },
+    );
+    render(<KifuPlayer logs={[log(1, k)]} />);
+
+    // 末尾まで進めて和了シートを開く。
+    fireEvent.press(screen.getByLabelText("1手戻る"));
+    fireEvent.press(screen.getByLabelText("1手進む"));
+    fireEvent.press(screen.getByLabelText("1手進む"));
+    expect(screen.getByText("立直")).toBeTruthy();
+
+    // ドラ表示牌（白）と裏ドラ表示牌（發）が牌グリフで出る。
+    expect(within(screen.getByTestId("agari-dora")).getByLabelText("白")).toBeTruthy();
+    expect(within(screen.getByTestId("agari-ura")).getByLabelText("發")).toBeTruthy();
   });
 
   it("席をタップすると視点が切り替わる（選んだ席が手前へ回り、その手牌が見える）", () => {

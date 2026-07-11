@@ -44,14 +44,28 @@ function WinBlock({ agari, kifu, dealer }: { agari: Agari; kifu: Kifu; dealer: S
         </div>
       )}
       <div className={s.tiles}>
+        {kifu.meta.dora.length > 0 && (
+          <div className={s.tileWrap} data-agari-dora="">
+            <span className={s.tlabel}>ドラ表示</span>
+            <div className={s.trow}>
+              {kifu.meta.dora.map((t, i) => (
+                <span className={s.doraT} key={`${t}-${i}`}>
+                  <OssTileFace code={t} />
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
         {winnerRiichi && kifu.meta.uraDora.length > 0 && (
-          <div className={s.tileWrap}>
-            <span className={s.tlabel}>裏ドラ ×{agari.ura}</span>
-            {kifu.meta.uraDora.map((t, i) => (
-              <span className={s.ura} key={`${t}-${i}`}>
-                <OssTileFace code={t} />
-              </span>
-            ))}
+          <div className={s.tileWrap} data-agari-ura="">
+            <span className={s.tlabel}>裏ドラ表示 ×{agari.ura}</span>
+            <div className={s.trow}>
+              {kifu.meta.uraDora.map((t, i) => (
+                <span className={s.ura} key={`${t}-${i}`}>
+                  <OssTileFace code={t} />
+                </span>
+              ))}
+            </div>
           </div>
         )}
       </div>
