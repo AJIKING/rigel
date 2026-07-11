@@ -6,6 +6,9 @@ import { colors } from "../lib/theme";
 import { MiniTile } from "./MiniTile";
 
 const CAMS: CameraSeat[] = ["bottom", "right", "top", "left"];
+/** 河のグリッド（6枚/段×4段で寸法を固定。web の .river と同じ規格）。 */
+const RIVER_COLS = 6;
+const RIVER_ROWS = 4;
 const ROT: Record<CameraSeat, string> = {
   bottom: "0deg",
   top: "180deg",
@@ -133,6 +136,16 @@ export function BoardTable({
     right: { cx: center + off, cy: center },
   };
 
+  // 河は6枚/段×4段で寸法を固定する（再生位置・枚数に依存させない）。河が伸びるたびに
+  // サイズが変わったり手牌・プレートが外へ押されたりして卓全体が揺れるのを防ぐ。
+  const rtW = fitTileW(rt, RIVER_COLS, seatW * 0.7);
+  const rtHt = rtW * GEO.tileAspect;
+  const riverBox = {
+    minHeight: rtHt * RIVER_ROWS + GAP * (RIVER_ROWS - 1),
+    // 横向きのリーチ牌ぶん（高さ-幅の差）も確保して段の折返し幅を安定させる。
+    width: rtW * RIVER_COLS + GAP * (RIVER_COLS - 1) + (rtHt - rtW),
+  };
+
   return (
     <View style={[styles.board, { width: B, height: B, borderRadius: B * 0.01 }]}>
       {CAMS.map((cam) => {
@@ -155,10 +168,6 @@ export function BoardTable({
         const hand = isBottom || showHands;
         const selected = selectedSeat === seat;
 
-        // 河は6枚/段。最長段（最大6枚）が席幅の 70% に収まる牌サイズにする。
-        const riverCols = Math.min(6, Math.max(1, river.length));
-        const rtW = fitTileW(rt, riverCols, seatW * 0.7);
-        const rtHt = rtW * GEO.tileAspect;
         // 右端スロットの1枚は手牌本体から離して置く（分割は @rigel/ui。web と共通）。
         const { hand: handShown, drawnTile: slotTile } = splitDrawnTile(
           board.hand,
@@ -166,8 +175,9 @@ export function BoardTable({
           seat,
         );
         // 手牌＋鳴きは1列。総枚数が席幅の 92% に収まる牌サイズにする（重なり・はみ出し防止）。
+        // スロットは常に1枚ぶん数える（出現時に手牌サイズが変わって全体が動くのを防ぐ）。
         const meldTileCount = board.melds.reduce((n, m) => n + m.tiles.length, 0);
-        const handUnits = handShown.length + (slotTile ? 1 : 0) + meldTileCount;
+        const handUnits = handShown.length + 1 + meldTileCount;
         const htW = fitTileW(ht, handUnits, seatW * 0.92, board.melds.length * 4);
         const htHt = htW * GEO.tileAspect;
 
@@ -179,9 +189,8 @@ export function BoardTable({
             onPress={onSeatPress ? () => onSeatPress(seat) : undefined}
             accessibilityLabel={onSeatPress ? `${wind}家を選択` : undefined}
           >
-            {/* 河が空でも高さを確保して手牌を外側へ押し出す（左右席の手牌が中央で被るのを防ぐ）。 */}
-            <View style={[styles.river, { minHeight: rtHt * 1.6 }]}>
-              {chunk(river, 6).map((row, ri) => (
+            <View style={[styles.river, riverBox]}>
+              {chunk(river, RIVER_COLS).map((row, ri) => (
                 <View key={ri} style={styles.rrow}>
                   {row.map((d, ci) => {
                     const tile = (
@@ -193,16 +202,18 @@ export function BoardTable({
                         riichi={d.riichi}
                         tsumogiri={d.tsumogiri}
                         highlight={
-                          highlightRiver?.seat === seat && highlightRiver.index === ri * 6 + ci
+                          highlightRiver?.seat === seat &&
+                          highlightRiver.index === ri * RIVER_COLS + ci
                         }
                       />
                     );
                     const drop =
-                      animateDiscard?.seat === seat && animateDiscard.index === ri * 6 + ci;
+                      animateDiscard?.seat === seat &&
+                      animateDiscard.index === ri * RIVER_COLS + ci;
                     // 対象牌ごとに key を変え、TileFx をマウントし直して演出を掛ける。
                     return drop ? (
                       <TileFx
-                        key={`d${ri * 6 + ci}`}
+                        key={`d${ri * RIVER_COLS + ci}`}
                         testID="drop-tile"
                         distance={rtHt * 0.5}
                         fromOpacity={0.25}
@@ -234,20 +245,22 @@ export function BoardTable({
               {handShown.map((h, hi) => (
                 <MiniTile key={hi} code={hand ? h.tile : null} w={htW} h={htHt} back={!hand} />
               ))}
-              {slotTile !== null ? (
-                // key=牌: 連続ステップで牌が変わったら差し替えてフライインを掛け直す。
-                <TileFx
-                  key={slotTile}
-                  testID="tsumo-tile"
-                  distance={-B * 0.32}
-                  fromOpacity={0}
-                  fromScale={0.72}
-                >
-                  <View style={{ marginLeft: htW * 0.55 }}>
+              {/* スロット枠（間隔・幅）は常に確保し、中身だけ入れ替える
+                  （出現時に手牌が動かない。間隔の定義もここ1箇所）。 */}
+              <View style={{ marginLeft: htW * 0.55, width: htW }}>
+                {slotTile !== null ? (
+                  // key=牌: 連続ステップで牌が変わったら差し替えてフライインを掛け直す。
+                  <TileFx
+                    key={slotTile}
+                    testID="tsumo-tile"
+                    distance={-B * 0.32}
+                    fromOpacity={0}
+                    fromScale={0.72}
+                  >
                     <MiniTile code={hand ? slotTile : null} w={htW} h={htHt} back={!hand} />
-                  </View>
-                </TileFx>
-              ) : null}
+                  </TileFx>
+                ) : null}
+              </View>
               {board.melds.map((m, mi) => (
                 <View key={`m${mi}`} style={styles.meld}>
                   {m.tiles.map((t, ti) => (
@@ -297,7 +310,8 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(255,158,69,0.08)",
   },
   // 河は左詰めで段を積む（実際の河のように左上から並ぶ）。
-  river: { flexDirection: "column", alignItems: "flex-start", gap: 1.5, maxWidth: "72%" },
+  // 幅・高さは riverBox（6枚/段×4段の固定寸法）が真実源。
+  river: { flexDirection: "column", alignItems: "flex-start", gap: 1.5 },
   rrow: { flexDirection: "row", justifyContent: "flex-start", gap: 1.5 },
   plate: { flexDirection: "row", alignItems: "center", gap: 4 },
   wd: {

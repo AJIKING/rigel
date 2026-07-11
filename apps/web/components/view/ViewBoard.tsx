@@ -162,11 +162,14 @@ export function ViewBoard({
                 {back
                   ? handShown.map((_, hi) => <ViewTile key={hi} back />)
                   : handShown.map((h, hi) => <ViewTile key={hi} code={h.tile} />)}
-                {slotTile !== null && (
+                {slotTile !== null ? (
                   <span className={s.tsumoWin} data-tsumo="">
                     {/* key=牌: 連続ステップで牌が変わったら差し替えてフライインを掛け直す。 */}
                     <ViewTile key={slotTile} code={back ? undefined : slotTile} back={back} flyIn />
                   </span>
+                ) : (
+                  // スロット分の空間は常に確保（出現時に手牌が動かないように）。
+                  <span className={s.tsumoWinGhost} />
                 )}
                 {board.melds.length > 0 && (
                   <div className={s.melds}>

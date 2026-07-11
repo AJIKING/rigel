@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { rewindToStart } from "./helpers";
 
 // 打牌の drop-in 演出の実ブラウザ検証。jsdom は CSS Module の keyframes を解決
 // できないため、「data-drop の牌に実際にアニメーションが掛かる」ことは Chromium
@@ -31,8 +32,7 @@ test("次ボタンで半歩ずつ刻む（1押し目=ツモが右端スロット
   await page.waitForSelector("[data-seat] [data-tile]");
   await expect(page.locator("[data-draw]")).toHaveCount(0);
 
-  // 先頭へ戻す（半歩も巻き戻るため多めに押す。0手で disabled になり過走しない）。
-  for (let i = 0; i < 10; i++) await page.getByLabel("1手戻る").click();
+  await rewindToStart(page);
 
   // 1押し目: スロットにフライインが掛かり、河の drop はまだ始まらない。
   await page.getByLabel("1手進む").click();
