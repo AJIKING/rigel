@@ -4,6 +4,8 @@ import {
   analysisQuotaLabel,
   analyzeErrorMessage,
   applyTileEdit,
+  filterPublicFeed,
+  PUBLIC_FEED_FILTERS,
   isStoreManagedSubscription,
   planCardSubLabel,
   authorLabel,
@@ -173,6 +175,24 @@ describe("プラン表示", () => {
     expect(isStoreManagedSubscription("STRIPE")).toBe(false);
     expect(isStoreManagedSubscription(null)).toBe(false);
     expect(isStoreManagedSubscription(undefined)).toBe(false);
+  });
+  it("filterPublicFeed: 新着=全件を新しい順 / 今週=直近7日（ちょうど7日前を含む）/ お気に入り=favs のみ", () => {
+    const now = Date.parse("2026-07-11T12:00:00.000Z");
+    const day = 24 * 3600 * 1000;
+    const cards = [
+      { id: "a", createdAt: new Date(now - 10 * day).toISOString() },
+      { id: "b", createdAt: new Date(now - 7 * day).toISOString() }, // ちょうど7日前=今週に含む
+      { id: "c", createdAt: new Date(now).toISOString() },
+    ];
+    const favs = new Set(["a"]);
+
+    expect(filterPublicFeed(cards, "new", favs, now).map((c) => c.id)).toEqual(["c", "b", "a"]);
+    expect(filterPublicFeed(cards, "week", favs, now).map((c) => c.id)).toEqual(["c", "b"]);
+    expect(filterPublicFeed(cards, "fav", favs, now).map((c) => c.id)).toEqual(["a"]);
+  });
+  it("PUBLIC_FEED_FILTERS は web/mobile 共通の選択肢（キー＋ラベル）を1箇所で定義する", () => {
+    expect(PUBLIC_FEED_FILTERS.map((f) => f.key)).toEqual(["new", "week", "fav"]);
+    expect(PUBLIC_FEED_FILTERS.map((f) => f.label)).toEqual(["新着", "今週", "お気に入り"]);
   });
   it("PLAN_FEATURES は全プランに説明があり、上限は半荘単位の文言", () => {
     expect(PLAN_FEATURES.free.some((f) => f.includes("半荘"))).toBe(true);

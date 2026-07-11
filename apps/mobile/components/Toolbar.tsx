@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import Svg, { Circle, Path } from "react-native-svg";
 import { colors, radius } from "../lib/theme";
@@ -13,11 +12,20 @@ function SearchIcon() {
 }
 
 /**
- * 一覧の操作バー（検索・並べ替え・セグメント）。
- * 見た目の配置のみ（セグメントはタップ選択できるが絞り込みは未配線）。
+ * 一覧の操作バー（検索・セグメント）。
+ * セグメントは親が activeIndex/onSegmentPress で制御する（検索欄は未配線）。
  */
-export function Toolbar({ segments }: { segments?: string[] }) {
-  const [active, setActive] = useState(0);
+export function Toolbar({
+  segments,
+  activeIndex = 0,
+  onSegmentPress,
+}: {
+  segments?: string[];
+  /** 選択中セグメント。 */
+  activeIndex?: number;
+  /** セグメント押下。 */
+  onSegmentPress?: (index: number) => void;
+}) {
   return (
     <View>
       <View style={styles.tools}>
@@ -33,11 +41,11 @@ export function Toolbar({ segments }: { segments?: string[] }) {
       {segments && segments.length > 0 ? (
         <View style={styles.segrow}>
           {segments.map((s, i) => {
-            const on = i === active;
+            const on = i === activeIndex;
             return (
               <Pressable
                 key={s}
-                onPress={() => setActive(i)}
+                onPress={() => onSegmentPress?.(i)}
                 style={[styles.seg, on && styles.segOn]}
               >
                 <Text style={[styles.segText, on && styles.segTextOn]}>{s}</Text>

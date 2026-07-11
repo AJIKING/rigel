@@ -1,6 +1,12 @@
 "use client";
 
-import { authorLabel, planKifuLimits } from "@rigel/ui";
+import {
+  authorLabel,
+  filterPublicFeed,
+  planKifuLimits,
+  PUBLIC_FEED_FILTERS,
+  type FeedFilterKey,
+} from "@rigel/ui";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
@@ -27,7 +33,8 @@ export function KifuListShell({ view }: { view: "mine" | "public" }) {
   const [mineStatus, setMineStatus] = useState<"all" | "pub" | "priv" | "fav">("all");
   const [mineSort, setMineSort] = useState<"new" | "old" | "kyoku">("new");
   const [mineQ, setMineQ] = useState("");
-  const [pubSort, setPubSort] = useState<"new" | "kyoku">("new");
+  // 公開フィードの絞り込み（選択肢と意味は @rigel/ui。mobile と同一）。
+  const [pubFilter, setPubFilter] = useState<FeedFilterKey>("new");
   const [pubQ, setPubQ] = useState("");
 
   useEffect(() => {
@@ -71,7 +78,7 @@ export function KifuListShell({ view }: { view: "mine" | "public" }) {
     limit === null ? `${used}（無制限）` : `${used} / ${limit}半荘`;
 
   const pubView = useMemo(() => {
-    let arr = (pub ?? []).slice();
+    let arr = pub ?? [];
     if (pubQ)
       arr = arr.filter(
         (c) =>
@@ -79,11 +86,8 @@ export function KifuListShell({ view }: { view: "mine" | "public" }) {
           (c.ownerHandle ?? "").includes(pubQ) ||
           (c.ownerName ?? "").includes(pubQ),
       );
-    arr.sort((a, b) =>
-      pubSort === "kyoku" ? b.kyokuCount - a.kyokuCount : -a.createdAt.localeCompare(b.createdAt),
-    );
-    return arr;
-  }, [pub, pubSort, pubQ]);
+    return filterPublicFeed(arr, pubFilter, favs);
+  }, [pub, pubFilter, pubQ, favs]);
 
   return (
     <div className={`${s.shell} themeApp`}>
@@ -241,11 +245,14 @@ export function KifuListShell({ view }: { view: "mine" | "public" }) {
               <div className={s.sortwrap}>
                 <select
                   aria-label="並び替え"
-                  value={pubSort}
-                  onChange={(e) => setPubSort(e.target.value as typeof pubSort)}
+                  value={pubFilter}
+                  onChange={(e) => setPubFilter(e.target.value as FeedFilterKey)}
                 >
-                  <option value="new">新着</option>
-                  <option value="kyoku">局数が多い順</option>
+                  {PUBLIC_FEED_FILTERS.map((f) => (
+                    <option key={f.key} value={f.key}>
+                      {f.label}
+                    </option>
+                  ))}
                 </select>
               </div>
             </div>
@@ -253,7 +260,11 @@ export function KifuListShell({ view }: { view: "mine" | "public" }) {
               {pub === null ? (
                 <div className={gc.empty}>読み込み中…</div>
               ) : pubView.length === 0 ? (
-                <div className={gc.empty}>公開されている牌譜がまだありません</div>
+                <div className={gc.empty}>
+                  {pubFilter === "fav"
+                    ? "お気に入りした牌譜がまだありません"
+                    : "公開されている牌譜がまだありません"}
+                </div>
               ) : (
                 pubView.map((c) => (
                   <GameCard

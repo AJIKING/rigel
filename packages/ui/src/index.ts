@@ -237,6 +237,43 @@ export function planMonthlyPriceAppStore(plan: Plan): number {
   return PLAN_MONTHLY_PRICE_STORE[plan];
 }
 
+// ------------------------------------------------------------
+// 公開フィードの絞り込み（web/mobile 共通。選択肢と意味をここで一元定義する）
+// ------------------------------------------------------------
+export type FeedFilterKey = "new" | "week" | "fav";
+
+/** 公開牌譜フィードの絞り込み選択肢（キー＋表示ラベル）。 */
+export const PUBLIC_FEED_FILTERS: readonly { key: FeedFilterKey; label: string }[] = [
+  { key: "new", label: "新着" },
+  { key: "week", label: "今週" },
+  { key: "fav", label: "お気に入り" },
+];
+
+/** 「今週」の窓（直近7日・ちょうど7日前を含む）。 */
+const WEEK_MS = 7 * 24 * 3600 * 1000;
+
+/**
+ * 公開フィードの絞り込み＋新着順ソート（純関数）。
+ * new=全件 / week=直近7日 / fav=お気に入り（favs に入っている id）のみ。並びは常に新しい順。
+ * now はテストの決定性のため注入可能。
+ */
+export function filterPublicFeed<T extends { id: string; createdAt: string }>(
+  cards: readonly T[],
+  filter: FeedFilterKey,
+  favs: ReadonlySet<string>,
+  now: number = Date.now(),
+): T[] {
+  let arr = [...cards];
+  if (filter === "week") {
+    const cutoff = new Date(now - WEEK_MS).toISOString();
+    arr = arr.filter((c) => c.createdAt >= cutoff);
+  } else if (filter === "fav") {
+    arr = arr.filter((c) => favs.has(c.id));
+  }
+  // ISO8601 は文字列比較で時系列順になる。
+  return arr.sort((a, b) => (b.createdAt < a.createdAt ? -1 : b.createdAt > a.createdAt ? 1 : 0));
+}
+
 /** いまのプランからアップグレード可能な有料プラン（上位のみ）。 */
 export function upgradeTargets(plan: Plan): PaidPlan[] {
   if (plan === "pro") return [];

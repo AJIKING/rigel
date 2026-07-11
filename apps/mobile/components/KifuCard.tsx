@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import Svg, { Path } from "react-native-svg";
 import { colors, radius } from "../lib/theme";
@@ -10,16 +9,14 @@ export interface CardBadge {
   tone: "accent" | "muted" | "warn";
 }
 
-function StarButton({ initial }: { initial: boolean }) {
-  // お気に入りは現状 API 非対応のため、見た目のみのローカルトグル。
-  const [on, setOn] = useState(initial);
+function StarButton({ on, onPress }: { on: boolean; onPress: () => void }) {
   return (
     <Pressable
       style={styles.star}
       hitSlop={8}
       accessibilityRole="button"
-      accessibilityLabel="お気に入り"
-      onPress={() => setOn((v) => !v)}
+      accessibilityLabel="お気に入りに追加/解除"
+      onPress={onPress}
     >
       <Svg width={18} height={18} viewBox="0 0 24 24" fill={on ? colors.accent : "none"}>
         <Path
@@ -45,6 +42,7 @@ export function KifuCard({
   badges = [],
   metaParts,
   fav = false,
+  onToggleFav,
   onPress,
   onLongPress,
 }: {
@@ -54,6 +52,8 @@ export function KifuCard({
   /** バッジ以降のメタ（例: ["3分前","8局"]）。 */
   metaParts: string[];
   fav?: boolean;
+  /** 星の押下（お気に入りの追加/解除）。未指定なら星を出さない（偽トグルにしない）。 */
+  onToggleFav?: () => void;
   onPress?: () => void;
   /** 長押し（例: 削除メニュー）。 */
   onLongPress?: () => void;
@@ -80,7 +80,7 @@ export function KifuCard({
           ))}
         </View>
       </View>
-      <StarButton initial={fav} />
+      {onToggleFav ? <StarButton on={fav} onPress={onToggleFav} /> : null}
     </Pressable>
   );
 }
