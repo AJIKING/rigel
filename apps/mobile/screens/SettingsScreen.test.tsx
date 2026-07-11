@@ -211,6 +211,15 @@ describe("SettingsScreen（課金導線）", () => {
     expect(screen.queryByText(/解析枠/)).toBeNull();
   });
 
+  it("有料プラン中の削除項目は「削除できません」と明言する（web と同一文言方針）", () => {
+    mockAuth.user = { plan: "next" };
+    render(<SettingsScreen />);
+
+    expect(
+      screen.getByText("有料プラン契約中は削除できません（先に解約してください）"),
+    ).toBeTruthy();
+  });
+
   it("未ログインはプラン変更導線を出さない", () => {
     mockAuth = { token: null, user: null, signOut: jest.fn(), refresh: jest.fn() };
     render(<SettingsScreen />);

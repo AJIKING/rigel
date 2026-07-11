@@ -241,7 +241,9 @@ export function SettingsScreen() {
                   {delArm ? "もう一度押すと削除されます" : "アカウントを削除"}
                 </Text>
                 {plan !== "free" ? (
-                  <Text style={styles.itemSub}>有料プラン契約中は不可（先に解約してください）</Text>
+                  <Text style={styles.itemSub}>
+                    有料プラン契約中は削除できません（先に解約してください）
+                  </Text>
                 ) : null}
               </View>
               {plan === "free" ? <Chevron danger /> : null}
