@@ -75,3 +75,30 @@ export function yakuByGroup(): Record<YakuGroup, YakuDef[]> {
   for (const y of YAKU_CATALOG) groups[y.group].push(y);
   return groups;
 }
+
+const CATALOG_BY_NAME = new Map(YAKU_CATALOG.map((y) => [y.name, y]));
+
+/** 役名リストを門前/鳴きに応じた飜で {name, han} に振り直す（不成立=0飜の役は外す）。
+ *  和了フォームの役選択・門前/鳴き切替の共通ロジック（web/mobile 共用）。 */
+export function selectYaku(names: string[], open: boolean): { name: string; han: number }[] {
+  return names
+    .map((n) => ({ name: n, han: yakuHan(CATALOG_BY_NAME.get(n)!, open) }))
+    .filter((y) => y.han > 0);
+}
+
+/**
+ * 保存済みの役から「門前だったか鳴きだったか」を推定する（和了フォームの初期値）。
+ * 飜は保存形（agari.yaku[].han）が真実源で、副露（melds）が記録されていない牌譜も
+ * あるため、まず役から読み取る: 門前限定役があれば門前、食い下がり役の保存 han が
+ * 鳴き値と一致すれば鳴き。判別できなければ盤面の副露有無にフォールバック。
+ * （これが無いと、再編集で役を触った瞬間に保存済みの食い下がり飜が巻き戻る。）
+ */
+export function inferOpen(saved: readonly { name: string; han: number }[], hasMelds: boolean) {
+  for (const y of saved) {
+    const def = CATALOG_BY_NAME.get(y.name);
+    if (!def || def.han === def.openHan) continue; // 判別材料にならない役
+    if (def.openHan === 0) return false; // 門前限定役が成立している＝門前
+    return y.han === def.openHan;
+  }
+  return hasMelds;
+}

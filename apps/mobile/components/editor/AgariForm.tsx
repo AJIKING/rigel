@@ -1,13 +1,14 @@
 import { AgariSchema, totalHan, type Agari, type Kifu, type Seat } from "@rigel/schema";
 import {
   agariDeltas,
+  inferOpen,
   payText,
   scoreAgari,
+  selectYaku,
   windOf,
   yakuByGroup,
   yakuHan,
   SEAT_ORDER,
-  YAKU_CATALOG,
 } from "@rigel/ui";
 import { useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
@@ -20,7 +21,6 @@ import { TilePickerSheet } from "./TilePickerSheet";
 
 const FU_OPTIONS = [20, 25, 30, 40, 50, 60, 70, 80, 90, 100, 110];
 const YAKU_GROUPS = yakuByGroup();
-const CATALOG_BY_NAME = new Map(YAKU_CATALOG.map((y) => [y.name, y]));
 
 /**
  * 和了（アガリ）の入力フォーム（モバイル）。和了者・放銃者・リーチ・和了牌・符・
@@ -93,7 +93,14 @@ function AgariEntry({
   onChange: (a: Agari) => void;
   onRemove: () => void;
 }) {
-  const winnerOpen = kifu.seats[agari.winner].melds.length > 0;
+  // 門前/鳴きの既定は保存済みの役→盤面の副露の順に推定し（@rigel/ui の inferOpen。
+  // 副露が melds として記録されていない牌譜でも保存済みの食い下がり飜を巻き戻さない）、
+  // 手動トグルで上書きできる。上書きは和了者ごと（和了者を変えたら推定に戻る）。
+  const [override, setOverride] = useState<{ winner: Seat; open: boolean } | null>(null);
+  const winnerOpen =
+    override?.winner === agari.winner
+      ? override.open
+      : inferOpen(agari.yaku, kifu.seats[agari.winner].melds.length > 0);
   const selectedYaku = new Set(agari.yaku.map((y) => y.name));
   const riichiSet = new Set(agari.riichi);
   const [pickWinTile, setPickWinTile] = useState(false);
@@ -108,9 +115,11 @@ function AgariEntry({
     const names = selectedYaku.has(name)
       ? [...selectedYaku].filter((n) => n !== name)
       : [...selectedYaku, name];
-    patch({
-      yaku: names.map((n) => ({ name: n, han: yakuHan(CATALOG_BY_NAME.get(n)!, winnerOpen) })),
-    });
+    patch({ yaku: selectYaku(names, winnerOpen) });
+  };
+  const setOpen = (open: boolean) => {
+    setOverride({ winner: agari.winner, open });
+    patch({ yaku: selectYaku([...selectedYaku], open) });
   };
 
   const score = scoreAgari(agari, kifu.meta.dealer, kifu.rules);
@@ -199,6 +208,32 @@ function AgariEntry({
         >
           <MiniTile code={agari.winTile} w={26} h={36} />
         </Pressable>
+      </View>
+
+      {/* 食い下がり飜の判定。副露を記録していない牌譜でも手動で切り替えられる。 */}
+      <View style={styles.row}>
+        <Text style={styles.label}>門前/鳴き</Text>
+        <View style={styles.seg}>
+          {(
+            [
+              [false, "門前"],
+              [true, "鳴きあり"],
+            ] as const
+          ).map(([open, lbl]) => {
+            const on = winnerOpen === open;
+            return (
+              <Pressable
+                key={lbl}
+                style={[styles.segBtn, on && styles.segOn]}
+                onPress={() => setOpen(open)}
+                accessibilityRole="button"
+                accessibilityState={{ selected: on }}
+              >
+                <Text style={[styles.segText, on && styles.segTextOn]}>{lbl}</Text>
+              </Pressable>
+            );
+          })}
+        </View>
       </View>
 
       {/* 符 */}

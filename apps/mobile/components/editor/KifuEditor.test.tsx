@@ -264,6 +264,21 @@ describe("KifuEditor（モバイル編集画面）", () => {
     expect(saved.agari[0]?.from).not.toBeNull(); // ロンは放銃者を持つ
   });
 
+  it("門前/鳴きを手動で切り替えると食い下がり飜で保存される（副露未記録の牌譜でも選べる）", () => {
+    const onSave = jest.fn();
+    render(<KifuEditor initialKifu={makeKifu()} initialSeq={1} onSave={onSave} />);
+    fireEvent.press(screen.getByText(/プレビュー/));
+    fireEvent.press(screen.getByText("和了"));
+
+    // 鳴きありに切り替えてから混一色を選ぶ → 食い下がりの 2飜。
+    fireEvent.press(screen.getByText("鳴きあり"));
+    fireEvent.press(screen.getByText(/^混一色/));
+
+    fireEvent.press(screen.getByText("保存"));
+    const saved = onSave.mock.calls[0]![0] as Kifu;
+    expect(saved.agari[0]?.yaku).toEqual([{ name: "混一色", han: 2 }]);
+  });
+
   it("和了は既定ツモ、なしに戻すと和了が消える", () => {
     const onSave = jest.fn();
     render(<KifuEditor initialKifu={makeKifu()} initialSeq={1} onSave={onSave} />);

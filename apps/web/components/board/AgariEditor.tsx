@@ -1,12 +1,13 @@
 import { AgariSchema, totalHan, type Agari, type Kifu, type Seat } from "@rigel/schema";
 import {
   agariDeltas,
+  inferOpen,
   notenDeltas,
   payText,
   scoreAgari,
+  selectYaku,
   yakuByGroup,
   yakuHan,
-  YAKU_CATALOG,
 } from "@rigel/ui";
 import { useState } from "react";
 import { SEAT_ORDER, windOf } from "../../lib/board";
@@ -16,7 +17,6 @@ import s from "./agari-editor.module.css";
 
 const FU_OPTIONS = [20, 25, 30, 40, 50, 60, 70, 80, 90, 100, 110];
 const YAKU_GROUPS = yakuByGroup();
-const CATALOG_BY_NAME = new Map(YAKU_CATALOG.map((y) => [y.name, y]));
 
 /** 席を選ぶセグメント（和了者/放銃者/リーチで共用）。 */
 function SeatSeg({
@@ -62,7 +62,14 @@ function AgariEntry({
   onChange: (a: Agari) => void;
   onRemove: () => void;
 }) {
-  const winnerOpen = kifu.seats[agari.winner].melds.length > 0;
+  // 門前/鳴きの既定は保存済みの役→盤面の副露の順に推定し（@rigel/ui の inferOpen。
+  // 副露が melds として記録されていない牌譜でも保存済みの食い下がり飜を巻き戻さない）、
+  // 手動トグルで上書きできる。上書きは和了者ごと（和了者を変えたら推定に戻る）。
+  const [override, setOverride] = useState<{ winner: Seat; open: boolean } | null>(null);
+  const winnerOpen =
+    override?.winner === agari.winner
+      ? override.open
+      : inferOpen(agari.yaku, kifu.seats[agari.winner].melds.length > 0);
   const selectedYaku = new Set(agari.yaku.map((y) => y.name));
   const riichiSet = new Set(agari.riichi);
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({ 役満: true });
@@ -73,9 +80,11 @@ function AgariEntry({
     const names = selectedYaku.has(name)
       ? [...selectedYaku].filter((n) => n !== name)
       : [...selectedYaku, name];
-    patch({
-      yaku: names.map((n) => ({ name: n, han: yakuHan(CATALOG_BY_NAME.get(n)!, winnerOpen) })),
-    });
+    patch({ yaku: selectYaku(names, winnerOpen) });
+  };
+  const setOpen = (open: boolean) => {
+    setOverride({ winner: agari.winner, open });
+    patch({ yaku: selectYaku([...selectedYaku], open) });
   };
   const toggleRiichi = (seat: Seat) =>
     patch({
@@ -140,6 +149,19 @@ function AgariEntry({
       <div className={s.field}>
         <span className={s.label}>和了牌</span>
         <DoraPicker value={agari.winTile} onPick={(t) => patch({ winTile: t })} />
+      </div>
+
+      {/* 食い下がり飜の判定。副露を記録していない牌譜でも手動で切り替えられる。 */}
+      <div className={s.field}>
+        <span className={s.label}>門前/鳴き</span>
+        <div className={s.seg}>
+          <button className={!winnerOpen ? s.on : ""} onClick={() => setOpen(false)}>
+            門前
+          </button>
+          <button className={winnerOpen ? s.on : ""} onClick={() => setOpen(true)}>
+            鳴きあり
+          </button>
+        </div>
       </div>
 
       <div className={s.field}>

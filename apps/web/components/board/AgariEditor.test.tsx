@@ -37,6 +37,28 @@ describe("AgariEditor", () => {
     expect(screen.getByRole("button", { name: /和了を追加/ })).toBeTruthy();
   });
 
+  it("門前/鳴きは手動で切り替えられ、食い下がり飜が更新される（副露未記録の牌譜でも選べる）", () => {
+    const onChange = vi.fn();
+    // 副露（melds）を記録していない牌譜。自動判定だけだと常に門前扱いになってしまう。
+    const kifu = kifuWith([
+      { winner: "east", from: "south", fu: 30, yaku: [{ name: "混一色", han: 3 }] },
+    ]);
+    render(<AgariEditor kifu={kifu} dealer="west" onChange={onChange} />);
+
+    // 既定（自動判定=門前）: 混一色は 3飜表示・立直は選択可。
+    expect(screen.getByRole("button", { name: /混一色\s*3飜/ })).toBeTruthy();
+
+    // 「鳴きあり」に切り替えると食い下がり（混一色 2飜）になり、門前限定役は選べなくなる。
+    fireEvent.click(screen.getByRole("button", { name: "鳴きあり" }));
+    expect(screen.getByRole("button", { name: /混一色\s*2飜/ })).toBeTruthy();
+    expect((screen.getByRole("button", { name: /^立直\s*—/ }) as HTMLButtonElement).disabled).toBe(
+      true,
+    );
+    // 選択済みの役の飜も 2飜 に更新されて保存される。
+    const updated = onChange.mock.calls.at(-1)![0] as Agari[];
+    expect(updated[0]!.yaku).toEqual([{ name: "混一色", han: 2 }]);
+  });
+
   it("「和了を追加」で agari エントリを増やす", () => {
     const onChange = vi.fn();
     const kifu = kifuWith([
