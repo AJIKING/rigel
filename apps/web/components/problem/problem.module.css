@@ -246,6 +246,11 @@
   border-color: var(--orange, #f6a04d);
   color: var(--orange, #f6a04d);
 }
+/* リーチできない（ノーテン打牌・未選択・副露あり）ときは押せない。 */
+.riichiBtn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
 /* 選択セグメント（出題形式・鳴き選択）は牌譜エディタの .statusSeg と同じ。 */
 .callSeg {
   display: inline-flex;

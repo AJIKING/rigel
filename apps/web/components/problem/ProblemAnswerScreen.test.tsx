@@ -126,24 +126,49 @@ describe("ProblemAnswerScreen: 何切る", () => {
   it("牌を選びリーチを付けて回答すると、自分の回答・解説・分布（ログイン時）が出る", async () => {
     stubMe("free");
     renderScreen(discardPost());
-    fireEvent.click(await screen.findByRole("button", { name: "リーチ" }));
-    fireEvent.click(screen.getByRole("button", { name: "1萬" }));
+    // テンパイを維持する 4筒切りを選んでからリーチ（リーチはテンパイ時のみ押せる）。
+    fireEvent.click(await screen.findByRole("button", { name: "4筒" }));
+    fireEvent.click(screen.getByRole("button", { name: "リーチ" }));
     fireEvent.click(screen.getByRole("button", { name: "回答する" }));
 
     await waitFor(() =>
       expect(h.answerProblemAction).toHaveBeenCalledWith("p1", {
         type: "discard",
-        tile: "1m",
+        tile: "4p",
         riichi: true,
         tsumogiri: false,
       }),
     );
     // 「出題者の答え（正解）」は出さない。自分の回答・出題者のコメント・みんなの分布を出す。
     expect(screen.queryByText(/出題者の答え/)).toBeNull();
-    expect(screen.getAllByText(/1萬切り・リーチ/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/4筒切り・リーチ/).length).toBeGreaterThan(0);
     expect(screen.getByText(/ピンズの伸び/)).toBeTruthy();
     expect(await screen.findByText(/回答分布/)).toBeTruthy();
     expect(screen.getByText("50%")).toBeTruthy(); // 2/4件
+  });
+
+  it("リーチは切る牌の選択でテンパイが維持されるときだけ押せる", async () => {
+    stubMe("free");
+    renderScreen(discardPost());
+    const riichiBtn = (await screen.findByRole("button", { name: "リーチ" })) as HTMLButtonElement;
+
+    // 切る牌を選ぶまでは押せない。
+    expect(riichiBtn.disabled).toBe(true);
+
+    // ノーテンになる 1萬切りでは押せない。
+    fireEvent.click(screen.getByRole("button", { name: "1萬" }));
+    expect(riichiBtn.disabled).toBe(true);
+
+    // テンパイを維持する 4筒切りなら押せる。
+    fireEvent.click(screen.getByRole("button", { name: "4筒" }));
+    expect(riichiBtn.disabled).toBe(false);
+    fireEvent.click(riichiBtn);
+    expect(riichiBtn.getAttribute("aria-pressed")).toBe("true");
+
+    // リーチON のままノーテン打牌へ選び直すと、リーチは解除されて押せなくなる。
+    fireEvent.click(screen.getByRole("button", { name: "1萬" }));
+    expect(riichiBtn.disabled).toBe(true);
+    expect(riichiBtn.getAttribute("aria-pressed")).toBe("false");
   });
 
   it("ツモ牌をタップして回答するとツモ切りとして送信・表示される（分布ラベルも区別）", async () => {

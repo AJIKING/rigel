@@ -5,6 +5,7 @@ import {
   actionLabel,
   answerNeedsTile,
   buildProblemAnswer,
+  canRiichiAfterDiscard,
   canSubmitProblemAnswer,
   choiceKeyLabel,
   problemToKifu,
@@ -51,11 +52,16 @@ export function ProblemAnswerScreen({ post }: { post: ProblemPost }) {
   const [stats, setStats] = useState<ProblemStats | null>(null);
   const [shareLabel, setShareLabel] = useState("共有");
 
+  // リーチは「選択中の牌を切ってテンパイが維持される（門前）」ときだけ宣言できる。
+  const riichiOk = canRiichiAfterDiscard(problem, picked);
+
   // 選択状態→アクションの組み立ては共有純関数（mobile と同一挙動）。
+  // riichi はここで riichiOk と掛けて、無効なリーチ宣言が送信に混ざる余地を構造的に断つ
+  //（ボタンの disabled / pickTile の解除は表示の整合のため）。
   const sel = {
     kind: problem.kind,
     tile: picked?.tile ?? null,
-    riichi,
+    riichi: riichi && riichiOk,
     tsumogiri: problem.kind === "discard" && (picked?.drawn ?? false),
     call,
   };
@@ -84,7 +90,10 @@ export function ProblemAnswerScreen({ post }: { post: ProblemPost }) {
 
   function pickTile(tile: Tile, drawn: boolean) {
     if (answered || !needsTile) return;
-    setPicked((cur) => (cur?.tile === tile && cur.drawn === drawn ? null : { tile, drawn }));
+    const next = picked?.tile === tile && picked.drawn === drawn ? null : { tile, drawn };
+    setPicked(next);
+    // リーチできない選択に変わったら宣言表示も下ろす（送信の正しさは sel 側で担保済み）。
+    if (!canRiichiAfterDiscard(problem, next)) setRiichi(false);
   }
 
   /** 公開問題の共有（URLコピー）。 */
@@ -208,6 +217,8 @@ export function ProblemAnswerScreen({ post }: { post: ProblemPost }) {
                   type="button"
                   className={`${s.riichiBtn} ${riichi ? s.on : ""}`}
                   aria-pressed={riichi}
+                  disabled={!riichiOk}
+                  title={riichiOk ? undefined : "テンパイが維持される牌を選ぶとリーチできます"}
                   onClick={() => setRiichi((v) => !v)}
                 >
                   リーチ

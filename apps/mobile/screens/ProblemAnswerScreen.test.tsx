@@ -128,6 +128,31 @@ describe("ProblemAnswerScreen（何切る回答画面）", () => {
     expect(screen.getByText("選択中: 5筒ツモ切り・リーチ")).toBeTruthy();
   });
 
+  it("リーチはテンパイを維持する打牌を選んだときだけ押せる", async () => {
+    mockGetProblem.mockResolvedValue(makePost());
+    render(<ProblemAnswerScreen />);
+
+    // 未選択ではリーチを押しても効かない（disabled）。
+    fireEvent.press(await screen.findByText("リーチ"));
+    expect(screen.queryByText(/・リーチ/)).toBeNull();
+
+    // ノーテンになる 1萬切りでも押せない。
+    fireEvent.press(screen.getByRole("button", { name: "1萬" }));
+    fireEvent.press(screen.getByText("リーチ"));
+    expect(screen.getByText("選択中: 1萬切り")).toBeTruthy();
+    expect(screen.queryByText(/・リーチ/)).toBeNull();
+
+    // テンパイを維持する 5筒ツモ切りなら押せる。
+    fireEvent.press(screen.getByRole("button", { name: "5筒" }));
+    fireEvent.press(screen.getByText("リーチ"));
+    expect(screen.getByText("選択中: 5筒ツモ切り・リーチ")).toBeTruthy();
+
+    // リーチON のままノーテン打牌へ選び直すと、リーチは解除される。
+    fireEvent.press(screen.getByRole("button", { name: "1萬" }));
+    expect(screen.getByText("選択中: 1萬切り")).toBeTruthy();
+    expect(screen.queryByText(/・リーチ/)).toBeNull();
+  });
+
   it("回答分布で自分の回答のバーだけアクセント色で強調される", async () => {
     mockGetProblem.mockResolvedValue(makePost());
     mockAnswerProblem.mockResolvedValue({ ok: true, status: 200 });

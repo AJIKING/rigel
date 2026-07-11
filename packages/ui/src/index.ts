@@ -30,6 +30,7 @@ import { meldTiles, sortHandTiles, type MeldPick } from "./edit";
 export * from "./score";
 // 役カタログ（点数計算の入力補助）。
 export * from "./yaku";
+export * from "./tenpai";
 // 局跨ぎの点棒集計（持ち点・成績）。
 export * from "./standings";
 // 手順（タイムライン）の導出・巡目・盤面同期。
