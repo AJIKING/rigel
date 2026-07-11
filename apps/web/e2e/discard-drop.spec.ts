@@ -21,48 +21,34 @@ test("1手進めたとき、直近の打牌1枚に drop-in アニメーション
   expect(animation).not.toBe("none");
 });
 
-// timeline を持つ編集済み牌譜（/dev/playback）で二段階のステップ演出を検証する。
-// 第1段: ツモ牌が手牌右端のスロット（data-tsumo/data-draw）へフライイン（盤面は1手前のまま）。
-// 第2段: 打牌が河へ drop し、スロットは消えて手牌が理牌される。
-test("手出しの1手は、ツモ牌が右端スロットへ入ってから打牌が河へ落ちる（二段階）", async ({
+// timeline を持つ編集済み牌譜（/dev/playback）で半歩刻みのステップを検証する。
+// 次ボタン1押し目: ツモ牌が手牌右端のスロット（data-tsumo/data-draw）へフライイン
+// （盤面は1手前のまま）。2押し目: 打牌が河へ drop し、スロットは消えて手牌が理牌される。
+test("次ボタンで半歩ずつ刻む（1押し目=ツモが右端スロットへ、2押し目=打牌が河へ）", async ({
   page,
 }) => {
   await page.goto("/dev/playback");
   await page.waitForSelector("[data-seat] [data-tile]");
   await expect(page.locator("[data-draw]")).toHaveCount(0);
 
-  // 先頭へ戻して1手進む（1手目=東の手出し）。
-  for (let i = 0; i < 5; i++) await page.getByLabel("1手戻る").click();
-  await page.getByLabel("1手進む").click();
+  // 先頭へ戻す（半歩も巻き戻るため多めに押す。0手で disabled になり過走しない）。
+  for (let i = 0; i < 10; i++) await page.getByLabel("1手戻る").click();
 
-  // 第1段: スロットにフライインが掛かり、河の drop はまだ始まらない。
+  // 1押し目: スロットにフライインが掛かり、河の drop はまだ始まらない。
+  await page.getByLabel("1手進む").click();
   const draw = page.locator("[data-draw]");
   await expect(draw).toHaveCount(1);
   expect(await draw.evaluate((el) => getComputedStyle(el).animationName)).not.toBe("none");
   await expect(page.locator("[data-drop]")).toHaveCount(0);
 
-  // 第2段: 打牌が河へ落ち、スロットは消える。
+  // 2押し目: 打牌が河へ落ち、スロットは消える。
+  await page.getByLabel("1手進む").click();
   const drop = page.locator("[data-drop]");
   await expect(drop).toHaveCount(1);
   await expect(page.locator("[data-draw]")).toHaveCount(0);
   expect(await drop.evaluate((el) => getComputedStyle(el).animationName)).not.toBe("none");
-});
 
-test("ツモ切りの1手も同じ二段階（右端スロットに入ってからそのまま河へ）", async ({ page }) => {
-  await page.goto("/dev/playback");
-  await page.waitForSelector("[data-seat] [data-tile]");
-
-  // 先頭へ戻して2手進めてから3手目（=東のツモ切り）へ。
-  for (let i = 0; i < 5; i++) await page.getByLabel("1手戻る").click();
-  for (let i = 0; i < 2; i++) {
-    await page.getByLabel("1手進む").click();
-    // 前の手の演出（第2段まで）を待ってから次へ（連打の挙動はここでは対象外）。
-    await expect(page.locator("[data-drop]")).toHaveCount(1);
-  }
-  await page.getByLabel("1手進む").click();
-
-  await expect(page.locator("[data-draw]")).toHaveCount(1);
-  await expect(page.locator("[data-drop]")).toHaveCount(0);
-  await expect(page.locator("[data-drop]")).toHaveCount(1);
-  await expect(page.locator("[data-draw]")).toHaveCount(0);
+  // 前ボタンは逆: 打牌を引っ込めてツモ表示に戻る。
+  await page.getByLabel("1手戻る").click();
+  await expect(page.locator("[data-tsumo]")).toHaveCount(1);
 });

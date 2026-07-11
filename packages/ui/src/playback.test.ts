@@ -7,6 +7,7 @@ import {
   playbackKifu,
   splitDrawnTile,
   stepDisplay,
+  stepHasDraw,
   tsumoWinDisplay,
 } from "./playback";
 
@@ -370,5 +371,37 @@ describe("activeDrawnTile / stepDisplay（二段階ステップ演出の表示�
 
     expect(stepDisplay("drop", frame, null).drawnTile).toEqual({ seat: "east", tile: "5p" });
     expect(stepDisplay(null, frame, null).drawnTile).toEqual({ seat: "east", tile: "5p" });
+  });
+});
+
+describe("stepHasDraw（その手にツモ半歩があるか）", () => {
+  it("timeline の該当手に draw があれば true、無ければ false", () => {
+    const k = kifu({
+      seats: { east: { hand: hand(["1m", "2m"]) }, south: {}, west: {}, north: {} },
+      timeline: [
+        discard({ draw: "3m", tile: "1m" }),
+        discard({ draw: null, tile: "2m" }),
+        discard({ draw: "4m", tile: "4m", tsumogiri: true }),
+      ],
+    });
+
+    expect(stepHasDraw(k, 1)).toBe(true);
+    expect(stepHasDraw(k, 2)).toBe(false); // ツモ不明の手は半歩なし
+    expect(stepHasDraw(k, 3)).toBe(true); // ツモ切りも半歩あり
+    expect(stepHasDraw(k, 0)).toBe(false);
+    expect(stepHasDraw(k, 4)).toBe(false); // 範囲外
+  });
+
+  it("未編集（timeline 空）はスナップショット手牌のため常に false", () => {
+    const k = kifu({
+      seats: {
+        east: { hand: hand(["1m"]), river: [{ order: 1, tile: "9m", confidence: 1 }] },
+        south: {},
+        west: {},
+        north: {},
+      },
+    });
+
+    expect(stepHasDraw(k, 1)).toBe(false);
   });
 });

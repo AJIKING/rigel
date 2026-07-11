@@ -7,12 +7,11 @@ import { type PublicGameDetail } from "../../lib/api";
 import { useAuth } from "../../lib/auth-context";
 import {
   AGARI_DELAY_MS,
-  STEP_DRAW_MS,
-  activeDrawnTile,
   buildPlaybackFrame,
   playbackKifu,
   resultLabel,
   stepDisplay,
+  stepHasDraw,
   type StepPhase,
 } from "@rigel/ui";
 import { SEAT_ORDER, roundNameForSeq, windOf } from "../../lib/board";
@@ -104,35 +103,52 @@ export function KifuViewer({ detail, gameId }: { detail: PublicGameDetail; gameI
   // （リロード時に一瞬ポップするのを防ぐ）。reveal が実インデックスで末尾以上のときのみ。
   const atEnd = frame?.atEnd ?? false;
 
-  // ステップ演出の二段階: draw（ツモ牌が手牌右端に入る。盤面は1手前のまま）→
-  // drop（打牌が河へ落ち、手牌が理牌される）。ツモ牌が不明な手は drop のみ。
-  // フェーズのタイマーだけをここが持ち、フェーズ→表示物の写像は @rigel/ui（stepDisplay）。
+  // ステップの半歩: draw（ツモ牌が手牌右端に入る。盤面は1手前のまま）→
+  // drop（打牌が河へ落ち、手牌が理牌される）。進む/戻るボタンが半歩ずつ刻む
+  // （ツモる→捨てる。タイマーでは進めない）。ツモ牌が不明な手は半歩なし＝1押し1打牌。
+  // フェーズ→表示物の写像は @rigel/ui（stepDisplay）。
   const [stepPhase, setStepPhase] = useState<StepPhase | null>(null);
   const shown = frame?.shown ?? 0;
-  const prevStepRef = useRef<{ gi: number; shown: number } | null>(null);
-  useEffect(() => {
-    // 演出は「同じ局で1手だけ進んだとき」に限る（初期の全表示・巡目/局ジャンプ・
-    // 戻る操作では出さない）。直前の再生位置と比較して判定する。
-    const prev = prevStepRef.current;
-    prevStepRef.current = frame ? { gi, shown } : null;
-    if (!frame || !prev || prev.gi !== gi || shown !== prev.shown + 1) {
-      setStepPhase(null);
-      return;
-    }
-    if (activeDrawnTile(frame.playback)) {
-      setStepPhase("draw");
-      const t = setTimeout(() => setStepPhase("drop"), STEP_DRAW_MS);
-      return () => clearTimeout(t);
-    }
-    setStepPhase("drop");
-  }, [gi, shown]);
 
-  // draw 段階で見せる1手前の局面。Zod parse を含むため draw 演出中だけ導出する。
+  // draw 半歩で見せる1手前の局面。Zod parse を含むため draw 表示中だけ導出する。
   const prevKifu = useMemo(
     () => (stepPhase === "draw" && kifu && shown > 0 ? playbackKifu(kifu, shown - 1) : null),
     [kifu, shown, stepPhase],
   );
   const step = frame ? stepDisplay(stepPhase, frame, prevKifu) : null;
+
+  /** 再生位置ジャンプ（巡目送り・局切替など）。半歩は挟まず演出も出さない。 */
+  function jumpTo(nextReveal: number) {
+    setReveal(nextReveal);
+    setStepPhase(null);
+  }
+
+  /** 次ボタン: draw 表示中なら捨てる（drop）、そうでなければ次の手へ（ツモがあれば半歩）。 */
+  function stepForward() {
+    if (!kifu || !frame) return;
+    if (stepPhase === "draw") {
+      setStepPhase("drop");
+      return;
+    }
+    const next = Math.min(frame.order.length, shown + 1);
+    setReveal(next);
+    setStepPhase(stepHasDraw(kifu, next) ? "draw" : "drop");
+  }
+
+  /** 前ボタン: 打牌を引っ込めてツモ表示へ、draw 表示中ならさらに前の手の完了状態へ。 */
+  function stepBack() {
+    if (!kifu) return;
+    if (stepPhase === "draw") {
+      jumpTo(Math.max(0, shown - 1));
+      return;
+    }
+    if (shown > 0 && stepHasDraw(kifu, shown)) {
+      setReveal(shown);
+      setStepPhase("draw");
+      return;
+    }
+    jumpTo(Math.max(0, shown - 1));
+  }
 
   // 和了ダイアログは「盤面が最終局面を見せてから」遅延して開く（最後の演出=ロンの drop /
   // ツモ和了牌のフライインを見せ切る二段階）。和了のない局はタイマー不要。
@@ -157,6 +173,7 @@ export function KifuViewer({ detail, gameId }: { detail: PublicGameDetail; gameI
   function switchLog(i: number) {
     setGi(i);
     setReveal(-1);
+    setStepPhase(null);
     setRoundMenu(false);
     setAgariClosed(false);
   }
@@ -360,7 +377,7 @@ export function KifuViewer({ detail, gameId }: { detail: PublicGameDetail; gameI
                   aria-label="前の巡目"
                   onClick={() => {
                     const pv = [...dstops].reverse().find((x) => x < shown);
-                    setReveal(pv ?? 0);
+                    jumpTo(pv ?? 0);
                   }}
                 >
                   <svg viewBox="0 0 24 24">
@@ -374,7 +391,7 @@ export function KifuViewer({ detail, gameId }: { detail: PublicGameDetail; gameI
                   aria-label="次の巡目"
                   onClick={() => {
                     const nx = dstops.find((x) => x > shown);
-                    setReveal(nx ?? order.length);
+                    jumpTo(nx ?? order.length);
                   }}
                 >
                   <svg viewBox="0 0 24 24">
@@ -388,7 +405,7 @@ export function KifuViewer({ detail, gameId }: { detail: PublicGameDetail; gameI
                   className={`${s.cbtn} ${s.step}`}
                   disabled={shown <= 0}
                   aria-label="1手戻る"
-                  onClick={() => setReveal(Math.max(0, shown - 1))}
+                  onClick={stepBack}
                 >
                   <svg viewBox="0 0 24 24">
                     <path d="M16 5l-9 7 9 7z" />
@@ -396,9 +413,9 @@ export function KifuViewer({ detail, gameId }: { detail: PublicGameDetail; gameI
                 </button>
                 <button
                   className={`${s.cbtn} ${s.step}`}
-                  disabled={shown >= order.length}
+                  disabled={shown >= order.length && stepPhase !== "draw"}
                   aria-label="1手進む"
-                  onClick={() => setReveal(Math.min(order.length, shown + 1))}
+                  onClick={stepForward}
                 >
                   <svg viewBox="0 0 24 24">
                     <path d="M8 5l9 7-9 7z" />

@@ -163,13 +163,10 @@ export interface DrawnTile {
   tile: Tile;
 }
 
-/** ステップ演出のフェーズ。draw=ツモ牌が右端スロットへ（盤面は1手前のまま）／
- *  drop=打牌が河へ落ち手牌が理牌される。null=演出なし（初期表示・ジャンプ・戻る）。 */
+/** ステップの半歩フェーズ。draw=ツモ牌が右端スロットへ（盤面は1手前のまま）／
+ *  drop=打牌が河へ落ち手牌が理牌される。null=半歩なし（初期表示・ジャンプ）。
+ *  進む/戻るボタンが半歩ずつ刻む（ツモる→捨てる。タイマーでは進めない）。 */
 export type StepPhase = "draw" | "drop";
-
-/** ステップ演出の第1段（ツモ牌が手牌右端に入る）を見せる時間。第2段（打牌が河へ）は
- *  この後に始まる。web/mobile で同一テンポにするためここで一元定義する。 */
-export const STEP_DRAW_MS = 500;
 /** 末尾到達（atEnd）から和了ダイアログ表示までの遅延。最後の演出
  *  （ロン=打牌の drop / ツモ=和了牌のフライイン）を見せ切ってから開く。 */
 export const AGARI_DELAY_MS = 900;
@@ -229,6 +226,14 @@ export interface PlaybackFrame extends RiverPlayback {
 export function activeDrawnTile(state: PlaybackState): DrawnTile | null {
   const draw = state.activeDraw;
   return draw?.tile ? { seat: draw.seat, tile: draw.tile } : null;
+}
+
+/** step 手目（1始まり）に「ツモる」半歩があるか。進む/戻るボタンが半歩を刻むか
+ *  1押し=1打牌かの判定に使う。未編集（timeline 空＝スナップショット手牌）は常に false。 */
+export function stepHasDraw(kifu: Kifu, step: number): boolean {
+  if (kifu.timeline.length === 0 || step < 1) return false;
+  const discards = deriveTimeline(kifu).filter((e) => e.kind === "discard");
+  return discards[step - 1]?.draw != null;
 }
 
 /** ステップ演出フェーズ → 盤面表示物の写像（web/mobile 共通の純関数）。 */

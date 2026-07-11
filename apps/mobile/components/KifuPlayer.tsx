@@ -2,18 +2,17 @@ import type { GameLog } from "@rigel/client";
 import type { Kifu } from "@rigel/schema";
 import {
   AGARI_DELAY_MS,
-  STEP_DRAW_MS,
-  activeDrawnTile,
   buildPlaybackFrame,
   playbackKifu,
   resultLabel,
   roundNameForSeq,
   stepDisplay,
+  stepHasDraw,
   windOf,
   SEAT_ORDER,
   type StepPhase,
 } from "@rigel/ui";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Pressable,
   ScrollView,
@@ -81,30 +80,14 @@ export function KifuPlayer({
     if (!atEnd) setAgariClosed(false);
   }, [atEnd]);
 
-  // ステップ演出の二段階: draw（ツモ牌が手牌右端に入る。盤面は1手前のまま）→
-  // drop（打牌が河へ落ち、手牌が理牌される）。ツモ牌が不明な手は drop のみ。
-  // フェーズのタイマーだけをここが持ち、フェーズ→表示物の写像は @rigel/ui（stepDisplay）。
+  // ステップの半歩: draw（ツモ牌が手牌右端に入る。盤面は1手前のまま）→
+  // drop（打牌が河へ落ち、手牌が理牌される）。進む/戻るボタンが半歩ずつ刻む
+  // （ツモる→捨てる。タイマーでは進めない）。ツモ牌が不明な手は半歩なし＝1押し1打牌。
+  // フェーズ→表示物の写像は @rigel/ui（stepDisplay）。
   const [stepPhase, setStepPhase] = useState<StepPhase | null>(null);
   const shown = frame?.shown ?? 0;
-  const prevStepRef = useRef<{ gi: number; shown: number } | null>(null);
-  useEffect(() => {
-    // 演出は「同じ局で1手だけ進んだとき」に限る（初期の全表示・巡目/局ジャンプ・
-    // 戻る操作では出さない）。直前の再生位置と比較して判定する。
-    const prev = prevStepRef.current;
-    prevStepRef.current = frame ? { gi, shown } : null;
-    if (!frame || !prev || prev.gi !== gi || shown !== prev.shown + 1) {
-      setStepPhase(null);
-      return;
-    }
-    if (activeDrawnTile(frame.playback)) {
-      setStepPhase("draw");
-      const t = setTimeout(() => setStepPhase("drop"), STEP_DRAW_MS);
-      return () => clearTimeout(t);
-    }
-    setStepPhase("drop");
-  }, [gi, shown]);
 
-  // draw 段階で見せる1手前の局面。Zod parse を含むため draw 演出中だけ導出する。
+  // draw 半歩で見せる1手前の局面。Zod parse を含むため draw 表示中だけ導出する。
   const prevKifu = useMemo(
     () => (stepPhase === "draw" && kifu && shown > 0 ? playbackKifu(kifu, shown - 1) : null),
     [kifu, shown, stepPhase],
@@ -139,7 +122,41 @@ export function KifuPlayer({
   function switchLog(i: number) {
     setGi(i);
     setReveal(-1);
+    setStepPhase(null);
     setAgariClosed(false);
+  }
+
+  /** 再生位置ジャンプ（巡目送りなど）。半歩は挟まず演出も出さない。 */
+  function jumpTo(nextReveal: number) {
+    setReveal(nextReveal);
+    setStepPhase(null);
+  }
+
+  /** 次ボタン: draw 表示中なら捨てる（drop）、そうでなければ次の手へ（ツモがあれば半歩）。 */
+  function stepForward() {
+    if (!kifu || !frame) return;
+    if (stepPhase === "draw") {
+      setStepPhase("drop");
+      return;
+    }
+    const next = Math.min(frame.order.length, shown + 1);
+    setReveal(next);
+    setStepPhase(stepHasDraw(kifu, next) ? "draw" : "drop");
+  }
+
+  /** 前ボタン: 打牌を引っ込めてツモ表示へ、draw 表示中ならさらに前の手の完了状態へ。 */
+  function stepBack() {
+    if (!kifu) return;
+    if (stepPhase === "draw") {
+      jumpTo(Math.max(0, shown - 1));
+      return;
+    }
+    if (shown > 0 && stepHasDraw(kifu, shown)) {
+      setReveal(shown);
+      setStepPhase("draw");
+      return;
+    }
+    jumpTo(Math.max(0, shown - 1));
   }
 
   // 公開牌譜の共有（web 公開ページ /k/:gameId を OS 共有シートで）。
@@ -228,30 +245,25 @@ export function KifuPlayer({
             <NavBtn
               icon="prevJunme"
               disabled={shown <= 0}
-              onPress={() => setReveal([...junmeStops].reverse().find((x) => x < shown) ?? 0)}
+              onPress={() => jumpTo([...junmeStops].reverse().find((x) => x < shown) ?? 0)}
               label="前の巡目"
             />
             <GroupLabel main={`${curJunme}`} sub="巡" />
             <NavBtn
               icon="nextJunme"
               disabled={!junmeStops.some((x) => x > shown)}
-              onPress={() => setReveal(junmeStops.find((x) => x > shown) ?? order.length)}
+              onPress={() => jumpTo(junmeStops.find((x) => x > shown) ?? order.length)}
               label="次の巡目"
             />
           </Group>
         </View>
         <View style={styles.navrow}>
           <Group grow={false}>
-            <NavBtn
-              icon="stepPrev"
-              disabled={shown <= 0}
-              onPress={() => setReveal(Math.max(0, shown - 1))}
-              label="1手戻る"
-            />
+            <NavBtn icon="stepPrev" disabled={shown <= 0} onPress={stepBack} label="1手戻る" />
             <NavBtn
               icon="stepNext"
-              disabled={shown >= order.length}
-              onPress={() => setReveal(Math.min(order.length, shown + 1))}
+              disabled={shown >= order.length && stepPhase !== "draw"}
+              onPress={stepForward}
               label="1手進む"
             />
           </Group>

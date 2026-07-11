@@ -1,5 +1,5 @@
 import { KifuSchema, type Kifu } from "@rigel/schema";
-import { AGARI_DELAY_MS, STEP_DRAW_MS } from "@rigel/ui";
+import { AGARI_DELAY_MS } from "@rigel/ui";
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { type PublicGameDetail } from "../../lib/api";
@@ -235,8 +235,7 @@ describe("KifuViewer", () => {
     expect(container.querySelector("[data-drop]")).toBeNull();
   });
 
-  it("1手進めると二段階で演出する（ツモ牌が手牌右端に入る → 打牌が河へ落ちる）", () => {
-    vi.useFakeTimers();
+  it("次ボタンで半歩ずつ刻む（1押し目=ツモ牌が右端へ、2押し目=打牌が河へ）。前ボタンは逆", () => {
     const d = detail([
       makeKifu(
         {
@@ -286,28 +285,48 @@ describe("KifuViewer", () => {
     // 初期の全表示では演出しない。
     expect(container.querySelector("[data-draw]")).toBeNull();
 
-    // 先頭へ戻して1手進む（手出し）。
-    fireEvent.click(screen.getByLabelText("1手戻る"));
-    fireEvent.click(screen.getByLabelText("1手戻る"));
-    fireEvent.click(screen.getByLabelText("1手進む"));
+    // 先頭へ戻す（半歩も巻き戻る: done(2)→draw(2)→done(1)→draw(1)→done(0)）。
+    for (let i = 0; i < 4; i++) fireEvent.click(screen.getByLabelText("1手戻る"));
 
-    // 第1段: 盤面は1手前のまま、ツモ牌 3萬 が手牌右端のスロットへフライイン。河にはまだ落ちない。
+    // 1押し目: 盤面は0手のまま、ツモ牌 3萬 が手牌右端のスロットへフライイン。河にはまだ落ちない。
+    fireEvent.click(screen.getByLabelText("1手進む"));
     expect(slotAlts()).toEqual(["3萬"]);
     expect(handAlts()).toEqual(["1萬", "9筒"]);
     expect(container.querySelector("[data-drop]")).toBeNull();
 
-    // 第2段: 打牌 1萬 が河へ drop し、手牌が理牌される（スロットは消える）。
-    act(() => vi.advanceTimersByTime(STEP_DRAW_MS));
+    // 2押し目: 打牌 1萬 が河へ drop し、手牌が理牌される（スロットは消える）。
+    fireEvent.click(screen.getByLabelText("1手進む"));
     expect(container.querySelector("[data-tsumo]")).toBeNull();
     expect(handAlts()).toEqual(["3萬", "9筒"]);
     expect(container.querySelectorAll("[data-drop]")).toHaveLength(1);
 
-    // もう1手進む（ツモ切り）: ツモ切りも同じ二段階（右端に入ってからそのまま河へ）。
+    // ツモ切りの手も同じ半歩刻み（右端に入ってからそのまま河へ）。
     fireEvent.click(screen.getByLabelText("1手進む"));
     expect(slotAlts()).toEqual(["4萬"]);
-    act(() => vi.advanceTimersByTime(STEP_DRAW_MS));
+    fireEvent.click(screen.getByLabelText("1手進む"));
     expect(container.querySelector("[data-tsumo]")).toBeNull();
     expect(handAlts()).toEqual(["3萬", "9筒"]); // ツモ切りは手牌が変わらない。
+    expect(container.querySelectorAll("[data-drop]")).toHaveLength(1);
+
+    // 前ボタンは逆再生: まず打牌を引っ込めてツモ表示に戻る。
+    fireEvent.click(screen.getByLabelText("1手戻る"));
+    expect(slotAlts()).toEqual(["4萬"]);
+    // さらに戻すと前の手の完了状態（スロットなし・河は1枚）。
+    fireEvent.click(screen.getByLabelText("1手戻る"));
+    expect(container.querySelector("[data-tsumo]")).toBeNull();
+    expect(handAlts()).toEqual(["3萬", "9筒"]);
+  });
+
+  it("ツモ不明の手（未編集）は半歩なしで1押し=1打牌（従来どおり）", () => {
+    const riverTile = (order: number, tile: string) => ({ order, tile, confidence: 1 });
+    const d = detail([makeKifu({ east: { river: [riverTile(1, "1m"), riverTile(2, "2m")] } })]);
+    const { container } = renderViewer(d);
+
+    fireEvent.click(screen.getByLabelText("1手戻る"));
+    fireEvent.click(screen.getByLabelText("1手戻る"));
+    // 1押しで打牌が直接河へ（スロットは出ない）。
+    fireEvent.click(screen.getByLabelText("1手進む"));
+    expect(container.querySelector("[data-tsumo]")).toBeNull();
     expect(container.querySelectorAll("[data-drop]")).toHaveLength(1);
   });
 
