@@ -385,6 +385,11 @@
   font-weight: 800;
   color: var(--w85);
 }
+/* 卓中央のドラ牌はサイドパネルの小牌（.metaTile 20×28）より大きく出す（視認性）。 */
+.center .dora .metaTile {
+  width: 26px;
+  height: 36px;
+}
 
 /* tile (OSS 画像コンテナ) */
 .tile {
