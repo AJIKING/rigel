@@ -106,7 +106,7 @@ function WinBlock({ agari, kifu, dealer }: { agari: Agari; kifu: Kifu; dealer: S
           )}
           {winnerRiichi && kifu.meta.uraDora.length > 0 && (
             <View style={styles.doraWrap} testID="agari-ura">
-              <Text style={styles.doraLbl}>裏ドラ表示 ×{agari.ura}</Text>
+              <Text style={styles.doraLbl}>裏ドラ表示</Text>
               <View style={styles.doraRow}>
                 {kifu.meta.uraDora.map((t, i) => (
                   <MiniTile key={`${t}-${i}`} code={t} w={22} h={31} />

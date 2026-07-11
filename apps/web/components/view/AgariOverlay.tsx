@@ -58,7 +58,7 @@ function WinBlock({ agari, kifu, dealer }: { agari: Agari; kifu: Kifu; dealer: S
         )}
         {winnerRiichi && kifu.meta.uraDora.length > 0 && (
           <div className={s.tileWrap} data-agari-ura="">
-            <span className={s.tlabel}>裏ドラ表示 ×{agari.ura}</span>
+            <span className={s.tlabel}>裏ドラ表示</span>
             <div className={s.trow}>
               {kifu.meta.uraDora.map((t, i) => (
                 <span className={s.ura} key={`${t}-${i}`}>
