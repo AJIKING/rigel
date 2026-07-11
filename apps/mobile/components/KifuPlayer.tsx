@@ -100,7 +100,6 @@ export function KifuPlayer({
     shown,
     curJunme,
     startPoints,
-    playback,
     viewKifu,
     bottomSeat,
     dealer,
@@ -177,7 +176,6 @@ export function KifuPlayer({
           ownerName={ownerName}
           size={boardSize}
           points={startPoints}
-          activeDraw={reveal >= 0 ? playback.activeDraw : null}
           animateDiscard={animateDiscard}
           animateDraw={animateDraw}
           tsumoWin={tsumoWin}

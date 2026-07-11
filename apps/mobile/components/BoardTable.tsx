@@ -1,4 +1,4 @@
-import { toAbsoluteSeat, type CameraSeat, type Kifu, type Seat, type Tile } from "@rigel/schema";
+import { toAbsoluteSeat, type CameraSeat, type Kifu, type Seat } from "@rigel/schema";
 import { chunk, seatResult, splitTsumoHand, windOf, type TsumoWinDisplay } from "@rigel/ui";
 import { useEffect, useRef } from "react";
 import { Animated, Easing, Pressable, StyleSheet, Text, View, type ViewStyle } from "react-native";
@@ -88,7 +88,6 @@ export function BoardTable({
   onSeatPress,
   highlightRiver = null,
   points = null,
-  activeDraw = null,
   animateDiscard = null,
   animateDraw = null,
   tsumoWin = null,
@@ -110,14 +109,13 @@ export function BoardTable({
   highlightRiver?: { seat: Seat; index: number } | null;
   /** 再生中の点棒。指定時はネームプレートに表示する。 */
   points?: Record<Seat, number> | null;
-  /** 再生操作中の直近ツモ牌。 */
-  activeDraw?: { seat: Seat; tile: Tile | null } | null;
   /** drop-in 演出を付ける河の1枚（いま置かれた打牌）。1手進めたときだけ渡す。 */
   animateDiscard?: { seat: Seat; index: number } | null;
   /** フライイン演出を付ける手牌の1枚（理牌後の位置）。ツモ→打牌の順に見せるため
    *  指定時は同席の drop を遅延させる。 */
   animateDraw?: { seat: Seat; index: number } | null;
-  /** ツモ和了牌（最終局面で手牌の横に離して置く）。導出は @rigel/ui の tsumoWinDisplay。 */
+  /** ツモ和了牌（手牌の横に離して置く）。出すタイミングは frame.tsumoWin
+   *  （buildPlaybackFrame＝再生末尾のみ）が決める。ここは受けて描くだけ。 */
   tsumoWin?: TsumoWinDisplay | null;
 }) {
   const B = size;
@@ -280,12 +278,7 @@ export function BoardTable({
           {kifu.meta.honba > 0 ? <Text style={styles.sub}>{kifu.meta.honba}本場</Text> : null}
         </View>
         {kifu.meta.kyotaku > 0 ? <Text style={styles.sub}>供託 {kifu.meta.kyotaku}本</Text> : null}
-        {activeDraw ? (
-          <View style={styles.draw}>
-            <Text style={styles.drawLbl}>ツモ</Text>
-            <MiniTile code={activeDraw.tile} w={B * 0.05} h={B * 0.07} />
-          </View>
-        ) : null}
+        {/* ツモは中央に出さない（手牌へのフライイン演出で分かるため）。ドラのみ常設。 */}
         {kifu.meta.dora.length > 0 ? (
           <View style={styles.dora}>
             <Text style={styles.doraLbl}>ドラ</Text>
@@ -356,14 +349,6 @@ const styles = StyleSheet.create({
     color: "rgba(255,255,255,0.9)",
     fontWeight: "700",
     fontSize: 10.5,
-    textShadowColor: "rgba(0,0,0,0.5)",
-    textShadowRadius: 4,
-  },
-  draw: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 3 },
-  drawLbl: {
-    color: colors.accent,
-    fontWeight: "800",
-    fontSize: 9.5,
     textShadowColor: "rgba(0,0,0,0.5)",
     textShadowRadius: 4,
   },

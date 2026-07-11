@@ -97,11 +97,17 @@ describe("KifuPlayer", () => {
     );
     render(<KifuPlayer logs={[log(1, k)]} />);
 
-    // 初期の全表示＝最終局面: 和了牌（中）が手牌本体と別枠に出る。
-    expect(screen.getByTestId("tsumo-tile")).toBeTruthy();
-    expect(screen.getByLabelText("中")).toBeTruthy();
+    // 初期の全表示では出さない（和了演出と同じ発火条件）。
+    expect(screen.queryByTestId("tsumo-tile")).toBeNull();
 
-    // 最終局面から離れると（1手戻る）別枠は出ない。
+    // 再生で末尾に達すると和了牌（中）が手牌本体と別枠に出る
+    //（和了シートも開き中を表示するため getAll で数える）。
+    fireEvent.press(screen.getByLabelText("1手戻る"));
+    fireEvent.press(screen.getByLabelText("1手進む"));
+    expect(screen.getByTestId("tsumo-tile")).toBeTruthy();
+    expect(screen.getAllByLabelText("中").length).toBeGreaterThan(0);
+
+    // 末尾から離れると（1手戻る）別枠は消える。
     fireEvent.press(screen.getByLabelText("1手戻る"));
     expect(screen.queryByTestId("tsumo-tile")).toBeNull();
   });

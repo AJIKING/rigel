@@ -317,7 +317,7 @@ describe("tsumoWinDisplay / splitTsumoHand（ツモ和了牌を手牌の横に�
     expect(none.tsumoTile).toBeNull();
   });
 
-  it("buildPlaybackFrame: 最終局面（初期の全表示含む）だけ frame.tsumoWin を出す", () => {
+  it("buildPlaybackFrame: 再生で末尾に達したときだけ frame.tsumoWin を出す（初期の全表示では出さない）", () => {
     const k = kifu({
       agari: [tsumoAgari],
       seats: {
@@ -328,7 +328,8 @@ describe("tsumoWinDisplay / splitTsumoHand（ツモ和了牌を手牌の横に�
       },
     });
 
-    expect(buildPlaybackFrame({ kifu: k, prevKifus: [], reveal: -1 }).tsumoWin).toEqual(win);
+    // 和了演出（atEnd）と同じ発火条件: 初期の全表示（reveal=-1）では出さない。
+    expect(buildPlaybackFrame({ kifu: k, prevKifus: [], reveal: -1 }).tsumoWin).toBeNull();
     expect(buildPlaybackFrame({ kifu: k, prevKifus: [], reveal: 1 }).tsumoWin).toEqual(win);
     expect(buildPlaybackFrame({ kifu: k, prevKifus: [], reveal: 0 }).tsumoWin).toBeNull();
   });

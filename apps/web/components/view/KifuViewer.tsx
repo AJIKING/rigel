@@ -16,20 +16,21 @@ import { AgariOverlay } from "./AgariOverlay";
 import { ViewBoard } from "./ViewBoard";
 import s from "./kifu-view.module.css";
 
+/** ドラ牌の小牌グリフ列（サイドパネルの局情報と卓中央で共用）。 */
+function DoraTiles({ codes }: { codes: Tile[] }) {
+  return codes.map((code, i) => (
+    <span className={s.metaTile} key={`${code}-${i}`}>
+      <OssTileFace code={code} />
+    </span>
+  ));
+}
+
 /** 局情報のドラ/裏ドラ1行（牌があれば小牌グリフ、無ければ —）。 */
 function DoraRow({ label, codes }: { label: string; codes: Tile[] }) {
   return (
     <div className={s.irow}>
       <span>{label}</span>
-      <b>
-        {codes.length > 0
-          ? codes.map((code, i) => (
-              <span className={s.metaTile} key={`${code}-${i}`}>
-                <OssTileFace code={code} />
-              </span>
-            ))
-          : "—"}
-      </b>
+      <b>{codes.length > 0 ? <DoraTiles codes={codes} /> : "—"}</b>
     </div>
   );
 }
@@ -141,7 +142,6 @@ export function KifuViewer({ detail, gameId }: { detail: PublicGameDetail; gameI
     shown,
     curJunme,
     startPoints,
-    playback,
     viewKifu,
     bottomSeat,
     dealer,
@@ -268,12 +268,12 @@ export function KifuViewer({ detail, gameId }: { detail: PublicGameDetail; gameI
                       供託 <b>{viewKifu.meta.kyotaku}</b>本
                     </div>
                   )}
-                  {reveal >= 0 && playback.activeDraw && (
-                    <div className={s.draw}>
-                      <span>ツモ</span>
-                      <span className={s.metaTile}>
-                        <OssTileFace code={playback.activeDraw.tile} />
-                      </span>
+                  {/* ドラは実卓と同じく中央に常設（mobile と同一）。ツモは中央に出さない
+                      （手牌へのフライイン演出で分かるため）。 */}
+                  {viewKifu.meta.dora.length > 0 && (
+                    <div className={s.dora}>
+                      <span>ドラ</span>
+                      <DoraTiles codes={viewKifu.meta.dora} />
                     </div>
                   )}
                 </>

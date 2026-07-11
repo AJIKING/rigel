@@ -110,7 +110,8 @@ export function ViewBoard({
   /** フライイン演出を付ける手牌の1枚（理牌後の位置）。ツモ→打牌の順に見せるため
    *  指定時は同席の drop を遅延させる。 */
   animateDraw?: { seat: Seat; index: number } | null;
-  /** ツモ和了牌（最終局面で手牌の横に離して置く）。導出は @rigel/ui の tsumoWinDisplay。 */
+  /** ツモ和了牌（手牌の横に離して置く）。出すタイミングは frame.tsumoWin
+   *  （buildPlaybackFrame＝再生末尾のみ）が決める。ここは受けて描くだけ。 */
   tsumoWin?: TsumoWinDisplay | null;
 }) {
   return (

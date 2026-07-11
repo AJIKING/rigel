@@ -224,8 +224,8 @@ export interface PlaybackFrame extends RiverPlayback {
   viewKifu: Kifu;
   /** 再生が末尾に達したか（和了演出の発火に使う。初期の全表示 reveal=-1 は false）。 */
   atEnd: boolean;
-  /** ツモ和了牌（手牌の横に離して描く）。最終局面＝全打牌を見せているときだけ非 null。
-   *  atEnd と違い、初期の全表示（reveal=-1）でも出す（盤面の見た目は常に本来の演出）。 */
+  /** ツモ和了牌（手牌の横に離して描く）。再生で末尾に達したとき（=atEnd）だけ非 null。
+   *  和了演出と同じ発火条件で、初期の全表示（reveal=-1）では出さない。 */
   tsumoWin: TsumoWinDisplay | null;
 }
 
@@ -247,6 +247,7 @@ export function buildPlaybackFrame(args: {
   const river = buildRiverPlayback(kifu, dealer);
   const shown = reveal < 0 || reveal > river.order.length ? river.order.length : reveal;
   const playback = buildPlaybackState(kifu, shown);
+  const atEnd = river.order.length > 0 && reveal >= river.order.length;
   return {
     ...river,
     bottomSeat,
@@ -256,7 +257,7 @@ export function buildPlaybackFrame(args: {
     startPoints: standings(prevKifus, kifu.rules),
     playback,
     viewKifu: playbackStateToKifu(kifu, playback),
-    atEnd: river.order.length > 0 && reveal >= river.order.length,
-    tsumoWin: shown >= river.order.length ? tsumoWinDisplay(kifu) : null,
+    atEnd,
+    tsumoWin: atEnd ? tsumoWinDisplay(kifu) : null,
   };
 }

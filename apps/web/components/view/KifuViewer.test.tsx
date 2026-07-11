@@ -286,7 +286,7 @@ describe("KifuViewer", () => {
     expect(container.querySelectorAll("[data-drop]")).toHaveLength(1);
   });
 
-  it("ツモ和了は最終局面で和了牌を手牌の横に離して出す（河へ捨てる誤演出をしない）", () => {
+  it("ツモ和了は再生で末尾に達したときだけ和了牌を手牌の横に離して出す（河へ捨てる誤演出をしない）", () => {
     const d = detail([
       makeKifu(
         {
@@ -305,7 +305,12 @@ describe("KifuViewer", () => {
     ]);
     const { container } = renderViewer(d);
 
-    // 全表示（最終局面）: 和了牌 5筒 が手牌本体と別枠（data-tsumo）に出る。
+    // 初期の全表示では出さない（和了演出と同じ発火条件。リロード時のポップ防止）。
+    expect(container.querySelector("[data-tsumo]")).toBeNull();
+
+    // 再生で末尾に達すると和了牌 5筒 が手牌本体と別枠（data-tsumo）に出る。
+    fireEvent.click(screen.getByLabelText("1手戻る"));
+    fireEvent.click(screen.getByLabelText("1手進む"));
     const tsumo = container.querySelectorAll("[data-tsumo]");
     expect(tsumo).toHaveLength(1);
     const tsumoAlts = Array.from(tsumo[0]!.querySelectorAll("img"))
@@ -320,9 +325,44 @@ describe("KifuViewer", () => {
       .filter((alt) => alt);
     expect(handAlts).toEqual(["1萬", "2萬"]);
 
-    // 最終局面から離れると（1手戻る）和了牌の別枠は出さない。
+    // 末尾から離れると（1手戻る）和了牌の別枠は消える。
     fireEvent.click(screen.getByLabelText("1手戻る"));
     expect(container.querySelector("[data-tsumo]")).toBeNull();
+  });
+
+  it("卓中央にはドラを表示し、ツモ表示は出さない（ツモはフライイン演出で分かる）", () => {
+    const d = detail([
+      makeKifu(
+        { east: { hand: [{ tile: "1m", confidence: 1 }] } },
+        {
+          meta: { dealer: "east", dora: ["5z"] },
+          timeline: [
+            {
+              kind: "discard",
+              seat: "east",
+              draw: "3m",
+              tile: "1m",
+              tsumogiri: false,
+              riichi: false,
+              confidence: 1,
+            },
+          ],
+        },
+      ),
+    ]);
+    const { container } = renderViewer(d);
+    const center = container.querySelector("[data-center]")!;
+
+    // ドラ（白=5z）が中央に出る。
+    const alts = Array.from(center.querySelectorAll("img"))
+      .map((img) => img.getAttribute("alt"))
+      .filter((alt) => alt);
+    expect(alts).toContain("白");
+
+    // 1手進めて activeDraw がある状態でも、中央に「ツモ」表示は出さない。
+    fireEvent.click(screen.getByLabelText("1手戻る"));
+    fireEvent.click(screen.getByLabelText("1手進む"));
+    expect(container.querySelector("[data-center]")!.textContent).not.toContain("ツモ");
   });
 
   it("本場は牌譜の実データを表示する（ハードコードしない）", () => {
