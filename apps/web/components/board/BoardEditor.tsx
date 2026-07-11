@@ -25,6 +25,7 @@ import {
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useRef, useState } from "react";
+import { BrandMark } from "../BrandMark";
 import {
   deleteGameAction,
   deleteKifuAction,
@@ -548,13 +549,8 @@ function Editor(p: EditorProps) {
     <div className={`${s.app} themeBoard`} onClick={() => pop && closePop()}>
       <header className={s.bar}>
         <Link href="/mypage" className={s.brand} aria-label="マイページへ">
-          <svg className={s.star} viewBox="0 0 24 24">
-            <path
-              d="M12 1.5l1.7 7.1 7.1 1.7-7.1 1.7L12 19.1l-1.7-7.1L3.2 10.3l7.1-1.7L12 1.5z"
-              fill="#fff"
-            />
-          </svg>
-          <span className={s.wm}>RIGEL</span>
+          {/* ロゴは共通ヘッダーと同じ BrandMark（オレンジ5角星）。画面ごとに意匠を変えない。 */}
+          <BrandMark starClassName={s.star} wordmarkClassName={s.wm} />
         </Link>
         <nav className={s.crumb}>
           <span>{hanchanName || "無題の半荘"}</span>

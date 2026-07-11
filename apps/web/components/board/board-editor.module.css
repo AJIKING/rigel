@@ -30,7 +30,6 @@
 .brand .star {
   width: 19px;
   height: 19px;
-  filter: drop-shadow(0 0 5px rgba(255, 255, 255, 0.4));
 }
 .brand .wm {
   font-weight: 800;

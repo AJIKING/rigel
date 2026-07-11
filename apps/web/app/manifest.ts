@@ -5,8 +5,8 @@ import type { MetadataRoute } from "next";
 // App Router のファイル規約（app/ 直下）でヘッダに自動注入される。
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "rigel — 麻雀牌譜",
-    short_name: "rigel",
+    name: "Rigel — 麻雀牌譜",
+    short_name: "Rigel",
     description: "実物の麻雀卓を撮った写真から牌譜ドラフトを生成する",
     lang: "ja",
     start_url: "/",

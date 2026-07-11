@@ -10,7 +10,7 @@ import { ogCard } from "../../../lib/og-meta";
 
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
-export const alt = "麻雀牌譜 | rigel";
+export const alt = "麻雀牌譜 | Rigel";
 
 async function loadNotoSansJP(text: string, weight: 400 | 700): Promise<ArrayBuffer | null> {
   try {

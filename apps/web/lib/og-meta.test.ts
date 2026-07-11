@@ -16,19 +16,19 @@ const detail: PublicGameSummary = {
 describe("buildGameMetadata", () => {
   it("公開半荘からタイトル・説明・OGP/Twitterカードを組み立てる", () => {
     const meta = buildGameMetadata(detail);
-    expect(meta.title).toBe("金曜ナイト半荘 | rigel");
+    expect(meta.title).toBe("金曜ナイト半荘 | Rigel");
     expect(meta.description).toContain("@ajiki");
     expect(meta.description).toContain("全3局");
     expect(meta.description).toContain("2026/07/05");
     expect(meta.openGraph?.title).toBe("金曜ナイト半荘");
-    expect(meta.openGraph?.siteName).toBe("rigel");
+    expect(meta.openGraph?.siteName).toBe("Rigel");
     expect(meta.openGraph?.url).toBe("/k/g1");
     expect(meta.twitter?.card).toBe("summary_large_image");
   });
 
   it("無題の半荘はビューアと同じ「（無題の半荘）」で表示する", () => {
     const meta = buildGameMetadata({ ...detail, game: { ...detail.game, title: "" } });
-    expect(meta.title).toBe("（無題の半荘） | rigel");
+    expect(meta.title).toBe("（無題の半荘） | Rigel");
   });
 
   it("handle が無い作者は id 先頭6文字で表す（ビューアと同じ規則）", () => {
