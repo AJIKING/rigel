@@ -128,12 +128,13 @@ describe("KifuPlayer", () => {
   });
 
   it("ツモ和了: 次ボタンで和了牌をツモり（右端へ）、もう一度押すと和了演出が開く", () => {
-    // 編集済相当（最終手牌13枚型＝手牌に和了牌が無い）→ 14枚目として別枠に追加描画。
+    // スナップショット相当（和了牌 7z が手牌に混ざった14枚型の簡略）。
     const k = makeKifu(
       {
         east: {
           hand: [
             { tile: "1m", confidence: 1 },
+            { tile: "7z", confidence: 1 },
             { tile: "2m", confidence: 1 },
           ],
           river: [{ order: 1, tile: "9m", confidence: 1 }],
@@ -144,7 +145,9 @@ describe("KifuPlayer", () => {
     render(<KifuPlayer logs={[log(1, k)]} />);
 
     // 初期の全表示では出さない（最初から和了牌が離れて見える誤表示をしない）。
+    // 手牌本体にも混ぜない（ツモる前は13枚型で見せる＝「中」はどこにも出ない）。
     expect(screen.queryByTestId("tsumo-tile")).toBeNull();
+    expect(screen.queryByLabelText("中")).toBeNull();
 
     // 次ボタン → 和了牌（中）をツモる（別枠に出る。和了シートはまだ）。
     fireEvent.press(screen.getByLabelText("1手進む"));

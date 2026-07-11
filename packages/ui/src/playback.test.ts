@@ -257,23 +257,16 @@ describe("tsumoWinDisplay / splitDrawnTile（ツモ和了牌を手牌の横に�
     expect(tsumoWinDisplay(kifu({ seats: seats(["1m"]) }))).toBeNull();
   });
 
-  it("splitDrawnTile: スナップショット手牌（和了牌入り）は理牌して該当1枚を本体から抜く", () => {
+  it("splitDrawnTile: 理牌＋自席ならスロット振り分けのみ（手牌からは抜かない。除去は viewKifu 導出の責務）", () => {
+    // 手牌に同種牌 5p が残っていても本体から抜かない（draw 半歩で手持ちの同種牌を誤って消さない）。
     const k = kifu({ seats: seats(["1m", "5p", "2m"]) });
     const split = splitDrawnTile(k.seats.east.hand, win, "east");
 
-    expect(split.hand.map((t) => t.tile)).toEqual(["1m", "2m"]);
+    expect(split.hand.map((t) => t.tile)).toEqual(["1m", "2m", "5p"]);
     expect(split.drawnTile).toBe("5p");
   });
 
-  it("splitDrawnTile: 編集済（和了牌を含まない13枚型）は本体そのまま＋14枚目として返す", () => {
-    const k = kifu({ seats: seats(["1m", "2m"]) });
-    const split = splitDrawnTile(k.seats.east.hand, win, "east");
-
-    expect(split.hand.map((t) => t.tile)).toEqual(["1m", "2m"]);
-    expect(split.drawnTile).toBe("5p");
-  });
-
-  it("splitDrawnTile: 他家・ツモ和了なしは理牌のみ（離す牌なし）", () => {
+  it("splitDrawnTile: 他家・スロットなしは理牌のみ（離す牌なし）", () => {
     const k = kifu({ seats: seats(["2m", "1m"]) });
 
     const other = splitDrawnTile(k.seats.east.hand, win, "south");
@@ -404,5 +397,76 @@ describe("stepHasDraw（その手にツモ半歩があるか）", () => {
     });
 
     expect(stepHasDraw(k, 1)).toBe(false);
+  });
+});
+
+describe("ツモ和了牌は手牌本体に混ぜない（frame.viewKifu の時点で抜く。winDraw でスロットに現れる）", () => {
+  // スナップショット手牌（和了牌 5p 込みの14枚型を簡略化した3枚）＋ツモ和了。
+  const snapKifu = () =>
+    kifu({
+      agari: [{ winner: "east", from: null, winTile: "5p" }],
+      seats: {
+        east: {
+          hand: hand(["1m", "5p", "2m"]),
+          river: [{ order: 1, tile: "9m", confidence: 1 }],
+        },
+        south: {},
+        west: {},
+        north: {},
+      },
+    });
+
+  it("viewKifu の手牌から和了牌1枚を抜く（卓面・和了シート・情報パネルの全消費者で一致させる）", () => {
+    const frame = buildPlaybackFrame({ kifu: snapKifu(), prevKifus: [], reveal: -1 });
+
+    expect(frame.viewKifu.seats.east.hand.map((t) => t.tile)).toEqual(["1m", "2m"]);
+    // stepDisplay 経由（卓面）も同じ盤面を素通しで使う。
+    for (const phase of [null, "drop", "winDraw"] as const) {
+      expect(stepDisplay(phase, frame, null).kifu.seats.east.hand.map((t) => t.tile)).toEqual([
+        "1m",
+        "2m",
+      ]);
+    }
+  });
+
+  it("和了牌と同種の牌が複数あっても抜くのは1枚だけ", () => {
+    const k = kifu({
+      agari: [{ winner: "east", from: null, winTile: "5p" }],
+      seats: {
+        east: { hand: hand(["5p", "5p", "1m"]), river: [{ order: 1, tile: "9m", confidence: 1 }] },
+        south: {},
+        west: {},
+        north: {},
+      },
+    });
+    const frame = buildPlaybackFrame({ kifu: k, prevKifus: [], reveal: -1 });
+
+    expect(frame.viewKifu.seats.east.hand.map((t) => t.tile)).toEqual(["5p", "1m"]);
+  });
+
+  it("編集済（13枚型・手牌に和了牌なし）とロンは手牌を触らない", () => {
+    const edited = kifu({
+      agari: [{ winner: "east", from: null, winTile: "5p" }],
+      seats: {
+        east: { hand: hand(["1m", "2m"]), river: [{ order: 1, tile: "9m", confidence: 1 }] },
+        south: {},
+        west: {},
+        north: {},
+      },
+    });
+    const f1 = buildPlaybackFrame({ kifu: edited, prevKifus: [], reveal: -1 });
+    expect(f1.viewKifu.seats.east.hand.map((t) => t.tile)).toEqual(["1m", "2m"]);
+
+    const ron = kifu({
+      agari: [{ winner: "east", from: "south", winTile: "5p" }],
+      seats: {
+        east: { hand: hand(["1m", "5p"]), river: [{ order: 1, tile: "9m", confidence: 1 }] },
+        south: {},
+        west: {},
+        north: {},
+      },
+    });
+    const f2 = buildPlaybackFrame({ kifu: ron, prevKifus: [], reveal: -1 });
+    expect(f2.viewKifu.seats.east.hand.map((t) => t.tile)).toEqual(["1m", "5p"]);
   });
 });

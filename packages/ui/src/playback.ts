@@ -182,20 +182,17 @@ export function tsumoWinDisplay(kifu: Kifu): DrawnTile | null {
 
 /**
  * 席の手牌を「本体（理牌済み）」と「右端に離して置く1枚」に割る（レンダラ共通）。
- * 手牌にその牌がある（スナップショットのツモ和了牌）なら該当1枚を本体から抜き、
- * 無い（編集済の最終手牌／再生中の一時ツモ）なら本体そのまま＋14枚目として返す。
+ * 理牌とスロット振り分けのみで、手牌本体からは抜かない
+ * （ツモ和了牌の除去は buildPlaybackFrame の viewKifu 導出が担う）。
  */
 export function splitDrawnTile(
   hand: ReadTile[],
   drawn: DrawnTile | null,
   seat: Seat,
 ): { hand: ReadTile[]; drawnTile: Tile | null } {
-  const sorted = sortHandTiles(hand);
-  if (!drawn || drawn.seat !== seat) return { hand: sorted, drawnTile: null };
-  const i = sorted.findIndex((t) => t.tile === drawn.tile);
   return {
-    hand: i >= 0 ? sorted.filter((_, idx) => idx !== i) : sorted,
-    drawnTile: drawn.tile,
+    hand: sortHandTiles(hand),
+    drawnTile: drawn?.seat === seat ? drawn.tile : null,
   };
 }
 
@@ -250,7 +247,8 @@ export interface StepDisplay {
  * 半歩ステップの表示導出。フェーズ state とボタンハンドラだけを各ビューアが持ち、
  * フェーズ→表示物の規則はここに一元化する（web/mobile の演出乖離を防ぐ）。
  * prevKifu は draw 段階で見せる1手前の局面（playbackKifu(kifu, shown-1)）。
- * ツモ和了牌は winDraw フェーズ（次ボタンで明示的にツモる半歩）でだけスロットに出す
+ * ツモ和了牌は viewKifu の時点で手牌から抜かれており（buildPlaybackFrame）、
+ * winDraw フェーズ（次ボタンで明示的にツモる半歩）で初めて右端スロットにフライインする
  * （末尾へのジャンプ・初期の全表示では出さない）。
  */
 export function stepDisplay(
@@ -289,6 +287,7 @@ export function buildPlaybackFrame(args: {
   const shown = reveal < 0 || reveal > river.order.length ? river.order.length : reveal;
   const playback = buildPlaybackState(kifu, shown);
   const atEnd = river.order.length > 0 && reveal >= river.order.length;
+  const tsumoWin = tsumoWinDisplay(kifu);
   return {
     ...river,
     bottomSeat,
@@ -297,8 +296,28 @@ export function buildPlaybackFrame(args: {
     curJunme: Math.max(1, revealCounts(river.order, shown)[dealer]),
     startPoints: standings(prevKifus, kifu.rules),
     playback,
-    viewKifu: playbackStateToKifu(kifu, playback),
+    // ツモ和了牌はここで手牌から抜く。viewKifu の全消費者（卓面・和了シート・情報パネル）で
+    // 一貫して「winDraw 半歩まで手牌に混ぜない」を成立させる。draw 半歩の prevKifu 経路は
+    // 除去しないが、除去対象のスナップショット手牌（timeline 空）では draw 半歩自体が
+    // 発生しない（stepHasDraw が常に false）ため実害はない。
+    viewKifu: withoutTsumoWinInHand(playbackStateToKifu(kifu, playback), tsumoWin),
     atEnd,
-    tsumoWin: tsumoWinDisplay(kifu),
+    tsumoWin,
+  };
+}
+
+/** ツモ和了牌を手牌本体から1枚抜いた盤面を返す（スナップショット手牌=和了牌込み14枚型のみ
+ *  実枚数が変わる。編集済13枚型・ロン・和了なしは無変更。同種複数でも抜くのは1枚）。 */
+function withoutTsumoWinInHand(kifu: Kifu, win: DrawnTile | null): Kifu {
+  if (!win) return kifu;
+  const hand = kifu.seats[win.seat].hand;
+  const i = hand.findIndex((t) => t.tile === win.tile);
+  if (i < 0) return kifu;
+  return {
+    ...kifu,
+    seats: {
+      ...kifu.seats,
+      [win.seat]: { ...kifu.seats[win.seat], hand: hand.filter((_, idx) => idx !== i) },
+    },
   };
 }

@@ -348,25 +348,25 @@ describe("KifuViewer", () => {
       ),
     ]);
     const { container } = renderViewer(d);
+    const alts = (selector: string) =>
+      Array.from(container.querySelectorAll(`${selector} img`))
+        .map((img) => img.getAttribute("alt"))
+        .filter((alt) => alt);
+    const handAlts = () => alts('[data-tile="hand"]:not([data-tsumo] *)');
 
     // 初期の全表示では出さない（最初から和了牌が離れて見える誤表示をしない）。
+    // スナップショット手牌（14枚型）でも和了牌は手牌本体に混ぜない（ツモる前は13枚型で見せる）。
     expect(container.querySelector("[data-tsumo]")).toBeNull();
+    expect(handAlts()).toEqual(["1萬", "2萬"]);
 
     // 末尾で次ボタン → 和了牌 5筒 をツモる（手牌本体と別枠 data-tsumo に出る）。
     fireEvent.click(screen.getByLabelText("1手進む"));
-    const tsumo = container.querySelectorAll("[data-tsumo]");
-    expect(tsumo).toHaveLength(1);
-    const tsumoAlts = Array.from(tsumo[0]!.querySelectorAll("img"))
-      .map((img) => img.getAttribute("alt"))
-      .filter((alt) => alt);
-    expect(tsumoAlts).toEqual(["5筒"]);
-    // 手牌本体からはその1枚が抜ける（河には捨てられない）。
-    const handAlts = Array.from(
-      container.querySelectorAll('[data-tile="hand"]:not([data-tsumo] *) img'),
-    )
-      .map((img) => img.getAttribute("alt"))
-      .filter((alt) => alt);
-    expect(handAlts).toEqual(["1萬", "2萬"]);
+    expect(container.querySelectorAll("[data-tsumo]")).toHaveLength(1);
+    // 中央からのフライイン演出が掛かる（flyIn の検証フック data-draw）。
+    expect(container.querySelector("[data-tsumo] [data-draw]")).toBeTruthy();
+    expect(alts("[data-tsumo]")).toEqual(["5筒"]);
+    // 手牌本体は13枚型のまま（河には捨てられない）。
+    expect(handAlts()).toEqual(["1萬", "2萬"]);
     // ツモった時点では和了演出はまだ。
     expect(screen.queryByText("門前清自摸和")).toBeNull();
 
