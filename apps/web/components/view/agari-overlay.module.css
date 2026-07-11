@@ -181,16 +181,16 @@
   display: flex;
   gap: 4px;
 }
-/* ドラ表示牌（めくり演出なし。裏ドラと同寸）。 */
+/* ドラ表示牌（めくり演出なし。裏ドラと同寸）。手牌の牌より控えめに出す。 */
 .doraT {
   position: relative;
-  width: 34px;
-  height: 48px;
+  width: 28px;
+  height: 39px;
 }
 .ura {
   position: relative;
-  width: 34px;
-  height: 48px;
+  width: 28px;
+  height: 39px;
   animation: flip 0.7s var(--ease, ease) both;
   transform-style: preserve-3d;
 }
