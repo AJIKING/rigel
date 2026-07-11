@@ -183,8 +183,8 @@ export const RulesSchema = z.object({
   atozuke: z.boolean().default(true),
   /** 赤ドラ（各色の赤5）の枚数。 */
   aka: AkaCountSchema.default("1"),
-  /** 切り上げ満貫（4飜30符・3飜60符を満貫に）。 */
-  kiriage: z.boolean().default(false),
+  /** 切り上げ満貫（4飜30符・3飜60符を満貫に）。既定は Mリーグ相当＝あり。 */
+  kiriage: z.boolean().default(true),
   /** 数え役満（13飜以上を役満扱い）。 */
   kazoe: z.boolean().default(true),
   /** ダブル役満（複数役満の倍加）。 */
@@ -214,6 +214,8 @@ export type Rules = z.infer<typeof RulesSchema>;
 export const RULE_PRESETS = {
   mleague: RulesSchema.parse({ renchan: "tenpai", ryukyoku: false, uma: "10-30", tobi: false }),
   tenhou: RulesSchema.parse({
+    // 天鳳は切り上げ満貫なし（既定=Mリーグ相当のあり、を明示的に外す）。
+    kiriage: false,
     renchan: "agari",
     ryukyoku: true,
     uma: "10-20",
@@ -221,7 +223,6 @@ export const RULE_PRESETS = {
     doubleRon: true,
   }),
   free: RulesSchema.parse({
-    kiriage: true,
     renchan: "tenpai",
     ryukyoku: true,
     uma: "10-20",

@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { KifuSchema, RULE_PRESETS, type Agari, type Seat } from "@rigel/schema";
 import { handScore, kifuScore } from "./score";
 
-const R = RULE_PRESETS.mleague; // kiriage:false, kazoe:true
+const R = RULE_PRESETS.mleague; // kiriage:true, kazoe:true
 
 function kifuWith(agari: Partial<Agari> | null, dealer: Seat | null) {
   return KifuSchema.parse({
@@ -22,12 +22,14 @@ describe("handScore（打点計算）", () => {
     expect(s.limit).toBeNull();
   });
 
-  it("子4飜30符ロン = 7700（切り上げ無し）", () => {
-    expect(handScore({ han: 4, fu: 30, dealer: false, tsumo: false }, R).total).toBe(7700);
+  it("切り上げ無し（天鳳等）なら子4飜30符ロン = 7700", () => {
+    expect(
+      handScore({ han: 4, fu: 30, dealer: false, tsumo: false }, { ...R, kiriage: false }).total,
+    ).toBe(7700);
   });
 
-  it("切り上げ満貫ありなら子4飜30符ロン = 8000（満貫）", () => {
-    const s = handScore({ han: 4, fu: 30, dealer: false, tsumo: false }, { ...R, kiriage: true });
+  it("Mリーグ既定（切り上げ満貫あり）なら子4飜30符ロン = 8000（満貫）", () => {
+    const s = handScore({ han: 4, fu: 30, dealer: false, tsumo: false }, R);
     expect(s.total).toBe(8000);
     expect(s.limit).toBe("満貫");
   });

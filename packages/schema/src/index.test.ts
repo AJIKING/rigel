@@ -3,6 +3,7 @@ import {
   AiRiverResponseSchema,
   KifuSchema,
   ReadTileSchema,
+  RulesSchema,
   RULE_PRESETS,
   SeatSchema,
   toAbsoluteSeat,
@@ -272,6 +273,14 @@ describe("RULE_PRESETS（ルールプリセット）", () => {
     expect(RULE_PRESETS.mleague.doubleRon).toBe(false);
     expect(RULE_PRESETS.tenhou.doubleRon).toBe(true);
     expect(RULE_PRESETS.free.doubleRon).toBe(true);
+  });
+
+  it("切り上げ満貫: Mリーグ/フリーはあり、天鳳はなし。既定（Mリーグ相当）もあり", () => {
+    expect(RULE_PRESETS.mleague.kiriage).toBe(true);
+    expect(RULE_PRESETS.free.kiriage).toBe(true);
+    expect(RULE_PRESETS.tenhou.kiriage).toBe(false);
+    // KifuSchema の rules 省略時の既定は「Mリーグ相当」を名乗る以上 kiriage も一致させる。
+    expect(RulesSchema.parse({}).kiriage).toBe(true);
   });
 });
 
