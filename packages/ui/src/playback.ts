@@ -164,12 +164,10 @@ export interface DrawnTile {
 }
 
 /** ステップの半歩フェーズ。draw=ツモ牌が右端スロットへ（盤面は1手前のまま）／
- *  drop=打牌が河へ落ち手牌が理牌される。null=半歩なし（初期表示・ジャンプ）。
- *  進む/戻るボタンが半歩ずつ刻む（ツモる→捨てる。タイマーでは進めない）。 */
-export type StepPhase = "draw" | "drop";
-/** 末尾到達（atEnd）から和了ダイアログ表示までの遅延。最後の演出
- *  （ロン=打牌の drop / ツモ=和了牌のフライイン）を見せ切ってから開く。 */
-export const AGARI_DELAY_MS = 900;
+ *  drop=打牌が河へ落ち手牌が理牌される／winDraw=末尾でツモ和了牌を右端スロットへ。
+ *  null=半歩なし（初期表示・ジャンプ）。進む/戻るボタンが半歩ずつ刻む
+ *  （ツモる→捨てる→…→和了牌をツモる→和了演出。タイマーでは進めない）。 */
+export type StepPhase = "draw" | "drop" | "winDraw";
 
 /**
  * ツモ和了牌の導出（web/mobile 共通）。正は Kifu.agari（winner / from=null がツモ /
@@ -217,8 +215,8 @@ export interface PlaybackFrame extends RiverPlayback {
   viewKifu: Kifu;
   /** 再生が末尾に達したか（和了演出の発火に使う。初期の全表示 reveal=-1 は false）。 */
   atEnd: boolean;
-  /** ツモ和了牌（手牌の横に離して描く）。再生で末尾に達したとき（=atEnd）だけ非 null。
-   *  和了演出と同じ発火条件で、初期の全表示（reveal=-1）では出さない。 */
+  /** ツモ和了牌（この局がツモ和了なら非 null）。スロットに描くタイミングは
+   *  stepDisplay の winDraw フェーズ（次ボタンで明示的にツモる半歩）が決める。 */
   tsumoWin: DrawnTile | null;
 }
 
@@ -240,18 +238,20 @@ export function stepHasDraw(kifu: Kifu, step: number): boolean {
 export interface StepDisplay {
   /** 卓に描く局面。draw 段階は1手前（prevKifu）、それ以外は現在（frame.viewKifu）。 */
   kifu: Kifu;
-  /** 手牌右端スロットの1枚。draw 段階=一時ツモ牌、それ以外=末尾のツモ和了牌。 */
+  /** 手牌右端スロットの1枚。draw 段階=一時ツモ牌、winDraw 段階=ツモ和了牌。 */
   drawnTile: DrawnTile | null;
   /** drop 演出を付ける河の1枚。drop 段階だけ。 */
   animateDiscard: { seat: Seat; index: number } | null;
-  /** draw 段階（盤面が1手前）を表示中か。和了ダイアログの発火抑制に使う。 */
+  /** draw 段階（盤面が1手前）を表示中か。 */
   drawing: boolean;
 }
 
 /**
- * 二段階ステップ演出の表示導出。フェーズのタイマー（draw→drop 遷移）だけを各ビューアが
- * 持ち、フェーズ→表示物の規則はここに一元化する（web/mobile の演出乖離を防ぐ）。
+ * 半歩ステップの表示導出。フェーズ state とボタンハンドラだけを各ビューアが持ち、
+ * フェーズ→表示物の規則はここに一元化する（web/mobile の演出乖離を防ぐ）。
  * prevKifu は draw 段階で見せる1手前の局面（playbackKifu(kifu, shown-1)）。
+ * ツモ和了牌は winDraw フェーズ（次ボタンで明示的にツモる半歩）でだけスロットに出す
+ * （末尾へのジャンプ・初期の全表示では出さない）。
  */
 export function stepDisplay(
   phase: StepPhase | null,
@@ -263,7 +263,7 @@ export function stepDisplay(
   const discard = frame.playback.activeDiscard;
   return {
     kifu: drawing ? prevKifu : frame.viewKifu,
-    drawnTile: drawing ? stepDraw : frame.tsumoWin,
+    drawnTile: drawing ? stepDraw : phase === "winDraw" ? frame.tsumoWin : null,
     animateDiscard:
       phase === "drop" && discard ? { seat: discard.seat, index: discard.riverIndex } : null,
     drawing,
@@ -299,6 +299,6 @@ export function buildPlaybackFrame(args: {
     playback,
     viewKifu: playbackStateToKifu(kifu, playback),
     atEnd,
-    tsumoWin: atEnd ? tsumoWinDisplay(kifu) : null,
+    tsumoWin: tsumoWinDisplay(kifu),
   };
 }

@@ -1,7 +1,6 @@
 import { KifuSchema, type Kifu } from "@rigel/schema";
-import { AGARI_DELAY_MS } from "@rigel/ui";
-import { act, fireEvent, render, screen } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { fireEvent, render, screen } from "@testing-library/react";
+import { describe, expect, it } from "vitest";
 import { type PublicGameDetail } from "../../lib/api";
 import { AuthProvider } from "../../lib/auth-context";
 import { KifuViewer } from "./KifuViewer";
@@ -58,10 +57,6 @@ function renderViewer(d: PublicGameDetail) {
 }
 
 describe("KifuViewer", () => {
-  afterEach(() => {
-    vi.useRealTimers();
-  });
-
   it("props で受け取った公開半荘を『読み込み中』なしで描画する", () => {
     renderViewer(detail([kifu()]));
     expect(screen.getByText("公開テスト卓")).toBeTruthy();
@@ -92,18 +87,20 @@ describe("KifuViewer", () => {
     expect(toggle.getAttribute("aria-pressed")).toBe("false");
   });
 
-  it("再生を末尾まで進めると、最後の演出を見せてから和了演出（役）が現れる（二段階）", () => {
-    vi.useFakeTimers();
+  it("ロン: 最後の打牌まで進めても和了はまだ出ず、次ボタンで和了演出（役）が現れる", () => {
     renderViewer(detail([kifuWithAgari()]));
     // 初期の全表示では和了は出さない（リロード時のポップ防止）。
     expect(screen.queryByText("立直")).toBeNull();
-    // 1手戻ってから末尾へ進める。到達直後は最後の演出（打牌の drop）を見せる間で、まだ出さない。
+    // 1手戻ってから末尾へ進める。到達しただけではまだ出さない（drop を見せる番）。
     fireEvent.click(screen.getByLabelText("1手戻る"));
     fireEvent.click(screen.getByLabelText("1手進む"));
     expect(screen.queryByText("立直")).toBeNull();
-    // 遅延の後に和了演出が出る。
-    act(() => vi.advanceTimersByTime(AGARI_DELAY_MS));
+    // 次ボタンで和了演出が開く。
+    fireEvent.click(screen.getByLabelText("1手進む"));
     expect(screen.getByText("立直")).toBeTruthy();
+    // 前ボタンで閉じて盤面へ戻れる。
+    fireEvent.click(screen.getByLabelText("1手戻る"));
+    expect(screen.queryByText("立直")).toBeNull();
   });
 
   it("局名は配列位置ではなく局順(seq)から出す（公開サブセット）", () => {
@@ -330,7 +327,7 @@ describe("KifuViewer", () => {
     expect(container.querySelectorAll("[data-drop]")).toHaveLength(1);
   });
 
-  it("ツモ和了は再生で末尾に達したときだけ和了牌を手牌の横に離して出す（河へ捨てる誤演出をしない）", () => {
+  it("ツモ和了: 次ボタンで和了牌をツモり（右端へ）、もう一度押すと和了演出が開く", () => {
     const d = detail([
       makeKifu(
         {
@@ -344,16 +341,18 @@ describe("KifuViewer", () => {
             river: [{ order: 1, tile: "9m", confidence: 1 }],
           },
         },
-        { result: "tsumo", agari: [{ winner: "east", winTile: "5p" }] },
+        {
+          result: "tsumo",
+          agari: [{ winner: "east", winTile: "5p", yaku: [{ name: "門前清自摸和", han: 1 }] }],
+        },
       ),
     ]);
     const { container } = renderViewer(d);
 
-    // 初期の全表示では出さない（和了演出と同じ発火条件。リロード時のポップ防止）。
+    // 初期の全表示では出さない（最初から和了牌が離れて見える誤表示をしない）。
     expect(container.querySelector("[data-tsumo]")).toBeNull();
 
-    // 再生で末尾に達すると和了牌 5筒 が手牌本体と別枠（data-tsumo）に出る。
-    fireEvent.click(screen.getByLabelText("1手戻る"));
+    // 末尾で次ボタン → 和了牌 5筒 をツモる（手牌本体と別枠 data-tsumo に出る）。
     fireEvent.click(screen.getByLabelText("1手進む"));
     const tsumo = container.querySelectorAll("[data-tsumo]");
     expect(tsumo).toHaveLength(1);
@@ -368,8 +367,17 @@ describe("KifuViewer", () => {
       .map((img) => img.getAttribute("alt"))
       .filter((alt) => alt);
     expect(handAlts).toEqual(["1萬", "2萬"]);
+    // ツモった時点では和了演出はまだ。
+    expect(screen.queryByText("門前清自摸和")).toBeNull();
 
-    // 末尾から離れると（1手戻る）和了牌の別枠は消える。
+    // もう一度次ボタン → 和了演出が開く（和了牌は出たまま）。
+    fireEvent.click(screen.getByLabelText("1手進む"));
+    expect(screen.getByText("門前清自摸和")).toBeTruthy();
+
+    // 前ボタンで逆再生: 演出を閉じる → 和了牌を引っ込める。
+    fireEvent.click(screen.getByLabelText("1手戻る"));
+    expect(screen.queryByText("門前清自摸和")).toBeNull();
+    expect(container.querySelector("[data-tsumo]")).toBeTruthy();
     fireEvent.click(screen.getByLabelText("1手戻る"));
     expect(container.querySelector("[data-tsumo]")).toBeNull();
   });

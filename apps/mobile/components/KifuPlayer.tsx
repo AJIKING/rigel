@@ -1,7 +1,6 @@
 import type { GameLog } from "@rigel/client";
 import type { Kifu } from "@rigel/schema";
 import {
-  AGARI_DELAY_MS,
   buildPlaybackFrame,
   playbackKifu,
   resultLabel,
@@ -12,7 +11,7 @@ import {
   SEAT_ORDER,
   type StepPhase,
 } from "@rigel/ui";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import {
   Pressable,
   ScrollView,
@@ -57,7 +56,8 @@ export function KifuPlayer({
   const [reveal, setReveal] = useState(-1); // -1 = 全表示
   const [showHands, setShowHands] = useState(false);
   const [sheetOpen, setSheetOpen] = useState(false);
-  const [agariClosed, setAgariClosed] = useState(false);
+  // 和了シート。次ボタンで開き、閉じるボタン/前ボタン/位置移動で閉じる。
+  const [agariOpen, setAgariOpen] = useState(false);
   const [fs, setFs] = useState(false); // 全画面（上部バーを畳んで卓を最大化）
 
   const log = logs[gi];
@@ -72,18 +72,10 @@ export function KifuPlayer({
         : null,
     [gi, kifu, logs, reveal],
   );
-  const atEnd = frame?.atEnd ?? false;
-
-  // 末尾から離れたら「和了シートを閉じた」フラグを解除し、再び末尾に達したとき出せるようにする
-  //（web ビューアと同じ挙動。これが無いと一度閉じると同一局で二度と出ない）。
-  useEffect(() => {
-    if (!atEnd) setAgariClosed(false);
-  }, [atEnd]);
-
   // ステップの半歩: draw（ツモ牌が手牌右端に入る。盤面は1手前のまま）→
-  // drop（打牌が河へ落ち、手牌が理牌される）。進む/戻るボタンが半歩ずつ刻む
-  // （ツモる→捨てる。タイマーでは進めない）。ツモ牌が不明な手は半歩なし＝1押し1打牌。
-  // フェーズ→表示物の写像は @rigel/ui（stepDisplay）。
+  // drop（打牌が河へ落ち、手牌が理牌される）→ …末尾では winDraw（ツモ和了牌を右端へ）
+  // → 和了演出、を進む/戻るボタンが半歩ずつ刻む（タイマーでは進めない）。
+  // ツモ牌が不明な手は半歩なし＝1押し1打牌。フェーズ→表示物の写像は @rigel/ui（stepDisplay）。
   const [stepPhase, setStepPhase] = useState<StepPhase | null>(null);
   const shown = frame?.shown ?? 0;
 
@@ -94,19 +86,6 @@ export function KifuPlayer({
   );
   const step = frame ? stepDisplay(stepPhase, frame, prevKifu) : null;
 
-  // 和了シートは「盤面が最終局面を見せてから」遅延して開く（最後の演出=ロンの drop /
-  // ツモ和了牌のフライインを見せ切る二段階）。和了のない局はタイマー不要。
-  const boardAtEnd = atEnd && !(step?.drawing ?? false);
-  const [agariReady, setAgariReady] = useState(false);
-  useEffect(() => {
-    if (!boardAtEnd || (kifu?.agari.length ?? 0) === 0) {
-      setAgariReady(false);
-      return;
-    }
-    const t = setTimeout(() => setAgariReady(true), AGARI_DELAY_MS);
-    return () => clearTimeout(t);
-  }, [boardAtEnd, kifu]);
-
   if (!log || !kifu || !frame || !step)
     return <CenterState message="この半荘には局がありません。" />;
 
@@ -115,7 +94,7 @@ export function KifuPlayer({
   const { kifu: boardKifu, drawnTile, animateDiscard } = step;
 
   const roundLabel = roundNameForSeq(log.seq);
-  const showAgari = boardAtEnd && agariReady && kifu.agari.length > 0 && !agariClosed;
+  const showAgari = agariOpen && kifu.agari.length > 0;
   // 卓は横幅いっぱいまで拡大（上限は大画面向けの保険）。縦は上部バー(全画面時は無し)＋場ナビ分を控える。
   const boardSize = Math.max(240, Math.min(width - 8, height - (fs ? 150 : 240), 520));
 
@@ -123,30 +102,50 @@ export function KifuPlayer({
     setGi(i);
     setReveal(-1);
     setStepPhase(null);
-    setAgariClosed(false);
+    setAgariOpen(false);
   }
 
   /** 再生位置ジャンプ（巡目送りなど）。半歩は挟まず演出も出さない。 */
   function jumpTo(nextReveal: number) {
     setReveal(nextReveal);
     setStepPhase(null);
+    setAgariOpen(false);
   }
 
-  /** 次ボタン: draw 表示中なら捨てる（drop）、そうでなければ次の手へ（ツモがあれば半歩）。 */
+  /** 次ボタン: ツモ→捨て→…→（末尾）和了牌ツモ→和了演出、の半歩を1つ進める。 */
   function stepForward() {
-    if (!kifu || !frame) return;
+    if (!kifu || !frame || agariOpen) return;
     if (stepPhase === "draw") {
       setStepPhase("drop");
       return;
     }
-    const next = Math.min(frame.order.length, shown + 1);
+    if (shown >= frame.order.length) {
+      // 末尾（初期の全表示含む）: ツモ和了なら先に和了牌をツモり、次押しで和了演出。
+      if (kifu.agari.length === 0) return;
+      setReveal(frame.order.length); // -1（全表示）でも実位置に確定させる。
+      if (frame.tsumoWin && stepPhase !== "winDraw") {
+        setStepPhase("winDraw");
+        return;
+      }
+      setAgariOpen(true);
+      return;
+    }
+    const next = shown + 1;
     setReveal(next);
     setStepPhase(stepHasDraw(kifu, next) ? "draw" : "drop");
   }
 
-  /** 前ボタン: 打牌を引っ込めてツモ表示へ、draw 表示中ならさらに前の手の完了状態へ。 */
+  /** 前ボタン: 和了演出を閉じる→和了牌を引っ込める→打牌を引っ込めてツモ表示へ→前の手…と逆に刻む。 */
   function stepBack() {
     if (!kifu) return;
+    if (agariOpen) {
+      setAgariOpen(false);
+      return;
+    }
+    if (stepPhase === "winDraw") {
+      setStepPhase(null);
+      return;
+    }
     if (stepPhase === "draw") {
       jumpTo(Math.max(0, shown - 1));
       return;
@@ -262,7 +261,10 @@ export function KifuPlayer({
             <NavBtn icon="stepPrev" disabled={shown <= 0} onPress={stepBack} label="1手戻る" />
             <NavBtn
               icon="stepNext"
-              disabled={shown >= order.length && stepPhase !== "draw"}
+              disabled={
+                agariOpen ||
+                (shown >= order.length && stepPhase !== "draw" && kifu.agari.length === 0)
+              }
               onPress={stepForward}
               label="1手進む"
             />
@@ -322,7 +324,7 @@ export function KifuPlayer({
           kifu={viewKifu}
           dealer={dealer}
           ownerName={ownerName}
-          onClose={() => setAgariClosed(true)}
+          onClose={() => setAgariOpen(false)}
         />
       ) : null}
     </View>

@@ -284,7 +284,7 @@ describe("tsumoWinDisplay / splitDrawnTile（ツモ和了牌を手牌の横に�
     expect(none.drawnTile).toBeNull();
   });
 
-  it("buildPlaybackFrame: 再生で末尾に達したときだけ frame.tsumoWin を出す（初期の全表示では出さない）", () => {
+  it("buildPlaybackFrame: tsumoWin はツモ和了の有無だけを表す（表示タイミングは winDraw フェーズが決める）", () => {
     const k = kifu({
       agari: [tsumoAgari],
       seats: {
@@ -295,10 +295,9 @@ describe("tsumoWinDisplay / splitDrawnTile（ツモ和了牌を手牌の横に�
       },
     });
 
-    // 和了演出（atEnd）と同じ発火条件: 初期の全表示（reveal=-1）では出さない。
-    expect(buildPlaybackFrame({ kifu: k, prevKifus: [], reveal: -1 }).tsumoWin).toBeNull();
-    expect(buildPlaybackFrame({ kifu: k, prevKifus: [], reveal: 1 }).tsumoWin).toEqual(win);
-    expect(buildPlaybackFrame({ kifu: k, prevKifus: [], reveal: 0 }).tsumoWin).toBeNull();
+    // どの再生位置でも導出は同じ（スロットに描くかは stepDisplay の phase="winDraw" が決める）。
+    expect(buildPlaybackFrame({ kifu: k, prevKifus: [], reveal: -1 }).tsumoWin).toEqual(win);
+    expect(buildPlaybackFrame({ kifu: k, prevKifus: [], reveal: 0 }).tsumoWin).toEqual(win);
   });
 });
 
@@ -336,7 +335,7 @@ describe("activeDrawnTile / stepDisplay（二段階ステップ演出の表示�
     expect(draw.animateDiscard).toBeNull();
   });
 
-  it("stepDisplay: drop 段階は現在の盤面＋直近打牌に drop 演出（スロットは tsumoWin に戻す）", () => {
+  it("stepDisplay: drop 段階は現在の盤面＋直近打牌に drop 演出（スロットは空）", () => {
     const k = stepKifu();
     const frame = buildPlaybackFrame({ kifu: k, prevKifus: [], reveal: 1 });
 
@@ -344,7 +343,7 @@ describe("activeDrawnTile / stepDisplay（二段階ステップ演出の表示�
     expect(drop.drawing).toBe(false);
     expect(drop.kifu.seats.east.river.map((d) => d.tile)).toEqual(["1m"]);
     expect(drop.animateDiscard).toEqual({ seat: "east", index: 0 });
-    expect(drop.drawnTile).toBeNull(); // ツモ和了なし＝frame.tsumoWin(null)
+    expect(drop.drawnTile).toBeNull();
   });
 
   it("stepDisplay: フェーズなし（ジャンプ・初期表示）は現在の盤面のみ（演出なし）", () => {
@@ -357,7 +356,7 @@ describe("activeDrawnTile / stepDisplay（二段階ステップ演出の表示�
     expect(idle.kifu.seats.east.river.map((d) => d.tile)).toEqual(["1m"]);
   });
 
-  it("stepDisplay: 末尾のツモ和了牌（frame.tsumoWin）は draw 段階以外でスロットに出す", () => {
+  it("stepDisplay: ツモ和了牌は winDraw フェーズだけスロットに出す（末尾到達・ジャンプでは出さない）", () => {
     const k = kifu({
       agari: [{ winner: "east", from: null, winTile: "5p" }],
       seats: {
@@ -369,8 +368,10 @@ describe("activeDrawnTile / stepDisplay（二段階ステップ演出の表示�
     });
     const frame = buildPlaybackFrame({ kifu: k, prevKifus: [], reveal: 1 });
 
-    expect(stepDisplay("drop", frame, null).drawnTile).toEqual({ seat: "east", tile: "5p" });
-    expect(stepDisplay(null, frame, null).drawnTile).toEqual({ seat: "east", tile: "5p" });
+    // 「次ボタンで和了牌をツモる」半歩（winDraw）でだけ離して見せる。
+    expect(stepDisplay("winDraw", frame, null).drawnTile).toEqual({ seat: "east", tile: "5p" });
+    expect(stepDisplay("drop", frame, null).drawnTile).toBeNull();
+    expect(stepDisplay(null, frame, null).drawnTile).toBeNull();
   });
 });
 
