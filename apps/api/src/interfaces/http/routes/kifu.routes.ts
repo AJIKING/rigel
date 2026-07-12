@@ -5,6 +5,7 @@ import { CameraSeatSchema, SeatSchema } from "@rigel/schema";
 import type { Hono } from "hono";
 import type { AnalysisInput, ImageRef } from "../../../domain/kifu/analyzer";
 import { reasonStatus, requireAuth, type AppEnv } from "../shared";
+import { isValidImageFile, MAX_IMAGE_COUNT } from "../limits";
 import { parseKifu } from "../validate";
 
 function asFile(value: unknown): File | null {
@@ -92,11 +93,24 @@ export function registerKifuRoutes(app: Hono<AppEnv>): void {
       );
     }
 
-    const hands: Partial<Record<(typeof CameraSeatSchema.options)[number], ImageRef>> = {};
-    for (const cam of CameraSeatSchema.options) {
-      const f = asFile(form?.get(`hand_${cam}`));
-      if (f) hands[cam] = await toImageRef(f);
+    // 画像の妥当性は「バイトを読む前」に File のメタデータ（size/type）で判定する。
+    // 任意バイト列を画像として Gemini に送らない・巨大画像で Worker のメモリを焼かせない。
+    const handFiles = CameraSeatSchema.options
+      .map((cam) => [cam, asFile(form?.get(`hand_${cam}`))] as const)
+      .filter((e): e is [(typeof CameraSeatSchema.options)[number], File] => e[1] !== null);
+    const files = [river, ...handFiles.map(([, f]) => f)];
+    if (files.length > MAX_IMAGE_COUNT || !files.every(isValidImageFile)) {
+      return c.json({ error: "画像は JPEG/PNG/WebP/HEIC、1枚あたりの上限を超えないこと" }, 400);
     }
+
+    // 枠のプリフライト（画像をメモリへ載せる前）。free（枠0）や上限到達のユーザーに
+    // 巨大画像のバッファリングをさせない。
+    const analyze = c.get("container").analyzeAndSaveKifu;
+    const pre = await analyze.preflight(userId);
+    if (!pre.ok) return c.json({ ok: false, reason: pre.reason }, reasonStatus(pre.reason));
+
+    const hands: Partial<Record<(typeof CameraSeatSchema.options)[number], ImageRef>> = {};
+    for (const [cam, f] of handFiles) hands[cam] = await toImageRef(f);
 
     const input: AnalysisInput = {
       riverImage: await toImageRef(river),
@@ -107,7 +121,7 @@ export function registerKifuRoutes(app: Hono<AppEnv>): void {
     const gameId = typeof gameIdRaw === "string" && gameIdRaw ? gameIdRaw : undefined;
 
     try {
-      const result = await c.get("container").analyzeAndSaveKifu.execute({ userId, input, gameId });
+      const result = await analyze.execute({ userId, input, gameId });
       if (!result.ok) {
         return c.json({ ok: false, reason: result.reason }, reasonStatus(result.reason));
       }

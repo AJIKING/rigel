@@ -9,7 +9,9 @@
 
 import { Hono } from "hono";
 import { cors } from "hono/cors";
+import { bodyLimit } from "hono/body-limit";
 import { buildContainer, type AppContainer } from "../../composition-root";
+import { BODY_LIMIT_BYTES } from "./limits";
 import type { Env } from "../../env";
 import { registerAccountRoutes } from "./routes/account.routes";
 import { registerBillingRoutes } from "./routes/billing.routes";
@@ -54,6 +56,16 @@ export function createApp(options: CreateAppOptions = {}): Hono<AppEnv> {
       maxAge: 86400,
     })(c, next),
   );
+
+  // JSON ボディの上限（413）。/analyze（multipart）は画像ごとの上限を各ルートで見るため除外する。
+  // Workers 既定（~100MB）任せだと、認証済みユーザーが D1 の行や CPU を安価に焼ける。
+  app.use("*", async (c, next) => {
+    if (c.req.path === "/analyze") return next();
+    return bodyLimit({
+      maxSize: BODY_LIMIT_BYTES,
+      onError: (ctx) => ctx.json({ error: "payload too large" }, 413),
+    })(c, next);
+  });
 
   // リクエストごとに DI コンテナを組み立ててコンテキストに載せる。
   app.use("*", async (c, next) => {

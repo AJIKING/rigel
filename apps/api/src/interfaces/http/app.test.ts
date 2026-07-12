@@ -4,6 +4,7 @@ import { JwtSessionService } from "../../infrastructure/auth/jwt-session-service
 import { fakeEnv } from "../../test-support/billing";
 import { minimalKifuInput } from "../../test-support/kifu";
 import { createApp } from "./app";
+import { BODY_LIMIT_BYTES, MAX_IMAGE_BYTES } from "./limits";
 
 const jsonInit = (body: unknown): RequestInit => ({
   method: "POST",
@@ -78,6 +79,42 @@ describe("HTTP app (Hono)", () => {
       fakeEnv,
     );
     expect(res.status).toBe(400);
+  });
+
+  // 「量」の防御（乱用耐性）。形が正しくても大きすぎるものは入口で弾く。
+  describe("サイズ・種別の上限", () => {
+    const auth = async () => new JwtSessionService({ secret: "test-secret" }).issue("u1");
+
+    it("巨大な JSON ボディは 413（D1 肥大・CPU 消費を入口で止める）", async () => {
+      const huge = "x".repeat(BODY_LIMIT_BYTES + 1);
+      const res = await app.request("/kifu/validate", jsonInit({ note: huge }), fakeEnv);
+      expect(res.status).toBe(413);
+    });
+
+    it("/analyze は画像以外の MIME を 400（任意バイト列を画像として Gemini に送らない）", async () => {
+      const form = new FormData();
+      form.set("river", new File(["not-an-image"], "x.txt", { type: "text/plain" }));
+      form.set("cameraBottomSeat", "east");
+      const res = await app.request(
+        "/analyze",
+        { method: "POST", headers: { authorization: `Bearer ${await auth()}` }, body: form },
+        fakeEnv,
+      );
+      expect(res.status).toBe(400);
+    });
+
+    it("/analyze は上限を超える画像を 400（バイトを読む前に弾く）", async () => {
+      const form = new FormData();
+      const big = new Uint8Array(MAX_IMAGE_BYTES + 1);
+      form.set("river", new File([big], "big.jpg", { type: "image/jpeg" }));
+      form.set("cameraBottomSeat", "east");
+      const res = await app.request(
+        "/analyze",
+        { method: "POST", headers: { authorization: `Bearer ${await auth()}` }, body: form },
+        fakeEnv,
+      );
+      expect(res.status).toBe(400);
+    });
   });
 
   it("PATCH /games/:id/visibility はトークン無しで 401（公開範囲は半荘単位）", async () => {

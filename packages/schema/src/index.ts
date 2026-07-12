@@ -122,10 +122,38 @@ export type Discard = z.infer<typeof DiscardSchema>;
 // ------------------------------------------------------------
 // 1席ぶんの盤面
 // ------------------------------------------------------------
+/**
+ * 牌譜の「量」の上限。麻雀としてありえない量を弾くデータ品質のゲートであり、
+ * 同時に乱用耐性でもある（保存 JSON が無制限だと D1 が肥大し、公開フィードの
+ * 読み取りコストが保存内容に比例して膨らむ）。schema は全層（api/web/mobile）が
+ * 共有するため、ここに置けば入口がすべて塞がる。
+ */
+export const KIFU_LIMITS = {
+  /** 手牌（13枚＋ツモ牌）。 */
+  hand: 14,
+  /** 副露（最大4＋余裕）。 */
+  melds: 5,
+  /** 河（実戦の最大打牌数 ~24 に余裕）。 */
+  river: 30,
+  /** 手順イベント（4人×最大巡目に余裕）。 */
+  timeline: 200,
+  /** 和了1件の役の数。 */
+  yaku: 20,
+  /** 役名の文字数。 */
+  yakuName: 20,
+  /** 読み取りメモ・局メモの文字数。 */
+  readingNotes: 2000,
+  note: 500,
+  /** 何切るの解説の文字数。 */
+  explanation: 2000,
+  /** 表示名（プロフィール）の文字数。 */
+  displayName: 30,
+} as const;
+
 export const SeatBoardSchema = z.object({
-  hand: z.array(ReadTileSchema).default([]),
-  melds: z.array(MeldSchema).default([]),
-  river: z.array(DiscardSchema).default([]),
+  hand: z.array(ReadTileSchema).max(KIFU_LIMITS.hand).default([]),
+  melds: z.array(MeldSchema).max(KIFU_LIMITS.melds).default([]),
+  river: z.array(DiscardSchema).max(KIFU_LIMITS.river).default([]),
 });
 export type SeatBoard = z.infer<typeof SeatBoardSchema>;
 
@@ -235,7 +263,7 @@ export const RULE_PRESETS = {
 // 和了情報（点数計算の入力。役は人が入力・自動判定はしない）
 // ------------------------------------------------------------
 export const YakuSchema = z.object({
-  name: z.string(),
+  name: z.string().max(KIFU_LIMITS.yakuName),
   han: z.number().int(),
 });
 export type Yaku = z.infer<typeof YakuSchema>;
@@ -248,7 +276,7 @@ export const AgariSchema = z.object({
   /** 和了牌。 */
   winTile: TileSchema.nullable().default(null),
   /** 役の内訳（名前＋飜）。合計飜はこれ＋ドラ枚数で決まる。 */
-  yaku: z.array(YakuSchema).default([]),
+  yaku: z.array(YakuSchema).max(KIFU_LIMITS.yaku).default([]),
   /** 符。 */
   fu: z.number().int().min(0).default(0),
   /** 表ドラの枚数（1枚1飜）。 */
@@ -258,7 +286,7 @@ export const AgariSchema = z.object({
   /** 裏ドラの枚数（リーチ和了のみ・1枚1飜）。 */
   ura: z.number().int().min(0).default(0),
   /** リーチ宣言した席。 */
-  riichi: z.array(SeatSchema).default([]),
+  riichi: z.array(SeatSchema).max(4).default([]),
 });
 export type Agari = z.infer<typeof AgariSchema>;
 
@@ -333,7 +361,7 @@ export const KifuSchema = z.object({
         .default([]),
       /** 最終巡目（スナップショット時点）。 */
       junme: z.number().int().min(1).default(1),
-      note: z.string().default(""),
+      note: z.string().max(KIFU_LIMITS.note).default(""),
     })
     .default({}),
 
@@ -353,14 +381,14 @@ export const KifuSchema = z.object({
 
   /** 流局時の聴牌者（席の絶対位置）。不聴罰符の受け渡し計算に使う（点数は牌姿から
    *  出せないため聴牌者だけ記録し、罰符3000は席数から算出）。和了局・未入力は空配列。 */
-  tenpai: z.array(SeatSchema).default([]),
+  tenpai: z.array(SeatSchema).max(4).default([]),
 
   /** 解析時の読み取り困難メモ（グレア・ブレ・見切れ等）。AIのnotesを引き継ぐ。 */
-  readingNotes: z.string().default(""),
+  readingNotes: z.string().max(KIFU_LIMITS.readingNotes).default(""),
 
   /** 手順（タイムライン）。打牌・鳴きの全席横断の時系列。省略時は空（後方互換）。
    *  盤面/巡目はここから導出する正典（設計: docs/designs/timeline-editor.md）。 */
-  timeline: z.array(TimelineEventSchema).default([]),
+  timeline: z.array(TimelineEventSchema).max(KIFU_LIMITS.timeline).default([]),
 });
 export type Kifu = z.infer<typeof KifuSchema>;
 
@@ -374,26 +402,28 @@ export type Kifu = z.infer<typeof KifuSchema>;
 export const CameraSeatSchema = z.enum(["bottom", "right", "top", "left"]);
 export type CameraSeat = z.infer<typeof CameraSeatSchema>;
 
-/** 河1方向ぶんのAI出力（river_reader_prompt.md の1方向版に対応）。 */
+/** 河1方向ぶんのAI出力（river_reader_prompt.md の1方向版に対応）。
+ *  モデルが暴走・汚染されても Kifu と同じ「量」の上限で弾く。 */
 export const AiRiverResponseSchema = z.object({
-  discards: z.array(DiscardSchema),
-  notes: z.string().default(""),
+  discards: z.array(DiscardSchema).max(KIFU_LIMITS.river),
+  notes: z.string().max(KIFU_LIMITS.readingNotes).default(""),
 });
 export type AiRiverResponse = z.infer<typeof AiRiverResponseSchema>;
 
 /** 手牌1人ぶんのAI出力。鳴き元もカメラ相対で出させ、変換時に絶対へ。 */
 export const AiHandResponseSchema = z.object({
-  hand: z.array(ReadTileSchema),
+  hand: z.array(ReadTileSchema).max(KIFU_LIMITS.hand),
   melds: z
     .array(
       z.object({
         type: MeldTypeSchema,
-        tiles: z.array(ReadTileSchema),
+        tiles: z.array(ReadTileSchema).max(4),
         from: CameraSeatSchema.nullable(),
       }),
     )
+    .max(KIFU_LIMITS.melds)
     .default([]),
-  notes: z.string().default(""),
+  notes: z.string().max(KIFU_LIMITS.readingNotes).default(""),
 });
 export type AiHandResponse = z.infer<typeof AiHandResponseSchema>;
 
@@ -554,7 +584,7 @@ export const ProblemSchema = z
     rules: RulesSchema.default({}),
     /** 出題者の解説・コメント（回答後に表示）。正解は設けない（多様な正解を前提に、
      *  回答の分布を見る）。 */
-    explanation: z.string().default(""),
+    explanation: z.string().max(KIFU_LIMITS.explanation).default(""),
   })
   .superRefine((p, ctx) => {
     const board = p.seats[p.pov];

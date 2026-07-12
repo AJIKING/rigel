@@ -20,11 +20,10 @@ import type { UserRepository } from "../domain/user/user.repository";
 import { MAX_LOGS_PER_GAME } from "./create-empty-kifu.usecase";
 
 export type AnalyzeResult =
-  | { ok: true; gameLog: GameLog; gameId: string }
-  | {
-      ok: false;
-      reason: "user_not_found" | "quota_exceeded" | "game_not_found" | "game_full";
-    };
+  { ok: true; gameLog: GameLog; gameId: string } | { ok: false; reason: AnalyzeReason };
+
+/** 解析を実行できなかった理由。 */
+export type AnalyzeReason = "user_not_found" | "quota_exceeded" | "game_not_found" | "game_full";
 
 export interface AnalyzeDeps {
   users: UserRepository;
@@ -48,6 +47,18 @@ export interface AnalyzeParams {
 
 export class AnalyzeAndSaveKifu {
   constructor(private readonly deps: AnalyzeDeps) {}
+
+  /**
+   * 解析枠のプリフライト（画像バイトを読む前に呼ぶ）。
+   * 枠0（free）や上限到達のユーザーに、画像を Worker のメモリへ載せさせないための入口。
+   * execute 側でも同じ判定をするため、ここを通っても最終的な整合は崩れない。
+   */
+  async preflight(userId: string): Promise<{ ok: true } | { ok: false; reason: AnalyzeReason }> {
+    const user = await this.deps.users.findById(userId);
+    if (!user) return { ok: false, reason: "user_not_found" };
+    if (!user.canAnalyze(this.deps.now())) return { ok: false, reason: "quota_exceeded" };
+    return { ok: true };
+  }
 
   async execute(params: AnalyzeParams): Promise<AnalyzeResult> {
     const { users, games, gameLogs, analyzer, store, now, newId } = this.deps;

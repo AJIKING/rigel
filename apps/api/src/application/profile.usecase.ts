@@ -3,6 +3,7 @@
 //   GetPublicProfile: handle か id で公開プロフィール＋公開半荘を取得。
 //   DeleteAccount: 自分の牌譜・半荘・ユーザーを削除（カスケード）。
 
+import { KIFU_LIMITS } from "@rigel/schema";
 import type { GameRepository } from "../domain/game/game.repository";
 import type { GameLogRepository } from "../domain/kifu/game-log.repository";
 import type { ProblemAnswerRepository } from "../domain/problem/problem-answer.repository";
@@ -14,7 +15,11 @@ import type { PublicGameCard } from "./list-game-cards.usecase";
 const HANDLE_RE = /^[a-zA-Z0-9_]{3,20}$/;
 
 export type UpdateProfileResult =
-  { ok: true } | { ok: false; reason: "not_found" | "invalid_handle" | "handle_taken" };
+  | { ok: true }
+  | {
+      ok: false;
+      reason: "not_found" | "invalid_handle" | "invalid_display_name" | "handle_taken";
+    };
 
 export class UpdateProfile {
   constructor(private readonly users: UserRepository) {}
@@ -26,6 +31,11 @@ export class UpdateProfile {
   }): Promise<UpdateProfileResult> {
     const user = await this.users.findById(params.userId);
     if (!user) return { ok: false, reason: "not_found" };
+
+    // 表示名は公開プロフィール・OGP に載り、無制限だと D1・レスポンスを膨らませられる。
+    if (params.displayName !== undefined && params.displayName.length > KIFU_LIMITS.displayName) {
+      return { ok: false, reason: "invalid_display_name" };
+    }
 
     let handle = params.handle;
     if (handle !== undefined) {

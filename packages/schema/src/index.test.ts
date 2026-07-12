@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
+  KIFU_LIMITS,
   AiRiverResponseSchema,
   KifuSchema,
   ReadTileSchema,
@@ -82,6 +83,77 @@ describe("KifuSchema（牌譜1件の最終検証）", () => {
   it("schemaVersion が一致しないと拒否する", () => {
     const result = KifuSchema.safeParse({ ...minimalKifu, schemaVersion: "9.9.9" });
     expect(result.success).toBe(false);
+  });
+
+  // 「量」の上限（KIFU_LIMITS）。麻雀としてありえない量を弾く＝データ品質のゲートであり、
+  // 同時に「巨大 JSON を保存させない」乱用耐性（D1 肥大・公開フィードのコスト増幅）でもある。
+  describe("量の上限（KIFU_LIMITS）", () => {
+    const seat = (board: Record<string, unknown>) => ({
+      ...minimalKifu,
+      seats: { east: board, south: {}, west: {}, north: {} },
+    });
+    const tiles = (n: number) => Array.from({ length: n }, () => ({ tile: "1m", confidence: 1 }));
+    const discards = (n: number) =>
+      Array.from({ length: n }, (_, i) => ({ order: i + 1, tile: "1m", confidence: 1 }));
+
+    it("手牌は14枚まで（13＋ツモ牌）", () => {
+      expect(KifuSchema.safeParse(seat({ hand: tiles(KIFU_LIMITS.hand) })).success).toBe(true);
+      expect(KifuSchema.safeParse(seat({ hand: tiles(KIFU_LIMITS.hand + 1) })).success).toBe(false);
+    });
+
+    it("河は上限まで（実戦の最大打牌数に余裕を持たせた値）", () => {
+      expect(KifuSchema.safeParse(seat({ river: discards(KIFU_LIMITS.river) })).success).toBe(true);
+      expect(KifuSchema.safeParse(seat({ river: discards(KIFU_LIMITS.river + 1) })).success).toBe(
+        false,
+      );
+    });
+
+    it("鳴きは上限まで（4副露＋余裕）", () => {
+      const meld = { type: "pon", from: "south", tiles: tiles(3) };
+      const melds = (n: number) => Array.from({ length: n }, () => meld);
+      expect(KifuSchema.safeParse(seat({ melds: melds(KIFU_LIMITS.melds) })).success).toBe(true);
+      expect(KifuSchema.safeParse(seat({ melds: melds(KIFU_LIMITS.melds + 1) })).success).toBe(
+        false,
+      );
+    });
+
+    it("timeline・役・聴牌者・リーチ者にも上限がある", () => {
+      const event = { kind: "discard", seat: "east", tile: "1m" };
+      const timeline = (n: number) => Array.from({ length: n }, () => event);
+      expect(
+        KifuSchema.safeParse({ ...minimalKifu, timeline: timeline(KIFU_LIMITS.timeline + 1) })
+          .success,
+      ).toBe(false);
+
+      const yaku = Array.from({ length: KIFU_LIMITS.yaku + 1 }, () => ({ name: "立直", han: 1 }));
+      expect(
+        KifuSchema.safeParse({ ...minimalKifu, agari: [{ winner: "east", yaku }] }).success,
+      ).toBe(false);
+      expect(
+        KifuSchema.safeParse({ ...minimalKifu, tenpai: ["east", "south", "west", "north", "east"] })
+          .success,
+      ).toBe(false);
+    });
+
+    it("自由記述（readingNotes・note・役名）にも文字数上限がある", () => {
+      const long = (n: number) => "あ".repeat(n);
+      expect(
+        KifuSchema.safeParse({ ...minimalKifu, readingNotes: long(KIFU_LIMITS.readingNotes + 1) })
+          .success,
+      ).toBe(false);
+      expect(
+        KifuSchema.safeParse({
+          ...minimalKifu,
+          meta: { note: long(KIFU_LIMITS.note + 1) },
+        }).success,
+      ).toBe(false);
+      expect(
+        KifuSchema.safeParse({
+          ...minimalKifu,
+          agari: [{ winner: "east", yaku: [{ name: long(KIFU_LIMITS.yakuName + 1), han: 1 }] }],
+        }).success,
+      ).toBe(false);
+    });
   });
 
   it("players は省略時 null（後方互換）。指定時は選手名とポイントを席ごとに保持する", () => {

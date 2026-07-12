@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { KIFU_LIMITS } from "@rigel/schema";
 import type { Game } from "../domain/game/game";
 import type { GameLog } from "../domain/kifu/game-log";
 import { User, firstOfNextMonthUtc } from "../domain/user/user";
@@ -55,6 +56,14 @@ describe("UpdateProfile", () => {
     const users = new InMemoryUserRepository([mkUser("u1", null)]);
     const r = await new UpdateProfile(users).execute({ userId: "u1", handle: "ab" }); // 短すぎ
     expect(r).toEqual({ ok: false, reason: "invalid_handle" });
+  });
+
+  it("表示名が長すぎるときは invalid_display_name（公開プロフィール・OGP に載るため上限を強制）", async () => {
+    const users = new InMemoryUserRepository([mkUser("u1", null)]);
+    const long = "あ".repeat(KIFU_LIMITS.displayName + 1);
+    const r = await new UpdateProfile(users).execute({ userId: "u1", displayName: long });
+    expect(r).toEqual({ ok: false, reason: "invalid_display_name" });
+    expect((await users.findById("u1"))?.displayName).not.toBe(long);
   });
 
   it("他人が使用中のハンドルは handle_taken", async () => {
