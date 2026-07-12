@@ -18,6 +18,8 @@ import {
   setDoraTile,
   sortHandTiles,
   sortKifuHands,
+  playersFromInput,
+  playersToInput,
   visibilityLabel,
   LIMIT_MESSAGES,
   type TileLocation,
@@ -33,6 +35,7 @@ import {
   setGameStatusAction,
   setGameVisibilityAction,
   updateGameAction,
+  updateGamePlayersAction,
   updateGameRulesAction,
   updateKifuAction,
 } from "../../app/actions";
@@ -303,20 +306,56 @@ function Editor(p: EditorProps) {
   const [addOpen, setAddOpen] = useState(false);
   const [rulesOpen, setRulesOpen] = useState(false);
   const [delArm, setDelArm] = useState(false);
-  // 点数（UI のみ。スキーマ外）。
+  // 選手情報（選手名・リーグ戦ポイント）。kifu.players（半荘単位）から初期化し、
+  // 入力の blur で半荘単位に保存する（rules と同じ全局一括反映）。
+  // Players→入力文字列は共有ヘルパ playersToInput（mobile の PlayersSheet と同一）。
+  const initialPlayers = playersToInput(log.kifu.players);
   const [showPoints, setShowPoints] = useState(false);
   const [names, setNames] = useState<Record<Seat, string>>({
-    east: "",
-    south: "",
-    west: "",
-    north: "",
+    east: initialPlayers.east.name,
+    south: initialPlayers.south.name,
+    west: initialPlayers.west.name,
+    north: initialPlayers.north.name,
   });
   const [points, setPoints] = useState<Record<Seat, string>>({
-    east: "0",
-    south: "0",
-    west: "0",
-    north: "0",
+    east: initialPlayers.east.points,
+    south: initialPlayers.south.points,
+    west: initialPlayers.west.points,
+    north: initialPlayers.north.points,
   });
+  // 直近に保存した選手情報（dirty 判定用）。未変更の blur では全局書き込みを撃たない。
+  const lastSavedPlayers = useRef(JSON.stringify(log.kifu.players));
+  const [playersMsg, setPlayersMsg] = useState<string | null>(null);
+
+  /** 選手情報の保存（入力の blur で呼ぶ。変更があるときのみ）。半荘単位＝全局へ一括反映。 */
+  function savePlayers() {
+    // 入力→Players（全席が空なら null）は共有ヘルパ（mobile の PlayersSheet と同一）。
+    const players = playersFromInput({
+      east: { name: names.east, points: points.east },
+      south: { name: names.south, points: points.south },
+      west: { name: names.west, points: points.west },
+      north: { name: names.north, points: points.north },
+    });
+    const key = JSON.stringify(players);
+    if (key === lastSavedPlayers.current) return;
+    lastSavedPlayers.current = key;
+    setPlayersMsg(null);
+    void updateGamePlayersAction(gameId, players)
+      .then((res) => {
+        if (!res.ok) {
+          setSaveErr("選手情報の保存に失敗しました。");
+          return;
+        }
+        // blur 保存は暗黙なので、成功を明示する（本体保存の「保存しました」と同じ流儀）。
+        setPlayersMsg("選手情報を保存しました");
+        setTimeout(() => setPlayersMsg(null), 2000);
+      })
+      .catch(() => setSaveErr("通信に失敗しました。"));
+    // ローカルの kifu ドラフトにも反映（後続の kifu 保存・表示との整合のため）。
+    mutate((d) => {
+      d.players = players;
+    });
+  }
   const [open, setOpen] = useState<Record<string, boolean>>({
     han: true,
     info: true,
@@ -836,7 +875,7 @@ function Editor(p: EditorProps) {
                 <svg className={s.arr} viewBox="0 0 12 12">
                   <path d="M4 2l5 4-5 4" />
                 </svg>
-                ポイント
+                選手情報
               </button>
               {showPoints && (
                 <div className={s.accBody}>
@@ -848,7 +887,9 @@ function Editor(p: EditorProps) {
                         value={names[seat]}
                         placeholder={`${windOf(seat, dealer)}家`}
                         aria-label="選手名"
+                        maxLength={20}
                         onChange={(e) => setNames((n) => ({ ...n, [seat]: e.target.value }))}
+                        onBlur={savePlayers}
                       />
                       <input
                         type="number"
@@ -867,9 +908,15 @@ function Editor(p: EditorProps) {
                           fontFamily: "var(--round)",
                         }}
                         onChange={(e) => setPoints((pt) => ({ ...pt, [seat]: e.target.value }))}
+                        onBlur={savePlayers}
                       />
                     </div>
                   ))}
+                  {playersMsg && (
+                    <p style={{ color: "var(--emLite, #6fbf9a)", fontSize: 12, margin: "4px 0 0" }}>
+                      {playersMsg}
+                    </p>
+                  )}
                 </div>
               )}
             </section>

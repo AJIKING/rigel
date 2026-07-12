@@ -335,12 +335,26 @@
   font-weight: 700;
   font-size: 13px;
   color: var(--w85);
+  /* 長い選手名で隣席に重ならないよう切り詰める（mobile の maxWidth と同じ挙動に揃える）。 */
+  max-width: 96px;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .nameplate .pts {
   font-weight: 800;
   font-size: 12px;
   color: var(--orange);
   font-variant-numeric: tabular-nums;
+}
+/* リーグ戦等の積み上げポイント状況（持ち点と区別するチップ表示）。 */
+.nameplate .lpts {
+  font-weight: 800;
+  font-size: 11px;
+  color: var(--orange);
+  font-variant-numeric: tabular-nums;
+  background: rgba(0, 0, 0, 0.28);
+  border-radius: 2px;
+  padding: 1px 4px;
 }
 .center {
   position: absolute;

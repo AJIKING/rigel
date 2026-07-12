@@ -479,6 +479,40 @@ describe("KifuViewer", () => {
     expect(bottomPlate()).toContain("太郎");
   });
 
+  it("選手情報（players）がある半荘は、ネームプレートに選手名とポイント状況を出す", () => {
+    const d = detail([
+      makeKifu(
+        {},
+        {
+          players: {
+            east: { name: "多井", points: 120.3 },
+            south: { name: "園田", points: -45.7 },
+            west: {},
+            north: {},
+          },
+        },
+      ),
+    ]);
+    const { container } = renderViewer(d);
+    const bottom = container.querySelector('[data-seat="bottom"]')!.textContent as string;
+
+    // 手前席（東）は選手名＋積み上げポイント。選手名は撮影者名より優先する。
+    expect(bottom).toContain("多井");
+    expect(bottom).toContain("+120.3");
+    expect(bottom).not.toContain("太郎");
+    // 他家も選手名とポイントが出る。
+    expect(container.textContent).toContain("園田");
+    expect(container.textContent).toContain("-45.7");
+    // サイドパネルにも選手情報節（ネームプレートは切り詰められるためフル名が読める場所）。
+    expect(screen.getByText("選手情報")).toBeTruthy();
+  });
+
+  it("選手情報が無い半荘はポイント状況を出さない（従来表示のまま）", () => {
+    const { container } = renderViewer(detail([kifu()]));
+    expect(container.textContent).not.toContain("+0.0");
+    expect(screen.queryByText("選手情報")).toBeNull();
+  });
+
   it("サイドパネルで半荘ルールを確認できる（プリセット名＋各項目の値）", () => {
     renderViewer(detail([kifu()]));
     // 見出しに一致プリセット名（既定ルール＝Mリーグ相当）。

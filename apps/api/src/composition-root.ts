@@ -13,6 +13,7 @@ import { DeleteGame } from "./application/delete-game.usecase";
 import { DeleteKifu } from "./application/delete-kifu.usecase";
 import { UpdateGame } from "./application/update-game.usecase";
 import { UpdateGameRules } from "./application/update-game-rules.usecase";
+import { UpdateGamePlayers } from "./application/update-game-players.usecase";
 import { UpdateGameStatus } from "./application/update-game-status.usecase";
 import { UpdateGameVisibility } from "./application/update-game-visibility.usecase";
 import { GetGameWithLogs } from "./application/get-game-with-logs.usecase";
@@ -67,6 +68,7 @@ export interface AppContainer {
   deleteGame: DeleteGame;
   updateGame: UpdateGame;
   updateGameRules: UpdateGameRules;
+  updateGamePlayers: UpdateGamePlayers;
   updateGameVisibility: UpdateGameVisibility;
   updateGameStatus: UpdateGameStatus;
   createEmptyKifu: CreateEmptyKifu;
@@ -174,6 +176,7 @@ export function buildContainer(env: Env): AppContainer {
     deleteGame: new DeleteGame(gamesRepo, gameLogs),
     updateGame: new UpdateGame(gamesRepo),
     updateGameRules: new UpdateGameRules(gamesRepo, gameLogs),
+    updateGamePlayers: new UpdateGamePlayers(gamesRepo, gameLogs),
     updateGameVisibility: new UpdateGameVisibility(gamesRepo, gameLogs, users),
     updateGameStatus: new UpdateGameStatus(gamesRepo, gameLogs, users),
     createEmptyKifu: new CreateEmptyKifu({ games: gamesRepo, gameLogs, users, now, newId }),

@@ -1,7 +1,7 @@
 "use client";
 
 import { toAbsoluteSeat, type CameraSeat, type Kifu, type Seat, type Tile } from "@rigel/schema";
-import { splitDrawnTile, type DrawnTile } from "@rigel/ui";
+import { signedPoints, splitDrawnTile, type DrawnTile } from "@rigel/ui";
 import { chunk, windOf } from "../../lib/board";
 import { OssTileFace } from "../OssTileFace";
 import s from "./kifu-view.module.css";
@@ -128,12 +128,17 @@ export function ViewBoard({
             seat,
           );
           const riverShown = board.river.slice(0, revealed?.[seat] ?? board.river.length);
-          const name = (seatName?.seat === seat && seatName.name) || `${wind}家`;
+          // 選手名（リーグ戦の記録）＞ 画面固有の表示名（撮影者名など）＞「◯家」。
+          const player = kifu.players?.[seat];
+          const name = player?.name || (seatName?.seat === seat && seatName.name) || `${wind}家`;
           const plate = (
             <>
               <span className={s.wd}>{wind}</span>
               <span className={s.nm}>{name}</span>
               {points && <span className={s.pts}>{points[seat].toLocaleString()}点</span>}
+              {/* リーグ戦等の積み上げポイント状況（players がある半荘のみ）。
+                  持ち点と別軸の判断材料なので常設で出す。 */}
+              {player && <span className={s.lpts}>{signedPoints(player.points)}</span>}
             </>
           );
           return (

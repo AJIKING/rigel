@@ -272,6 +272,25 @@ export function totalHan(agari: Agari): number {
 // ------------------------------------------------------------
 export const ResultSchema = z.enum(["ron", "tsumo", "draw"]);
 
+/** 選手1人ぶんの情報（リーグ戦等の表示用）。
+ *  半荘の全局に複製保存されるため、上限は UI ではなく schema で強制する（信頼ゲート）。 */
+export const PlayerInfoSchema = z.object({
+  /** 選手名（20文字まで。空なら「◯家」表示にフォールバック）。 */
+  name: z.string().max(20).default(""),
+  /** 半荘開始時点の積み上げポイント（リーグ戦の順位状況。+120.3 など小数1桁想定）。 */
+  points: z.number().finite().default(0),
+});
+export type PlayerInfo = z.infer<typeof PlayerInfoSchema>;
+
+/** 4席ぶんの選手情報（席の絶対位置キー）。 */
+export const PlayersSchema = z.object({
+  east: PlayerInfoSchema.default({}),
+  south: PlayerInfoSchema.default({}),
+  west: PlayerInfoSchema.default({}),
+  north: PlayerInfoSchema.default({}),
+});
+export type Players = z.infer<typeof PlayersSchema>;
+
 export const KifuSchema = z.object({
   schemaVersion: z.literal(SCHEMA_VERSION),
   /** ISO8601。撮影/解析した瞬間（= スナップショットの時点）。 */
@@ -320,6 +339,11 @@ export const KifuSchema = z.object({
 
   /** 半荘ルール（点数計算の前提）。省略時は Mリーグ相当の既定。 */
   rules: RulesSchema.default({}),
+
+  /** 選手情報（リーグ戦などの選手名と持ちポイント。写真に写らない記録用で
+   *  点数計算には使わない）。rules と同じく半荘単位＝配下の全局で共有する。
+   *  無ければ null（後方互換・ポイント状況を記録しない対局）。 */
+  players: PlayersSchema.nullable().default(null),
 
   /** 和了情報（点数計算の入力）。ダブロン/トリプルロンは複数件。流局・未入力は空配列。
    *  旧データの単一オブジェクト/null は配列へ移行する。 */

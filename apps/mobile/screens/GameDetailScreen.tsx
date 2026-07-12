@@ -6,6 +6,7 @@ import { useCallback, useState } from "react";
 import { FlatList, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { CenterState } from "../components/CenterState";
 import { DangerButton } from "../components/DangerButton";
+import { PlayersSheet } from "../components/editor/PlayersSheet";
 import { RulesSheet } from "../components/editor/RulesSheet";
 import { Segment } from "../components/Segment";
 import {
@@ -14,6 +15,7 @@ import {
   setGameStatus,
   setGameVisibility,
   updateGame,
+  updateGamePlayers,
   updateGameRules,
 } from "../lib/api";
 import { useAuth } from "../lib/auth";
@@ -35,6 +37,7 @@ export function GameDetailScreen() {
   const [titleDraft, setTitleDraft] = useState("");
   const [savingTitle, setSavingTitle] = useState(false);
   const [rulesOpen, setRulesOpen] = useState(false);
+  const [playersOpen, setPlayersOpen] = useState(false);
   // 公開範囲・編集状態は半荘単位。楽観更新（失敗で戻す）。null のうちは局の値を使う。
   const [vis, setVis] = useState<Visibility | null>(null);
   const [stat, setStat] = useState<KifuStatus | null>(null);
@@ -108,6 +111,16 @@ export function GameDetailScreen() {
     setNote(null);
     updateGameRules(token, gameId, rules)
       .then((res) => (res.ok ? refetch() : setNote("ルールの保存に失敗しました")))
+      .catch(() => setNote("通信に失敗しました"));
+  }
+
+  /** 半荘の選手情報（選手名・リーグ戦ポイント）を保存する（配下の全局に反映）。 */
+  function onSavePlayers(players: Parameters<typeof updateGamePlayers>[2]) {
+    if (!token) return;
+    setPlayersOpen(false);
+    setNote(null);
+    updateGamePlayers(token, gameId, players)
+      .then((res) => (res.ok ? refetch() : setNote("選手情報の保存に失敗しました")))
       .catch(() => setNote("通信に失敗しました"));
   }
 
@@ -230,6 +243,14 @@ export function GameDetailScreen() {
           >
             <Text style={styles.rulesBtnText}>⚙ ルール設定</Text>
           </Pressable>
+          <Pressable
+            style={styles.rulesBtn}
+            onPress={() => setPlayersOpen(true)}
+            accessibilityRole="button"
+            accessibilityLabel="選手情報"
+          >
+            <Text style={styles.rulesBtnText}>👤 選手情報</Text>
+          </Pressable>
           <View style={styles.delWrap}>
             <DangerButton label="半荘を削除" onPress={onDeleteGame} />
           </View>
@@ -283,6 +304,14 @@ export function GameDetailScreen() {
           rules={detail.logs[0].kifu.rules}
           onSave={onSaveRules}
           onClose={() => setRulesOpen(false)}
+        />
+      ) : null}
+      {/* 選手情報（選手名・リーグ戦ポイント）。ルールと同じく半荘単位で全局に反映する。 */}
+      {playersOpen && detail.logs[0] ? (
+        <PlayersSheet
+          players={detail.logs[0].kifu.players}
+          onSave={onSavePlayers}
+          onClose={() => setPlayersOpen(false)}
         />
       ) : null}
     </View>

@@ -36,6 +36,31 @@ describe("UpdateKifu", () => {
     expect(saved?.status).toBe("draft"); // 下書き/編集済は半荘単位（ここでは触らない）
   });
 
+  it("半荘単位フィールド（players/rules）は PUT では書き換えず保存済みの値を保持する", async () => {
+    // 旧クライアント（players を知らないスキーマ）が strip した kifu を送り返しても、
+    // 半荘単位の選手情報・ルールが局単位で消えたり乖離したりしない。
+    const players = {
+      east: { name: "多井", points: 120.3 },
+      south: { name: "", points: 0 },
+      west: { name: "", points: 0 },
+      north: { name: "", points: 0 },
+    };
+    const rules = { ...validKifu.rules, kiriage: false };
+    const { uc, gameLogs } = make([log("l1", "u1", { kifu: { ...validKifu, players, rules } })]);
+
+    const result = await uc.execute({
+      userId: "u1",
+      logId: "l1",
+      // players 欠落（=parse で null 化）＋ rules 改変の入った牌譜を送る。
+      kifu: { ...edited, players: null, rules: validKifu.rules },
+    });
+    expect(result).toEqual({ ok: true });
+    const saved = await gameLogs.findById("l1");
+    expect(saved?.kifu.readingNotes).toBe("直した"); // 局の中身は更新される
+    expect(saved?.kifu.players).toEqual(players); // 半荘単位は保持
+    expect(saved?.kifu.rules.kiriage).toBe(false);
+  });
+
   it("seq を渡すと局順を変更できる（東一局→南三局=7 など自由な局に）", async () => {
     const { uc, gameLogs } = make([log("l1", "u1")]);
     const result = await uc.execute({ userId: "u1", logId: "l1", kifu: edited, seq: 7 });

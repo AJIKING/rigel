@@ -84,6 +84,35 @@ describe("KifuSchema（牌譜1件の最終検証）", () => {
     expect(result.success).toBe(false);
   });
 
+  it("players は省略時 null（後方互換）。指定時は選手名とポイントを席ごとに保持する", () => {
+    expect(KifuSchema.parse(minimalKifu).players).toBeNull();
+
+    const kifu = KifuSchema.parse({
+      ...minimalKifu,
+      players: {
+        east: { name: "多井", points: 120.3 },
+        south: { name: "", points: -45.7 },
+        west: {},
+        north: { name: "園田" },
+      },
+    });
+    expect(kifu.players?.east).toEqual({ name: "多井", points: 120.3 });
+    expect(kifu.players?.south.points).toBe(-45.7);
+    // 省略フィールドは既定（名前=空・ポイント=0）で埋まる。
+    expect(kifu.players?.west).toEqual({ name: "", points: 0 });
+    expect(kifu.players?.north.points).toBe(0);
+  });
+
+  it("players の選手名は20文字まで・ポイントは有限数のみ（全局複製されるため schema で強制）", () => {
+    const withPlayers = (info: Record<string, unknown>) => ({
+      ...minimalKifu,
+      players: { east: info, south: {}, west: {}, north: {} },
+    });
+    expect(KifuSchema.safeParse(withPlayers({ name: "あ".repeat(21) })).success).toBe(false);
+    expect(KifuSchema.safeParse(withPlayers({ name: "あ".repeat(20) })).success).toBe(true);
+    expect(KifuSchema.safeParse(withPlayers({ points: Infinity })).success).toBe(false);
+  });
+
   it("timeline は省略時に空配列になる（後方互換）", () => {
     const kifu = KifuSchema.parse(minimalKifu);
     expect(kifu.timeline).toEqual([]);

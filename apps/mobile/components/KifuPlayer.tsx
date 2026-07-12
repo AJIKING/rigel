@@ -6,6 +6,7 @@ import {
   resultLabel,
   roundNameForSeq,
   rulePresetLabel,
+  signedPoints,
   ruleSummaryRows,
   stepDisplay,
   stepHasDraw,
@@ -327,6 +328,20 @@ export function KifuPlayer({
                 v={`手牌${viewKifu.seats[seat].hand.length}枚 / 河${viewKifu.seats[seat].river.length}${` / ${startPoints[seat].toLocaleString()}点`}`}
               />
             ))}
+            {/* 選手情報（players がある半荘のみ）。ネームプレートの選手名は切り詰められる
+                ことがあるため、ここではフル名＋ポイント状況を一覧できるようにする。 */}
+            {kifu.players ? (
+              <>
+                <Text style={styles.h3}>選手情報</Text>
+                {SEAT_ORDER.map((seat) => (
+                  <KV
+                    key={`p-${seat}`}
+                    k={`${windOf(seat, dealer)}家 ${kifu.players?.[seat].name || "—"}`}
+                    v={signedPoints(kifu.players?.[seat].points ?? 0)}
+                  />
+                ))}
+              </>
+            ) : null}
             {/* 半荘ルール（半荘単位＝全局共通）。web のサイドパネルと同じ要約行。 */}
             <Text style={styles.h3}>ルール（{rulePresetLabel(kifu.rules)}）</Text>
             {ruleSummaryRows(kifu.rules).map((r) => (

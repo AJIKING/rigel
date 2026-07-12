@@ -133,9 +133,12 @@ export class CreateEmptyKifu {
     }
 
     const existing = await gameLogs.listByGame(game.id);
-    // ルール・公開範囲・編集状態は半荘単位。既存局があれば引き継ぐ（局ごとにバラけさせない）。
+    // ルール・選手情報・公開範囲・編集状態は半荘単位。既存局があれば引き継ぐ（局ごとにバラけさせない）。
     const kifu = emptyKifu(now().toISOString(), params.cameraBottomSeat, params.meta);
-    if (existing[0]) kifu.rules = existing[0].kifu.rules;
+    if (existing[0]) {
+      kifu.rules = existing[0].kifu.rules;
+      kifu.players = existing[0].kifu.players;
+    }
     const log: GameLog = {
       id: newId(),
       userId: params.userId,

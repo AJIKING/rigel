@@ -2,7 +2,14 @@
 
 import { type KifuMetaInput, type KifuStatus, type ProblemStatus } from "@rigel/client";
 // KifuStatus は setGameStatusAction（半荘単位の下書き/編集済）で使う。
-import { type Kifu, type Problem, type ProblemAction, type Rules, type Seat } from "@rigel/schema";
+import {
+  type Kifu,
+  type Players,
+  type Problem,
+  type ProblemAction,
+  type Rules,
+  type Seat,
+} from "@rigel/schema";
 import {
   analyze,
   answerProblem,
@@ -21,6 +28,7 @@ import {
   setGameStatus,
   setGameVisibility,
   updateGame,
+  updateGamePlayers,
   updateGameRules,
   updateKifu,
   updateProblem,
@@ -65,6 +73,11 @@ export async function setGameVisibilityAction(gameId: string, visibility: "publi
 /** 半荘のルールを変更（配下の全局に反映）。ルールは局ごとに持たず半荘で共有する。 */
 export async function updateGameRulesAction(gameId: string, rules: Rules) {
   return updateGameRules(await requireToken(), gameId, rules);
+}
+
+/** 半荘の選手情報（選手名・リーグ戦ポイント）を変更（配下の全局に反映）。半荘単位。 */
+export async function updateGamePlayersAction(gameId: string, players: Players | null) {
+  return updateGamePlayers(await requireToken(), gameId, players);
 }
 
 /** 半荘名を変更する（所有者のみ）。 */

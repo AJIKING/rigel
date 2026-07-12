@@ -25,6 +25,9 @@ import {
   RED_TILE_COLOR,
   REVIEW_CONFIDENCE_THRESHOLD,
   seatLabel,
+  playersFromInput,
+  playersToInput,
+  signedPoints,
   tileAssetName,
   tileFace,
   tileLabel,
@@ -90,6 +93,71 @@ describe("tileLabel", () => {
   });
   it("null は ?", () => {
     expect(tileLabel(null)).toBe("?");
+  });
+});
+
+describe("playersFromInput（選手情報の入力文字列 → Players。web/mobile 編集で共用）", () => {
+  const empty = { name: "", points: "" };
+  it("全席が空（名前なし・0pt）なら null（記録しない対局）", () => {
+    expect(
+      playersFromInput({
+        east: empty,
+        south: { name: " ", points: "0" },
+        west: empty,
+        north: empty,
+      }),
+    ).toBeNull();
+  });
+  it("名前は trim・ポイントは数値化（不正値は 0）して組む", () => {
+    const p = playersFromInput({
+      east: { name: " 多井 ", points: "120.3" },
+      south: { name: "園田", points: "abc" },
+      west: empty,
+      north: { name: "", points: "-45.7" },
+    });
+    expect(p?.east).toEqual({ name: "多井", points: 120.3 });
+    expect(p?.south).toEqual({ name: "園田", points: 0 });
+    expect(p?.west).toEqual({ name: "", points: 0 });
+    expect(p?.north.points).toBe(-45.7);
+  });
+
+  it("ポイントは小数1桁へ丸め、Infinity などの異常値は 0 に倒す（schema の finite と整合）", () => {
+    const p = playersFromInput({
+      east: { name: "多井", points: "120.34" },
+      south: { name: "", points: "1e999" }, // parseFloat で Infinity になる入力
+      west: empty,
+      north: empty,
+    });
+    expect(p?.east.points).toBe(120.3);
+    expect(p?.south.points).toBe(0);
+  });
+});
+
+describe("playersToInput（Players → 入力文字列。playersFromInput の逆変換）", () => {
+  it("保存値から入力初期値を組む（null は全席空）", () => {
+    const players = {
+      east: { name: "多井", points: 120.3 },
+      south: { name: "", points: -45.7 },
+      west: { name: "", points: 0 },
+      north: { name: "", points: 0 },
+    };
+    const input = playersToInput(players);
+    expect(input.east).toEqual({ name: "多井", points: "120.3" });
+    expect(input.south).toEqual({ name: "", points: "-45.7" });
+
+    const blank = playersToInput(null);
+    expect(blank.east).toEqual({ name: "", points: "0" });
+  });
+});
+
+describe("signedPoints（リーグ戦ポイントの符号つき表示）", () => {
+  it("符号つき小数1桁で整形する（正は + を付ける）", () => {
+    expect(signedPoints(120.3)).toBe("+120.3");
+    expect(signedPoints(-45.7)).toBe("-45.7");
+    expect(signedPoints(0)).toBe("+0.0");
+  });
+  it("不正値は 0.0", () => {
+    expect(signedPoints(NaN)).toBe("0.0");
   });
 });
 

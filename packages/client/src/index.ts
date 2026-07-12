@@ -5,7 +5,7 @@
 // fetch は注入可能（テスト用）。型(DTO)もここに集約して両アプリの drift を防ぐ。
 // ============================================================
 
-import type { Kifu, Problem, ProblemAction, Rules, Seat } from "@rigel/schema";
+import type { Kifu, Players, Problem, ProblemAction, Rules, Seat } from "@rigel/schema";
 
 /** 作成時に渡せる局メタ（本場/供託/ドラ/最終巡目）。記録のみ・点数計算はしない。 */
 export type KifuMetaInput = Partial<Pick<Kifu["meta"], "honba" | "kyotaku" | "dora" | "junme">>;
@@ -191,6 +191,13 @@ export interface ApiClient {
     token: string,
     gameId: string,
     rules: Rules,
+  ): Promise<{ ok: boolean; status: number }>;
+  /** 半荘の選手情報（選手名・リーグ戦ポイント）を変更する（配下の全局に反映。
+   *  所有者のみ）。null で「記録しない対局」へ戻す。成否を返す。 */
+  updateGamePlayers(
+    token: string,
+    gameId: string,
+    players: Players | null,
   ): Promise<{ ok: boolean; status: number }>;
   /** 半荘の公開範囲を変更する（配下の全局に反映。所有者のみ）。成否を返す。 */
   setGameVisibility(
@@ -424,6 +431,15 @@ export function createApiClient(baseUrl: string, fetchImpl?: typeof fetch): ApiC
         method: "PATCH",
         headers: { ...bearer(token), "content-type": "application/json" },
         body: JSON.stringify({ rules }),
+      });
+      return { ok: res.ok, status: res.status };
+    },
+
+    async updateGamePlayers(token, gameId, players) {
+      const res = await doFetch(`${baseUrl}/games/${gameId}/players`, {
+        method: "PATCH",
+        headers: { ...bearer(token), "content-type": "application/json" },
+        body: JSON.stringify({ players }),
       });
       return { ok: res.ok, status: res.status };
     },

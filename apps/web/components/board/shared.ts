@@ -1,5 +1,5 @@
 import { type Seat } from "@rigel/schema";
-import { type TileLocation } from "@rigel/ui";
+import { signedPoints, type TileLocation } from "@rigel/ui";
 
 /** 盤面エディタの牌ピッカーが「今どこを編集しているか」を表す選択状態。 */
 export type Selection =
@@ -15,9 +15,7 @@ export function fkey(loc: TileLocation): string {
   return `${loc.seat}:${loc.area}:${loc.meldIndex ?? "-"}:${loc.index}`;
 }
 
-/** ポイント表示用の符号つきフォーマット（"+12.3" / "-4.0" / 不正値は "0.0"）。 */
+/** ポイント入力（文字列）の符号つきフォーマット。整形は共有の signedPoints に委ねる。 */
 export function fmtPts(v: string): string {
-  const n = parseFloat(v);
-  if (isNaN(n)) return "0.0";
-  return (n >= 0 ? "+" : "") + n.toFixed(1);
+  return signedPoints(parseFloat(v));
 }

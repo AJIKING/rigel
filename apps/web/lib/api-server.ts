@@ -34,6 +34,7 @@ export const {
   setGameVisibility,
   updateGame,
   updateGameRules,
+  updateGamePlayers,
   deleteGame,
   deleteKifu,
   createGame,

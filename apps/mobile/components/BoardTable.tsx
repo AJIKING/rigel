@@ -1,5 +1,5 @@
 import { toAbsoluteSeat, type CameraSeat, type Kifu, type Seat } from "@rigel/schema";
-import { chunk, seatResult, splitDrawnTile, windOf, type DrawnTile } from "@rigel/ui";
+import { chunk, seatResult, signedPoints, splitDrawnTile, windOf, type DrawnTile } from "@rigel/ui";
 import { useEffect, useRef } from "react";
 import { Animated, Easing, Pressable, StyleSheet, Text, View, type ViewStyle } from "react-native";
 import { colors } from "../lib/theme";
@@ -158,7 +158,9 @@ export function BoardTable({
         const wind = windOf(seat, dealer);
         const river = board.river.slice(0, revealed?.[seat] ?? board.river.length);
         const isBottom = seat === bottomSeat;
-        const name = (seatName?.seat === seat && seatName.name) || `${wind}家`;
+        // 選手名（リーグ戦の記録）＞ 画面固有の表示名（撮影者名など）＞「◯家」。
+        const player = kifu.players?.[seat];
+        const name = player?.name || (seatName?.seat === seat && seatName.name) || `${wind}家`;
         const { cx, cy } = seatPos[cam];
         const seatStyle: ViewStyle = {
           position: "absolute",
@@ -240,6 +242,8 @@ export function BoardTable({
                 {name}
               </Text>
               {points ? <Text style={styles.pts}>{points[seat].toLocaleString()}点</Text> : null}
+              {/* リーグ戦等の積み上げポイント状況（players がある半荘のみ）。 */}
+              {player ? <Text style={styles.lpts}>{signedPoints(player.points)}</Text> : null}
               {seatResult(kifu.agari, seat) ? (
                 <Text style={[styles.sc, seatResult(kifu.agari, seat) === "放銃" && styles.scLose]}>
                   {seatResult(kifu.agari, seat)}
@@ -330,8 +334,19 @@ const styles = StyleSheet.create({
     overflow: "hidden",
   },
   wdWin: { backgroundColor: colors.accent, color: "#16181d" },
-  nm: { color: "rgba(255,255,255,0.9)", fontSize: 10, fontWeight: "700", maxWidth: 90 },
+  // 選手情報（リーグpt チップ）や和了バッジと並んでも卓外へはみ出さない幅に抑える。
+  nm: { color: "rgba(255,255,255,0.9)", fontSize: 10, fontWeight: "700", maxWidth: 70 },
   pts: { color: colors.accent, fontSize: 9.5, fontWeight: "800" },
+  // リーグ戦等の積み上げポイント状況（持ち点と区別するチップ表示）。
+  lpts: {
+    color: colors.accent,
+    fontSize: 9,
+    fontWeight: "800",
+    backgroundColor: "rgba(0,0,0,0.28)",
+    borderRadius: 2,
+    paddingHorizontal: 3,
+    overflow: "hidden",
+  },
   sc: {
     color: colors.accent,
     fontSize: 9.5,

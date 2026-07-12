@@ -37,6 +37,7 @@ export const {
   deleteGame,
   updateGame,
   updateGameRules,
+  updateGamePlayers,
   setGameStatus,
   setGameVisibility,
   updateProfile,

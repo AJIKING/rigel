@@ -21,6 +21,7 @@ import {
   type ProblemKind,
   type ReadTile,
   type Rules,
+  type Players,
   type Seat,
   type Tile,
 } from "@rigel/schema";
@@ -86,6 +87,42 @@ export function tileLabel(tile: Tile | null): string {
   if (!info) return "?";
   if (info.suit === "z") return HONOR_LABELS[info.rank - 1] ?? "?";
   return `${info.red ? "赤" : ""}${info.rank}${SUIT_MARK[info.suit]}`;
+}
+
+/** リーグ戦ポイントの符号つき表示（"+12.3" / "-4.0"。正は + を付ける。不正値は "0.0"）。
+ *  エディタのポイント入力と再生画面のネームプレートで共用する。 */
+export function signedPoints(n: number): string {
+  if (!Number.isFinite(n)) return "0.0";
+  return (n >= 0 ? "+" : "") + n.toFixed(1);
+}
+
+/** 選手情報の入力欄の形（席ごとの文字列）。playersFromInput / playersToInput で相互変換する。 */
+export type PlayersInput = Record<Seat, { name: string; points: string }>;
+
+/** 選手情報の入力（文字列）から Players を組む（web/mobile の編集画面で共用）。
+ *  名前は trim、ポイントは数値化して小数1桁へ丸める（不正値・Infinity は 0。
+ *  schema の finite 制約・表示の signedPoints と整合）。全席が空（名前なし・0pt）なら
+ *  null（＝選手情報を記録しない対局）を返す。 */
+export function playersFromInput(input: PlayersInput): Players | null {
+  const info = (seat: Seat) => {
+    const n = parseFloat(input[seat].points);
+    return {
+      name: input[seat].name.trim(),
+      points: Number.isFinite(n) ? Math.round(n * 10) / 10 : 0,
+    };
+  };
+  const p = { east: info("east"), south: info("south"), west: info("west"), north: info("north") };
+  const empty = Object.values(p).every((v) => v.name === "" && v.points === 0);
+  return empty ? null : p;
+}
+
+/** Players から入力欄の初期値（文字列）を組む（playersFromInput の逆変換）。null は全席空。 */
+export function playersToInput(players: Players | null): PlayersInput {
+  const info = (seat: Seat) => ({
+    name: players?.[seat].name ?? "",
+    points: String(players?.[seat].points ?? 0),
+  });
+  return { east: info("east"), south: info("south"), west: info("west"), north: info("north") };
 }
 
 const SEAT_LABELS: Record<Seat, string> = { east: "東", south: "南", west: "西", north: "北" };

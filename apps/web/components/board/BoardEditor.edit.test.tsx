@@ -21,6 +21,7 @@ const h = vi.hoisted(() => ({
   deleteAccountAction: vi.fn(),
   updateGameAction: vi.fn(),
   updateGameRulesAction: vi.fn(),
+  updateGamePlayersAction: vi.fn(),
   deleteGameAction: vi.fn(),
 }));
 vi.mock("../../app/actions", () => h);
@@ -60,6 +61,67 @@ beforeEach(() => {
   h.setGameVisibilityAction.mockReset().mockResolvedValue({ ok: true, status: 200 });
   h.deleteKifuAction.mockReset().mockResolvedValue({ ok: true, status: 200 });
   h.getGameAction.mockReset().mockResolvedValue(makeDetail([{ id: "l1" }]));
+});
+
+describe("BoardEditor 選手情報（ポイント状況）", () => {
+  it("選手情報欄は kifu.players から初期化され、変更して blur すると半荘単位で保存される", async () => {
+    h.updateGamePlayersAction.mockReset().mockResolvedValue({ ok: true, status: 200 });
+    const detail = makeDetail([{ id: "l1" }]);
+    detail.logs[0]!.kifu = KifuSchema.parse({
+      ...detail.logs[0]!.kifu,
+      players: {
+        east: { name: "多井", points: 120.3 },
+        south: { name: "園田", points: -45.7 },
+        west: {},
+        north: {},
+      },
+    });
+    render(<BoardEditor initialDetail={detail} gameId="g1" logId="l1" />);
+
+    // アコーディオン（呼称は mobile と同じ「選手情報」）を開くと保存済みの値が入っている。
+    fireEvent.click(await screen.findByRole("button", { name: "選手情報" }));
+    const nameInputs = screen.getAllByLabelText("選手名") as HTMLInputElement[];
+    const ptInputs = screen.getAllByLabelText("ポイント") as HTMLInputElement[];
+    expect(nameInputs[0]!.value).toBe("多井");
+    expect(ptInputs[0]!.value).toBe("120.3");
+    expect(ptInputs[1]!.value).toBe("-45.7");
+
+    // ポイントを書き換えて blur → 半荘単位の保存 API が呼ばれ、成功が表示される。
+    fireEvent.change(ptInputs[0]!, { target: { value: "130.5" } });
+    fireEvent.blur(ptInputs[0]!);
+    await waitFor(() => expect(h.updateGamePlayersAction).toHaveBeenCalledTimes(1));
+    const [gameId, players] = h.updateGamePlayersAction.mock.calls[0] as [string, unknown];
+    expect(gameId).toBe("g1");
+    expect(players).toMatchObject({
+      east: { name: "多井", points: 130.5 },
+      south: { name: "園田", points: -45.7 },
+    });
+    expect(await screen.findByText("選手情報を保存しました")).toBeTruthy();
+
+    // 変更のない blur では保存 API を呼ばない（全局書き込みの無駄撃ち防止）。
+    fireEvent.blur(ptInputs[0]!);
+    fireEvent.blur(nameInputs[1]!);
+    expect(h.updateGamePlayersAction).toHaveBeenCalledTimes(1);
+  });
+
+  it("全席が空（名前なし・0pt）なら null で保存する（記録しない対局へ戻す）", async () => {
+    h.updateGamePlayersAction.mockReset().mockResolvedValue({ ok: true, status: 200 });
+    render(<BoardEditor initialDetail={makeDetail([{ id: "l1" }])} gameId="g1" logId="l1" />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "選手情報" }));
+    const nameInputs = screen.getAllByLabelText("選手名") as HTMLInputElement[];
+    // 未入力のまま blur しても何も送らない（初期状態は未変更）。
+    fireEvent.blur(nameInputs[0]!);
+    expect(h.updateGamePlayersAction).not.toHaveBeenCalled();
+    // 一度名前を入れてから消す → blur 時に null で保存される。
+    fireEvent.change(nameInputs[0]!, { target: { value: "多井" } });
+    fireEvent.blur(nameInputs[0]!);
+    await waitFor(() => expect(h.updateGamePlayersAction).toHaveBeenCalledTimes(1));
+    fireEvent.change(nameInputs[0]!, { target: { value: "" } });
+    fireEvent.blur(nameInputs[0]!);
+    await waitFor(() => expect(h.updateGamePlayersAction).toHaveBeenCalledTimes(2));
+    expect(h.updateGamePlayersAction.mock.calls[1]![1]).toBeNull();
+  });
 });
 
 describe("BoardEditor 編集操作", () => {

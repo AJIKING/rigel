@@ -151,4 +151,32 @@ describe("CreateEmptyKifu", () => {
     if (!second.ok) throw new Error("add failed");
     expect((await gameLogs.findById(second.logId))?.visibility).toBe("public");
   });
+
+  it("既存半荘に局を足すとルールと選手情報を引き継ぐ（半荘単位＝局ごとにバラけさせない）", async () => {
+    const { uc, gameLogs } = make({ games: [] });
+    const first = await uc.execute({ userId: "u1", cameraBottomSeat: "east" });
+    if (!first.ok) throw new Error("setup failed");
+    // ルール変更＋選手情報を記録した状態を作る。
+    const log0 = await gameLogs.findById(first.logId);
+    const players = {
+      east: { name: "多井", points: 120.3 },
+      south: { name: "", points: 0 },
+      west: { name: "", points: 0 },
+      north: { name: "", points: 0 },
+    };
+    await gameLogs.save({
+      ...log0!,
+      kifu: { ...log0!.kifu, rules: { ...log0!.kifu.rules, kiriage: false }, players },
+    });
+
+    const second = await uc.execute({
+      userId: "u1",
+      gameId: first.gameId,
+      cameraBottomSeat: "east",
+    });
+    if (!second.ok) throw new Error("add failed");
+    const added = await gameLogs.findById(second.logId);
+    expect(added?.kifu.rules.kiriage).toBe(false);
+    expect(added?.kifu.players).toEqual(players);
+  });
 });

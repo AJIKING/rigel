@@ -10,6 +10,7 @@ import {
   playbackKifu,
   resultLabel,
   rulePresetLabel,
+  signedPoints,
   ruleSummaryRows,
   stepDisplay,
   stepHasDraw,
@@ -546,6 +547,22 @@ export function KifuViewer({ detail, gameId }: { detail: PublicGameDetail; gameI
                 </div>
               ))}
             </div>
+
+            {/* 選手情報（players がある半荘のみ）。ネームプレートの選手名は切り詰められる
+                ことがあるため、ここではフル名＋ポイント状況を一覧できるようにする。 */}
+            {kifu.players && (
+              <div className={s.ssec}>
+                <h4>選手情報</h4>
+                {SEAT_ORDER.map((seat) => (
+                  <div key={seat} className={s.irow}>
+                    <span>
+                      {windOf(seat, dealer)}家 {kifu.players?.[seat].name || "—"}
+                    </span>
+                    <b>{signedPoints(kifu.players?.[seat].points ?? 0)}</b>
+                  </div>
+                ))}
+              </div>
+            )}
 
             {/* 半荘ルール（半荘単位＝全局共通）。項目が多いので折りたたみで出す。 */}
             <details className={s.ssec}>

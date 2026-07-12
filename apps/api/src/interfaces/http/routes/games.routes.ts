@@ -2,7 +2,7 @@
 // 一覧・公開フィード・詳細・作成（空の初局）・名称/公開範囲/ルール変更・削除。
 // 公開/非公開・ルール・保存上限は半荘単位で扱う（局ごとに持たない）。
 
-import { KifuSchema, RulesSchema, SeatSchema } from "@rigel/schema";
+import { KifuSchema, PlayersSchema, RulesSchema, SeatSchema } from "@rigel/schema";
 import type { Context, Hono } from "hono";
 import { MAX_SEQ } from "../../../application/update-kifu.usecase";
 import { reasonStatus, requireAuth, type AppEnv } from "../shared";
@@ -115,6 +115,23 @@ export function registerGameRoutes(app: Hono<AppEnv>): void {
       userId: c.get("userId")!,
       gameId: c.req.param("id"),
       rules: parsed.data,
+    });
+    if (!result.ok) return c.json({ error: "not found" }, 404);
+    return c.json({ ok: true });
+  });
+
+  // 半荘の選手情報変更（配下の全局に反映）。所有者のみ。rules と同じく半荘単位。
+  app.patch("/games/:id/players", requireAuth, async (c) => {
+    const body = (await c.req.json().catch(() => null)) as { players?: unknown } | null;
+    // キー欠落（typo 等）と明示的 null（=記録を消す）を区別する。欠落を null 扱いに
+    // すると、クライアントのバグが選手情報のサイレント全消去として成立してしまう。
+    if (!body || !("players" in body)) return c.json({ error: "players required" }, 400);
+    const parsed = PlayersSchema.nullable().safeParse(body.players);
+    if (!parsed.success) return c.json({ error: "invalid players" }, 400);
+    const result = await c.get("container").updateGamePlayers.execute({
+      userId: c.get("userId")!,
+      gameId: c.req.param("id"),
+      players: parsed.data,
     });
     if (!result.ok) return c.json({ error: "not found" }, 404);
     return c.json({ ok: true });

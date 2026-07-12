@@ -107,6 +107,20 @@ describe("HTTP app (Hono)", () => {
     expect(res.status).toBe(400);
   });
 
+  it("PATCH /games/:id/players は players キー欠落を 400（サイレント全消去を防ぐ）", async () => {
+    const token = await new JwtSessionService({ secret: "test-secret" }).issue("u1");
+    const res = await app.request(
+      "/games/g1/players",
+      {
+        method: "PATCH",
+        headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
+        body: JSON.stringify({ player: {} }), // typo（players キーが無い）
+      },
+      fakeEnv,
+    );
+    expect(res.status).toBe(400);
+  });
+
   it("PUT /kifu/:id はトークン無しで 401", async () => {
     const res = await app.request(
       "/kifu/l1",

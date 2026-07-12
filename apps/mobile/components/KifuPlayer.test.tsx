@@ -403,6 +403,40 @@ describe("KifuPlayer", () => {
     expect(screen.queryByLabelText("發")).toBeNull();
   });
 
+  it("選手情報（players）がある半荘は、ネームプレートに選手名とポイント状況を出す", () => {
+    const k = makeKifu(
+      {},
+      {
+        players: {
+          east: { name: "多井", points: 120.3 },
+          south: { name: "園田", points: -45.7 },
+          west: {},
+          north: {},
+        },
+      },
+    );
+    render(<KifuPlayer logs={[log(1, k)]} ownerName="太郎" />);
+
+    // 選手名（撮影者名より優先）と積み上げポイントが各席に出る。
+    expect(screen.getByText("多井")).toBeTruthy();
+    expect(screen.getByText("+120.3")).toBeTruthy();
+    expect(screen.getByText("園田")).toBeTruthy();
+    expect(screen.getByText("-45.7")).toBeTruthy();
+    expect(screen.queryByText("太郎")).toBeNull();
+
+    // 情報シートにも選手情報節（ネームプレートは切り詰められるためフル名が読める場所）。
+    fireEvent.press(screen.getByText("情報"));
+    expect(screen.getByText("選手情報")).toBeTruthy();
+  });
+
+  it("選手情報が無い半荘はポイント状況を出さない（従来表示のまま）", () => {
+    render(<KifuPlayer logs={[log(1, emptyKifu())]} ownerName="太郎" />);
+    expect(screen.queryByText("+0.0")).toBeNull();
+    expect(screen.getByText("太郎")).toBeTruthy(); // 撮影者名は従来どおり
+    fireEvent.press(screen.getByText("情報"));
+    expect(screen.queryByText("選手情報")).toBeNull();
+  });
+
   it("情報シートで半荘ルールを確認できる（プリセット名＋各項目の値）", () => {
     render(<KifuPlayer logs={[log(1, emptyKifu())]} />);
     fireEvent.press(screen.getByText("情報"));
