@@ -12,6 +12,7 @@ import { cors } from "hono/cors";
 import { bodyLimit } from "hono/body-limit";
 import { buildContainer, type AppContainer } from "../../composition-root";
 import { BODY_LIMIT_BYTES } from "./limits";
+import { rateLimit } from "./rate-limit";
 import type { Env } from "../../env";
 import { registerAccountRoutes } from "./routes/account.routes";
 import { registerBillingRoutes } from "./routes/billing.routes";
@@ -82,6 +83,9 @@ export function createApp(options: CreateAppOptions = {}): Hono<AppEnv> {
     }
     await next();
   });
+
+  // レート制限（乱用・DoS）。userId が解決済みの位置に置き、ルート・DB より前で弾く。
+  app.use("*", rateLimit);
 
   app.get("/health", (c) => c.json({ ok: true }));
 

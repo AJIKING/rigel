@@ -155,6 +155,8 @@ export function analyzeErrorMessage(status: number, reason?: string): string {
       return "今月の解析回数の上限に達しました。プランのアップグレードで増やせます。";
     case 404:
       return "指定した半荘が見つかりません。";
+    case 429:
+      return "混み合っています。少し待って再度お試しください。";
     case 502:
       return "解析に失敗しました。少し待って再度お試しください。";
     default:

@@ -180,6 +180,10 @@ describe("analyzeErrorMessage", () => {
     expect(analyzeErrorMessage(402)).toMatch(/上限/);
     expect(analyzeErrorMessage(502)).toMatch(/解析に失敗/);
   });
+  it("429（レート制限）は混雑として案内する（連打・乱用の抑制はサーバ側で行う）", () => {
+    expect(analyzeErrorMessage(429)).toMatch(/混み合/);
+  });
+
   it("既定は人向けの reason（日本語・記号入り）はそのまま出す", () => {
     expect(analyzeErrorMessage(400, "河の写真が必要です")).toBe("河の写真が必要です");
     expect(analyzeErrorMessage(400)).toBe("解析に失敗しました。");

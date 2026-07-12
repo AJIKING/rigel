@@ -16,6 +16,27 @@ migrations_dir = "migrations"
 [observability]
 enabled = true
 
+# レート制限（乱用・DoS 耐性）。src/interfaces/http/rate-limit.ts の RateLimiter ポートに対応。
+# 未設定だと制限なし（ローカル開発・テストはそれで通す）が、本番では必ず束ねること。
+# namespace_id はアカウント内で一意なら任意。period は 10 か 60 のみ。
+[[unsafe.bindings]]
+name = "RL_READ"                       # 公開読み取り（認証不要・IP 単位）
+type = "ratelimit"
+namespace_id = "1001"
+simple = { limit = 120, period = 60 }
+
+[[unsafe.bindings]]
+name = "RL_WRITE"                      # 書き込み（userId 単位。未ログインは IP）
+type = "ratelimit"
+namespace_id = "1002"
+simple = { limit = 60, period = 60 }
+
+[[unsafe.bindings]]
+name = "RL_ANALYZE"                    # 解析（Gemini コスト・枠のオーバーシュート抑制）
+type = "ratelimit"
+namespace_id = "1003"
+simple = { limit = 6, period = 60 }
+
 # Secret で渡す（コミットしない）:
 #   wrangler secret put GEMINI_API_KEY
 #   wrangler secret put CLOUDFLARE_AI_GATEWAY_URL   # google-ai-studio ベースURL（/v1beta の手前まで）

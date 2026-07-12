@@ -1,9 +1,15 @@
 // Worker のバインディング/環境変数。wrangler.toml と対応させる。
 // 秘匿値は .dev.vars / Secrets で渡す（コミットしない）。
 
+import type { RateLimiter } from "./interfaces/http/rate-limit";
 export interface Env {
   /** D1 データベース（wrangler.toml の binding = "DB"）。 */
   DB: D1Database;
+  /** レート制限（Cloudflare Rate Limiting binding）。未設定なら制限しない＝ローカル開発。
+   *  読み取り=IP / 書き込み=userId / 解析=userId（厳しめ）。rate-limit.ts を参照。 */
+  RL_READ?: RateLimiter;
+  RL_WRITE?: RateLimiter;
+  RL_ANALYZE?: RateLimiter;
   /** Gemini API キー（Secret）。 */
   GEMINI_API_KEY: string;
   /** Cloudflare AI Gateway の google-ai-studio ベースURL（`/v1beta/...` の手前まで）。 */
