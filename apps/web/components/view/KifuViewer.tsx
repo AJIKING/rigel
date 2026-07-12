@@ -16,7 +16,7 @@ import {
   stepHasDraw,
   type StepPhase,
 } from "@rigel/ui";
-import { SEAT_ORDER, roundNameForSeq, windOf } from "../../lib/board";
+import { SEAT_ORDER, roundHonbaLabel, roundNameForSeq, windOf } from "../../lib/board";
 import { useBoardScale } from "../../lib/use-board-scale";
 import { fmtDate } from "../../lib/format";
 import { useFavorites } from "../../lib/use-favorites";
@@ -364,7 +364,8 @@ export function KifuViewer({ detail, gameId }: { detail: PublicGameDetail; gameI
                 >
                   {detail.logs.map((l, i) => (
                     <option key={l.id} value={i}>
-                      {roundNameForSeq(l.seq)}
+                      {/* 本場も出す：連荘（同じ局順の局）を区別できる唯一の手掛かり。 */}
+                      {roundHonbaLabel(l.seq, l.kifu.meta.honba)}
                     </option>
                   ))}
                 </select>
@@ -492,7 +493,8 @@ export function KifuViewer({ detail, gameId }: { detail: PublicGameDetail; gameI
                           className={`${s.ritem} ${i === gi ? s.on : ""}`}
                           onClick={() => switchLog(i)}
                         >
-                          {roundNameForSeq(l.seq)} <small>第{l.seq}局</small>
+                          {/* 本場も出す：連荘（同じ局順の局）の区別用。 */}
+                          {roundHonbaLabel(l.seq, l.kifu.meta.honba)} <small>第{l.seq}局</small>
                         </button>
                       ))}
                     </div>

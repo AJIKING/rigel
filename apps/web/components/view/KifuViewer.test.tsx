@@ -113,6 +113,18 @@ describe("KifuViewer", () => {
     expect(screen.queryAllByText("東二局").length).toBe(0);
   });
 
+  it("連荘（同じ局順で本場違い）は局選択・局メニューで本場つきで区別できる", () => {
+    const d = detail([kifu(), makeKifu({}, { meta: { dealer: "east", honba: 1 } })]);
+    d.logs[1]!.seq = 1; // 東一局の連荘（1本場）。
+    renderViewer(d);
+    // 局選択セレクトの選択肢が本場で区別できる。
+    expect(screen.getByRole("option", { name: "東一局 0本場" })).toBeTruthy();
+    expect(screen.getByRole("option", { name: "東一局 1本場" })).toBeTruthy();
+    // 局メニュー（局名ボタンから開く一覧）にも本場つきで並ぶ。
+    fireEvent.click(screen.getByRole("button", { name: "東一局" }));
+    expect(screen.getByRole("button", { name: "東一局 1本場 第1局" })).toBeTruthy();
+  });
+
   it("配牌は理牌して表示する（保存順が乱れていても萬→筒→索→字の順）", () => {
     const d = detail([
       makeKifu({

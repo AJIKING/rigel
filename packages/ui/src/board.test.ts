@@ -5,6 +5,7 @@ import {
   chunk,
   resultLabel,
   revealCounts,
+  roundHonbaLabel,
   roundName,
   roundNameForSeq,
   seatResult,
@@ -55,6 +56,14 @@ describe("roundNameForSeq", () => {
   it("不正な seq(0以下) は東一局に丸める", () => {
     expect(roundNameForSeq(0)).toBe("東一局");
     expect(roundNameForSeq(-2)).toBe("東一局");
+  });
+});
+
+describe("roundHonbaLabel", () => {
+  it("局名＋本場（連荘＝同じ局順の局を区別する一覧・メニュー用の共通表記）", () => {
+    expect(roundHonbaLabel(1, 0)).toBe("東一局 0本場");
+    expect(roundHonbaLabel(1, 1)).toBe("東一局 1本場");
+    expect(roundHonbaLabel(5, 2)).toBe("南一局 2本場");
   });
 });
 

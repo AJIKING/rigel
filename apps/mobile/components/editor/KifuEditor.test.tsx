@@ -84,6 +84,17 @@ describe("KifuEditor（モバイル編集画面）", () => {
     expect(saved.seats.east.hand).toHaveLength(0);
   });
 
+  it("局順を変えると親も局順に連動する（東二局=南家。web の局順変更と同一挙動）", () => {
+    const onSave = jest.fn();
+    render(<KifuEditor initialKifu={makeKifu()} initialSeq={1} onSave={onSave} />);
+    // RoundPicker の「局」セグメントで 二 を選ぶ（東二局）。
+    fireEvent.press(screen.getByRole("button", { name: "二" }));
+    fireEvent.press(screen.getByText("保存"));
+    expect(onSave.mock.calls[0]![1]).toBe(2);
+    const saved = onSave.mock.calls[0]![0] as Kifu;
+    expect(saved.meta.dealer).toBe("south");
+  });
+
   it("プレビューの席をタップすると編集対象がその席に切り替わる", () => {
     const onSave = jest.fn();
     render(<KifuEditor initialKifu={makeKifu()} initialSeq={1} onSave={onSave} />);

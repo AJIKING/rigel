@@ -31,6 +31,12 @@ export function roundNameForSeq(seq: number): string {
   return roundName(Math.max(0, seq - 1));
 }
 
+/** 局名＋本場の共通表記（例「東一局 1本場」）。局の一覧・メニューで連荘
+ *  （同じ局順の局）を区別するために web/mobile で共用する。 */
+export function roundHonbaLabel(seq: number, honba: number): string {
+  return `${roundNameForSeq(seq)} ${honba}本場`;
+}
+
 /** 局結果コードの日本語ラベル（未設定は —）。web/mobile のビューアで共用。 */
 export function resultLabel(result: KifuResult | null | undefined): string {
   return result === "ron" ? "ロン" : result === "tsumo" ? "ツモ" : result === "draw" ? "流局" : "—";

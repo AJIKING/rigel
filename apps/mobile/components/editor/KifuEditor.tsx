@@ -1,4 +1,4 @@
-import { SeatSchema, type Kifu, type Seat, type Tile } from "@rigel/schema";
+import { SeatSchema, dealerForSeq, type Kifu, type Seat, type Tile } from "@rigel/schema";
 import {
   addHandTile,
   addMeld,
@@ -100,6 +100,15 @@ export function KifuEditor({
     setKifu(mutateKifu(kifu, fn));
   }
 
+  /** 局順の変更。親は局順に連動して直す（導出は schema の dealerForSeq＝web と同一挙動）。
+   *  親セグメントで後から手動上書きもできる。 */
+  function changeSeq(n: number) {
+    setSeq(n);
+    mutate((d) => {
+      d.meta.dealer = dealerForSeq(n);
+    });
+  }
+
   // 結果モード（なし/和了/流局）の導出・切替は @rigel/ui の共有ロジック（web と同一挙動）。
   const resultMode = resultModeOf(kifu);
 
@@ -178,7 +187,7 @@ export function KifuEditor({
         <View style={styles.metaRow}>
           <Text style={styles.round}>{roundNameForSeq(seq)}</Text>
         </View>
-        <RoundPicker value={seq} onChange={setSeq} />
+        <RoundPicker value={seq} onChange={changeSeq} />
         <View style={styles.segRow}>
           <Text style={styles.metaLabel}>親</Text>
           <Segment

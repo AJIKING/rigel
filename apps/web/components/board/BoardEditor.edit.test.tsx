@@ -172,6 +172,25 @@ describe("BoardEditor 局順（作成する局の反映と変更）", () => {
     fireEvent.click(screen.getByRole("button", { name: "東二局 0本場" }));
     expect(await screen.findByText("第2局")).toBeTruthy();
   });
+
+  it("連荘（同じ局順で本場違い）は局メニューで本場つきで区別でき、切り替えられる", async () => {
+    const d = makeDetail([{ id: "l1" }, { id: "l2" }]);
+    d.logs[0]!.seq = 1;
+    d.logs[1]!.seq = 1; // 東一局の連荘（1本場）。
+    d.logs[1]!.kifu = KifuSchema.parse({
+      ...d.logs[1]!.kifu,
+      meta: { dealer: "east", honba: 1 },
+    });
+    render(<BoardEditor initialDetail={d} gameId="g1" logId="l1" />);
+    await screen.findByRole("button", { name: "保存" });
+
+    // 局メニューを開くと、同じ東一局でも本場で区別できる2項目が出る。
+    fireEvent.click(screen.getByRole("button", { name: "東一局 0本場" }));
+    fireEvent.click(screen.getByRole("button", { name: "東一局 1本場 第1局" }));
+
+    // 1本場の局へ切り替わる（パンくずの局名ボタンが 1本場 になる）。
+    expect(screen.getByRole("button", { name: "東一局 1本場" })).toBeTruthy();
+  });
 });
 
 describe("BoardEditor 編集操作", () => {

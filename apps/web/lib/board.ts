@@ -8,6 +8,7 @@ export {
   SEAT_ORDER,
   windOf,
   roundName,
+  roundHonbaLabel,
   roundNameForSeq,
   chunk,
   buildRiverPlayback,

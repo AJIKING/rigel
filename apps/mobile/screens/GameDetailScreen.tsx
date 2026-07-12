@@ -1,7 +1,13 @@
 import { useFocusEffect, useNavigation, useRoute, type RouteProp } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import type { KifuStatus, Visibility } from "@rigel/client";
-import { collectReviewItems, resultLabel, roundNameForSeq, LIMIT_MESSAGES } from "@rigel/ui";
+import {
+  collectReviewItems,
+  resultLabel,
+  roundHonbaLabel,
+  roundNameForSeq,
+  LIMIT_MESSAGES,
+} from "@rigel/ui";
 import { useCallback, useState } from "react";
 import { FlatList, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { CenterState } from "../components/CenterState";
@@ -270,7 +276,8 @@ export function GameDetailScreen() {
               onPress={() => nav.navigate("Board", { gameId, logId: item.id })}
             >
               <Text style={styles.localTitle}>
-                {roundNameForSeq(item.seq)}{" "}
+                {/* 本場も出す：連荘（同じ局順の局）を区別できる唯一の手掛かり（web の局メニューと同じ）。 */}
+                {roundHonbaLabel(item.seq, item.kifu.meta.honba)}{" "}
                 <Text style={styles.result}>{resultLabel(item.kifu.result)}</Text>
               </Text>
               <View style={styles.cardRight}>

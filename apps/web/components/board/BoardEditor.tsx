@@ -52,6 +52,7 @@ import {
   SEAT_ORDER,
   meldTiles,
   popAnchor,
+  roundHonbaLabel,
   roundNameForSeq,
   windOf,
   type Suit,
@@ -755,7 +756,8 @@ function Editor(p: EditorProps) {
                                 setRoundMenu(false);
                               }}
                             >
-                              {roundNameForSeq(l.seq)}
+                              {/* 本場も出す：連荘（同じ局順の局）を区別できる唯一の手掛かり。 */}
+                              {roundHonbaLabel(l.seq, l.kifu.meta.honba)}
                               <small>第{l.seq}局</small>
                               {review > 0 && <small className={s.reviewCnt}>要確認 {review}</small>}
                             </button>
