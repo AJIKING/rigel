@@ -16,7 +16,7 @@ const detail: PublicGameSummary = {
 describe("buildGameMetadata", () => {
   it("公開半荘からタイトル・説明・OGP/Twitterカードを組み立てる", () => {
     const meta = buildGameMetadata(detail);
-    expect(meta.title).toBe("金曜ナイト半荘 | Rigel");
+    expect(meta.title).toBe("金曜ナイト半荘");
     expect(meta.description).toContain("@ajiki");
     expect(meta.description).toContain("全3局");
     expect(meta.description).toContain("2026/07/05");
@@ -28,7 +28,7 @@ describe("buildGameMetadata", () => {
 
   it("無題の半荘はビューアと同じ「（無題の半荘）」で表示する", () => {
     const meta = buildGameMetadata({ ...detail, game: { ...detail.game, title: "" } });
-    expect(meta.title).toBe("（無題の半荘） | Rigel");
+    expect(meta.title).toBe("（無題の半荘）");
   });
 
   it("handle が無い作者は id 先頭6文字で表す（ビューアと同じ規則）", () => {
@@ -38,6 +38,7 @@ describe("buildGameMetadata", () => {
 
   it("非公開・不存在（null）ではサイト既定にフォールバックし半荘情報を一切含めない", () => {
     const meta = buildGameMetadata(null);
+    expect(DEFAULT_TITLE).toBe("麻雀牌譜");
     expect(meta.title).toBe(DEFAULT_TITLE);
     expect(meta.description).toBe(DEFAULT_DESCRIPTION);
     expect(meta.openGraph?.url).toBeUndefined();

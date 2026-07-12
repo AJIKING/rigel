@@ -27,7 +27,7 @@ export interface ShareMetadata {
 }
 
 // サイト既定（root layout と共有する単一ソース）。
-export const DEFAULT_TITLE = "Rigel — 麻雀牌譜";
+export const DEFAULT_TITLE = "麻雀牌譜";
 export const DEFAULT_DESCRIPTION = "実物の麻雀卓を撮った写真から牌譜ドラフトを生成する";
 
 /** メタデータの絶対URL解決に使うサイトの基準URL。
@@ -60,7 +60,7 @@ export function buildGameMetadata(detail: PublicGameSummary | null): ShareMetada
   const title = titleOf(detail);
   const description = `${authorOf(detail.owner)} の牌譜（${gameInfo(detail)}）をブラウザで再生できます。`;
   return {
-    title: `${title} | Rigel`,
+    title,
     description,
     openGraph: {
       title,

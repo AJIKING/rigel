@@ -1,7 +1,7 @@
 import { StatusScreen } from "../components/StatusScreen";
 
 export const metadata = {
-  title: "ページが見つかりません — rigel",
+  title: "ページが見つかりません",
 };
 
 // 存在しない URL・notFound() の全体フォールバック（404）。
