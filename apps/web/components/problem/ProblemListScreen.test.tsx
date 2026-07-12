@@ -69,6 +69,38 @@ describe("ProblemListScreen（公開一覧。牌譜一覧と同じカードUI）
     );
     expect(await screen.findByText(/まだ公開された問題がありません/)).toBeTruthy();
   });
+
+  it("牌譜一覧と同じ絞り込み（新着/今週/お気に入り）ができる", async () => {
+    stubMe(null);
+    const day = 24 * 3600 * 1000;
+    const old = {
+      ...post("old"),
+      title: "古い問題",
+      createdAt: new Date(Date.now() - 10 * day).toISOString(),
+    };
+    const recent = { ...post("new"), title: "今週の問題", createdAt: new Date().toISOString() };
+    render(
+      <AuthProvider>
+        <ProblemListScreen posts={[old, recent]} />
+      </AuthProvider>,
+    );
+    expect(await screen.findByText("古い問題")).toBeTruthy();
+
+    const select = screen.getByLabelText("並び替え") as HTMLSelectElement;
+    // 今週: 直近7日の問題だけ。
+    fireEvent.change(select, { target: { value: "week" } });
+    expect(screen.queryByText("古い問題")).toBeNull();
+    expect(screen.getByText("今週の問題")).toBeTruthy();
+
+    // お気に入り: まだ無いので専用の空文言。
+    fireEvent.change(select, { target: { value: "fav" } });
+    expect(screen.getByText(/お気に入りした問題がまだありません/)).toBeTruthy();
+
+    // 新着で全件へ戻る。
+    fireEvent.change(select, { target: { value: "new" } });
+    expect(screen.getByText("古い問題")).toBeTruthy();
+    expect(screen.getByText("今週の問題")).toBeTruthy();
+  });
 });
 
 describe("MyProblemsScreen（マイ何切る。牌譜マイページと同じ構造）", () => {

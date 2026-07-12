@@ -1,6 +1,11 @@
 "use client";
 
-import { PROBLEM_KIND_LABELS } from "@rigel/ui";
+import {
+  filterPublicFeed,
+  PROBLEM_KIND_LABELS,
+  PUBLIC_FEED_FILTERS,
+  type FeedFilterKey,
+} from "@rigel/ui";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { type ProblemPost } from "../../lib/api";
@@ -11,22 +16,18 @@ import { GameCard } from "../GameCard";
 import gc from "../game-card.module.css";
 import s from "../list/kifu-list.module.css";
 
-/** 何切る問題の公開一覧（published のみ）。牌譜一覧（/explore）と同じカードUI・ツールバー。 */
+/** 何切る問題の公開一覧（published のみ）。牌譜一覧（/kifu）と同じカードUI・ツールバー・
+ *  絞り込み（新着/今週/お気に入り。選択肢は @rigel/ui で mobile とも共通）。 */
 export function ProblemListScreen({ posts }: { posts: ProblemPost[] }) {
   const router = useRouter();
   const { favs, toggle: toggleFav } = useFavorites();
   const [q, setQ] = useState("");
-  const [sort, setSort] = useState<"new" | "old">("new");
+  const [filter, setFilter] = useState<FeedFilterKey>("new");
 
   const view = useMemo(() => {
-    let arr = posts.slice();
-    if (q) arr = arr.filter((p) => p.title.includes(q));
-    arr.sort((a, b) => {
-      const cmp = a.createdAt.localeCompare(b.createdAt);
-      return sort === "old" ? cmp : -cmp;
-    });
-    return arr;
-  }, [posts, q, sort]);
+    const arr = q ? posts.filter((p) => p.title.includes(q)) : posts;
+    return filterPublicFeed(arr, filter, favs);
+  }, [posts, q, filter, favs]);
 
   return (
     <div className={`${s.shell} themeApp`}>
@@ -54,18 +55,25 @@ export function ProblemListScreen({ posts }: { posts: ProblemPost[] }) {
             <div className={s.sortwrap}>
               <select
                 aria-label="並び替え"
-                value={sort}
-                onChange={(e) => setSort(e.target.value as typeof sort)}
+                value={filter}
+                onChange={(e) => setFilter(e.target.value as FeedFilterKey)}
               >
-                <option value="new">新着</option>
-                <option value="old">古い順</option>
+                {PUBLIC_FEED_FILTERS.map((f) => (
+                  <option key={f.key} value={f.key}>
+                    {f.label}
+                  </option>
+                ))}
               </select>
             </div>
             {/* 新規作成・マイ何切るへの導線はここには置かない（ヘッダのマイページから）。 */}
           </div>
           <div className={gc.feed}>
             {view.length === 0 ? (
-              <div className={gc.empty}>まだ公開された問題がありません</div>
+              <div className={gc.empty}>
+                {filter === "fav"
+                  ? "お気に入りした問題がまだありません"
+                  : "まだ公開された問題がありません"}
+              </div>
             ) : (
               view.map((p) => (
                 <GameCard

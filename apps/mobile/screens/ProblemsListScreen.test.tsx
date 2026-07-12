@@ -12,8 +12,66 @@ jest.mock("../lib/api", () => ({
   getPublicProblems: (...args: unknown[]) => mockGetPublicProblems(...args),
 }));
 
+// お気に入り（SecureStore 永続化）はフックごとスタブ（PublicListScreen テストと同型）。
+let mockFavs = new Set<string>();
+const mockToggle = jest.fn();
+jest.mock("../lib/use-favorites", () => ({
+  useFavorites: () => ({ favs: mockFavs, toggle: mockToggle }),
+}));
+
 describe("ProblemsListScreen（何切る公開一覧）", () => {
-  beforeEach(() => jest.clearAllMocks());
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockFavs = new Set();
+  });
+
+  it("牌譜一覧と同じ絞り込み（新着/今週/お気に入り）ができる", async () => {
+    const day = 24 * 3600 * 1000;
+    mockGetPublicProblems.mockResolvedValue([
+      makePost({
+        id: "old",
+        title: "古い問題",
+        createdAt: new Date(Date.now() - 10 * day).toISOString(),
+      }),
+      makePost({ id: "new", title: "今週の問題", createdAt: new Date().toISOString() }),
+    ]);
+    mockFavs = new Set(["old"]);
+    render(<ProblemsListScreen />);
+    expect(await screen.findByText("古い問題")).toBeTruthy();
+
+    // 今週: 直近7日の問題だけ。
+    fireEvent.press(screen.getByText("今週"));
+    expect(screen.queryByText("古い問題")).toBeNull();
+    expect(screen.getByText("今週の問題")).toBeTruthy();
+
+    // お気に入り: 自分がお気に入りした問題だけ。
+    fireEvent.press(screen.getByText("お気に入り"));
+    expect(screen.getByText("古い問題")).toBeTruthy();
+    expect(screen.queryByText("今週の問題")).toBeNull();
+
+    // 新着で全件へ戻る。
+    fireEvent.press(screen.getByText("新着"));
+    expect(screen.getByText("古い問題")).toBeTruthy();
+    expect(screen.getByText("今週の問題")).toBeTruthy();
+  });
+
+  it("カードの星がお気に入り状態に配線される（押すと toggle が呼ばれる）", async () => {
+    mockGetPublicProblems.mockResolvedValue([makePost({ id: "p1", title: "リーチ判断の基本" })]);
+    render(<ProblemsListScreen />);
+    await screen.findByText("リーチ判断の基本");
+
+    fireEvent.press(screen.getAllByLabelText("お気に入りに追加/解除")[0]!);
+    expect(mockToggle).toHaveBeenCalledWith("p1");
+  });
+
+  it("お気に入りが空のときは絞り込み向けの空文言を出す", async () => {
+    mockGetPublicProblems.mockResolvedValue([makePost({ id: "p1", title: "リーチ判断の基本" })]);
+    render(<ProblemsListScreen />);
+    await screen.findByText("リーチ判断の基本");
+
+    fireEvent.press(screen.getByText("お気に入り"));
+    expect(screen.getByText("お気に入りした問題がまだありません。")).toBeTruthy();
+  });
 
   it("公開問題がカード（タイトル・出題形式・日付）で新着順に表示される", async () => {
     mockGetPublicProblems.mockResolvedValue([
