@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildRiverPlayback,
   chunk,
+  hasPlayerPoints,
   resultLabel,
   revealCounts,
   roundHonbaLabel,
@@ -56,6 +57,23 @@ describe("roundNameForSeq", () => {
   it("不正な seq(0以下) は東一局に丸める", () => {
     expect(roundNameForSeq(0)).toBe("東一局");
     expect(roundNameForSeq(-2)).toBe("東一局");
+  });
+});
+
+describe("hasPlayerPoints", () => {
+  const zero = { name: "", points: 0 };
+  it("1人でもポイントが記録されていれば true", () => {
+    expect(
+      hasPlayerPoints({ east: { name: "多井", points: 12.3 }, south: zero, west: zero, north: zero }),
+    ).toBe(true);
+    expect(
+      hasPlayerPoints({ east: zero, south: { name: "", points: -0.1 }, west: zero, north: zero }),
+    ).toBe(true);
+  });
+  it("全員 0.0（または players なし）は false（再生画面の既定でポイントを出さない）", () => {
+    expect(hasPlayerPoints({ east: zero, south: zero, west: zero, north: zero })).toBe(false);
+    expect(hasPlayerPoints(null)).toBe(false);
+    expect(hasPlayerPoints(undefined)).toBe(false);
   });
 });
 

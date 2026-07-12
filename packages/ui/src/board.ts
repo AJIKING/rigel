@@ -1,7 +1,7 @@
 // @rigel/ui — 盤面表示の共有ヘルパ（プラットフォーム非依存）。
 // web/mobile 両ビューアが同じ「席の自風・局名・河の巡送り」ロジックを共有する。
 
-import type { Agari, Kifu, Seat } from "@rigel/schema";
+import type { Agari, Kifu, Players, Seat } from "@rigel/schema";
 import { deriveTimeline } from "./timeline";
 
 /** 局結果コード（スキーマの ResultSchema と一致。型が未エクスポートのためここで定義）。 */
@@ -35,6 +35,12 @@ export function roundNameForSeq(seq: number): string {
  *  （同じ局順の局）を区別するために web/mobile で共用する。 */
 export function roundHonbaLabel(seq: number, honba: number): string {
   return `${roundNameForSeq(seq)} ${honba}本場`;
+}
+
+/** リーグ戦ポイントが1人でも記録されているか。全員 0.0 の選手情報は「まだ記録していない」
+ *  とみなし、再生画面のポイント表示は既定で隠す（トグルで出せる）。web/mobile 共用。 */
+export function hasPlayerPoints(players: Players | null | undefined): boolean {
+  return !!players && SEAT_ORDER.some((s) => players[s].points !== 0);
 }
 
 /** 局結果コードの日本語ラベル（未設定は —）。web/mobile のビューアで共用。 */

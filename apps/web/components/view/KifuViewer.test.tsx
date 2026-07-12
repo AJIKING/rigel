@@ -523,6 +523,53 @@ describe("KifuViewer", () => {
     const { container } = renderViewer(detail([kifu()]));
     expect(container.textContent).not.toContain("+0.0");
     expect(screen.queryByText("選手情報")).toBeNull();
+    // ポイント表示のトグルも出さない（対象が無いのに切替だけあると混乱する）。
+    expect(screen.queryByRole("button", { name: "ポイント" })).toBeNull();
+  });
+
+  it("全員 0.0pt の選手情報はポイント状況を既定で隠し、トグルで表示できる", () => {
+    const zero = { name: "", points: 0 };
+    const d = detail([
+      makeKifu(
+        {},
+        { players: { east: { name: "多井", points: 0 }, south: zero, west: zero, north: zero } },
+      ),
+    ]);
+    const { container } = renderViewer(d);
+    const bottom = () => container.querySelector('[data-seat="bottom"]')!.textContent as string;
+    // 全員 +0.0 は情報が無いのと同じなので盤面には出さない（選手名は出る）。
+    expect(bottom()).toContain("多井");
+    expect(bottom()).not.toContain("+0.0");
+    // トグルONで表示される。
+    const toggle = screen.getByRole("button", { name: "ポイント" });
+    expect(toggle.getAttribute("aria-pressed")).toBe("false");
+    fireEvent.click(toggle);
+    expect(bottom()).toContain("+0.0");
+  });
+
+  it("ポイントが記録されていれば既定で表示し、トグルOFFで隠せる", () => {
+    const d = detail([
+      makeKifu(
+        {},
+        {
+          players: {
+            east: { name: "多井", points: 120.3 },
+            south: {},
+            west: {},
+            north: {},
+          },
+        },
+      ),
+    ]);
+    const { container } = renderViewer(d);
+    const bottom = () => container.querySelector('[data-seat="bottom"]')!.textContent as string;
+    expect(bottom()).toContain("+120.3");
+    const toggle = screen.getByRole("button", { name: "ポイント" });
+    expect(toggle.getAttribute("aria-pressed")).toBe("true");
+    fireEvent.click(toggle);
+    expect(bottom()).not.toContain("+120.3");
+    // 選手名は残る（隠すのはポイントだけ）。
+    expect(bottom()).toContain("多井");
   });
 
   it("サイドパネルで半荘ルールを確認できる（プリセット名＋各項目の値）", () => {

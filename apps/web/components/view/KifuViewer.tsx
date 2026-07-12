@@ -16,7 +16,13 @@ import {
   stepHasDraw,
   type StepPhase,
 } from "@rigel/ui";
-import { SEAT_ORDER, roundHonbaLabel, roundNameForSeq, windOf } from "../../lib/board";
+import {
+  SEAT_ORDER,
+  hasPlayerPoints,
+  roundHonbaLabel,
+  roundNameForSeq,
+  windOf,
+} from "../../lib/board";
 import { useBoardScale } from "../../lib/use-board-scale";
 import { fmtDate } from "../../lib/format";
 import { useFavorites } from "../../lib/use-favorites";
@@ -65,6 +71,8 @@ export function KifuViewer({ detail, gameId }: { detail: PublicGameDetail; gameI
   const [agariOpen, setAgariOpen] = useState(false);
   // 視点席（ネームプレート押下で切替）。null は牌譜どおり（撮影者が手前）。局を跨いでも保つ。
   const [povSeat, setPovSeat] = useState<Seat | null>(null);
+  // リーグ戦ポイントの表示。null=自動（全員 0.0 なら隠す）。トグルで明示 ON/OFF。
+  const [ptsPref, setPtsPref] = useState<boolean | null>(null);
 
   useEffect(() => {
     const onEsc = (e: KeyboardEvent) => {
@@ -89,6 +97,8 @@ export function KifuViewer({ detail, gameId }: { detail: PublicGameDetail; gameI
 
   const log = detail.logs[gi];
   const kifu: Kifu | undefined = log?.kifu;
+  // リーグ戦ポイントの実効表示（明示トグル > 自動＝全員 0.0 なら隠す）。
+  const showPlayerPoints = ptsPref ?? hasPlayerPoints(kifu?.players);
 
   // 再生フレーム（打牌順・巡目・点棒・再生局面）は @rigel/ui の共有ロジックで一括導出。
   // 点棒は「局の開始時点」で固定（この局の途中増減は出さない）。
@@ -321,6 +331,7 @@ export function KifuViewer({ detail, gameId }: { detail: PublicGameDetail; gameI
               }}
               onSeatSelect={setPovSeat}
               points={startPoints}
+              showPlayerPoints={showPlayerPoints}
               center={
                 <>
                   <div className={s.rd}>
@@ -446,6 +457,17 @@ export function KifuViewer({ detail, gameId }: { detail: PublicGameDetail; gameI
                 >
                   手牌表示
                 </button>
+                {/* リーグ戦ポイントの表示切替（players がある半荘のみ）。
+                    既定は自動＝全員 0.0 なら隠す。 */}
+                {kifu.players && (
+                  <button
+                    className={`${s.ctog} ${showPlayerPoints ? s.on : ""}`}
+                    aria-pressed={showPlayerPoints}
+                    onClick={() => setPtsPref(!showPlayerPoints)}
+                  >
+                    ポイント
+                  </button>
+                )}
               </div>
 
               <div className={s.cgrp}>

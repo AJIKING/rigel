@@ -2,6 +2,7 @@ import type { GameLog } from "@rigel/client";
 import type { Kifu, Seat } from "@rigel/schema";
 import {
   buildPlaybackFrame,
+  hasPlayerPoints,
   playbackKifu,
   resultLabel,
   roundNameForSeq,
@@ -64,9 +65,13 @@ export function KifuPlayer({
   const [fs, setFs] = useState(false); // 全画面（上部バーを畳んで卓を最大化）
   // 視点席（席タップで切替）。null は牌譜どおり（撮影者が手前）。局を跨いでも保つ。
   const [povSeat, setPovSeat] = useState<Seat | null>(null);
+  // リーグ戦ポイントの表示。null=自動（全員 0.0 なら隠す）。トグルで明示 ON/OFF。
+  const [ptsPref, setPtsPref] = useState<boolean | null>(null);
 
   const log = logs[gi];
   const kifu: Kifu | undefined = log?.kifu;
+  // リーグ戦ポイントの実効表示（明示トグル > 自動＝全員 0.0 なら隠す）。web ビューアと同一挙動。
+  const showPlayerPoints = ptsPref ?? hasPlayerPoints(kifu?.players);
 
   // 再生フレーム（打牌順・巡目・点棒・再生局面）は @rigel/ui の共有ロジックで一括導出。
   // 点棒は「局の開始時点」で固定（この局の途中増減は出さない）。
@@ -231,6 +236,7 @@ export function KifuPlayer({
           seatPressLabel={(w) => `${w}家の視点にする`}
           size={boardSize}
           points={startPoints}
+          showPlayerPoints={showPlayerPoints}
           animateDiscard={animateDiscard}
           drawnTile={drawnTile}
         />
@@ -285,6 +291,14 @@ export function KifuPlayer({
           </Group>
           <Toggle active={sheetOpen} onPress={() => setSheetOpen((v) => !v)} label="情報" />
           <Toggle active={showHands} onPress={() => setShowHands((v) => !v)} label="手牌" />
+          {/* リーグ戦ポイントの表示切替（players がある半荘のみ）。既定は自動＝全員 0.0 なら隠す。 */}
+          {kifu.players ? (
+            <Toggle
+              active={showPlayerPoints}
+              onPress={() => setPtsPref(!showPlayerPoints)}
+              label="ポイント"
+            />
+          ) : null}
         </View>
       </View>
 

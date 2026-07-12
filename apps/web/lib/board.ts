@@ -6,6 +6,7 @@ import type { CameraSeat } from "@rigel/schema";
 
 export {
   SEAT_ORDER,
+  hasPlayerPoints,
   windOf,
   roundName,
   roundHonbaLabel,

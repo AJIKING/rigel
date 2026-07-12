@@ -433,8 +433,37 @@ describe("KifuPlayer", () => {
     render(<KifuPlayer logs={[log(1, emptyKifu())]} ownerName="太郎" />);
     expect(screen.queryByText("+0.0")).toBeNull();
     expect(screen.getByText("太郎")).toBeTruthy(); // 撮影者名は従来どおり
+    // ポイント表示のトグルも出さない（対象が無いのに切替だけあると混乱する）。
+    expect(screen.queryByText("ポイント")).toBeNull();
     fireEvent.press(screen.getByText("情報"));
     expect(screen.queryByText("選手情報")).toBeNull();
+  });
+
+  it("全員 0.0pt の選手情報はポイント状況を既定で隠し、「ポイント」トグルで表示できる", () => {
+    const zero = { name: "", points: 0 };
+    const k = makeKifu(
+      {},
+      { players: { east: { name: "多井", points: 0 }, south: zero, west: zero, north: zero } },
+    );
+    render(<KifuPlayer logs={[log(1, k)]} ownerName="太郎" />);
+    // 全員 +0.0 は情報が無いのと同じなので盤面には出さない（選手名は出る）。
+    expect(screen.getByText("多井")).toBeTruthy();
+    expect(screen.queryByText("+0.0")).toBeNull();
+    fireEvent.press(screen.getByText("ポイント"));
+    expect(screen.getAllByText("+0.0").length).toBeGreaterThan(0);
+  });
+
+  it("ポイントが記録されていれば既定で表示し、「ポイント」トグルで隠せる", () => {
+    const k = makeKifu(
+      {},
+      { players: { east: { name: "多井", points: 120.3 }, south: {}, west: {}, north: {} } },
+    );
+    render(<KifuPlayer logs={[log(1, k)]} ownerName="太郎" />);
+    expect(screen.getByText("+120.3")).toBeTruthy();
+    fireEvent.press(screen.getByText("ポイント"));
+    expect(screen.queryByText("+120.3")).toBeNull();
+    // 選手名は残る（隠すのはポイントだけ）。
+    expect(screen.getByText("多井")).toBeTruthy();
   });
 
   it("情報シートで半荘ルールを確認できる（プリセット名＋各項目の値）", () => {

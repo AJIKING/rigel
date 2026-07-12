@@ -82,6 +82,7 @@ export function ViewBoard({
   center,
   highlightRiver = null,
   points = null,
+  showPlayerPoints = true,
   animateDiscard = null,
   drawnTile = null,
 }: {
@@ -103,6 +104,9 @@ export function ViewBoard({
   highlightRiver?: { seat: Seat; index: number } | null;
   /** 再生中の点棒。指定時はネームプレートに表示する。 */
   points?: Record<Seat, number> | null;
+  /** リーグ戦ポイント（players.points）をネームプレートに出すか。
+   *  既定 true。全員 0.0 の半荘では呼び出し側が false にして隠す（トグルで戻せる）。 */
+  showPlayerPoints?: boolean;
   /** drop-in 演出を付ける河の1枚（いま置かれた打牌）。演出の第2段でだけ渡す。 */
   animateDiscard?: { seat: Seat; index: number } | null;
   /** 手牌の右端に離して置く1枚（再生中の一時ツモ／末尾のツモ和了牌）。出現時に
@@ -137,8 +141,10 @@ export function ViewBoard({
               <span className={s.nm}>{name}</span>
               {points && <span className={s.pts}>{points[seat].toLocaleString()}点</span>}
               {/* リーグ戦等の積み上げポイント状況（players がある半荘のみ）。
-                  持ち点と別軸の判断材料なので常設で出す。 */}
-              {player && <span className={s.lpts}>{signedPoints(player.points)}</span>}
+                  全員 0.0 なら未記録とみなして隠す（呼び出し側のトグルで出せる）。 */}
+              {showPlayerPoints && player && (
+                <span className={s.lpts}>{signedPoints(player.points)}</span>
+              )}
             </>
           );
           return (
