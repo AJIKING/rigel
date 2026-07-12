@@ -5,6 +5,7 @@ import { eq } from "drizzle-orm";
 import type { AnalysisCommitInput, AnalysisStore } from "../../domain/analysis/analysis-store";
 import type { Db } from "../db/client";
 import { gameLogs, games, users } from "../db/schema";
+import { toGameLogRow } from "../kifu/game-log-row";
 
 export class DrizzleAnalysisStore implements AnalysisStore {
   constructor(private readonly db: Db) {}
@@ -12,15 +13,9 @@ export class DrizzleAnalysisStore implements AnalysisStore {
   async commit({ newGame, gameLog, user }: AnalysisCommitInput): Promise<void> {
     const p = user.toProps();
 
-    const insertLog = this.db.insert(gameLogs).values({
-      id: gameLog.id,
-      userId: gameLog.userId,
-      gameId: gameLog.gameId,
-      seq: gameLog.seq,
-      kifu: gameLog.kifu,
-      visibility: gameLog.visibility,
-      createdAt: gameLog.createdAt,
-    });
+    // 行の組み立ては単一真実源（game-log-row）。ここで手書きすると
+    // カラム追加時に GameLogRepository.save と乖離する（status 漏れの再発防止）。
+    const insertLog = this.db.insert(gameLogs).values(toGameLogRow(gameLog));
 
     const updateUser = this.db
       .update(users)

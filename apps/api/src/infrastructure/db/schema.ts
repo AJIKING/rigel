@@ -76,10 +76,10 @@ export const gameLogs = sqliteTable(
       .notNull()
       .default("private"),
     /** 編集状態。draft=下書き / complete=編集済（公開フィードに出る）。
-     *  既定は complete（既存データを確定扱いにする後方互換）。新規は作成時に draft を書く。 */
-    status: text("status", { enum: ["draft", "complete"] })
-      .notNull()
-      .default("complete"),
+     *  **DB 既定値は置かない**。既定 complete だと書き漏らしが「黙って公開側へ倒れる」
+     *  最悪の失敗モードになるため（実際に AnalysisStore の status 漏れで下書きが
+     *  公開フィードへ露出した）。書き込みは必ず toGameLogRow が値を入れる。 */
+    status: text("status", { enum: ["draft", "complete"] }).notNull(),
     createdAt: integer("created_at", { mode: "timestamp_ms" })
       .notNull()
       .$defaultFn(() => new Date()),

@@ -1,51 +1,29 @@
 // infrastructure/kifu — GameLogRepository の Drizzle/D1 実装。
 
-import { KifuSchema } from "@rigel/schema";
 import { and, asc, countDistinct, desc, eq, ne } from "drizzle-orm";
 import type { GameLog, KifuStatus, Visibility } from "../../domain/kifu/game-log";
 import type { GameLogRepository } from "../../domain/kifu/game-log.repository";
 import type { Db } from "../db/client";
-import { gameLogs, type GameLogRow } from "../db/schema";
-
-function toDomain(row: GameLogRow): GameLog {
-  return {
-    id: row.id,
-    userId: row.userId,
-    gameId: row.gameId,
-    seq: row.seq,
-    // 保存済み牌譜をスキーマで正規化し、後から増えたフィールド（rules/agari 等）に
-    // 既定を埋める（旧データの後方互換）。
-    kifu: KifuSchema.parse(row.kifu),
-    visibility: row.visibility,
-    status: row.status,
-    createdAt: row.createdAt,
-  };
-}
+import { gameLogs } from "../db/schema";
+import { toGameLog as toDomain, toGameLogRow } from "./game-log-row";
 
 export class DrizzleGameLogRepository implements GameLogRepository {
   constructor(private readonly db: Db) {}
 
   async save(gameLog: GameLog): Promise<void> {
+    // 行の組み立ては単一真実源（game-log-row）。AnalysisStore の insert と同じ形になる。
+    const row = toGameLogRow(gameLog);
     await this.db
       .insert(gameLogs)
-      .values({
-        id: gameLog.id,
-        userId: gameLog.userId,
-        gameId: gameLog.gameId,
-        seq: gameLog.seq,
-        kifu: gameLog.kifu,
-        visibility: gameLog.visibility,
-        status: gameLog.status,
-        createdAt: gameLog.createdAt,
-      })
+      .values(row)
       .onConflictDoUpdate({
         target: gameLogs.id,
         set: {
-          kifu: gameLog.kifu,
-          gameId: gameLog.gameId,
-          seq: gameLog.seq,
-          visibility: gameLog.visibility,
-          status: gameLog.status,
+          kifu: row.kifu,
+          gameId: row.gameId,
+          seq: row.seq,
+          visibility: row.visibility,
+          status: row.status,
         },
       });
   }

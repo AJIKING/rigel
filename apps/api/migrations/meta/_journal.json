@@ -85,6 +85,13 @@
       "when": 1783622135651,
       "tag": "0011_abnormal_jack_power",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "6",
+      "when": 1783860939069,
+      "tag": "0012_icy_ravenous",
+      "breakpoints": true
     }
   ]
 }
