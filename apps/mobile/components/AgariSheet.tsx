@@ -1,5 +1,5 @@
 import { totalHan, type Agari, type Kifu, type Seat } from "@rigel/schema";
-import { agariDeltas, scoreAgari, sortHandTiles, windOf, SEAT_ORDER } from "@rigel/ui";
+import { kyokuDeltas, scoreAgari, sortHandTiles, windOf, SEAT_ORDER } from "@rigel/ui";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { colors, radius } from "../lib/theme";
 import { BottomSheet, SheetCloseButton } from "./BottomSheet";
@@ -17,7 +17,7 @@ export function AgariSheet({
   ownerName?: string | null;
   onClose: () => void;
 }) {
-  const deltas = agariDeltas(kifu);
+  const deltas = kyokuDeltas(kifu);
 
   return (
     <BottomSheet onClose={onClose} grabber={false}>

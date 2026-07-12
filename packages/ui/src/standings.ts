@@ -1,6 +1,7 @@
-// 局跨ぎの点棒集計。各局の和了(agari)から点棒移動を出し、開始点に積んで持ち点を求める。
-// 和了の打点は scoreAgari（＝各局の kifu.rules）に従う。本場は 300/局(ロン)・100×3(ツモ)、
-// 供託は和了者が総取り。流局の細かい精算（テンパイ料）は未対応。
+// 局跨ぎの点棒集計。各局の点棒移動（和了・本場・供託・リーチ棒・流局のノーテン罰符）を
+// 開始点に積んで持ち点を求める。和了の打点は scoreAgari（＝各局の kifu.rules）に従う。
+// 本場は 300/局(ロン)・100×3(ツモ)、供託・卓上のリーチ棒は和了者（頭ハネ）が総取り。
+// 流局時のリーチ棒は戻らない（次局の meta.kyotaku へ持ち越される想定）。
 
 import type { Agari, Kifu, Rules, Seat } from "@rigel/schema";
 import { scoreAgari } from "./score";
@@ -65,12 +66,34 @@ export function notenDeltas(tenpai: Seat[]): SeatDeltas {
   return d;
 }
 
+/**
+ * 1局の点棒移動の合計。和了の移動（agariDeltas）に加えて、
+ * リーチ宣言棒（宣言者 -1000・和了があれば頭ハネの和了者が総取り）と、
+ * 流局時のノーテン罰符（rules.noten 有効時）を精算する。
+ */
+export function kyokuDeltas(kifu: Kifu): SeatDeltas {
+  const d = agariDeltas(kifu);
+  // リーチ宣言は河の宣言牌（riichi:true）から拾う（和了・流局どちらでも -1000）。
+  // スナップショット（timeline 無し）でも判定できる代わりに、宣言牌が鳴かれて河から
+  // 消え、次の打牌（横向きの引き継ぎ）前に局が終わった稀な盤面は取りこぼす＝許容。
+  const declared = SEATS.filter((s) => kifu.seats[s].river.some((t) => t.riichi));
+  for (const s of declared) d[s] -= 1000;
+  const head = kifu.agari[0];
+  if (head) {
+    d[head.winner] += declared.length * 1000;
+  } else if (kifu.result === "draw" && kifu.rules.noten) {
+    const n = notenDeltas(kifu.tenpai);
+    for (const s of SEATS) d[s] += n[s];
+  }
+  return d;
+}
+
 /** 開始点（rules.start）から各局の増減を積んだ持ち点。 */
 export function standings(kifus: Kifu[], rules: Rules): SeatDeltas {
   const start = Number(rules.start);
   const total: SeatDeltas = { east: start, south: start, west: start, north: start };
   for (const kifu of kifus) {
-    const d = agariDeltas(kifu);
+    const d = kyokuDeltas(kifu);
     for (const s of SEATS) total[s] += d[s];
   }
   return total;

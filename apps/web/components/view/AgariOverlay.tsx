@@ -1,5 +1,5 @@
 import { totalHan, type Agari, type Kifu, type Seat } from "@rigel/schema";
-import { agariDeltas, scoreAgari, sortHandTiles } from "@rigel/ui";
+import { kyokuDeltas, scoreAgari, sortHandTiles } from "@rigel/ui";
 import { SEAT_ORDER, windOf } from "../../lib/board";
 import { OssTileFace } from "../OssTileFace";
 import s from "./agari-overlay.module.css";
@@ -111,7 +111,7 @@ export function AgariOverlay({
 }) {
   const agaris = kifu.agari;
   if (agaris.length === 0) return null;
-  const deltas = agariDeltas(kifu);
+  const deltas = kyokuDeltas(kifu);
 
   return (
     <div className={s.ov} onClick={onClose}>
