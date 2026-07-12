@@ -215,9 +215,7 @@ describe("SettingsScreen（課金導線）", () => {
     mockAuth.user = { plan: "next" };
     render(<SettingsScreen />);
 
-    expect(
-      screen.getByText("有料プラン契約中は削除できません（先に解約してください）"),
-    ).toBeTruthy();
+    expect(screen.getByText("有料プラン契約中は削除できません")).toBeTruthy();
   });
 
   it("未ログインはプラン変更導線を出さない", () => {

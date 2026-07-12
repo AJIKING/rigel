@@ -215,11 +215,7 @@ export function SettingsShell() {
               className={`${s.btn} ${s.danger}`}
               onClick={() => void onDelete()}
               disabled={plan !== "free"}
-              title={
-                plan !== "free"
-                  ? "有料プラン契約中は削除できません（先に解約してください）"
-                  : undefined
-              }
+              title={plan !== "free" ? "有料プラン契約中は削除できません" : undefined}
             >
               {delArm ? "もう一度押すと削除されます" : "アカウントを削除"}
             </button>
