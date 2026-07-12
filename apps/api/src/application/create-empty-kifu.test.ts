@@ -96,6 +96,48 @@ describe("CreateEmptyKifu", () => {
     }
   });
 
+  it("seq を渡すとその局順で保存し、親(meta.dealer)を局順から導出する（東二局=south）", async () => {
+    const { uc, gameLogs } = make({ games: [game("g1", "u1")] });
+    const result = await uc.execute({
+      userId: "u1",
+      gameId: "g1",
+      cameraBottomSeat: "east",
+      seq: 2,
+    });
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      const log = await gameLogs.findById(result.logId);
+      expect(log?.seq).toBe(2);
+      expect(log?.kifu.meta.dealer).toBe("south");
+    }
+  });
+
+  it("親は4局で一周する（南一局=seq5 は east）。seq 省略時も既存の次の局順から導出する", async () => {
+    const { uc, gameLogs } = make({ games: [game("g1", "u1")] });
+    const r1 = await uc.execute({ userId: "u1", gameId: "g1", cameraBottomSeat: "east", seq: 5 });
+    if (!r1.ok) throw new Error("setup failed");
+    expect((await gameLogs.findById(r1.logId))?.kifu.meta.dealer).toBe("east");
+    // seq 省略の追加は「既存の次」（2局目）→ 親 south。
+    const r2 = await uc.execute({ userId: "u1", gameId: "g1", cameraBottomSeat: "east" });
+    if (!r2.ok) throw new Error("add failed");
+    const log2 = await gameLogs.findById(r2.logId);
+    expect(log2?.seq).toBe(2);
+    expect(log2?.kifu.meta.dealer).toBe("south");
+  });
+
+  it("meta.dealer を明示したときは局順からの導出で上書きしない", async () => {
+    const { uc, gameLogs } = make({ games: [game("g1", "u1")] });
+    const result = await uc.execute({
+      userId: "u1",
+      gameId: "g1",
+      cameraBottomSeat: "east",
+      meta: { dealer: "west" },
+      seq: 2,
+    });
+    if (!result.ok) throw new Error("create failed");
+    expect((await gameLogs.findById(result.logId))?.kifu.meta.dealer).toBe("west");
+  });
+
   it("他人の半荘には追加できない（game_not_found）", async () => {
     const { uc } = make({ games: [game("g1", "someone")] });
     const result = await uc.execute({ userId: "u1", gameId: "g1", cameraBottomSeat: "east" });

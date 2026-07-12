@@ -31,6 +31,8 @@ export interface BoardTableProps {
   dora: Tile[];
   onOpenEdit: (e: React.MouseEvent, loc: TileLocation, code: Tile | null) => void;
   onOpenAdd: (e: React.MouseEvent, seat: Seat, area: "hand" | "river") => void;
+  /** ネームプレート押下（視点切替）。指定時のみプレートがボタンになる（ビューアと同じ操作）。 */
+  onSeatSelect?: (seat: Seat) => void;
 }
 
 /** 卓の見た目（中央情報＋4席の河/ネームプレート/手牌/鳴き）。閲覧ではなく編集用で、牌クリックで編集を開く。 */
@@ -69,8 +71,31 @@ export function BoardTable(p: BoardTableProps) {
             const wind = windOf(seat, dealer);
             const win = kifu.agari.some((a) => a.winner === seat);
             const rows = chunk(board.river, 6);
+            // ネームプレートの中身。視点切替（onSeatSelect）ありならボタン、無ければ div に載せる
+            // （ViewBoard と同じ構成）。
+            const plate = (
+              <>
+                <span className={s.wd}>{wind}</span>
+                <span className={s.nm}>{names[seat] || `${wind}家`}</span>
+                {seatResult(kifu.agari, seat) && (
+                  <span className={s.sc}>{seatResult(kifu.agari, seat)}</span>
+                )}
+                {showPoints && (
+                  <span
+                    style={{
+                      color: "var(--orange)",
+                      fontWeight: 700,
+                      fontVariantNumeric: "tabular-nums",
+                      fontSize: 12,
+                    }}
+                  >
+                    {fmtPts(points[seat])}
+                  </span>
+                )}
+              </>
+            );
             return (
-              <div key={cam} className={`${s.seat} ${cls}`}>
+              <div key={cam} className={`${s.seat} ${cls}`} data-seat={cam}>
                 <div className={s.river}>
                   {(() => {
                     // 河は6枚/段。最終段が満杯(6枚)なら追加(+)は次段の先頭に置く
@@ -117,25 +142,18 @@ export function BoardTable(p: BoardTableProps) {
                   })()}
                 </div>
 
-                <div className={`${s.nameplate} ${win ? s.win : ""}`}>
-                  <span className={s.wd}>{wind}</span>
-                  <span className={s.nm}>{names[seat] || `${wind}家`}</span>
-                  {seatResult(kifu.agari, seat) && (
-                    <span className={s.sc}>{seatResult(kifu.agari, seat)}</span>
-                  )}
-                  {showPoints && (
-                    <span
-                      style={{
-                        color: "var(--orange)",
-                        fontWeight: 700,
-                        fontVariantNumeric: "tabular-nums",
-                        fontSize: 12,
-                      }}
-                    >
-                      {fmtPts(points[seat])}
-                    </span>
-                  )}
-                </div>
+                {p.onSeatSelect ? (
+                  <button
+                    type="button"
+                    className={`${s.nameplate} ${s.plateBtn} ${win ? s.win : ""}`}
+                    aria-label={`${wind}家の視点にする`}
+                    onClick={() => p.onSeatSelect?.(seat)}
+                  >
+                    {plate}
+                  </button>
+                ) : (
+                  <div className={`${s.nameplate} ${win ? s.win : ""}`}>{plate}</div>
+                )}
 
                 <div className={s.hand}>
                   {/* この行は最終手牌ではなく配牌。ラベルで明示する（mobile の編集画面と同じ呼称）。 */}

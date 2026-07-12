@@ -1,6 +1,13 @@
 "use client";
 
-import { toAbsoluteSeat, type CameraSeat, type Kifu, type Seat, type Tile } from "@rigel/schema";
+import {
+  dealerForSeq,
+  toAbsoluteSeat,
+  type CameraSeat,
+  type Kifu,
+  type Seat,
+  type Tile,
+} from "@rigel/schema";
 import {
   addHandTile,
   addRiverTile,
@@ -22,6 +29,7 @@ import {
   playersToInput,
   visibilityLabel,
   LIMIT_MESSAGES,
+  MAX_SEQ,
   type TileLocation,
 } from "@rigel/ui";
 import Link from "next/link";
@@ -40,7 +48,14 @@ import {
   updateKifuAction,
 } from "../../app/actions";
 import { type GameDetail, type GameLog } from "../../lib/api";
-import { SEAT_ORDER, meldTiles, popAnchor, roundName, windOf, type Suit } from "../../lib/board";
+import {
+  SEAT_ORDER,
+  meldTiles,
+  popAnchor,
+  roundNameForSeq,
+  windOf,
+  type Suit,
+} from "../../lib/board";
 import { useBoardScale } from "../../lib/use-board-scale";
 import { AddKyokuModal } from "./AddKyokuModal";
 import { AgariEditor, DrawEditor } from "./AgariEditor";
@@ -261,8 +276,12 @@ interface EditorProps {
 function Editor(p: EditorProps) {
   const { detail, idx, log, kifu, setKifu, gameId } = p;
   const router = useRouter();
-  const bottomSeat: Seat = kifu.cameraBottomSeat ?? "east";
-  const dealer: Seat = kifu.meta.dealer ?? bottomSeat;
+  const cameraSeat: Seat = kifu.cameraBottomSeat ?? "east";
+  const dealer: Seat = kifu.meta.dealer ?? cameraSeat;
+  // 視点席（手前に置く席）。既定 null=親が手前（局が進んで親が移っても親を手前に保つ）。
+  // ネームプレート押下で任意の席へ切替（ビューアと同じ操作）。局を跨いでも保つ。
+  const [povSeat, setPovSeat] = useState<Seat | null>(null);
+  const bottomSeat: Seat = povSeat ?? dealer;
 
   // 局メタ（本場/供託/ドラ/裏ドラ）は kifu.meta から読み、変更は mutate で書き戻して保存に乗せる。
   const honba = kifu.meta.honba;
@@ -303,6 +322,9 @@ function Editor(p: EditorProps) {
     new Date(detail.game.createdAt).toISOString().slice(0, 10),
   );
   const [roundMenu, setRoundMenu] = useState(false);
+  // 局順（東一局=1〜北四局=16）。作成後も変更できる（保存時に kifu と一緒に送る）。
+  // Editor は key={log.id} で局ごとに再マウントされるため、初期値は log.seq で足りる。
+  const [seqValue, setSeqValue] = useState(log.seq);
   const [addOpen, setAddOpen] = useState(false);
   const [rulesOpen, setRulesOpen] = useState(false);
   const [delArm, setDelArm] = useState(false);
@@ -471,7 +493,7 @@ function Editor(p: EditorProps) {
   async function onSave() {
     setSave("saving");
     setSaveErr(null);
-    const res = await updateKifuAction(log.id, kifu).catch(() => ({
+    const res = await updateKifuAction(log.id, kifu, seqValue).catch(() => ({
       ok: false,
       status: 0,
     }));
@@ -578,7 +600,8 @@ function Editor(p: EditorProps) {
     }
   }
 
-  const round = roundName(idx);
+  // 局名は配列位置ではなく局順(seq)から出す（他画面と同じ規則）。変更中の値を即時反映する。
+  const round = roundNameForSeq(seqValue);
   // 共有先は公開ビューア（誰でも閲覧可）。エディタ(/kifu/...)は所有者専用なので使わない。
   const shareUrl = typeof window !== "undefined" ? `${window.location.origin}/k/${gameId}` : "";
 
@@ -650,6 +673,7 @@ function Editor(p: EditorProps) {
           dora={dora}
           onOpenEdit={openEdit}
           onOpenAdd={openAdd}
+          onSeatSelect={setPovSeat}
         />
 
         {tab === "timeline" && (
@@ -719,7 +743,7 @@ function Editor(p: EditorProps) {
                                 setRoundMenu(false);
                               }}
                             >
-                              {roundName(i)}
+                              {roundNameForSeq(l.seq)}
                               <small>第{l.seq}局</small>
                               {review > 0 && <small className={s.reviewCnt}>要確認 {review}</small>}
                             </button>
@@ -727,6 +751,32 @@ function Editor(p: EditorProps) {
                         })}
                       </div>
                     )}
+                  </div>
+                  {/* 局順の変更（東三局で作ってしまった→東二局へ等）。保存ボタンで kifu と一緒に確定する。 */}
+                  <div className={s.seqrow}>
+                    <span className={s.stlabel}>この局の局順</span>
+                    <div className={s.agsel}>
+                      <select
+                        className={s.sel2}
+                        aria-label="この局の局順"
+                        value={seqValue}
+                        onChange={(e) => {
+                          const n = Number(e.target.value);
+                          setSeqValue(n);
+                          // 親は局順に連動（導出は schema の dealerForSeq＝api の作成時と共通）。
+                          // 局順を直せば親マーク・風表記・手前席（親手前の既定）も追随する。
+                          mutate((d) => {
+                            d.meta.dealer = dealerForSeq(n);
+                          });
+                        }}
+                      >
+                        {Array.from({ length: MAX_SEQ }, (_, i) => i + 1).map((n) => (
+                          <option key={n} value={n}>
+                            {roundNameForSeq(n)}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
                   </div>
                   <div className={s.kyakuAct}>
                     <button className={s.addkyoku} onClick={() => setRulesOpen(true)}>
@@ -1037,7 +1087,7 @@ function Editor(p: EditorProps) {
       {addOpen && (
         <AddKyokuModal
           gameId={gameId}
-          bottomSeat={bottomSeat}
+          bottomSeat={cameraSeat}
           onClose={() => setAddOpen(false)}
           onDone={async (newLogId) => {
             setAddOpen(false);

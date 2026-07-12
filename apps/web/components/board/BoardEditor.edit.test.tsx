@@ -124,6 +124,36 @@ describe("BoardEditor 選手情報（ポイント状況）", () => {
   });
 });
 
+describe("BoardEditor 局順（作成する局の反映と変更）", () => {
+  it("局名は配列位置ではなく log.seq から出す（seq=5 の1局だけの半荘は南一局）", async () => {
+    const d = makeDetail([{ id: "l1" }]);
+    d.logs[0]!.seq = 5;
+    const { container } = render(<BoardEditor initialDetail={d} gameId="g1" logId="l1" />);
+    await screen.findByRole("button", { name: "保存" });
+    // パンくず（半荘名・日付・局名）の局名が seq 基準で出る。
+    expect(container.querySelector("header nav b")?.textContent).toBe("南一局");
+  });
+
+  it("局順を変更すると局名表示が変わり、保存で updateKifuAction に seq が乗る", async () => {
+    const d = makeDetail([{ id: "l1" }]);
+    d.logs[0]!.seq = 3; // 東三局で作ってしまった、を再現。
+    const { container } = render(<BoardEditor initialDetail={d} gameId="g1" logId="l1" />);
+    await screen.findByRole("button", { name: "保存" });
+    expect(container.querySelector("header nav b")?.textContent).toBe("東三局");
+
+    fireEvent.change(screen.getByLabelText("この局の局順"), { target: { value: "2" } });
+    expect(container.querySelector("header nav b")?.textContent).toBe("東二局");
+
+    fireEvent.click(screen.getByRole("button", { name: "保存" }));
+    await waitFor(() => expect(h.updateKifuAction).toHaveBeenCalled());
+    const [logId, kifu, seq] = h.updateKifuAction.mock.calls[0] as [string, Kifu, number];
+    expect(logId).toBe("l1");
+    expect(seq).toBe(2);
+    // 親は局順に連動する（東二局=南家の席が親）。
+    expect(kifu.meta.dealer).toBe("south");
+  });
+});
+
 describe("BoardEditor 編集操作", () => {
   it("手牌に牌を追加して保存すると、その牌が updateKifuAction の Kifu に乗る", async () => {
     render(<BoardEditor initialDetail={makeDetail([{ id: "l1" }])} gameId="g1" logId="l1" />);

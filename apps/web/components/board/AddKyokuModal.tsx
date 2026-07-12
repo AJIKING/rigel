@@ -203,17 +203,21 @@ export function AddKyokuModal({
             {/* 作成する局。半荘内の好きな局を1つだけ作れる（順番に縛られない）。 */}
             <div className={s.steprow}>
               <span className={s.stlabel}>作成する局</span>
-              <select
-                aria-label="作成する局"
-                value={seq}
-                onChange={(e) => setSeq(Number(e.target.value))}
-              >
-                {Array.from({ length: MAX_SEQ }, (_, i) => i + 1).map((n) => (
-                  <option key={n} value={n}>
-                    {roundNameForSeq(n)}
-                  </option>
-                ))}
-              </select>
+              {/* セレクトの意匠は結果セレクト等と共通（.agsel/.sel2）。素の select を使わない。 */}
+              <div className={s.agsel}>
+                <select
+                  className={s.sel2}
+                  aria-label="作成する局"
+                  value={seq}
+                  onChange={(e) => setSeq(Number(e.target.value))}
+                >
+                  {Array.from({ length: MAX_SEQ }, (_, i) => i + 1).map((n) => (
+                    <option key={n} value={n}>
+                      {roundNameForSeq(n)}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
             <Stepper label="本場" unit="本場" value={honba} min={0} max={19} set={setHonba} />
             <Stepper label="供託" unit="本" value={kyotaku} min={0} max={9} set={setKyotaku} />

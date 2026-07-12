@@ -466,6 +466,12 @@ export function toAbsoluteSeat(camera: CameraSeat, bottomSeat: Seat): Seat {
   return SEAT_ORDER[(baseIdx + camIdx) % 4];
 }
 
+/** 局順(seq: 東一局=1〜北四局=16)から親の席を導出する（起家=east から下家順の4局周期）。
+ *  局の作成（api）と局順の変更（編集画面）で同じ導出を共有する。 */
+export function dealerForSeq(seq: number): Seat {
+  return SEAT_ORDER[(Math.max(1, seq) - 1) % 4]!;
+}
+
 // ============================================================
 // 使い方の例（擬似コード）
 // ------------------------------------------------------------

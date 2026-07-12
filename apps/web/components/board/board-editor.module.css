@@ -255,6 +255,17 @@
 .seatT .nameplate {
   transform: rotate(180deg);
 }
+/* 視点切替（ネームプレートがボタンのとき）。見た目は通常プレートに寄せる（ビューアと同じ）。 */
+.plateBtn {
+  background: none;
+  border: 0;
+  font: inherit;
+  cursor: pointer;
+}
+.plateBtn:hover .nm {
+  color: #fff;
+  text-decoration: underline;
+}
 .nameplate .wd {
   font-weight: 800;
   font-size: 13px;
@@ -693,6 +704,15 @@
   font-size: 10px;
   color: var(--w70);
   font-weight: 500;
+}
+
+/* 局順の変更行（半荘アコーディオン内。ラベル+セレクト） */
+.seqrow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin: 8px 0;
 }
 
 /* selects */

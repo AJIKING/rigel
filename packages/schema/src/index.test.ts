@@ -8,6 +8,7 @@ import {
   RulesSchema,
   RULE_PRESETS,
   SeatSchema,
+  dealerForSeq,
   toAbsoluteSeat,
   type CameraSeat,
   type Seat,
@@ -425,4 +426,18 @@ describe("toAbsoluteSeat（カメラ相対→絶対席）", () => {
   // 回転方向に依存する。東家を手前に置いた実写真で目視確認してから期待値を確定し、ここを埋める。
   // 確定するまで具体値を焼き付けない（自分たちの開発ガイドの規律）。
   it.todo("手前=東のとき right/top/left が 南/西/北 に対応する（実機確認後に確定）");
+});
+
+describe("dealerForSeq（局順→親の席。api の作成時と web の局順変更で共用）", () => {
+  it("東の場は起家から下家順（東一=east 東二=south 東三=west 東四=north）", () => {
+    expect(dealerForSeq(1)).toBe("east");
+    expect(dealerForSeq(2)).toBe("south");
+    expect(dealerForSeq(3)).toBe("west");
+    expect(dealerForSeq(4)).toBe("north");
+  });
+
+  it("4局で一周する（南一局=seq5 は east、北四局=seq16 は north）", () => {
+    expect(dealerForSeq(5)).toBe("east");
+    expect(dealerForSeq(16)).toBe("north");
+  });
 });

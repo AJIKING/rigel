@@ -1,7 +1,7 @@
 // application — 空の局（手動入力の起点）を半荘に追加するユースケース。
 // 解析を伴わないので Gemini 枠は消費しない。既定 private なので無料の非公開上限は守る。
 
-import { KifuSchema, type Kifu, type Seat, type Tile } from "@rigel/schema";
+import { KifuSchema, dealerForSeq, type Kifu, type Seat, type Tile } from "@rigel/schema";
 import type { GameRepository } from "../domain/game/game.repository";
 import type { GameLog } from "../domain/kifu/game-log";
 import type { GameLogRepository } from "../domain/kifu/game-log.repository";
@@ -65,8 +65,14 @@ const seqTile = (i: number): Tile => TILE_SEQUENCE[i % TILE_SEQUENCE.length]!;
  * 手動作成の下敷き Kifu を作る。各席に配牌13枚と、最終巡目(junme)ぶんの捨て牌を
  * 1m から順（字牌まで）でプレースホルダとして並べる。人がここから正しい牌に直す。
  * AI 解析は別経路なので影響しない。meta は省略時に既定が入る。
+ * 親(meta.dealer)は明示されない限り局順(seq)から導出する（東一局=east→南…の4局周期）。
  */
-export function emptyKifu(capturedAt: string, cameraBottomSeat: Seat, meta?: EmptyKifuMeta): Kifu {
+export function emptyKifu(
+  capturedAt: string,
+  cameraBottomSeat: Seat,
+  meta?: EmptyKifuMeta,
+  seq = 1,
+): Kifu {
   const junme = meta?.junme ?? 1;
   const seatBoard = () => ({
     hand: Array.from({ length: HAND_SIZE }, (_, i) => ({ tile: seqTile(i), confidence: 1 })),
@@ -78,7 +84,7 @@ export function emptyKifu(capturedAt: string, cameraBottomSeat: Seat, meta?: Emp
     capturedAt,
     cameraBottomSeat,
     seats: { east: seatBoard(), south: seatBoard(), west: seatBoard(), north: seatBoard() },
-    meta: meta ?? {},
+    meta: { ...(meta ?? {}), dealer: meta?.dealer ?? dealerForSeq(seq) },
   });
 }
 
@@ -133,8 +139,10 @@ export class CreateEmptyKifu {
     }
 
     const existing = await gameLogs.listByGame(game.id);
+    // 局順は自由に選べる（東一局=1〜北四局=16）。省略時は既存の次。
+    const seq = params.seq ?? existing.length + 1;
     // ルール・選手情報・公開範囲・編集状態は半荘単位。既存局があれば引き継ぐ（局ごとにバラけさせない）。
-    const kifu = emptyKifu(now().toISOString(), params.cameraBottomSeat, params.meta);
+    const kifu = emptyKifu(now().toISOString(), params.cameraBottomSeat, params.meta, seq);
     if (existing[0]) {
       kifu.rules = existing[0].kifu.rules;
       kifu.players = existing[0].kifu.players;
@@ -143,8 +151,7 @@ export class CreateEmptyKifu {
       id: newId(),
       userId: params.userId,
       gameId: game.id,
-      // 局順は自由に選べる（東一局=1〜北四局=16）。省略時は既存の次。
-      seq: params.seq ?? existing.length + 1,
+      seq,
       kifu,
       visibility: existing[0]?.visibility ?? "private",
       status: existing[0]?.status ?? "draft",
