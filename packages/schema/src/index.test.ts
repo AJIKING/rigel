@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   KIFU_LIMITS,
+  AiHandResponseSchema,
   AiRiverResponseSchema,
   KifuSchema,
   ReadTileSchema,
@@ -30,27 +31,40 @@ describe("AiRiverResponseSchema（河1方向のAI出力検証）", () => {
     expect(result.success).toBe(false);
   });
 
+  it("confidence の無い牌は拒否する（欠落を 1.0＝自信満々に化けさせない）", () => {
+    // 保存用スキーマ（人手入力）は confidence 既定 1 だが、AI 出力でそれを許すと
+    // 「モデルが自信を書かなかった牌」が要確認ハイライトから漏れる。最優先指標
+    //（自信満々の誤読を出さない）に逆行するため、AI 応答では必須にする。
+    expect(AiRiverResponseSchema.safeParse({ discards: [{ order: 1, tile: "9p" }] }).success).toBe(
+      false,
+    );
+    expect(
+      AiRiverResponseSchema.safeParse({ discards: [{ order: 1, tile: "9p", confidence: 0.9 }] })
+        .success,
+    ).toBe(true);
+  });
+
   it("null スロットを保持しても枚数・順序が壊れない（推測で埋めない）", () => {
     const result = AiRiverResponseSchema.parse({
       discards: [
         { order: 1, tile: null, confidence: 0 },
-        { order: 2, tile: "9p" },
+        { order: 2, tile: "9p", confidence: 0.95 },
       ],
     });
     expect(result.discards).toHaveLength(2);
     expect(result.discards[0]).toMatchObject({ order: 1, tile: null });
-    // riichi / confidence のデフォルトが効く
+    // riichi の既定は効く（confidence はモデルが必ず出す）。
     expect(result.discards[1]).toMatchObject({
       order: 2,
       tile: "9p",
       riichi: false,
-      confidence: 1,
+      confidence: 0.95,
     });
   });
 
   it("横向き牌は riichi:true で表せる", () => {
     const result = AiRiverResponseSchema.parse({
-      discards: [{ order: 1, tile: "3z", riichi: true }],
+      discards: [{ order: 1, tile: "3z", riichi: true, confidence: 1 }],
     });
     expect(result.discards[0]?.riichi).toBe(true);
   });
@@ -58,12 +72,21 @@ describe("AiRiverResponseSchema（河1方向のAI出力検証）", () => {
   it("捨て方は tsumogiri で表す（既定は手出し=false）", () => {
     const result = AiRiverResponseSchema.parse({
       discards: [
-        { order: 1, tile: "1m" },
-        { order: 2, tile: "2p", tsumogiri: true },
+        { order: 1, tile: "1m", confidence: 1 },
+        { order: 2, tile: "2p", tsumogiri: true, confidence: 1 },
       ],
     });
     expect(result.discards[0]?.tsumogiri).toBe(false); // 既定=手出し
     expect(result.discards[1]?.tsumogiri).toBe(true); // 自摸切り
+  });
+});
+
+describe("AiHandResponseSchema（手牌1人ぶんのAI出力検証）", () => {
+  it("confidence の無い牌は拒否する（河と同じ規律）", () => {
+    expect(AiHandResponseSchema.safeParse({ hand: [{ tile: "1m" }] }).success).toBe(false);
+    expect(
+      AiHandResponseSchema.safeParse({ hand: [{ tile: "1m", confidence: 0.8 }] }).success,
+    ).toBe(true);
   });
 });
 

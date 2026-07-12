@@ -1,7 +1,7 @@
 // infrastructure/kifu — GameLogRepository の Drizzle/D1 実装。
 
 import { and, asc, countDistinct, desc, eq, ne } from "drizzle-orm";
-import type { GameLog, KifuStatus, Visibility } from "../../domain/kifu/game-log";
+import type { GameLog, GameLogSummary, KifuStatus, Visibility } from "../../domain/kifu/game-log";
 import type { GameLogRepository } from "../../domain/kifu/game-log.repository";
 import type { Db } from "../db/client";
 import { gameLogs } from "../db/schema";
@@ -102,6 +102,24 @@ export class DrizzleGameLogRepository implements GameLogRepository {
       .limit(limit)
       .all();
     return rows.map(toDomain);
+  }
+
+  async listPublicSummaries(limit: number): Promise<GameLogSummary[]> {
+    // kifu カラムを SELECT しない（＝巨大 JSON を読まない・parse しない）。
+    // 一覧のコストが保存内容のサイズに比例するのを断つ。
+    const rows = await this.db
+      .select({
+        id: gameLogs.id,
+        gameId: gameLogs.gameId,
+        userId: gameLogs.userId,
+        createdAt: gameLogs.createdAt,
+      })
+      .from(gameLogs)
+      .where(and(eq(gameLogs.visibility, "public"), eq(gameLogs.status, "complete")))
+      .orderBy(desc(gameLogs.createdAt))
+      .limit(limit)
+      .all();
+    return rows;
   }
 
   async deleteById(id: string): Promise<void> {

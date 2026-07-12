@@ -69,7 +69,8 @@ export class ListPublicGames {
   ) {}
 
   async execute(limit = 60): Promise<PublicGameCard[]> {
-    const pub = await this.gameLogs.listPublic(200);
+    // 一覧は牌譜本体を読まない（要約のみ）。コストが保存内容のサイズに比例しないようにする。
+    const pub = await this.gameLogs.listPublicSummaries(200);
     // gameId ごとに公開局数を数える（出現順＝新着順を保つ）。最初の出現＝最新の公開局。
     const order: string[] = [];
     const counts = new Map<string, number>();

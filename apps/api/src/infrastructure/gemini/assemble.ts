@@ -68,5 +68,19 @@ export function assembleKifu(params: AssembleParams): Kifu {
     capturedAt,
     cameraBottomSeat,
     seats,
+    readingNotes: collectNotes(rivers, hands),
   });
+}
+
+/** AI の notes（グレア・ブレ・見切れ等）を方向ラベル付きで連結する。
+ *  「どこを直せばよいか」の手がかりなので捨てない（人が直しやすい＝指標の3番目）。 */
+function collectNotes(rivers: AssembleParams["rivers"], hands: AssembleParams["hands"]): string {
+  const lines: string[] = [];
+  for (const cam of CameraSeatSchema.options) {
+    const river = rivers[cam].notes.trim();
+    if (river) lines.push(`[${cam} river] ${river}`);
+    const hand = hands?.[cam]?.notes.trim();
+    if (hand) lines.push(`[${cam} hand] ${hand}`);
+  }
+  return lines.join("\n");
 }

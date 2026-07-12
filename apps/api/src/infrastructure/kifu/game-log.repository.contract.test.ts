@@ -88,6 +88,21 @@ describe.each(subjects)("GameLogRepository 契約: %s", (_name, make) => {
     expect(rows.map((r) => r.id)).toEqual(["l3"]);
   });
 
+  it("公開フィードの要約は牌譜本体を読まない（一覧のコストを保存内容から切り離す）", async () => {
+    await repo.save(log({ id: "l1", status: "complete", visibility: "public" }));
+    await repo.save(log({ id: "l2", status: "draft", visibility: "public" })); // 下書きは出ない
+
+    const rows = await repo.listPublicSummaries(10);
+    expect(rows.map((r) => r.id)).toEqual(["l1"]);
+    // 一覧に必要なのは所属半荘・著者・時刻だけ。Kifu JSON は読まない（parse もしない）。
+    expect(rows[0]).toEqual({
+      id: "l1",
+      gameId: "g1",
+      userId: "u1",
+      createdAt: NOW,
+    });
+  });
+
   it("編集状態ごとの半荘数を数える（保存上限の判定に使う）", async () => {
     await repo.save(log({ id: "l1", status: "draft" }));
     await repo.save(log({ id: "l2", status: "draft" })); // 同じ半荘 → 1半荘として数える

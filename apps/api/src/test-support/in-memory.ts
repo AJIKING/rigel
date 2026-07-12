@@ -4,7 +4,7 @@ import type { AnalysisCommitInput, AnalysisStore } from "../domain/analysis/anal
 import type { RevenueCatEventRepository } from "../domain/billing/revenuecat";
 import type { Game } from "../domain/game/game";
 import type { GameRepository } from "../domain/game/game.repository";
-import type { GameLog, KifuStatus, Visibility } from "../domain/kifu/game-log";
+import type { GameLog, GameLogSummary, KifuStatus, Visibility } from "../domain/kifu/game-log";
 import type { GameLogRepository } from "../domain/kifu/game-log.repository";
 import type { ProblemPost } from "../domain/problem/problem";
 import type {
@@ -133,6 +133,17 @@ export class InMemoryGameLogRepository implements GameLogRepository {
         .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
         .slice(0, limit),
     );
+  }
+
+  async listPublicSummaries(limit: number): Promise<GameLogSummary[]> {
+    const rows = await this.listPublic(limit);
+    // 本物（SELECT で kifu を読まない）と同じ形の要約を返す。
+    return rows.map((l) => ({
+      id: l.id,
+      gameId: l.gameId,
+      userId: l.userId,
+      createdAt: l.createdAt,
+    }));
   }
 
   deleteById(id: string): Promise<void> {

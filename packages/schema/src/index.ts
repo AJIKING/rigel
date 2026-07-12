@@ -402,22 +402,42 @@ export type Kifu = z.infer<typeof KifuSchema>;
 export const CameraSeatSchema = z.enum(["bottom", "right", "top", "left"]);
 export type CameraSeat = z.infer<typeof CameraSeatSchema>;
 
+/**
+ * AI 出力の牌（confidence 必須）。
+ * 保存用（ReadTileSchema/DiscardSchema）は人手入力向けに confidence 既定 1 を許すが、
+ * **AI 応答でそれを許すと「モデルが自信を書かなかった牌」が 1.0＝自信満々に化け、
+ * 要確認ハイライトから漏れる**（最優先指標「自信満々の誤読を出さない」に逆行）。
+ * よって AI 応答では必須にし、欠落は検証で落とす。
+ */
+export const AiReadTileSchema = z.object({
+  tile: MaybeTileSchema,
+  confidence: ConfidenceSchema,
+});
+
+export const AiDiscardSchema = z.object({
+  order: z.number().int().positive(),
+  tile: MaybeTileSchema,
+  riichi: z.boolean().default(false),
+  tsumogiri: z.boolean().default(false),
+  confidence: ConfidenceSchema,
+});
+
 /** 河1方向ぶんのAI出力（river_reader_prompt.md の1方向版に対応）。
  *  モデルが暴走・汚染されても Kifu と同じ「量」の上限で弾く。 */
 export const AiRiverResponseSchema = z.object({
-  discards: z.array(DiscardSchema).max(KIFU_LIMITS.river),
+  discards: z.array(AiDiscardSchema).max(KIFU_LIMITS.river),
   notes: z.string().max(KIFU_LIMITS.readingNotes).default(""),
 });
 export type AiRiverResponse = z.infer<typeof AiRiverResponseSchema>;
 
 /** 手牌1人ぶんのAI出力。鳴き元もカメラ相対で出させ、変換時に絶対へ。 */
 export const AiHandResponseSchema = z.object({
-  hand: z.array(ReadTileSchema).max(KIFU_LIMITS.hand),
+  hand: z.array(AiReadTileSchema).max(KIFU_LIMITS.hand),
   melds: z
     .array(
       z.object({
         type: MeldTypeSchema,
-        tiles: z.array(ReadTileSchema).max(4),
+        tiles: z.array(AiReadTileSchema).max(4),
         from: CameraSeatSchema.nullable(),
       }),
     )

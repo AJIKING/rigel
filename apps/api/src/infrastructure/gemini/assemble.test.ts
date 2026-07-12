@@ -42,4 +42,36 @@ describe("assembleKifu", () => {
     expect(kifu.schemaVersion).toBe("1.0.0");
     expect(kifu.cameraBottomSeat).toBe("south");
   });
+
+  it("AI の notes を readingNotes に引き継ぐ（人手修正の手がかりを捨てない）", () => {
+    // グレア・ブレ・見切れの申告は「どこを直せばよいか」の情報。捨てると
+    // 「人が直しやすい」という指標に直接効く手がかりが失われる。
+    const kifu = assembleKifu({
+      rivers: {
+        ...rivers,
+        bottom: { ...river("1m"), notes: "glare on the left" },
+        top: { ...river("3s"), notes: "blurred" },
+      },
+      hands: {
+        bottom: { hand: [{ tile: "1m", confidence: 0.9 }], melds: [], notes: "occluded" },
+      },
+      cameraBottomSeat: "east",
+      capturedAt: "2026-06-28T00:00:00.000Z",
+    });
+
+    // どの方向の申告かが分かる形で連結する（空の notes は含めない）。
+    expect(kifu.readingNotes).toContain("glare on the left");
+    expect(kifu.readingNotes).toContain("blurred");
+    expect(kifu.readingNotes).toContain("occluded");
+    expect(kifu.readingNotes).toContain("bottom");
+  });
+
+  it("notes が全て空なら readingNotes も空（余計な文字列を足さない）", () => {
+    const kifu = assembleKifu({
+      rivers,
+      cameraBottomSeat: "east",
+      capturedAt: "2026-06-28T00:00:00.000Z",
+    });
+    expect(kifu.readingNotes).toBe("");
+  });
 });

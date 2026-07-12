@@ -26,3 +26,12 @@ export interface GameLog {
   status: KifuStatus;
   createdAt: Date;
 }
+
+/** 公開フィード用の局の要約（Kifu 本体を含まない読み取りモデル）。
+ *  一覧のコストを「保存された牌譜のサイズ」から切り離すために使う。 */
+export interface GameLogSummary {
+  id: string;
+  gameId: string | null;
+  userId: string;
+  createdAt: Date;
+}

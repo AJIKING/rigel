@@ -1,6 +1,6 @@
 // domain/kifu — GameLog リポジトリのポート。実体は infrastructure 層（Drizzle/D1）。
 
-import type { GameLog, KifuStatus, Visibility } from "./game-log";
+import type { GameLog, KifuStatus, Visibility, GameLogSummary } from "./game-log";
 
 export interface GameLogRepository {
   save(gameLog: GameLog): Promise<void>;
@@ -25,6 +25,12 @@ export interface GameLogRepository {
   ): Promise<number>;
   /** 公開フィード用の牌譜を新しい順に返す（visibility=public かつ status=complete。limit で上限）。 */
   listPublic(limit: number): Promise<GameLog[]>;
+  /**
+   * 公開フィード用の要約（public かつ complete の局）。**Kifu 本体を読まない**。
+   * 一覧のコストが「保存された牌譜のサイズ」に比例して膨らむのを避けるための読み取りモデル
+   *（一覧に必要なのは所属半荘・著者・時刻だけ）。
+   */
+  listPublicSummaries(limit: number): Promise<GameLogSummary[]>;
   /** 1件削除。 */
   deleteById(id: string): Promise<void>;
   /** 半荘配下の全局を削除（半荘削除のカスケード）。 */
