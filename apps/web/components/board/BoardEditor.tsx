@@ -490,6 +490,15 @@ function Editor(p: EditorProps) {
     closePop();
   }
 
+  /** 局順の変更。親は局順に連動して直す（導出は schema の dealerForSeq＝api の作成時と共通）。
+   *  局順を直せば親マーク・風表記・手前席（親手前の既定）も追随する。確定は保存ボタン。 */
+  function changeSeq(n: number) {
+    setSeqValue(n);
+    mutate((d) => {
+      d.meta.dealer = dealerForSeq(n);
+    });
+  }
+
   async function onSave() {
     setSave("saving");
     setSaveErr(null);
@@ -500,6 +509,9 @@ function Editor(p: EditorProps) {
     setSave(res.ok ? "done" : "idle");
     if (res.ok) {
       setTimeout(() => setSave("idle"), 1500);
+      // 局順を変えた保存は detail（局メニュー・局切替の並び）にも効くので取り直す。
+      // 取り直さないとリロードするまで古い局順のまま表示される。
+      if (seqValue !== log.seq) await p.reload(log.id);
     } else {
       setSaveErr("保存に失敗しました。");
     }
@@ -760,15 +772,7 @@ function Editor(p: EditorProps) {
                         className={s.sel2}
                         aria-label="この局の局順"
                         value={seqValue}
-                        onChange={(e) => {
-                          const n = Number(e.target.value);
-                          setSeqValue(n);
-                          // 親は局順に連動（導出は schema の dealerForSeq＝api の作成時と共通）。
-                          // 局順を直せば親マーク・風表記・手前席（親手前の既定）も追随する。
-                          mutate((d) => {
-                            d.meta.dealer = dealerForSeq(n);
-                          });
-                        }}
+                        onChange={(e) => changeSeq(Number(e.target.value))}
                       >
                         {Array.from({ length: MAX_SEQ }, (_, i) => i + 1).map((n) => (
                           <option key={n} value={n}>

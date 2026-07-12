@@ -152,6 +152,26 @@ describe("BoardEditor 局順（作成する局の反映と変更）", () => {
     // 親は局順に連動する（東二局=南家の席が親）。
     expect(kifu.meta.dealer).toBe("south");
   });
+
+  it("局順の変更を保存すると半荘を再取得し、局メニューもリロード不要で新しい局順になる", async () => {
+    const d = makeDetail([{ id: "l1" }]);
+    d.logs[0]!.seq = 3;
+    // 保存後にサーバが返す姿（seq=2 に変わっている）。
+    const after = makeDetail([{ id: "l1" }]);
+    after.logs[0]!.seq = 2;
+    h.getGameAction.mockReset().mockResolvedValue(after);
+
+    render(<BoardEditor initialDetail={d} gameId="g1" logId="l1" />);
+    await screen.findByRole("button", { name: "保存" });
+    fireEvent.change(screen.getByLabelText("この局の局順"), { target: { value: "2" } });
+    fireEvent.click(screen.getByRole("button", { name: "保存" }));
+
+    // 保存成功後に detail を取り直す（局順は局メニュー・切替の並びにも効くため）。
+    await waitFor(() => expect(h.getGameAction).toHaveBeenCalledWith("g1"));
+    // 局メニューを開くと再取得後の局順（第2局）が出る（変更前の detail は第3局のまま）。
+    fireEvent.click(screen.getByRole("button", { name: "東二局 0本場" }));
+    expect(await screen.findByText("第2局")).toBeTruthy();
+  });
 });
 
 describe("BoardEditor 編集操作", () => {
