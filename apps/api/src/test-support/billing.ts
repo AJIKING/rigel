@@ -30,6 +30,8 @@ export const fakeEnv = {
   GEMINI_API_KEY: "",
   CLOUDFLARE_AI_GATEWAY_URL: "",
   GOOGLE_CLIENT_ID: "test-client-id",
+  // 決済の戻り先検証（isAllowedRedirect）で使う許可オリジン。テストは https://app を自オリジンとする。
+  ALLOWED_ORIGINS: "https://app",
   SESSION_SECRET: TEST_SESSION_SECRET,
 } satisfies Env;
 

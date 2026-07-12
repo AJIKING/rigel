@@ -57,6 +57,7 @@ import { RIVER_PROMPT_SINGLE } from "./infrastructure/gemini/river-prompt";
 import { DrizzleGameLogRepository } from "./infrastructure/kifu/drizzle-game-log.repository";
 import { DrizzleProblemAnswerRepository } from "./infrastructure/problem/drizzle-problem-answer.repository";
 import { DrizzleProblemRepository } from "./infrastructure/problem/drizzle-problem.repository";
+import { DrizzleAccountStore } from "./infrastructure/user/drizzle-account-store";
 import { DrizzleUserRepository } from "./infrastructure/user/drizzle-user.repository";
 
 export interface AppContainer {
@@ -196,7 +197,7 @@ export function buildContainer(env: Env): AppContainer {
     getUser: new GetUser(users),
     updateProfile: new UpdateProfile(users),
     getPublicProfile: new GetPublicProfile(users, gamesRepo, gameLogs),
-    deleteAccount: new DeleteAccount(users, gamesRepo, gameLogs, problems, problemAnswers),
+    deleteAccount: new DeleteAccount(users, new DrizzleAccountStore(db)),
     createProblem: new CreateProblem({ problems, users, now, newId }),
     updateProblem: new UpdateProblem(problems),
     deleteProblem: new DeleteProblem(problems, problemAnswers),

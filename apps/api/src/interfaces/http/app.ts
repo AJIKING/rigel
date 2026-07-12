@@ -87,6 +87,12 @@ export function createApp(options: CreateAppOptions = {}): Hono<AppEnv> {
   // レート制限（乱用・DoS）。userId が解決済みの位置に置き、ルート・DB より前で弾く。
   app.use("*", rateLimit);
 
+  // 補足（削除済みユーザーのトークン）: ステートレス JWT は失効リストを持たないため、
+  // アカウント削除後もトークンは exp（最大30日）まで署名検証を通る。ただし D1 は外部キーを
+  // 強制するので（game_logs/games/problems はすべて users.id を参照）、存在しない userId で
+  // 行を作ることはできず、孤児データは生まれない。読み書きの各ユースケースも所有者チェックで
+  // not_found に落ちる。よって全書き込みに存在確認クエリを1本足す（＝コスト増）ことはしない。
+
   app.get("/health", (c) => c.json({ ok: true }));
 
   registerAccountRoutes(app);

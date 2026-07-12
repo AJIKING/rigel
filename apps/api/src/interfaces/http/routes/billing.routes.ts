@@ -4,7 +4,8 @@
 // 未設定の環境では 501 を返す（billingEnabled / revenueCatEnabled）。
 
 import type { Hono } from "hono";
-import { requireAuth, type AppEnv } from "../shared";
+import { isAllowedRedirect } from "../redirect";
+import { requireAuth, timingSafeEqual, type AppEnv } from "../shared";
 
 export function registerBillingRoutes(app: Hono<AppEnv>): void {
   // 課金: サブスク用 Checkout を開始（要認証）。body: { plan: "next"|"pro", successUrl, cancelUrl }。
@@ -21,6 +22,14 @@ export function registerBillingRoutes(app: Hono<AppEnv>): void {
     }
     if (typeof body.successUrl !== "string" || typeof body.cancelUrl !== "string") {
       return c.json({ error: "successUrl と cancelUrl が必要です" }, 400);
+    }
+    // 戻り先は自分のオリジン（＋アプリのスキーム）に限定する（オープンリダイレクト対策）。
+    const origins = c.env.ALLOWED_ORIGINS;
+    if (
+      !isAllowedRedirect(body.successUrl, origins) ||
+      !isAllowedRedirect(body.cancelUrl, origins)
+    ) {
+      return c.json({ error: "戻り先URLが許可されていません" }, 400);
     }
     try {
       const result = await container.startCheckout.execute({
@@ -45,6 +54,9 @@ export function registerBillingRoutes(app: Hono<AppEnv>): void {
     if (typeof body?.returnUrl !== "string") {
       return c.json({ error: "returnUrl が必要です" }, 400);
     }
+    if (!isAllowedRedirect(body.returnUrl, c.env.ALLOWED_ORIGINS)) {
+      return c.json({ error: "戻り先URLが許可されていません" }, 400);
+    }
     try {
       const result = await container.openBillingPortal.execute({
         userId: c.get("userId")!,
@@ -62,7 +74,8 @@ export function registerBillingRoutes(app: Hono<AppEnv>): void {
   app.post("/billing/revenuecat/webhook", async (c) => {
     const container = c.get("container");
     if (!container.revenueCatEnabled) return c.json({ error: "revenuecat not configured" }, 501);
-    if (c.req.header("authorization") !== container.revenueCatWebhookAuth) {
+    // 共有シークレットの照合は定数時間比較（総当たりのタイミング手掛かりを与えない）。
+    if (!timingSafeEqual(c.req.header("authorization"), container.revenueCatWebhookAuth)) {
       return c.json({ error: "unauthorized" }, 401);
     }
     const body = await c.req.json().catch(() => null);

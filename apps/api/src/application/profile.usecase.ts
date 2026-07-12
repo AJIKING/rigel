@@ -6,8 +6,7 @@
 import { KIFU_LIMITS } from "@rigel/schema";
 import type { GameRepository } from "../domain/game/game.repository";
 import type { GameLogRepository } from "../domain/kifu/game-log.repository";
-import type { ProblemAnswerRepository } from "../domain/problem/problem-answer.repository";
-import type { ProblemRepository } from "../domain/problem/problem.repository";
+import type { AccountStore } from "../domain/user/account-store";
 import type { UserRepository } from "../domain/user/user.repository";
 import type { PublicGameCard } from "./list-game-cards.usecase";
 
@@ -102,10 +101,7 @@ export class GetPublicProfile {
 export class DeleteAccount {
   constructor(
     private readonly users: UserRepository,
-    private readonly games: GameRepository,
-    private readonly gameLogs: GameLogRepository,
-    private readonly problems: ProblemRepository,
-    private readonly problemAnswers: ProblemAnswerRepository,
+    private readonly store: AccountStore,
   ) {}
 
   async execute(userId: string): Promise<DeleteAccountResult> {
@@ -114,14 +110,9 @@ export class DeleteAccount {
     // 有料プラン契約中は削除させない（サブスクを止めないまま消えると請求が残るため）。
     // 解約して free に戻してから削除する導線にする。
     if (user.plan !== "free") return { ok: false, reason: "paid_plan" };
-    await this.gameLogs.deleteByUser(userId);
-    await this.games.deleteByUser(userId);
-    // 何切る: 自分が付けた回答 → 自分の問題への（他人の）回答 → 自分の問題 の順に消す
-    //（FK の向きに沿って孤児を残さない）。
-    await this.problemAnswers.deleteByUser(userId);
-    await this.problemAnswers.deleteByProblemOwner(userId);
-    await this.problems.deleteByUser(userId);
-    await this.users.deleteById(userId);
+    // 削除は1トランザクション（回答→問題→局→半荘→ユーザー）。個別に順次消すと
+    // 途中失敗で中途半端に消えた孤児が残る。
+    await this.store.deleteAll(userId);
     return { ok: true };
   }
 }

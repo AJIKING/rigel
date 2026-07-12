@@ -1,6 +1,7 @@
 // テスト用の in-memory リポジトリ（ポートのフェイク実装）。本番バンドルには含まれない。
 
 import type { AnalysisCommitInput, AnalysisStore } from "../domain/analysis/analysis-store";
+import type { AccountStore } from "../domain/user/account-store";
 import type { RevenueCatEventRepository } from "../domain/billing/revenuecat";
 import type { Game } from "../domain/game/game";
 import type { GameRepository } from "../domain/game/game.repository";
@@ -291,6 +292,26 @@ export class InMemoryProblemAnswerRepository implements ProblemAnswerRepository 
 }
 
 /** 原子コミットのフェイク（テスト用）。実 D1 batch の代わりに各 in-memory リポジトリへ書く。 */
+/** AccountStore のフェイク（本物は D1 batch で1トランザクション）。削除の順序と網羅性を再現する。 */
+export class InMemoryAccountStore implements AccountStore {
+  constructor(
+    private readonly users: InMemoryUserRepository,
+    private readonly games: InMemoryGameRepository,
+    private readonly gameLogs: InMemoryGameLogRepository,
+    private readonly problems: InMemoryProblemRepository,
+    private readonly problemAnswers: InMemoryProblemAnswerRepository,
+  ) {}
+
+  async deleteAll(userId: string): Promise<void> {
+    await this.problemAnswers.deleteByUser(userId);
+    await this.problemAnswers.deleteByProblemOwner(userId);
+    await this.problems.deleteByUser(userId);
+    await this.gameLogs.deleteByUser(userId);
+    await this.games.deleteByUser(userId);
+    await this.users.deleteById(userId);
+  }
+}
+
 export class InMemoryAnalysisStore implements AnalysisStore {
   constructor(
     private readonly games: InMemoryGameRepository,

@@ -23,7 +23,9 @@
       "esbuild"
     ],
     "overrides": {
-      "@types/react": "19.2.17"
+      "@types/react": "19.2.17",
+      "tar": ">=7.5.11",
+      "@types/node": "20.17.6"
     }
   },
   "devDependencies": {
@@ -33,6 +35,6 @@
     "turbo": "^2.3.3",
     "typescript": "^5.7.2",
     "typescript-eslint": "^8.18.1",
-    "vitest": "^2.1.8"
+    "vitest": "^3.2.7"
   }
 }

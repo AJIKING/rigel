@@ -34,6 +34,8 @@ export class JoseGoogleTokenVerifier implements GoogleTokenVerifier {
       issuer: GOOGLE_ISSUERS,
       // aud が許可クライアントIDのいずれかに一致すればOK（web/iOS/Android 共通の api）。
       audience: this.audiences,
+      // 署名アルゴリズムを固定する（Google の公開鍵は RS256。防御的に明示）。
+      algorithms: ["RS256"],
     });
     if (!payload.sub) {
       throw new Error("Google ID トークンに sub がありません");

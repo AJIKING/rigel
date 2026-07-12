@@ -4,6 +4,7 @@ import type { Game } from "../domain/game/game";
 import type { GameLog } from "../domain/kifu/game-log";
 import { User, firstOfNextMonthUtc } from "../domain/user/user";
 import {
+  InMemoryAccountStore,
   InMemoryGameLogRepository,
   InMemoryGameRepository,
   InMemoryProblemAnswerRepository,
@@ -149,7 +150,10 @@ describe("DeleteAccount", () => {
     await answers.upsert(answerOf("p1", "u2"));
     await answers.upsert(answerOf("p2", "u1"));
 
-    const r = await new DeleteAccount(users, games, gameLogs, problems, answers).execute("u1");
+    const r = await new DeleteAccount(
+      users,
+      new InMemoryAccountStore(users, games, gameLogs, problems, answers),
+    ).execute("u1");
 
     expect(r).toEqual({ ok: true });
     expect(await users.findById("u1")).toBeNull();
@@ -170,7 +174,10 @@ describe("DeleteAccount", () => {
     await gameLogs.save(log("l1", "u1", "g1", "public"));
     const { problems, answers } = problemDeps();
 
-    const r = await new DeleteAccount(users, games, gameLogs, problems, answers).execute("u1");
+    const r = await new DeleteAccount(
+      users,
+      new InMemoryAccountStore(users, games, gameLogs, problems, answers),
+    ).execute("u1");
 
     expect(r).toEqual({ ok: false, reason: "paid_plan" });
     expect(await users.findById("u1")).not.toBeNull(); // ユーザーもデータも残る

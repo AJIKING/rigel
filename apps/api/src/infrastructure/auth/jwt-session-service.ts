@@ -33,7 +33,7 @@ export class JwtSessionService implements SessionService {
 
   async verify(token: string): Promise<{ userId: string } | null> {
     try {
-      const { payload } = await jwtVerify(token, this.key);
+      const { payload } = await jwtVerify(token, this.key, { algorithms: [ALG] });
       return payload.sub ? { userId: payload.sub } : null;
     } catch {
       return null;
