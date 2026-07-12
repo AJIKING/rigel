@@ -5,18 +5,32 @@
 
 import type { Game } from "../game/game";
 import type { GameLog } from "../kifu/game-log";
-import type { User } from "../user/user";
+
+/**
+ * 課金カウンタの「差分」。ユーザーの最終状態（絶対値）を書き戻すと、並行する解析が
+ * 同じ値を読んで互いを上書きし、消費を取りこぼす（＝枠を超えて Gemini を呼べる＝
+ * コストが出る方向の lost update）。永続化は必ず差分の原子適用として表現する。
+ */
+export interface AnalysisCounterDelta {
+  userId: string;
+  /** 加算する Gemini 呼び出し回数（解析成功時のみ）。 */
+  calls: number;
+  /** 現在時刻（月境界の判定に使う）。 */
+  now: Date;
+  /** 月境界を跨いでいた場合の新しいリセット時刻（判定ロジックはドメインが持つ）。 */
+  nextResetAt: Date;
+}
 
 export interface AnalysisCommitInput {
   /** 新規半荘（既存に追加する場合は null）。 */
   newGame: Game | null;
   /** 保存する局。 */
   gameLog: GameLog;
-  /** カウント加算後のユーザー（永続化する状態）。 */
-  user: User;
+  /** 課金カウンタの加算（成功時のみ・実呼び出し数）。 */
+  counter: AnalysisCounterDelta;
 }
 
 export interface AnalysisStore {
-  /** newGame・gameLog・user を1トランザクションでまとめて保存する。 */
+  /** newGame・gameLog・カウンタ加算を1トランザクションでまとめて保存する。 */
   commit(input: AnalysisCommitInput): Promise<void>;
 }

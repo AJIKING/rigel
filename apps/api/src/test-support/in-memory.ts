@@ -287,9 +287,14 @@ export class InMemoryAnalysisStore implements AnalysisStore {
     private readonly users: InMemoryUserRepository,
   ) {}
 
-  async commit({ newGame, gameLog, user }: AnalysisCommitInput): Promise<void> {
+  async commit({ newGame, gameLog, counter }: AnalysisCommitInput): Promise<void> {
     if (newGame) await this.games.save(newGame);
     await this.gameLogs.save(gameLog);
+    // 本物（SQL の加算）と同じ意味になるよう、保存済みの状態に差分を適用する
+    //（月境界のリセット判定はドメイン＝User.recordGeminiCalls が持つ）。
+    const user = await this.users.findById(counter.userId);
+    if (!user) return;
+    user.recordGeminiCalls(counter.now, counter.calls);
     await this.users.save(user);
   }
 }

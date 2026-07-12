@@ -129,7 +129,8 @@ rigel/
 | モノレポ | turborepo / pnpm workspace | `packages/schema`,`packages/ui`,`apps/{mobile,web,api}` |
 
 `[未確定]` の主要項目（設計ドキュメント 9章 TODO一覧）：`toAbsoluteSeat` の回転方向 / Agentic Vision の要否 /
-AI精度の実測 / UI共有手段 / カウンタ整合の原子化 / 認証実装 / 無料枠・価格。**勝手に確定しない。**
+AI精度の実測 / UI共有手段 / 認証実装 / 無料枠・価格。**勝手に確定しない。**
+（カウンタ整合の原子化は 2026-07-12 に [決定]: 差分の原子適用＋有界オーバーシュートの許容。）
 （ORM は Drizzle に確定済み。）
 
 ---

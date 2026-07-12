@@ -16,6 +16,7 @@ import type { GameRepository } from "../domain/game/game.repository";
 import type { AnalysisInput, Analyzer } from "../domain/kifu/analyzer";
 import type { GameLog } from "../domain/kifu/game-log";
 import type { GameLogRepository } from "../domain/kifu/game-log.repository";
+import { firstOfNextMonthUtc } from "../domain/user/user";
 import type { UserRepository } from "../domain/user/user.repository";
 import { MAX_LOGS_PER_GAME } from "./create-empty-kifu.usecase";
 
@@ -100,10 +101,20 @@ export class AnalyzeAndSaveKifu {
       createdAt: now(),
     };
 
-    user.recordGeminiCalls(now(), geminiCalls);
-
     // 半荘(新規)・局・カウント加算を1トランザクションで保存（成功時のみ加算）。
-    await store.commit({ newGame: isNewGame ? game : null, gameLog, user });
+    // カウンタは「最終状態の書き戻し」ではなく差分で渡す（並行解析での取りこぼし防止）。
+    // 月境界のリセット時刻はドメインの規則（firstOfNextMonthUtc）で決める。
+    const at = now();
+    await store.commit({
+      newGame: isNewGame ? game : null,
+      gameLog,
+      counter: {
+        userId: user.id,
+        calls: geminiCalls,
+        now: at,
+        nextResetAt: firstOfNextMonthUtc(at),
+      },
+    });
 
     return { ok: true, gameLog, gameId: game.id };
   }

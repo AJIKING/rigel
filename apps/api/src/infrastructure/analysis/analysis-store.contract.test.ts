@@ -10,7 +10,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import type { AnalysisStore } from "../../domain/analysis/analysis-store";
 import type { Game } from "../../domain/game/game";
 import type { GameLog } from "../../domain/kifu/game-log";
-import { User } from "../../domain/user/user";
+import { User, firstOfNextMonthUtc } from "../../domain/user/user";
 import { DrizzleGameLogRepository } from "../kifu/drizzle-game-log.repository";
 import { DrizzleUserRepository } from "../user/drizzle-user.repository";
 import {
@@ -44,8 +44,8 @@ const log = (over: Partial<GameLog> = {}): GameLog => ({
   ...over,
 });
 
-/** 解析4回ぶんを計上済みのユーザー（コミットで永続化される状態）。 */
-function analyzedUser(): User {
+/** 解析枠を持つユーザー（コミット前の初期状態）。 */
+function paidUser(): User {
   const user = User.create({
     id: "u1",
     googleSub: "sub-1",
@@ -54,9 +54,17 @@ function analyzedUser(): User {
     now: NOW,
   });
   user.changePlan("next");
-  user.recordGeminiCalls(NOW, 4);
   return user;
 }
+
+/** カウンタ差分（解析成功時に加算する呼び出し回数）。永続化は「絶対値の書き戻し」ではなく
+ *  「差分の原子適用」で行う（並行コミットで消費を取りこぼさない）。 */
+const counter = (calls: number) => ({
+  userId: "u1",
+  calls,
+  now: NOW,
+  nextResetAt: firstOfNextMonthUtc(NOW),
+});
 
 /** 実装ごとのセットアップ（ストアと、保存結果を読み戻す手段）。 */
 interface Subject {
@@ -102,12 +110,11 @@ describe.each(subjects)("AnalysisStore 契約: %s", (_name, make) => {
   let s: Subject;
   beforeEach(async () => {
     s = make();
-    await s.seedUser(analyzedUser());
+    await s.seedUser(paidUser());
   });
 
   it("局のすべてのフィールドを保存する（status/visibility を DB 既定値に落とさない）", async () => {
-    const user = analyzedUser();
-    await s.store.commit({ newGame: game(), gameLog: log(), user });
+    await s.store.commit({ newGame: game(), gameLog: log(), counter: counter(4) });
 
     const saved = await s.findLog("l1");
     expect(saved).not.toBeNull();
@@ -123,7 +130,7 @@ describe.each(subjects)("AnalysisStore 契約: %s", (_name, make) => {
     await s.store.commit({
       newGame: game(),
       gameLog: log({ status: "complete", visibility: "public" }),
-      user: analyzedUser(),
+      counter: counter(4),
     });
 
     const saved = await s.findLog("l1");
@@ -132,16 +139,43 @@ describe.each(subjects)("AnalysisStore 契約: %s", (_name, make) => {
   });
 
   it("解析カウントを永続化する（成功時のみ・実呼び出し数）", async () => {
-    await s.store.commit({ newGame: game(), gameLog: log(), user: analyzedUser() });
+    await s.store.commit({ newGame: game(), gameLog: log(), counter: counter(4) });
     expect(await s.findUserCount("u1")).toBe(4);
   });
 
-  it("既存半荘への追加（newGame=null）でも局が保存される", async () => {
-    await s.store.commit({ newGame: game(), gameLog: log(), user: analyzedUser() });
+  it("カウントは加算される（並行コミットで取りこぼさない＝lost update しない）", async () => {
+    // 絶対値を SET する実装だと、同じ値を読んだ2本が互いを上書きして片方の消費が消える
+    //（＝枠を超えて Gemini を呼べる＝コストが出る方向の取りこぼし）。
+    await Promise.all([
+      s.store.commit({ newGame: game(), gameLog: log({ id: "l1" }), counter: counter(4) }),
+      s.store.commit({ newGame: null, gameLog: log({ id: "l2", seq: 2 }), counter: counter(3) }),
+    ]);
+    expect(await s.findUserCount("u1")).toBe(7);
+  });
+
+  it("月境界を跨いだコミットはカウントをリセットしてから加算する", async () => {
+    await s.store.commit({ newGame: game(), gameLog: log(), counter: counter(4) });
+    // 翌月の解析（now が countResetAt を過ぎている）→ 前月ぶんは持ち越さない。
+    const nextMonth = new Date("2026-08-01T00:00:00.000Z");
     await s.store.commit({
       newGame: null,
       gameLog: log({ id: "l2", seq: 2 }),
-      user: analyzedUser(),
+      counter: {
+        userId: "u1",
+        calls: 2,
+        now: nextMonth,
+        nextResetAt: firstOfNextMonthUtc(nextMonth),
+      },
+    });
+    expect(await s.findUserCount("u1")).toBe(2);
+  });
+
+  it("既存半荘への追加（newGame=null）でも局が保存される", async () => {
+    await s.store.commit({ newGame: game(), gameLog: log(), counter: counter(4) });
+    await s.store.commit({
+      newGame: null,
+      gameLog: log({ id: "l2", seq: 2 }),
+      counter: counter(4),
     });
 
     expect((await s.findLog("l2"))?.seq).toBe(2);
