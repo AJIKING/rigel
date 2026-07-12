@@ -1,6 +1,6 @@
-// lib/og-meta — 公開ビューアの OGP/Twitter メタデータを組み立てる純粋関数。
-// 非公開・不存在（null）ではサイト既定にフォールバックし、半荘情報を一切含めない
-//（プライバシー: 非公開半荘の存在をメタデータから漏らさない）。
+// lib/og-meta — 共有ページ（公開ビューア・何切る・プロフィール）の <title>/OGP/Twitter
+// メタデータを組み立てる純粋関数。非公開・不存在（null）ではサイト既定にフォールバックし、
+// 対象の情報を一切含めない（プライバシー: 非公開データの存在をメタデータから漏らさない）。
 
 import { fmtDateSlash } from "./format";
 
@@ -16,14 +16,18 @@ export interface PublicGameSummary {
 export interface ShareMetadata {
   title: string;
   description: string;
+  /** 公開ページの正規URL（相対。metadataBase で絶対化される）。 */
+  alternates?: { canonical: string };
+  /** 検索エンジンに載せないページ（下書きなど）だけ noindex を立てる。 */
+  robots?: { index: false };
   openGraph?: {
     title: string;
     description: string;
     siteName: string;
     url: string;
-    type: "article";
+    type: "article" | "profile";
   };
-  twitter?: { card: "summary_large_image"; title: string; description: string };
+  twitter?: { card: "summary_large_image" | "summary"; title: string; description: string };
 }
 
 // サイト既定（root layout と共有する単一ソース）。
@@ -34,6 +38,30 @@ export const DEFAULT_DESCRIPTION = "実物の麻雀卓を撮った写真から�
  *  api-server.ts と同じ流儀で env（空文字は未設定扱い）→ 本番ドメインの順に解決する。 */
 export function siteBaseUrl(): string {
   return process.env.NEXT_PUBLIC_SITE_URL || "https://rigel.plaria.co.jp";
+}
+
+/** 非公開・不存在（null）のフォールバック。対象の情報を一切含めない。 */
+function siteDefaultMeta(): ShareMetadata {
+  return { title: DEFAULT_TITLE, description: DEFAULT_DESCRIPTION };
+}
+
+/** 公開ページ共通の共有メタデータ（canonical・OGP・Twitter カードを一括で組む）。 */
+function shareMeta(
+  title: string,
+  description: string,
+  url: string,
+  opts: {
+    type: NonNullable<ShareMetadata["openGraph"]>["type"];
+    card: NonNullable<ShareMetadata["twitter"]>["card"];
+  },
+): ShareMetadata {
+  return {
+    title,
+    description,
+    alternates: { canonical: url },
+    openGraph: { title, description, siteName: "Rigel", url, type: opts.type },
+    twitter: { card: opts.card, title, description },
+  };
 }
 
 /** ビューアと同じ無題表記。 */
@@ -56,21 +84,51 @@ function gameInfo(detail: PublicGameSummary): string {
 
 /** 公開半荘の共有メタデータ（<title>・description・OGP/Twitter カード）。 */
 export function buildGameMetadata(detail: PublicGameSummary | null): ShareMetadata {
-  if (!detail) return { title: DEFAULT_TITLE, description: DEFAULT_DESCRIPTION };
-  const title = titleOf(detail);
+  if (!detail) return siteDefaultMeta();
   const description = `${authorOf(detail.owner)} の牌譜（${gameInfo(detail)}）をブラウザで再生できます。`;
-  return {
-    title,
-    description,
-    openGraph: {
-      title,
-      description,
-      siteName: "Rigel",
-      url: `/k/${detail.game.id}`,
-      type: "article",
-    },
-    twitter: { card: "summary_large_image", title, description },
-  };
+  return shareMeta(titleOf(detail), description, `/k/${detail.game.id}`, {
+    type: "article",
+    card: "summary_large_image", // /k は opengraph-image で動的OG画像を生成している
+  });
+}
+
+/** メタデータに必要な最小限の何切る情報（ProblemPost のサブセット）。 */
+export interface ProblemMetaInput {
+  id: string;
+  title: string;
+  status: "draft" | "published";
+}
+
+/** 画面（ProblemAnswerScreen 等）と同じ無題表記。 */
+const UNTITLED_PROBLEM = "（無題の問題）";
+
+/** 何切る回答ページ（/p/[id]）の共有メタデータ。
+ *  published は OGP つきで公開、draft は所有者のタブ表示用タイトルのみ（noindex・OGP なし）。 */
+export function buildProblemMetadata(post: ProblemMetaInput | null): ShareMetadata {
+  if (!post) return siteDefaultMeta();
+  const title = post.title || UNTITLED_PROBLEM;
+  const description = "何切る問題。あなたの一打を選んで、みんなの回答分布と比べられます。";
+  if (post.status !== "published") return { title, description, robots: { index: false } };
+  return shareMeta(title, description, `/p/${post.id}`, { type: "article", card: "summary" });
+}
+
+/** メタデータに必要な最小限の公開プロフィール情報（PublicProfile のサブセット）。 */
+export interface PublicProfileSummary {
+  id: string;
+  handle: string | null;
+  displayName: string;
+  games: readonly unknown[];
+}
+
+/** 公開プロフィール（/u/[handle]）の共有メタデータ。プロフィールは常に公開（CLAUDE.md 7-2）。 */
+export function buildProfileMetadata(profile: PublicProfileSummary | null): ShareMetadata {
+  if (!profile) return siteDefaultMeta();
+  const title = profile.handle
+    ? `${profile.displayName}（@${profile.handle}）`
+    : profile.displayName;
+  const description = `${profile.displayName} さんの公開牌譜 ${profile.games.length}件をブラウザで再生できます。`;
+  const url = `/u/${profile.handle ?? profile.id}`;
+  return shareMeta(title, description, url, { type: "profile", card: "summary" });
 }
 
 /** OG 画像カードの文言（タイトル・作者・局数/日付）。カードの全文言をここで一元化し、

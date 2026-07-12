@@ -3,8 +3,12 @@ import {
   DEFAULT_DESCRIPTION,
   DEFAULT_TITLE,
   buildGameMetadata,
+  buildProblemMetadata,
+  buildProfileMetadata,
   ogCard,
+  type ProblemMetaInput,
   type PublicGameSummary,
+  type PublicProfileSummary,
 } from "./og-meta";
 
 const detail: PublicGameSummary = {
@@ -17,6 +21,7 @@ describe("buildGameMetadata", () => {
   it("公開半荘からタイトル・説明・OGP/Twitterカードを組み立てる", () => {
     const meta = buildGameMetadata(detail);
     expect(meta.title).toBe("金曜ナイト半荘");
+    expect(meta.alternates?.canonical).toBe("/k/g1");
     expect(meta.description).toContain("@ajiki");
     expect(meta.description).toContain("全3局");
     expect(meta.description).toContain("2026/07/05");
@@ -42,6 +47,78 @@ describe("buildGameMetadata", () => {
     expect(meta.title).toBe(DEFAULT_TITLE);
     expect(meta.description).toBe(DEFAULT_DESCRIPTION);
     expect(meta.openGraph?.url).toBeUndefined();
+    expect(meta.alternates).toBeUndefined();
+  });
+});
+
+const problem: ProblemMetaInput = {
+  id: "p1",
+  title: "南3局の押し引き",
+  status: "published",
+};
+
+describe("buildProblemMetadata", () => {
+  it("公開（published）の問題からタイトル・説明・OGP/Twitterカードを組み立てる", () => {
+    const meta = buildProblemMetadata(problem);
+    expect(meta.title).toBe("南3局の押し引き");
+    expect(meta.description).toContain("何切る");
+    expect(meta.openGraph?.title).toBe("南3局の押し引き");
+    expect(meta.openGraph?.siteName).toBe("Rigel");
+    expect(meta.openGraph?.url).toBe("/p/p1");
+    expect(meta.alternates?.canonical).toBe("/p/p1");
+    expect(meta.twitter?.card).toBe("summary");
+    expect(meta.robots).toBeUndefined();
+  });
+
+  it("無題の問題は画面と同じ「（無題の問題）」で表示する", () => {
+    const meta = buildProblemMetadata({ ...problem, title: "" });
+    expect(meta.title).toBe("（無題の問題）");
+  });
+
+  it("下書き（draft）はタブ用のタイトルだけ持ち、noindex で OGP を付けない（所有者専用ページ）", () => {
+    const meta = buildProblemMetadata({ ...problem, status: "draft" });
+    expect(meta.title).toBe("南3局の押し引き");
+    expect(meta.robots).toEqual({ index: false });
+    expect(meta.openGraph).toBeUndefined();
+    expect(meta.alternates).toBeUndefined();
+  });
+
+  it("不存在（null）ではサイト既定にフォールバックし問題情報を一切含めない", () => {
+    const meta = buildProblemMetadata(null);
+    expect(meta.title).toBe(DEFAULT_TITLE);
+    expect(meta.description).toBe(DEFAULT_DESCRIPTION);
+    expect(meta.openGraph).toBeUndefined();
+  });
+});
+
+const profile: PublicProfileSummary = {
+  id: "user-abcdef012345",
+  handle: "ajiki",
+  displayName: "あじき",
+  games: [{}, {}],
+};
+
+describe("buildProfileMetadata", () => {
+  it("公開プロフィールからタイトル・説明・OGPを組み立てる（title は「表示名（@handle）」）", () => {
+    const meta = buildProfileMetadata(profile);
+    expect(meta.title).toBe("あじき（@ajiki）");
+    expect(meta.description).toContain("公開牌譜");
+    expect(meta.description).toContain("2件");
+    expect(meta.openGraph?.type).toBe("profile");
+    expect(meta.openGraph?.url).toBe("/u/ajiki");
+    expect(meta.alternates?.canonical).toBe("/u/ajiki");
+  });
+
+  it("handle が無いユーザーは表示名だけをタイトルにし、URL は id で組む", () => {
+    const meta = buildProfileMetadata({ ...profile, handle: null });
+    expect(meta.title).toBe("あじき");
+    expect(meta.openGraph?.url).toBe("/u/user-abcdef012345");
+  });
+
+  it("不存在（null）ではサイト既定にフォールバックする", () => {
+    const meta = buildProfileMetadata(null);
+    expect(meta.title).toBe(DEFAULT_TITLE);
+    expect(meta.openGraph).toBeUndefined();
   });
 });
 

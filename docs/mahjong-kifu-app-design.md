@@ -270,7 +270,7 @@ apps/api  POST /billing/revenuecat/webhook ─▶ User.changePlan ─▶ D1 user
 | 6 | ~~カウンタ整合性の実装~~ | **[決定] 実装済み** | AnalysisStore=D1 batch で半荘/局/カウントを原子化 |
 | 7 | 認証の具体実装 | 後回し | Google認証。Better Auth / Lucia 等 |
 | 8 | ~~無料枠件数・月額価格~~ | **[決定] 実装済み** | free 20回/private4・Next¥480 100回・Pro¥1480 320回。Stripe サブスク（要鍵設定） |
-| 9 | Web集客方針 | 未決定 | 共有URLのSEO要否（Next.jsなら対応可） |
+| 9 | ~~Web集客方針~~ | **[決定] SEO対応する（実装済み）** | 公開ページ（/ /kifu /problems /k /p /u /terms）は title・description・canonical・OGP を持ち sitemap.xml に掲載。本人専用ページは noindex＋robots.txt で除外。タブ名はブランド修飾なしで内容どおり（一覧=みんなの牌譜/みんなの何切る、エディタ=「半荘名 — 編集」等）。共有ロジックは `apps/web/lib/og-meta.ts`・`lib/seo.ts` |
 
 ---
 
