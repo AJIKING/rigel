@@ -311,6 +311,8 @@ function Editor(p: EditorProps) {
   const [meldType, setMeldType] = useState<MeldType>("none");
   const [meldWho, setMeldWho] = useState<CameraSeat>("bottom");
   const [kanType, setKanType] = useState<KanType>("minkan");
+  // チーの並び（選んだ順子。null=自動）。ピッカーの「並び」行で選ぶ。
+  const [chiRun, setChiRun] = useState<Tile[] | null>(null);
   // 河への追加時に「これから追加する牌」へ適用する捨て方/リーチ（追加ピッカーで選ぶ）。
   const [addTsumogiri, setAddTsumogiri] = useState(false);
   const [addRiichi, setAddRiichi] = useState(false);
@@ -400,6 +402,7 @@ function Editor(p: EditorProps) {
     setSel(null);
     setPop(null);
     setMeldType("none");
+    setChiRun(null);
   }, []);
 
   function openEdit(e: React.MouseEvent, loc: TileLocation, code: Tile | null) {
@@ -460,13 +463,16 @@ function Editor(p: EditorProps) {
       const calledLoc =
         sel.kind === "edit" && sel.loc.area === "river" && type !== "kan_closed" ? sel.loc : null;
       const from = calledLoc && calledLoc.seat !== owner ? calledLoc.seat : null;
+      // チーは「並び」で選んだ順子を優先（選んだ牌を含むときだけ。それ以外は従来の自動）。
+      const tiles =
+        meldType === "chi" && chiRun && chiRun.includes(code) ? chiRun : meldTiles(meldType, code);
       // 鳴きを seats に足したあと、timeline が非空なら同期（reconcileTimeline は空なら no-op）。
       setKifu(
         reconcileTimeline(
           mutateKifu(kifu, (d) => {
             d.seats[owner].melds.push({
               type,
-              tiles: meldTiles(meldType, code).map((t) => ({ tile: t, confidence: 1 })),
+              tiles: tiles.map((t) => ({ tile: t, confidence: 1 })),
               from,
             });
             if (calledLoc && from) {
@@ -1099,7 +1105,12 @@ function Editor(p: EditorProps) {
           addTsumogiri={addTsumogiri}
           addRiichi={addRiichi}
           meldType={meldType}
-          setMeldType={setMeldType}
+          setMeldType={(m) => {
+            setMeldType(m);
+            setChiRun(null); // 種別を変えたら並び選択はリセット
+          }}
+          chiRun={chiRun}
+          setChiRun={setChiRun}
           meldWho={meldWho}
           setMeldWho={setMeldWho}
           kanType={kanType}

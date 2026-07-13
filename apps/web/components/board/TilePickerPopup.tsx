@@ -1,7 +1,7 @@
 "use client";
 
 import { toAbsoluteSeat, type CameraSeat, type Kifu, type Seat, type Tile } from "@rigel/schema";
-import { otherSeats } from "@rigel/ui";
+import { chiVariants, otherSeats } from "@rigel/ui";
 import { NUMS, SUITS, windOf, type Suit } from "../../lib/board";
 import { OssTileFace } from "../OssTileFace";
 import { type Selection } from "./shared";
@@ -21,6 +21,9 @@ export interface TilePickerPopupProps {
   addRiichi: boolean;
   meldType: MeldType;
   setMeldType: (m: MeldType) => void;
+  /** チーの並び（選んだ順子。null=自動）。「並び」行で選ぶ。 */
+  chiRun: Tile[] | null;
+  setChiRun: (run: Tile[] | null) => void;
   meldWho: CameraSeat;
   setMeldWho: (c: CameraSeat) => void;
   kanType: KanType;
@@ -224,6 +227,27 @@ export function TilePickerPopup(p: TilePickerPopupProps) {
                     })}
                   </div>
                 </div>
+                {/* チーの並び（選んだ牌を含む順子の候補）。編集中の牌が分かるときだけ出す。 */}
+                {meldType === "chi" && current && chiVariants(current).length > 0 && (
+                  <div className={s.meRow}>
+                    <span className={s.meLabel}>並び</span>
+                    <div className={s.meSeg}>
+                      {chiVariants(current).map((run) => {
+                        const key = run.join(",");
+                        const label = run.map((t) => (t[0] === "0" ? "5" : t[0])).join("");
+                        return (
+                          <button
+                            key={key}
+                            className={p.chiRun?.join(",") === key ? s.on : ""}
+                            onClick={() => p.setChiRun(run)}
+                          >
+                            {label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
                 {meldType === "kan" && (
                   <div className={s.meRow}>
                     <span className={s.meLabel}>種類</span>

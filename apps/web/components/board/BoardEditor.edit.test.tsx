@@ -229,6 +229,27 @@ describe("BoardEditor 鳴かれた捨て牌（calledBy）", () => {
     expect(kifu.seats.east.river[0]).toMatchObject({ tile: "5p", calledBy: "south" });
   });
 
+  it("捨て牌からチーを作るとき並び（567/678/789）を選べる", async () => {
+    render(<BoardEditor initialDetail={makeDetail([{ id: "l1" }])} gameId="g1" logId="l1" />);
+    // 東家の河に 7p → その捨て牌からチー。
+    fireEvent.click(await screen.findByRole("button", { name: "東家に捨て牌を追加" }));
+    let dialog = screen.getByRole("dialog", { name: "牌を選ぶ" });
+    fireEvent.click(within(dialog).getByText("筒"));
+    fireEvent.click(within(dialog).getByRole("button", { name: tileLabel("7p") }));
+    fireEvent.click(screen.getByRole("button", { name: "東家の河 1枚目 を編集" }));
+    dialog = screen.getByRole("dialog", { name: "牌を選ぶ" });
+    fireEvent.click(within(dialog).getByRole("button", { name: "チー" }));
+    // 並びの候補（567/678/789）から 789 を選ぶ。
+    fireEvent.click(within(dialog).getByRole("button", { name: "789" }));
+    fireEvent.click(within(dialog).getByRole("button", { name: tileLabel("7p") }));
+
+    fireEvent.click(screen.getByRole("button", { name: "保存" }));
+    await waitFor(() => expect(h.updateKifuAction).toHaveBeenCalled());
+    const [, kifu] = h.updateKifuAction.mock.calls[0] as [string, Kifu];
+    expect(kifu.seats.south.melds[0]?.tiles.map((t) => t.tile)).toEqual(["7p", "8p", "9p"]);
+    expect(kifu.seats.south.melds[0]?.from).toBe("east");
+  });
+
   it("捨て牌から鳴きを作ると、鳴き主の既定=下家・from=捨て主・calledBy=鳴き主 が自動で入る", async () => {
     render(<BoardEditor initialDetail={makeDetail([{ id: "l1" }])} gameId="g1" logId="l1" />);
     // 東家の河に 5p を追加 → その捨て牌からポンを作る。

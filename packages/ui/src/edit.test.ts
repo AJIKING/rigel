@@ -20,6 +20,8 @@ import {
   setDoraTile,
   setDiscardCalledBy,
   setDiscardFlags,
+  chiRunAt,
+  chiVariants,
   cycleCalledBy,
   otherSeats,
   sortHandTiles,
@@ -53,6 +55,57 @@ describe("鳴かれた捨て牌（setDiscardCalledBy / cycleCalledBy）", () => 
   it("calledByLabel は「鳴きなし/鳴き→◯家」の共通表記（web/mobile の編集UIで共用）", () => {
     expect(calledByLabel(null)).toBe("鳴きなし");
     expect(calledByLabel("south")).toBe("鳴き→南家");
+  });
+
+  it("chiVariants は選んだ牌を含む順子の候補を返す（両端1-9内・赤5は位置に残す）", () => {
+    expect(chiVariants("7p")).toEqual([
+      ["5p", "6p", "7p"],
+      ["6p", "7p", "8p"],
+      ["7p", "8p", "9p"],
+    ]);
+    expect(chiVariants("1m")).toEqual([["1m", "2m", "3m"]]);
+    expect(chiVariants("9s")).toEqual([["7s", "8s", "9s"]]);
+    // 赤5は「5」として並べ、選んだ牌の位置にそのまま入る。
+    expect(chiVariants("0p")).toEqual([
+      ["3p", "4p", "0p"],
+      ["4p", "0p", "6p"],
+      ["0p", "6p", "7p"],
+    ]);
+    // 字牌は順子を作れない（呼び出し側は従来どおり同牌3枚へフォールバック）。
+    expect(chiVariants("1z")).toEqual([]);
+  });
+
+  it("chiRunAt は選んだ牌を指定位置（0=左端/1=中央/2=右端）に置く並びを返す（範囲外は null）", () => {
+    expect(chiRunAt("7p", 0)).toEqual(["7p", "8p", "9p"]);
+    expect(chiRunAt("7p", 1)).toEqual(["6p", "7p", "8p"]);
+    expect(chiRunAt("7p", 2)).toEqual(["5p", "6p", "7p"]);
+    expect(chiRunAt("9p", 0)).toBeNull(); // 9,10,11 は作れない
+    expect(chiRunAt("1z", 1)).toBeNull(); // 字牌は順子を作れない
+  });
+
+  it("addMeld はチーの並び位置（chiIndex）を指定できる（mobile の並びチップ用）", () => {
+    const next = addMeld(kifu(), "east", "chi", "7p", 0);
+    expect(next.seats.east.melds[0]?.tiles.map((t) => t.tile)).toEqual(["7p", "8p", "9p"]);
+  });
+
+  it("removeMeld は鳴きを消すとき、鳴き元の捨て牌の鳴き印（calledBy）も解除する", () => {
+    const k = KifuSchema.parse({
+      ...kifu({
+        east: { river: [{ order: 1, tile: "5p", calledBy: "south" }] },
+        south: {
+          melds: [
+            {
+              type: "pon",
+              tiles: [{ tile: "5p" }, { tile: "5p" }, { tile: "5p" }],
+              from: "east",
+            },
+          ],
+        },
+      }),
+    });
+    const next = removeMeld(k, "south", 0);
+    expect(next.seats.south.melds).toHaveLength(0);
+    expect(next.seats.east.river[0]?.calledBy).toBeNull();
   });
 
   it("setDiscardCalledBy は指定の捨て牌に印を付け、timeline 非空なら手順にも同期する", () => {

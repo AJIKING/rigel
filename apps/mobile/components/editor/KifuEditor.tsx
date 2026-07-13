@@ -84,6 +84,8 @@ export function KifuEditor({
   const [seq, setSeq] = useState(Math.min(Math.max(1, initialSeq), MAX_SEQ));
   const [seat, setSeat] = useState<Seat>(initialKifu.cameraBottomSeat ?? "east");
   const [picker, setPicker] = useState<Picker>(null);
+  // チーの並び（選んだ牌を 0=左端/1=中央/2=右端 に置く）。鳴き追加シートのチップで選ぶ。
+  const [chiIndex, setChiIndex] = useState<0 | 1 | 2>(1);
   // 盤面（席ごと）/ 手順（タイムライン）の編集モード。web の 盤面/手順 タブと同等。
   const [mode, setMode] = useState<"board" | "timeline">("board");
   // 盤面プレビュー（編集を即時反映。席タップで編集対象を切替）。
@@ -132,7 +134,10 @@ export function KifuEditor({
       setKifu(addRiverTile(kifu, seat, code));
       return;
     }
-    if (picker.kind === "add-meld") setKifu(addMeld(kifu, seat, picker.meld, code));
+    if (picker.kind === "add-meld")
+      setKifu(
+        addMeld(kifu, seat, picker.meld, code, picker.meld === "chi" ? chiIndex : undefined),
+      );
     else if (picker.kind === "edit-hand")
       setKifu(applyTileEdit(kifu, { seat, area: "hand", index: picker.index }, code));
     else if (picker.kind === "edit-river")
@@ -374,7 +379,10 @@ export function KifuEditor({
                 <Pressable
                   key={type}
                   style={styles.meldBtn}
-                  onPress={() => setPicker({ kind: "add-meld", meld: type })}
+                  onPress={() => {
+                    setChiIndex(1); // 並びの既定は「中央」（従来の自動と同じ形）
+                    setPicker({ kind: "add-meld", meld: type });
+                  }}
                   accessibilityRole="button"
                 >
                   <Text style={styles.meldBtnText}>{label}</Text>
@@ -482,6 +490,8 @@ export function KifuEditor({
               ),
             );
           }}
+          chi={picker?.kind === "add-meld" && picker.meld === "chi" ? { index: chiIndex } : null}
+          onChiIndex={setChiIndex}
           onClose={() => setPicker(null)}
         />
       ) : null}

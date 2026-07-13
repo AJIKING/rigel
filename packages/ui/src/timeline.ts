@@ -8,6 +8,7 @@ import {
   type Discard,
   type Kifu,
   type Meld,
+  type MeldType,
   type Seat,
   type Tile,
   type TimelineEvent,
@@ -175,6 +176,111 @@ export function reconcileTimeline(kifu: Kifu): Kifu {
 
   // timeline を正典として seats(river/melds) も同期（hand は保持）。
   return syncSeatsFromTimeline(KifuSchema.parse({ ...kifu, timeline: result }));
+}
+
+/**
+ * 鳴きイベントの from（鳴き元）の設定/変更/削除に、鳴き印（打牌の calledBy）を追随させる。
+ * 規則は再生と同じ「鳴きは、その位置より前にある鳴き元の直近の打牌を取る」:
+ *   - oldFrom の直近の打牌のうち calledBy=caller のものを解除（他の鳴き主の印は壊さない）
+ *   - newFrom の直近の打牌に calledBy=caller を付ける（null なら解除のみ＝削除・暗槓化）
+ * meldIndex は鳴きイベントの位置（削除時は削除前の位置）。手順タブの from 編集・行削除で使う。
+ */
+export function syncCalledByForMeld(
+  timeline: TimelineEvent[],
+  meldIndex: number,
+  caller: Seat,
+  oldFrom: Seat | null,
+  newFrom: Seat | null,
+): TimelineEvent[] {
+  const next = timeline.slice();
+  const markNearest = (from: Seat, calledBy: Seat | null, onlyCaller: boolean) => {
+    for (let i = Math.min(meldIndex, next.length) - 1; i >= 0; i--) {
+      const e = next[i]!;
+      if (e.kind !== "discard" || e.seat !== from) continue;
+      if (onlyCaller && e.calledBy !== caller) return; // 直近の打牌が別の鳴き主の印なら触らない
+      next[i] = { ...e, calledBy };
+      return;
+    }
+  };
+  if (oldFrom && oldFrom !== newFrom) markNearest(oldFrom, null, true);
+  if (newFrom) markNearest(newFrom, caller, false);
+  return next;
+}
+
+// ------------------------------------------------------------
+// 手順イベントの共通操作（web/mobile の手順タブで共用。鳴き印の追随込み）
+// ------------------------------------------------------------
+
+/** 席の順送り（次の席）。手順タブの席ボタンで使う。 */
+export function nextSeatOf(seat: Seat): Seat {
+  return SEAT_ORDER[(SEAT_ORDER.indexOf(seat) + 1) % 4]!;
+}
+
+/** 鳴き元の順送り（自席は飛ばす）。 */
+export function nextMeldFrom(from: Seat | null, self: Seat): Seat {
+  let i = SEAT_ORDER.indexOf(from ?? self);
+  do {
+    i = (i + 1) % 4;
+  } while (SEAT_ORDER[i] === self);
+  return SEAT_ORDER[i]!;
+}
+
+/** 鳴き種別の巡回順（手順タブの種別ボタン）。 */
+const MELD_TYPE_CYCLE: MeldType[] = ["pon", "chi", "kan_open", "kan_closed", "kan_added"];
+const isKanType = (t: MeldType) => t === "kan_open" || t === "kan_closed" || t === "kan_added";
+
+/** 鳴きの from を順送りし、鳴き印（鳴き元の直前の打牌の calledBy）も追随させる。 */
+export function cycleMeldFrom(timeline: TimelineEvent[], index: number): TimelineEvent[] {
+  const e = timeline[index];
+  if (e?.kind !== "meld") return timeline;
+  const oldFrom = e.meld.from;
+  const newFrom = nextMeldFrom(oldFrom, e.seat);
+  const next = timeline.map((ev, k) =>
+    k === index && ev.kind === "meld" ? { ...ev, meld: { ...ev.meld, from: newFrom } } : ev,
+  );
+  return syncCalledByForMeld(next, index, e.seat, oldFrom, newFrom);
+}
+
+/** 鳴き種別を順送り（枚数を合わせ、暗槓は from=null）。from が変われば鳴き印も追随させる。 */
+export function cycleMeldType(timeline: TimelineEvent[], index: number): TimelineEvent[] {
+  const e = timeline[index];
+  if (e?.kind !== "meld") return timeline;
+  const type =
+    MELD_TYPE_CYCLE[(MELD_TYPE_CYCLE.indexOf(e.meld.type) + 1) % MELD_TYPE_CYCLE.length]!;
+  const n = isKanType(type) ? 4 : 3;
+  const tiles = Array.from(
+    { length: n },
+    (_, k) => e.meld.tiles[k] ?? e.meld.tiles[0] ?? { tile: null, confidence: 1 },
+  );
+  const oldFrom = e.meld.from;
+  const from = type === "kan_closed" ? null : (e.meld.from ?? nextMeldFrom(null, e.seat));
+  const next = timeline.map((ev, k) =>
+    k === index && ev.kind === "meld" ? { ...ev, meld: { type, tiles, from } } : ev,
+  );
+  return from === oldFrom ? next : syncCalledByForMeld(next, index, e.seat, oldFrom, from);
+}
+
+/** 席の順送り。鳴き行は鳴き印の主も付け替える。 */
+export function cycleEventSeat(timeline: TimelineEvent[], index: number): TimelineEvent[] {
+  const e = timeline[index];
+  if (!e) return timeline;
+  const newSeat = nextSeatOf(e.seat);
+  if (e.kind === "meld" && e.meld.from) {
+    let next = syncCalledByForMeld(timeline, index, e.seat, e.meld.from, null);
+    next = next.map((ev, k) => (k === index ? { ...ev, seat: newSeat } : ev));
+    return syncCalledByForMeld(next, index, newSeat, null, e.meld.from);
+  }
+  return timeline.map((ev, k) => (k === index ? { ...ev, seat: newSeat } : ev));
+}
+
+/** 行の削除。鳴き行なら鳴き印も解除する。 */
+export function removeTimelineEvent(timeline: TimelineEvent[], index: number): TimelineEvent[] {
+  const e = timeline[index];
+  const base =
+    e?.kind === "meld" && e.meld.from
+      ? syncCalledByForMeld(timeline, index, e.seat, e.meld.from, null)
+      : timeline;
+  return base.filter((_, k) => k !== index);
 }
 
 /** 各イベントの巡目（親の打牌ごとに +1）。timeline と同じ長さの配列を返す。 */

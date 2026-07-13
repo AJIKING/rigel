@@ -223,6 +223,31 @@ export function cycleCalledBy(cur: Seat | null, self: Seat): Seat | null {
 /** ピッカー向けの鳴き種別（スキーマの kan_open/closed/added は web 側で選ぶ。既定は明槓）。 */
 export type MeldPick = "chi" | "pon" | "kan";
 
+/** 選んだ牌を含むチー（順子）の並び候補。左端の数が小さい順・両端は1-9内。
+ *  赤5は「5」として並べ、選んだ牌はその位置にそのまま入れる（赤を失わない）。
+ *  字牌は順子を作れないので空配列（呼び出し側は meldTiles のフォールバックに任せる）。 */
+export function chiVariants(code: Tile): Tile[][] {
+  const su = code[1];
+  if (su !== "m" && su !== "p" && su !== "s") return [];
+  const n = code[0] === "0" ? 5 : Number(code[0]);
+  const runs: Tile[][] = [];
+  for (let st = n - 2; st <= n; st++) {
+    if (st < 1 || st + 2 > 9) continue;
+    runs.push([0, 1, 2].map((k) => (st + k === n ? code : (`${st + k}${su}` as Tile))));
+  }
+  return runs;
+}
+
+/** 選んだ牌を順子内の位置（0=左端/1=中央/2=右端）に置くチーの並び。範囲外・字牌は null。 */
+export function chiRunAt(code: Tile, pos: 0 | 1 | 2): Tile[] | null {
+  const su = code[1];
+  if (su !== "m" && su !== "p" && su !== "s") return null;
+  const n = code[0] === "0" ? 5 : Number(code[0]);
+  const st = n - pos;
+  if (st < 1 || st + 2 > 9) return null;
+  return [0, 1, 2].map((k) => (k === pos ? code : (`${st + k}${su}` as Tile)));
+}
+
 /** 鳴き牌の並びを作る。ポン=同牌3枚、カン=同牌4枚、チー=選択牌を含む3連続（両端は1-9に収める）。
  *  字牌など連続を作れない牌でチーが指定された場合は同種3枚にフォールバックする。 */
 export function meldTiles(type: MeldPick, code: Tile): Tile[] {
@@ -260,12 +285,22 @@ function handTilesUsed(type: MeldAddType): number {
 }
 
 /** 鳴きを追加する（from は盤面編集では不明のため null。カンは種別を指定可）。
- *  鳴いた枚数ぶん手牌を末尾から減らす（手牌＋鳴きの合計が増えすぎないように）。 */
-export function addMeld(kifu: Kifu, seat: Seat, type: MeldAddType, tile: Tile): Kifu {
+ *  鳴いた枚数ぶん手牌を末尾から減らす（手牌＋鳴きの合計が増えすぎないように）。
+ *  chiIndex はチーの並び（選んだ牌を 0=左端/1=中央/2=右端 に置く。範囲外は従来の自動）。 */
+export function addMeld(
+  kifu: Kifu,
+  seat: Seat,
+  type: MeldAddType,
+  tile: Tile,
+  chiIndex?: 0 | 1 | 2,
+): Kifu {
   const d = clone(kifu);
+  const tiles =
+    (type === "chi" && chiIndex !== undefined ? chiRunAt(tile, chiIndex) : null) ??
+    meldTiles(tileShape(type), tile);
   d.seats[seat].melds.push({
     type: storedMeldType(type),
-    tiles: meldTiles(tileShape(type), tile).map((t) => ({ tile: t, confidence: 1 })),
+    tiles: tiles.map((t) => ({ tile: t, confidence: 1 })),
     from: null,
   });
   const hand = d.seats[seat].hand;
@@ -274,16 +309,26 @@ export function addMeld(kifu: Kifu, seat: Seat, type: MeldAddType, tile: Tile): 
   return syncBoardEdit(KifuSchema.parse(d));
 }
 
-/** 鳴きを丸ごと取り除く。timeline 非空なら対応する鳴きイベントも除去（アンカー整列を維持）。 */
+/** 鳴きを丸ごと取り除く。timeline 非空なら対応する鳴きイベントも除去（アンカー整列を維持）。
+ *  鳴き元の捨て牌に付いた鳴き印（calledBy=この鳴き主）も、直近の1枚を解除する。 */
 export function removeMeld(kifu: Kifu, seat: Seat, meldIndex: number): Kifu {
   const d = clone(kifu);
-  d.seats[seat].melds.splice(meldIndex, 1);
+  const [removed] = d.seats[seat].melds.splice(meldIndex, 1);
   if (d.timeline.length > 0) {
     let seen = -1;
     d.timeline = d.timeline.filter((e) => {
       if (e.kind === "meld" && e.seat === seat) return ++seen !== meldIndex;
       return true;
     });
+  }
+  if (removed?.from) {
+    const river = d.seats[removed.from].river;
+    for (let i = river.length - 1; i >= 0; i--) {
+      if (river[i]!.calledBy === seat) {
+        river[i]!.calledBy = null;
+        break;
+      }
+    }
   }
   return syncBoardEdit(KifuSchema.parse(d));
 }

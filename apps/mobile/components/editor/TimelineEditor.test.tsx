@@ -14,8 +14,8 @@ function emptyKifu(): Kifu {
 }
 
 /** kifu を state で保持し、変化を spy に流すテスト用ラッパ（複数操作を連ねるため）。 */
-function Harness({ onKifu }: { onKifu: (k: Kifu) => void }) {
-  const [k, setK] = useState(emptyKifu());
+function Harness({ onKifu, initial }: { onKifu: (k: Kifu) => void; initial?: Kifu }) {
+  const [k, setK] = useState(initial ?? emptyKifu());
   return (
     <TimelineEditor
       kifu={k}
@@ -100,6 +100,31 @@ describe("TimelineEditor（手順エディタ）", () => {
     expect(k.timeline[0]).toMatchObject({ kind: "discard", calledBy: "south" });
     expect(k.seats.east.river[0]?.calledBy).toBe("south");
     expect(screen.getByText("鳴き→南家")).toBeTruthy();
+  });
+
+  it("鳴きの「から」を変えると鳴き元の捨て牌に鳴き印が付く（手順→捨て牌の同期）", () => {
+    const spy = jest.fn();
+    const initial = KifuSchema.parse({
+      ...emptyKifu(),
+      timeline: [
+        { kind: "discard", seat: "east", tile: "5p" },
+        {
+          kind: "meld",
+          seat: "south",
+          meld: {
+            type: "pon",
+            tiles: [{ tile: "5p" }, { tile: "5p" }, { tile: "5p" }],
+            from: "north",
+          },
+        },
+      ],
+    });
+    render(<Harness onKifu={spy} initial={initial} />);
+    // から: 北→東（自席=南は飛ばす）。東の直前の打牌（5p）に鳴き印が付く。
+    fireEvent.press(screen.getByText("北から"));
+    const k = last(spy);
+    expect(k.timeline[0]).toMatchObject({ kind: "discard", calledBy: "south" });
+    expect(k.seats.east.river[0]?.calledBy).toBe("south");
   });
 
   it("＋鳴きで鳴きを足し、種別を切り替えられる（席の鳴きに反映）", () => {

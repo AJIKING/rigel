@@ -108,6 +108,21 @@ describe("KifuEditor（モバイル編集画面）", () => {
     expect(saved.seats.east.river[0]?.calledBy).toBe("south");
   });
 
+  it("チーの並び（左端/中央/右端）を選んで鳴きを追加できる", () => {
+    const onSave = jest.fn();
+    render(<KifuEditor initialKifu={makeKifu()} initialSeq={1} onSave={onSave} />);
+    fireEvent.press(screen.getByText(/プレビュー/)); // 牌ラベルの重複を避けるため畳む
+    fireEvent.press(screen.getByText("チー"));
+    // 並びチップ: 選んだ牌を右端に置く（7筒なら 567）。
+    fireEvent.press(screen.getByText("右端"));
+    fireEvent.press(screen.getByText("筒"));
+    fireEvent.press(screen.getByLabelText("7筒"));
+
+    fireEvent.press(screen.getByText("保存"));
+    const saved = onSave.mock.calls[0]![0] as Kifu;
+    expect(saved.seats.east.melds[0]?.tiles.map((t) => t.tile)).toEqual(["5p", "6p", "7p"]);
+  });
+
   it("局順を変えると親も局順に連動する（東二局=南家。web の局順変更と同一挙動）", () => {
     const onSave = jest.fn();
     render(<KifuEditor initialKifu={makeKifu()} initialSeq={1} onSave={onSave} />);

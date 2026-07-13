@@ -13,34 +13,28 @@ import {
 import {
   calledByLabel,
   cycleCalledBy,
+  cycleEventSeat,
+  cycleMeldFrom,
+  cycleMeldType,
   deriveTimeline,
   nextDiscardSeat,
+  nextMeldFrom,
+  removeTimelineEvent,
   seatLabel,
   syncSeatsFromTimeline,
   timelineTurns,
 } from "@rigel/ui";
 import { useState } from "react";
 import { OssTileFace } from "../OssTileFace";
-import { NUMS, SEAT_ORDER, SUITS, type Suit } from "../../lib/board";
+import { NUMS, SUITS, type Suit } from "../../lib/board";
 import s from "./timeline-editor.module.css";
 
-const MELD_TYPES: MeldType[] = ["pon", "chi", "kan_open", "kan_closed", "kan_added"];
 const MELD_LABEL: Record<MeldType, string> = {
   pon: "ポン",
   chi: "チー",
   kan_open: "大明槓",
   kan_closed: "暗槓",
   kan_added: "加槓",
-};
-const isKan = (t: MeldType) => t === "kan_open" || t === "kan_closed" || t === "kan_added";
-
-const nextSeat = (seat: Seat): Seat => SEAT_ORDER[(SEAT_ORDER.indexOf(seat) + 1) % 4]!;
-const nextFrom = (from: Seat | null, self: Seat): Seat => {
-  let i = SEAT_ORDER.indexOf(from ?? self);
-  do {
-    i = (i + 1) % 4;
-  } while (SEAT_ORDER[i] === self);
-  return SEAT_ORDER[i]!;
 };
 
 /** ピッカーの対象。draw/disc は打牌イベント、mtile は鳴き牌。 */
@@ -99,10 +93,6 @@ export function TimelineEditor({
   function updateDiscard(index: number, fn: (e: DiscardEvent) => DiscardEvent) {
     update(index, (e) => (e.kind === "discard" ? fn(e) : e));
   }
-  /** 鳴きイベントの Meld だけを更新する。 */
-  function updateMeld(index: number, fn: (m: Meld) => Meld) {
-    update(index, (e) => (e.kind === "meld" ? { ...e, meld: fn(e.meld) } : e));
-  }
 
   function reorder(from: number, to: number) {
     if (from === to) return;
@@ -156,7 +146,7 @@ export function TimelineEditor({
         { tile: null, confidence: 1 },
         { tile: null, confidence: 1 },
       ],
-      from: nextFrom(null, dealer),
+      from: nextMeldFrom(null, dealer),
     };
     commit([...timeline, { kind: "meld", seat: dealer, meld }]);
   }
@@ -204,7 +194,7 @@ export function TimelineEditor({
                 <span className={s.grip}>⋮⋮</span>
                 <button
                   className={s.seat}
-                  onClick={() => update(i, (x) => ({ ...x, seat: nextSeat(x.seat) }))}
+                  onClick={() => commit(cycleEventSeat(timeline, i))}
                   title={names[e.seat] || undefined}
                 >
                   {seatLabel(e.seat)}
@@ -257,22 +247,7 @@ export function TimelineEditor({
                   </>
                 ) : (
                   <>
-                    <button
-                      className={s.kind}
-                      onClick={() =>
-                        updateMeld(i, (m) => {
-                          const type = MELD_TYPES[(MELD_TYPES.indexOf(m.type) + 1) % 5]!;
-                          const n = isKan(type) ? 4 : 3;
-                          const tiles = Array.from(
-                            { length: n },
-                            (_, k) => m.tiles[k] ?? m.tiles[0] ?? { tile: null, confidence: 1 },
-                          );
-                          const from =
-                            type === "kan_closed" ? null : (m.from ?? nextFrom(null, e.seat));
-                          return { type, tiles, from };
-                        })
-                      }
-                    >
+                    <button className={s.kind} onClick={() => commit(cycleMeldType(timeline, i))}>
                       {MELD_LABEL[e.meld.type]}
                     </button>
                     <span className={s.mtiles}>
@@ -287,13 +262,8 @@ export function TimelineEditor({
                       ))}
                     </span>
                     {e.meld.type !== "kan_closed" && (
-                      <button
-                        className={s.from}
-                        onClick={() =>
-                          updateMeld(i, (m) => ({ ...m, from: nextFrom(m.from, e.seat) }))
-                        }
-                      >
-                        {seatLabel(e.meld.from ?? nextFrom(null, e.seat))}
+                      <button className={s.from} onClick={() => commit(cycleMeldFrom(timeline, i))}>
+                        {seatLabel(e.meld.from ?? nextMeldFrom(null, e.seat))}
                         <b>から</b>
                       </button>
                     )}
@@ -303,7 +273,7 @@ export function TimelineEditor({
                 <span className={s.sp} />
                 <button
                   className={s.del}
-                  onClick={() => commit(timeline.filter((_, k) => k !== i))}
+                  onClick={() => commit(removeTimelineEvent(timeline, i))}
                   aria-label="削除"
                 >
                   ✕

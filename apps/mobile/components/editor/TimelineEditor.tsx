@@ -10,12 +10,16 @@ import {
 import {
   calledByLabel,
   cycleCalledBy,
+  cycleEventSeat,
+  cycleMeldFrom,
+  cycleMeldType,
   deriveTimeline,
   nextDiscardSeat,
+  nextMeldFrom,
+  removeTimelineEvent,
   seatLabel,
   syncSeatsFromTimeline,
   timelineTurns,
-  SEAT_ORDER,
 } from "@rigel/ui";
 import { useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
@@ -23,22 +27,12 @@ import { colors, radius } from "../../lib/theme";
 import { MiniTile } from "../MiniTile";
 import { TilePickerSheet } from "./TilePickerSheet";
 
-const MELD_TYPES: MeldType[] = ["pon", "chi", "kan_open", "kan_closed", "kan_added"];
 const MELD_LABEL: Record<MeldType, string> = {
   pon: "ポン",
   chi: "チー",
   kan_open: "大明槓",
   kan_closed: "暗槓",
   kan_added: "加槓",
-};
-const isKan = (t: MeldType) => t === "kan_open" || t === "kan_closed" || t === "kan_added";
-const nextSeat = (seat: Seat): Seat => SEAT_ORDER[(SEAT_ORDER.indexOf(seat) + 1) % 4]!;
-const nextFrom = (from: Seat | null, self: Seat): Seat => {
-  let i = SEAT_ORDER.indexOf(from ?? self);
-  do {
-    i = (i + 1) % 4;
-  } while (SEAT_ORDER[i] === self);
-  return SEAT_ORDER[i]!;
 };
 
 /** ピッカーの対象（打牌のツモ/捨て、または鳴き牌）。 */
@@ -73,9 +67,6 @@ export function TimelineEditor({
   }
   function update(index: number, fn: (e: TimelineEvent) => TimelineEvent) {
     commit(timeline.map((e, i) => (i === index ? fn(e) : e)));
-  }
-  function updateMeld(index: number, fn: (m: Meld) => Meld) {
-    update(index, (e) => (e.kind === "meld" ? { ...e, meld: fn(e.meld) } : e));
   }
   function move(index: number, dir: -1 | 1) {
     const to = index + dir;
@@ -127,7 +118,7 @@ export function TimelineEditor({
         { tile: null, confidence: 1 },
         { tile: null, confidence: 1 },
       ],
-      from: nextFrom(null, dealer),
+      from: nextMeldFrom(null, dealer),
     };
     commit([...timeline, { kind: "meld", seat: dealer, meld }]);
   }
@@ -160,7 +151,7 @@ export function TimelineEditor({
           <View style={[styles.row, e.kind === "meld" && styles.meldRow]}>
             <Pressable
               style={styles.seat}
-              onPress={() => update(i, (x) => ({ ...x, seat: nextSeat(x.seat) }))}
+              onPress={() => commit(cycleEventSeat(timeline, i))}
               accessibilityRole="button"
               accessibilityLabel="席を変更"
             >
@@ -225,19 +216,7 @@ export function TimelineEditor({
               <>
                 <Pressable
                   style={styles.kind}
-                  onPress={() =>
-                    updateMeld(i, (m) => {
-                      const type = MELD_TYPES[(MELD_TYPES.indexOf(m.type) + 1) % 5]!;
-                      const n = isKan(type) ? 4 : 3;
-                      const tiles = Array.from(
-                        { length: n },
-                        (_, k) => m.tiles[k] ?? m.tiles[0] ?? { tile: null, confidence: 1 },
-                      );
-                      const from =
-                        type === "kan_closed" ? null : (m.from ?? nextFrom(null, e.seat));
-                      return { type, tiles, from };
-                    })
-                  }
+                  onPress={() => commit(cycleMeldType(timeline, i))}
                   accessibilityRole="button"
                 >
                   <Text style={styles.kindText}>{MELD_LABEL[e.meld.type]}</Text>
@@ -257,11 +236,11 @@ export function TimelineEditor({
                 {e.meld.type !== "kan_closed" ? (
                   <Pressable
                     style={styles.from}
-                    onPress={() => updateMeld(i, (m) => ({ ...m, from: nextFrom(m.from, e.seat) }))}
+                    onPress={() => commit(cycleMeldFrom(timeline, i))}
                     accessibilityRole="button"
                   >
                     <Text style={styles.fromText}>
-                      {seatLabel(e.meld.from ?? nextFrom(null, e.seat))}から
+                      {seatLabel(e.meld.from ?? nextMeldFrom(null, e.seat))}から
                     </Text>
                   </Pressable>
                 ) : null}
@@ -289,7 +268,7 @@ export function TimelineEditor({
             </Pressable>
             <Pressable
               style={styles.iconBtn}
-              onPress={() => commit(timeline.filter((_, k) => k !== i))}
+              onPress={() => commit(removeTimelineEvent(timeline, i))}
               accessibilityRole="button"
               accessibilityLabel="削除"
             >

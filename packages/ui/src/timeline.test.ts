@@ -2,9 +2,14 @@ import { KifuSchema, type Kifu, type TimelineEvent } from "@rigel/schema";
 import { describe, expect, it } from "vitest";
 import {
   buildTimelineFromSeats,
+  cycleEventSeat,
+  cycleMeldFrom,
+  cycleMeldType,
   deriveTimeline,
   nextDiscardSeat,
   reconcileTimeline,
+  removeTimelineEvent,
+  syncCalledByForMeld,
   syncSeatsFromTimeline,
   timelineToSeats,
   timelineTurns,
@@ -44,7 +49,10 @@ const kifu = (over: Record<string, unknown> = {}): Kifu =>
     ...over,
   });
 
-const disc = (seat: TimelineEvent["seat"], tile: string): TimelineEvent => ({
+const disc = (
+  seat: TimelineEvent["seat"],
+  tile: string,
+): Extract<TimelineEvent, { kind: "discard" }> => ({
   kind: "discard",
   seat,
   draw: null,
@@ -201,6 +209,107 @@ describe("鳴かれた捨て牌（calledBy）の往復", () => {
     if (first?.kind !== "discard") throw new Error("discard expected");
     expect(first.calledBy).toBe("south");
     expect(next.seats.east.river[0]?.calledBy).toBe("south");
+  });
+});
+
+describe("syncCalledByForMeld（鳴きの from 変更/削除に鳴き印を追随させる）", () => {
+  const pon5p = (from: string) => ({
+    type: "pon" as const,
+    tiles: [
+      { tile: "5p" as never, confidence: 1 },
+      { tile: "5p" as never, confidence: 1 },
+      { tile: "5p" as never, confidence: 1 },
+    ],
+    from: from as never,
+  });
+
+  it("newFrom の直前の打牌に鳴き印を付け、oldFrom の印は解除する", () => {
+    const tl: TimelineEvent[] = [
+      { ...disc("east", "5p"), calledBy: "south" }, // 旧 from=east の印
+      disc("west", "1m"),
+      { kind: "meld", seat: "south", meld: pon5p("west") }, // from を east→west に変えた後
+    ];
+    const next = syncCalledByForMeld(tl, 2, "south", "east", "west");
+    const [a, b] = next;
+    if (a?.kind !== "discard" || b?.kind !== "discard") throw new Error("discard expected");
+    expect(a.calledBy).toBeNull(); // 旧鳴き元の印は解除
+    expect(b.calledBy).toBe("south"); // 新鳴き元の直前の打牌に印
+  });
+
+  it("newFrom=null（削除・暗槓化）は解除だけ行う", () => {
+    const tl: TimelineEvent[] = [{ ...disc("east", "5p"), calledBy: "south" }];
+    const next = syncCalledByForMeld(tl, 1, "south", "east", null);
+    const a = next[0];
+    if (a?.kind !== "discard") throw new Error("discard expected");
+    expect(a.calledBy).toBeNull();
+  });
+
+  it("鳴き主(caller)が違う印は解除しない（別の鳴きの印を壊さない）", () => {
+    const tl: TimelineEvent[] = [{ ...disc("east", "5p"), calledBy: "north" }];
+    const next = syncCalledByForMeld(tl, 1, "south", "east", null);
+    const a = next[0];
+    if (a?.kind !== "discard") throw new Error("discard expected");
+    expect(a.calledBy).toBe("north");
+  });
+});
+
+describe("手順イベントの共通操作（cycle*/removeTimelineEvent。web/mobile の手順タブで共用）", () => {
+  const pon = (from: string) => ({
+    type: "pon" as const,
+    tiles: [
+      { tile: "5p" as never, confidence: 1 },
+      { tile: "5p" as never, confidence: 1 },
+      { tile: "5p" as never, confidence: 1 },
+    ],
+    from: from as never,
+  });
+
+  it("cycleMeldFrom は from を順送り（自席は飛ばす）し、鳴き印を追随させる", () => {
+    const tl: TimelineEvent[] = [
+      disc("east", "5p"),
+      { kind: "meld", seat: "south", meld: pon("north") },
+    ];
+    const next = cycleMeldFrom(tl, 1); // north → east（自席=南は飛ばす）
+    const m = next[1];
+    if (m?.kind !== "meld") throw new Error("meld expected");
+    expect(m.meld.from).toBe("east");
+    expect(next[0]).toMatchObject({ kind: "discard", calledBy: "south" });
+  });
+
+  it("cycleMeldType で暗槓にすると from が消え、鳴き印も解除される", () => {
+    const tl: TimelineEvent[] = [
+      { ...disc("east", "5p"), calledBy: "south" },
+      { kind: "meld", seat: "south", meld: { ...pon("east"), type: "kan_open" } },
+    ];
+    const next = cycleMeldType(tl, 1); // kan_open → kan_closed（暗槓）
+    const m = next[1];
+    if (m?.kind !== "meld") throw new Error("meld expected");
+    expect(m.meld.type).toBe("kan_closed");
+    expect(m.meld.from).toBeNull();
+    expect(m.meld.tiles).toHaveLength(4);
+    expect(next[0]).toMatchObject({ kind: "discard", calledBy: null });
+  });
+
+  it("cycleEventSeat は鳴き主の変更で鳴き印の主も付け替える", () => {
+    const tl: TimelineEvent[] = [
+      { ...disc("east", "5p"), calledBy: "south" },
+      { kind: "meld", seat: "south", meld: pon("east") },
+    ];
+    const next = cycleEventSeat(tl, 1); // south → west
+    const m = next[1];
+    if (m?.kind !== "meld") throw new Error("meld expected");
+    expect(m.seat).toBe("west");
+    expect(next[0]).toMatchObject({ kind: "discard", calledBy: "west" });
+  });
+
+  it("removeTimelineEvent は鳴き行の削除で鳴き印も解除する", () => {
+    const tl: TimelineEvent[] = [
+      { ...disc("east", "5p"), calledBy: "south" },
+      { kind: "meld", seat: "south", meld: pon("east") },
+    ];
+    const next = removeTimelineEvent(tl, 1);
+    expect(next).toHaveLength(1);
+    expect(next[0]).toMatchObject({ kind: "discard", calledBy: null });
   });
 });
 

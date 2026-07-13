@@ -104,6 +104,58 @@ describe("TimelineEditor", () => {
     expect(next.seats.east.river[0]).toMatchObject({ tile: "5p", calledBy: "south" });
   });
 
+  it("鳴きの「から」を変えると鳴き元の捨て牌に鳴き印が付く（手順→捨て牌の同期）", () => {
+    const onChange = vi.fn();
+    const meld = {
+      kind: "meld" as const,
+      seat: "south" as const,
+      meld: {
+        type: "pon" as const,
+        tiles: [{ tile: "5p" }, { tile: "5p" }, { tile: "5p" }],
+        from: "north" as const,
+      },
+    };
+    render(
+      <TimelineEditor
+        kifu={kifu([disc("east", "5p"), meld])}
+        dealer="east"
+        names={NAMES}
+        onChange={onChange}
+      />,
+    );
+    // から: 北→東（自席=南は飛ばす）。東の直前の打牌（5p）に鳴き印が付く。
+    fireEvent.click(screen.getByRole("button", { name: /から/ }));
+    const next = onChange.mock.calls[0]![0] as Kifu;
+    expect(next.timeline[0]).toMatchObject({ kind: "discard", calledBy: "south" });
+    expect(next.seats.east.river[0]?.calledBy).toBe("south");
+  });
+
+  it("鳴き行を削除すると鳴き印も解除される", () => {
+    const onChange = vi.fn();
+    const meld = {
+      kind: "meld" as const,
+      seat: "south" as const,
+      meld: {
+        type: "pon" as const,
+        tiles: [{ tile: "5p" }, { tile: "5p" }, { tile: "5p" }],
+        from: "east" as const,
+      },
+    };
+    render(
+      <TimelineEditor
+        kifu={kifu([{ ...disc("east", "5p"), calledBy: "south" }, meld])}
+        dealer="east"
+        names={NAMES}
+        onChange={onChange}
+      />,
+    );
+    fireEvent.click(screen.getAllByLabelText("削除")[1]!);
+    const next = onChange.mock.calls[0]![0] as Kifu;
+    expect(next.timeline).toHaveLength(1);
+    expect(next.timeline[0]).toMatchObject({ kind: "discard", calledBy: null });
+    expect(next.seats.east.river[0]?.calledBy).toBeNull();
+  });
+
   it("手出し/ツモ切りトグルで tsumogiri が反転する", () => {
     const onChange = vi.fn();
     render(

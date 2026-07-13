@@ -23,6 +23,8 @@ export function TilePickerSheet({
   onToggleRiichi,
   onToggleTsumogiri,
   onToggleCalledBy,
+  chi = null,
+  onChiIndex,
   onClose,
 }: {
   title: string;
@@ -42,6 +44,9 @@ export function TilePickerSheet({
   onToggleTsumogiri?: () => void;
   /** 「鳴かれた」チップの順送り（なし→下家→対面→上家→なし）。 */
   onToggleCalledBy?: () => void;
+  /** チー追加時の並び（選んだ牌を 0=左端/1=中央/2=右端 に置く）。null なら並びチップを出さない。 */
+  chi?: { index: 0 | 1 | 2 } | null;
+  onChiIndex?: (index: 0 | 1 | 2) => void;
   onClose: () => void;
 }) {
   const [suit, setSuit] = useState<PickerSuit>(initialSuit);
@@ -66,6 +71,15 @@ export function TilePickerSheet({
           </Pressable>
         ))}
       </View>
+
+      {chi ? (
+        <View style={styles.actions}>
+          {/* 選んだ牌を順子のどこに置くか（例: 7筒で右端→567、中央→678、左端→789）。 */}
+          <Chip label="左端" on={chi.index === 0} onPress={() => onChiIndex?.(0)} />
+          <Chip label="中央" on={chi.index === 1} onPress={() => onChiIndex?.(1)} />
+          <Chip label="右端" on={chi.index === 2} onPress={() => onChiIndex?.(2)} />
+        </View>
+      ) : null}
 
       {discard || canDelete ? (
         <View style={styles.actions}>
