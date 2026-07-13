@@ -65,6 +65,55 @@ function callProblem(overrides: Record<string, unknown> = {}) {
   };
 }
 
+describe("チーの構成（chiTiles）", () => {
+  it("チーは構成（鳴いた牌を含む順子3枚）を持てる（旧回答は null で後方互換）", () => {
+    const a = ProblemActionSchema.parse({
+      type: "call",
+      call: "chi",
+      chiTiles: ["3p", "4p", "5p"],
+      discard: "1m",
+    });
+    if (a.type !== "call") throw new Error("call expected");
+    expect(a.chiTiles).toEqual(["3p", "4p", "5p"]);
+    const old = ProblemActionSchema.parse({ type: "call", call: "chi", discard: "1m" });
+    if (old.type !== "call") throw new Error("call expected");
+    expect(old.chiTiles).toBeNull();
+  });
+
+  it("チー以外に構成は付けられない", () => {
+    const r = ProblemActionSchema.safeParse({
+      type: "call",
+      call: "pon",
+      chiTiles: ["3p", "4p", "5p"],
+      discard: "1m",
+    });
+    expect(r.success).toBe(false);
+  });
+
+  it("choiceKey は構成つきチーを別の選択肢として数える（赤5は5に正規化）", () => {
+    const key = (chiTiles: Tile[] | null) =>
+      choiceKey(
+        ProblemActionSchema.parse({ type: "call", call: "chi", chiTiles, discard: "1m" }),
+      );
+    expect(key(["3p", "4p", "5p"])).toBe("call:chi:345p:1m");
+    expect(key(["4p", "0p", "6p"])).toBe("call:chi:456p:1m");
+    expect(key(null)).toBe("call:chi:1m"); // 旧回答のキーは不変
+  });
+
+  it("isValidAnswer: 構成は対象牌を含む順子で、残り2枚が手牌にあること", () => {
+    const problem = ProblemSchema.parse(callProblem()); // 対象 5p・手牌に 3p,4p
+    const chi = (chiTiles: Tile[]) =>
+      ProblemActionSchema.parse({ type: "call", call: "chi", chiTiles, discard: "1m" });
+    expect(isValidAnswer(problem, chi(["3p", "4p", "5p"]))).toBe(true);
+    expect(isValidAnswer(problem, chi(["5p", "6p", "7p"]))).toBe(false); // 6p,7p を持っていない
+    expect(isValidAnswer(problem, chi(["1p", "2p", "3p"]))).toBe(false); // 対象牌を含まない
+    expect(isValidAnswer(problem, chi(["3p", "4p", "6p"]))).toBe(false); // 順子でない
+    // 構成なし（旧回答）は従来どおり成立する。
+    const old = ProblemActionSchema.parse({ type: "call", call: "chi", discard: "1m" });
+    expect(isValidAnswer(problem, old)).toBe(true);
+  });
+});
+
 describe("ProblemActionSchema（回答アクション）", () => {
   it("打牌アクションを受け付ける（リーチ・ツモ切りの既定 false）", () => {
     const a = ProblemActionSchema.parse({ type: "discard", tile: "5p" });
@@ -82,14 +131,14 @@ describe("ProblemActionSchema（回答アクション）", () => {
 
   it("鳴きアクション: ポン/チーは切る牌が必須", () => {
     const pon = ProblemActionSchema.parse({ type: "call", call: "pon", discard: "2m" });
-    expect(pon).toEqual({ type: "call", call: "pon", discard: "2m" });
+    expect(pon).toEqual({ type: "call", call: "pon", chiTiles: null, discard: "2m" });
     expect(() => ProblemActionSchema.parse({ type: "call", call: "pon" })).toThrow();
     expect(() => ProblemActionSchema.parse({ type: "call", call: "chi", discard: null })).toThrow();
   });
 
   it("カンは切る牌を持たない（嶺上ツモ後の打牌は問わない）", () => {
     const kan = ProblemActionSchema.parse({ type: "call", call: "kan" });
-    expect(kan).toEqual({ type: "call", call: "kan", discard: null });
+    expect(kan).toEqual({ type: "call", call: "kan", chiTiles: null, discard: null });
     expect(() => ProblemActionSchema.parse({ type: "call", call: "kan", discard: "2m" })).toThrow();
   });
 
@@ -106,8 +155,12 @@ describe("choiceKey（回答の直列化＝分布集計のキー）", () => {
     expect(choiceKey({ type: "discard", tile: "5p", riichi: true, tsumogiri: false })).toBe(
       "discard:5p:riichi",
     );
-    expect(choiceKey({ type: "call", call: "pon", discard: "2m" })).toBe("call:pon:2m");
-    expect(choiceKey({ type: "call", call: "kan", discard: null })).toBe("call:kan");
+    expect(choiceKey({ type: "call", call: "pon", chiTiles: null, discard: "2m" })).toBe(
+      "call:pon:2m",
+    );
+    expect(choiceKey({ type: "call", call: "kan", chiTiles: null, discard: null })).toBe(
+      "call:kan",
+    );
     expect(choiceKey({ type: "pass" })).toBe("pass");
   });
 
@@ -248,9 +301,16 @@ describe("isValidAnswer（回答者のアクション検証。API が分布に�
   it("鳴き判断: call か pass だけが有効。鳴いた後に切る牌は手牌から", () => {
     const p = ProblemSchema.parse(callProblem());
     expect(isValidAnswer(p, { type: "pass" })).toBe(true);
-    expect(isValidAnswer(p, { type: "call", call: "chi", discard: "2m" })).toBe(true);
-    expect(isValidAnswer(p, { type: "call", call: "kan", discard: null })).toBe(true);
-    expect(isValidAnswer(p, { type: "call", call: "pon", discard: "9s" })).toBe(false); // 手牌に無い
+    expect(isValidAnswer(p, { type: "call", call: "chi", chiTiles: null, discard: "2m" })).toBe(
+      true,
+    );
+    expect(isValidAnswer(p, { type: "call", call: "kan", chiTiles: null, discard: null })).toBe(
+      true,
+    );
+    // 手牌に無い牌は切れない。
+    expect(isValidAnswer(p, { type: "call", call: "pon", chiTiles: null, discard: "9s" })).toBe(
+      false,
+    );
     expect(isValidAnswer(p, { type: "discard", tile: "1m", riichi: false, tsumogiri: false })).toBe(
       false,
     ); // kind 不一致

@@ -6,7 +6,9 @@ import {
   buildProblemAnswer,
   canRiichiAfterDiscard,
   canSubmitProblemAnswer,
+  chiRunLabel,
   choiceKeyLabel,
+  problemChiVariants,
   problemRoundLabel,
   problemToKifu,
   seatLabel,
@@ -98,6 +100,10 @@ function AnswerBody({ post, token }: { post: ProblemPost; token: string | null }
   const [picked, setPicked] = useState<{ tile: Tile; drawn: boolean } | null>(null);
   const [riichi, setRiichi] = useState(false);
   const [call, setCall] = useState<"pass" | CallType | null>(null);
+  // チーの構成（567/678/789 など）。候補は対象牌×手牌から導出し、既定は最初の候補。
+  const chiChoices = useMemo(() => problemChiVariants(problem), [problem]);
+  const [chiRun, setChiRun] = useState<Tile[] | null>(null);
+  const effChiRun = chiRun ?? chiChoices[0] ?? null;
   const [answered, setAnswered] = useState<ProblemAction | null>(null);
   const [stats, setStats] = useState<ProblemStats | null>(null);
 
@@ -113,6 +119,7 @@ function AnswerBody({ post, token }: { post: ProblemPost; token: string | null }
     riichi: riichi && riichiOk,
     tsumogiri: problem.kind === "discard" && (picked?.drawn ?? false),
     call,
+    chiTiles: call === "chi" ? effChiRun : null,
   };
   const needsTile = answerNeedsTile(sel);
   const pending = buildProblemAnswer(sel);
@@ -268,6 +275,19 @@ function AnswerBody({ post, token }: { post: ProblemPost; token: string | null }
                   />
                 ))}
               </View>
+              {/* チーの構成（例 345筒/456筒/567筒）。候補が1つでも明示して誤解を防ぐ。 */}
+              {call === "chi" && chiChoices.length > 0 ? (
+                <View style={styles.chipRow}>
+                  {chiChoices.map((run) => (
+                    <Chip
+                      key={run.join(",")}
+                      label={chiRunLabel(run)}
+                      on={effChiRun?.join(",") === run.join(",")}
+                      onPress={() => setChiRun(run)}
+                    />
+                  ))}
+                </View>
+              ) : null}
               {call === "pon" || call === "chi" ? (
                 <Text style={styles.hint}>鳴いた後に切る牌を手牌からタップしてください。</Text>
               ) : null}

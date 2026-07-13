@@ -514,6 +514,9 @@ const DiscardActionSchema = z.object({
 const CallActionSchema = z.object({
   type: z.literal("call"),
   call: CallTypeSchema,
+  /** チーの構成（鳴いた牌を含む順子3枚。567/678/789 のような鳴き方の違いを区別する）。
+   *  チー以外は null。旧回答（構成なし）も null（後方互換）。 */
+  chiTiles: z.array(TileSchema).length(3).nullable().default(null),
   /** 鳴いた後に切る牌。ポン/チーは必須、カンは嶺上ツモがあるため null 固定。 */
   discard: TileSchema.nullable().default(null),
 });
@@ -535,6 +538,9 @@ export const ProblemActionSchema = z
     if (action.call !== "kan" && action.discard === null) {
       ctx.addIssue({ code: z.ZodIssueCode.custom, message: "ポン/チーは切る牌が必須" });
     }
+    if (action.call !== "chi" && action.chiTiles !== null) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "構成(chiTiles)はチーのみ" });
+    }
   });
 export type ProblemAction = z.infer<typeof ProblemActionSchema>;
 
@@ -553,9 +559,27 @@ export function choiceKey(action: ProblemAction): string {
     return parts.join(":");
   }
   if (action.type === "call") {
-    return action.discard ? `call:${action.call}:${action.discard}` : `call:${action.call}`;
+    const parts = [`call:${action.call}`];
+    // チーの構成（例 "345p"）。構成が違えば別の手として数える。旧回答（null）はキー不変。
+    if (action.call === "chi" && action.chiTiles) parts.push(chiRunKey(action.chiTiles));
+    if (action.discard) parts.push(action.discard);
+    return parts.join(":");
   }
   return "pass";
+}
+
+/** 赤5（0x）を通常の5に正規化した牌コード。構成キー・手牌照合・表示の同一視に使う。 */
+export function normalizeRed(tile: Tile): Tile {
+  return tile[0] === "0" ? (`5${tile[1]}` as Tile) : tile;
+}
+
+/** チー構成の集計キー（例 "345p"。数字昇順・赤5は5に正規化＝赤の有無で分布を割らない）。 */
+function chiRunKey(tiles: Tile[]): string {
+  const digits = tiles
+    .map((t) => normalizeRed(t)[0]!)
+    .sort()
+    .join("");
+  return `${digits}${tiles[0]![1]!}`;
 }
 
 export const PROBLEM_SCHEMA_VERSION = "1.0.0" as const;
@@ -688,5 +712,25 @@ export function isValidAnswer(problem: Problem, action: ProblemAction): boolean 
   }
   if (action.type === "pass") return true;
   if (action.type !== "call") return false;
+  // チーの構成: 対象牌（河末尾）を含む順子で、残り2枚を手牌から出せること（赤5は同一視）。
+  // （undefined も許容＝未 parse の旧型アクションを壊さない。API は parse 済みを渡す契約）
+  if (action.call === "chi" && action.chiTiles != null) {
+    const target = problemTargetTile(problem);
+    if (target === null) return false;
+    const suit = target[1];
+    if (suit === "z" || action.chiTiles.some((t) => t[1] !== suit)) return false;
+    const nums = action.chiTiles.map((t) => Number(normalizeRed(t)[0])).sort((a, b) => a - b);
+    if (nums[1] !== nums[0]! + 1 || nums[2] !== nums[1]! + 1) return false;
+    const rest = [...action.chiTiles];
+    const ti = rest.findIndex((t) => normalizeRed(t) === normalizeRed(target));
+    if (ti < 0) return false;
+    rest.splice(ti, 1);
+    const pool = hand.flatMap((t) => (t === null ? [] : [normalizeRed(t)]));
+    for (const t of rest) {
+      const i = pool.indexOf(normalizeRed(t));
+      if (i < 0) return false;
+      pool.splice(i, 1);
+    }
+  }
   return action.discard === null || hand.includes(action.discard);
 }

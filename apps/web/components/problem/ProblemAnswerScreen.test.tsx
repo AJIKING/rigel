@@ -1,3 +1,4 @@
+import { ProblemSchema, PROBLEM_SCHEMA_VERSION } from "@rigel/schema";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { type ProblemPost } from "../../lib/api";
@@ -233,7 +234,57 @@ describe("ProblemAnswerScreen: 鳴き判断", () => {
       expect(h.answerProblemAction).toHaveBeenCalledWith("p2", {
         type: "call",
         call: "pon",
+        chiTiles: null,
         discard: "2m",
+      }),
+    );
+  });
+
+  it("チーは構成（345筒/456筒/567筒）を選んで回答できる（既定は最初の候補）", async () => {
+    stubMe("free");
+    const post = callPost({
+      problem: ProblemSchema.parse({
+        schemaVersion: PROBLEM_SCHEMA_VERSION,
+        kind: "call",
+        pov: "east",
+        targetSeat: "south",
+        seats: {
+          east: {
+            hand: [
+              "1m",
+              "2m",
+              "3m",
+              "4m",
+              "5m",
+              "6m",
+              "7m",
+              "8m",
+              "9m",
+              "3p",
+              "4p",
+              "6p",
+              "7p",
+            ].map((t) => ({ tile: t, confidence: 1 })),
+          },
+          south: { river: [{ order: 1, tile: "5p", confidence: 1 }] },
+          west: {},
+          north: {},
+        },
+      }),
+    });
+    renderScreen(post);
+    fireEvent.click(await screen.findByRole("button", { name: "チー" }));
+    // 構成候補が並び、既定は最初の候補（345筒）が選択済み。
+    expect(screen.getByRole("button", { name: "345筒" }).getAttribute("aria-pressed")).toBe("true");
+    fireEvent.click(screen.getByRole("button", { name: "567筒" }));
+    fireEvent.click(screen.getByRole("button", { name: "1萬" }));
+    fireEvent.click(screen.getByRole("button", { name: "回答する" }));
+    await waitFor(() =>
+      expect(h.answerProblemAction).toHaveBeenCalledWith("p2", {
+        type: "call",
+        call: "chi",
+        chiTiles: ["5p", "6p", "7p"],
+        discard: "1m",
       }),
     );
   });

@@ -12,6 +12,8 @@ import {
   SCHEMA_VERSION,
   TileSchema,
   PROBLEM_SCHEMA_VERSION,
+  normalizeRed,
+  problemTargetTile,
   type CallType,
   type CameraSeat,
   type Kifu,
@@ -25,7 +27,7 @@ import {
   type Seat,
   type Tile,
 } from "@rigel/schema";
-import { meldTiles, sortHandTiles, type MeldPick } from "./edit";
+import { chiVariants, meldTiles, sortHandTiles, SUITS, type MeldPick } from "./edit";
 
 // 打点計算（han/fu + ルール → 支払い）。
 export * from "./score";
@@ -531,6 +533,8 @@ export interface ProblemAnswerSelection {
   tsumogiri: boolean;
   /** 鳴き判断の選択（未選択は null）。 */
   call: "pass" | CallType | null;
+  /** チーの構成（鳴いた牌を含む順子3枚。チー以外・未選択は null/省略）。 */
+  chiTiles?: Tile[] | null;
 }
 
 /** 選択状態から回答アクションを組み立てる（不足していれば null）。
@@ -542,8 +546,16 @@ export function buildProblemAnswer(sel: ProblemAnswerSelection): ProblemAction |
       : null;
   }
   if (sel.call === "pass") return { type: "pass" };
-  if (sel.call === "kan") return { type: "call", call: "kan", discard: null };
-  if (sel.call && sel.tile) return { type: "call", call: sel.call, discard: sel.tile };
+  if (sel.call === "kan") return { type: "call", call: "kan", chiTiles: null, discard: null };
+  if (sel.call && sel.tile) {
+    return {
+      type: "call",
+      call: sel.call,
+      // 構成はチーのみ（567/678/789 の鳴き方を区別して集計する）。
+      chiTiles: sel.call === "chi" ? (sel.chiTiles ?? null) : null,
+      discard: sel.tile,
+    };
+  }
   return null;
 }
 
@@ -715,8 +727,49 @@ export function assembleProblem(draft: ProblemDraft): { problem?: Problem; error
   return { problem: parsed.data };
 }
 
+/** チー構成の表示（例 "345筒"。赤5は5表記＝集計キーと同じ同一視。スート名は SUITS と共用）。 */
+export function chiRunLabel(run: Tile[]): string {
+  const digits = run
+    .map((t) => normalizeRed(t)[0]!)
+    .sort()
+    .join("");
+  return `${digits}${SUITS.find((s) => s.suit === run[0]![1])?.label ?? ""}`;
+}
+
+/** 鳴き判断（チー）の構成候補: 対象牌（河末尾）を含む順子のうち、残り2枚を回答者(pov)の
+ *  手牌から出せるもの。候補の牌は手牌の実コードに合わせる（赤5は 0x のまま）。 */
+export function problemChiVariants(problem: Problem): Tile[][] {
+  if (problem.kind !== "call") return [];
+  const target = problemTargetTile(problem);
+  if (!target) return [];
+  const hand = problem.seats[problem.pov].hand.flatMap((t) => (t.tile ? [t.tile] : []));
+  const out: Tile[][] = [];
+  for (const run of chiVariants(target)) {
+    const pool = [...hand];
+    const resolved: Tile[] = [];
+    let ok = true;
+    for (const t of run) {
+      if (t === target) {
+        resolved.push(t);
+        continue;
+      }
+      // 手牌から実コードで取り出す（無ければ赤5同一視で探す）。同じ牌は1枚ずつ消費。
+      let i = pool.indexOf(t);
+      if (i < 0) i = pool.findIndex((h) => normalizeRed(h) === normalizeRed(t));
+      if (i < 0) {
+        ok = false;
+        break;
+      }
+      resolved.push(pool[i]!);
+      pool.splice(i, 1);
+    }
+    if (ok) out.push(resolved);
+  }
+  return out;
+}
+
 /** 回答アクションの人間向けラベル
- *  （例: "5筒切り・リーチ" / "5筒ツモ切り" / "ポンして2萬切り" / "スルー"）。 */
+ *  （例: "5筒切り・リーチ" / "5筒ツモ切り" / "345筒でチーして2萬切り" / "スルー"）。 */
 export function actionLabel(action: ProblemAction): string {
   if (action.type === "discard") {
     const cut = action.tsumogiri ? "ツモ切り" : "切り";
@@ -724,7 +777,9 @@ export function actionLabel(action: ProblemAction): string {
   }
   if (action.type === "call") {
     const call = CALL_LABELS[action.call];
-    return action.discard ? `${call}して${tileLabel(action.discard)}切り` : call;
+    const head =
+      action.call === "chi" && action.chiTiles ? `${chiRunLabel(action.chiTiles)}で${call}` : call;
+    return action.discard ? `${head}して${tileLabel(action.discard)}切り` : head;
   }
   return "スルー";
 }
@@ -753,10 +808,16 @@ export function choiceKeyLabel(key: string): string {
     }
   }
   if (head === "call" && (a === "pon" || a === "chi" || a === "kan")) {
-    const b = rest[0];
+    // チーの構成キー（例 "345p"）が挟まる形: call:chi:<構成>:<切る牌>。旧キーは構成なし。
+    const run = a === "chi" && rest[0] && /^[1-9]{3}[mps]$/.test(rest[0]) ? rest[0] : null;
+    const after = run ? rest.slice(1) : rest;
+    const b = after[0];
     const tile = b === undefined ? null : tileOf(b);
-    if (rest.length === 0 || (rest.length === 1 && tile)) {
-      return actionLabel({ type: "call", call: a, discard: tile });
+    if (after.length === 0 || (after.length === 1 && tile)) {
+      const chiTiles = run
+        ? ([0, 1, 2].map((k) => `${run[k]}${run[3]}`) as Tile[])
+        : null;
+      return actionLabel({ type: "call", call: a, chiTiles, discard: tile });
     }
   }
   return key;

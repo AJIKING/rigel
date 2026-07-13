@@ -283,6 +283,60 @@ describe("ProblemAnswerScreen（何切る回答画面）", () => {
     expect(mockAnswerProblem).toHaveBeenCalledWith("t", "p1", { type: "pass" });
   });
 
+  it("チーは構成（345筒/456筒/567筒）を選んで回答できる（既定は最初の候補）", async () => {
+    mockGetProblem.mockResolvedValue(
+      makePost({
+        problem: makeCallProblem({
+          seats: {
+            east: {
+              hand: [
+                "1m",
+                "2m",
+                "3m",
+                "4m",
+                "5m",
+                "6m",
+                "7m",
+                "8m",
+                "9m",
+                "3p",
+                "4p",
+                "6p",
+                "7p",
+              ].map((tile) => ({ tile, confidence: 1 })),
+            },
+            south: { river: [{ order: 1, tile: "5p", confidence: 1 }] },
+            west: {},
+            north: {},
+          },
+        }),
+      }),
+    );
+    mockAnswerProblem.mockResolvedValue({ ok: true, status: 200 });
+    mockGetProblemStats.mockResolvedValue({
+      counts: {},
+      total: 0,
+      myChoiceKey: null,
+      myAction: null,
+    });
+    render(<ProblemAnswerScreen />);
+
+    fireEvent.press(await screen.findByText("チー"));
+    // 構成候補（345筒/456筒/567筒）が出る → 567筒 に切替。
+    expect(screen.getByText("345筒")).toBeTruthy();
+    fireEvent.press(screen.getByText("567筒"));
+    fireEvent.press(screen.getByRole("button", { name: "1萬" }));
+    fireEvent.press(screen.getByText("回答する"));
+
+    await screen.findByText(/あなたの回答/);
+    expect(mockAnswerProblem).toHaveBeenCalledWith("t", "p1", {
+      type: "call",
+      call: "chi",
+      chiTiles: ["5p", "6p", "7p"],
+      discard: "1m",
+    });
+  });
+
   it("盤面は回転卓（BoardTable）で表示し、鳴き判断の対象牌に強調枠が付く", async () => {
     mockGetProblem.mockResolvedValue(makePost({ problem: makeCallProblem() }));
     render(<ProblemAnswerScreen />);

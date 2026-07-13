@@ -8,7 +8,9 @@ import {
   draftToKifu,
   buildProblemAnswer,
   canSubmitProblemAnswer,
+  chiRunLabel,
   choiceKeyLabel,
+  problemChiVariants,
   problemHandMax,
   problemRiverTiles,
   problemRoundLabel,
@@ -55,6 +57,60 @@ function makeProblem(): Problem {
   });
 }
 
+describe("チーの構成（鳴き判断の回答）", () => {
+  it("problemChiVariants は対象牌を含む順子のうち、残り2枚が手牌にある候補だけを返す", () => {
+    // 手牌に 1p,2p,3p,4p・対象 5p → 345 のみ（456/567 は 6p,7p が無い）。
+    expect(problemChiVariants(makeProblem())).toEqual([["3p", "4p", "5p"]]);
+  });
+
+  it("problemChiVariants は赤5の手牌も5として使える（候補の牌は手牌の実コードに合わせる）", () => {
+    const p = ProblemSchema.parse({
+      schemaVersion: PROBLEM_SCHEMA_VERSION,
+      kind: "call",
+      pov: "south",
+      targetSeat: "west",
+      seats: {
+        east: {},
+        south: {
+          hand: ["1m", "2m", "3m", "4m", "5m", "6m", "7m", "8m", "9m", "1s", "2s", "0p", "4p"].map(
+            (t) => ({ tile: t, confidence: 1 }),
+          ),
+        },
+        west: { river: [{ order: 1, tile: "6p", confidence: 1 }] },
+        north: {},
+      },
+    });
+    // 対象 6p: 456（手牌の 4p と赤5=0p）だけが成立。
+    expect(problemChiVariants(p)).toEqual([["4p", "0p", "6p"]]);
+  });
+
+  it("chiRunLabel は「345筒」の形（赤5は5表記）", () => {
+    expect(chiRunLabel(["3p", "4p", "5p"])).toBe("345筒");
+    expect(chiRunLabel(["4p", "0p", "6p"])).toBe("456筒");
+    expect(chiRunLabel(["5m", "6m", "7m"])).toBe("567萬");
+  });
+
+  it("buildProblemAnswer はチーの構成を回答に乗せる", () => {
+    const a = buildProblemAnswer({
+      kind: "call",
+      tile: "1m",
+      riichi: false,
+      tsumogiri: false,
+      call: "chi",
+      chiTiles: ["3p", "4p", "5p"],
+    });
+    expect(a).toMatchObject({ type: "call", call: "chi", chiTiles: ["3p", "4p", "5p"] });
+  });
+
+  it("actionLabel / choiceKeyLabel は構成つきチーを「345筒でチーして…」と表す（旧キーは従来表記）", () => {
+    expect(
+      actionLabel({ type: "call", call: "chi", chiTiles: ["3p", "4p", "5p"], discard: "1m" }),
+    ).toBe("345筒でチーして1萬切り");
+    expect(choiceKeyLabel("call:chi:345p:1m")).toBe("345筒でチーして1萬切り");
+    expect(choiceKeyLabel("call:chi:1m")).toBe("チーして1萬切り");
+  });
+});
+
 describe("problemToKifu（盤面描画の再利用のための変換）", () => {
   it("KifuSchema を通る牌譜になり、pov が手前・手牌は理牌される", () => {
     const kifu = problemToKifu(makeProblem());
@@ -95,9 +151,13 @@ describe("actionLabel（回答の人間向けラベル）", () => {
     expect(actionLabel({ type: "discard", tile: "1z", riichi: true, tsumogiri: false })).toBe(
       "東切り・リーチ",
     );
-    expect(actionLabel({ type: "call", call: "pon", discard: "2m" })).toBe("ポンして2萬切り");
-    expect(actionLabel({ type: "call", call: "chi", discard: "0s" })).toBe("チーして赤5索切り");
-    expect(actionLabel({ type: "call", call: "kan", discard: null })).toBe("カン");
+    expect(actionLabel({ type: "call", call: "pon", chiTiles: null, discard: "2m" })).toBe(
+      "ポンして2萬切り",
+    );
+    expect(actionLabel({ type: "call", call: "chi", chiTiles: null, discard: "0s" })).toBe(
+      "チーして赤5索切り",
+    );
+    expect(actionLabel({ type: "call", call: "kan", chiTiles: null, discard: null })).toBe("カン");
     expect(actionLabel({ type: "pass" })).toBe("スルー");
   });
 
@@ -191,7 +251,7 @@ describe("buildProblemAnswer / answerNeedsTile（回答UIの選択状態→ア�
         tsumogiri: false,
         call: "kan",
       }),
-    ).toEqual({ type: "call", call: "kan", discard: null });
+    ).toEqual({ type: "call", call: "kan", chiTiles: null, discard: null });
     expect(
       buildProblemAnswer({
         kind: "call",
@@ -200,7 +260,7 @@ describe("buildProblemAnswer / answerNeedsTile（回答UIの選択状態→ア�
         tsumogiri: false,
         call: "pon",
       }),
-    ).toEqual({ type: "call", call: "pon", discard: "2m" });
+    ).toEqual({ type: "call", call: "pon", chiTiles: null, discard: "2m" });
     expect(
       buildProblemAnswer({
         kind: "call",
