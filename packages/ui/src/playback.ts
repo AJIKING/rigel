@@ -50,6 +50,7 @@ function toDiscard(event: Extract<TimelineEvent, { kind: "discard" }>, order: nu
     tile: event.tile,
     riichi: event.riichi,
     tsumogiri: event.tsumogiri,
+    calledBy: event.calledBy,
     confidence: event.confidence,
   };
 }
@@ -78,10 +79,21 @@ const MELD_HAND_USED: Record<MeldType, number> = {
   kan_closed: 4,
 };
 
-function applyMeld(board: SeatBoard, event: Extract<TimelineEvent, { kind: "meld" }>): void {
+function applyMeld(
+  seats: Record<Seat, SeatBoard>,
+  event: Extract<TimelineEvent, { kind: "meld" }>,
+): void {
+  const board = seats[event.seat];
   board.melds.push(event.meld);
   const used = MELD_HAND_USED[event.meld.type];
   for (const t of event.meld.tiles.slice(0, used)) removeOne(board.hand, t.tile);
+  // 鳴かれた捨て牌の薄表示は「鳴きが開く瞬間」から（applyDiscard は calledBy を伏せて積む）。
+  // 鳴きは直前の打牌を取るので、鳴き元(from)の直近の捨て牌に印を付ける。
+  if (event.meld.from) {
+    const river = seats[event.meld.from].river;
+    const last = river[river.length - 1];
+    if (last) last.calledBy = event.seat;
+  }
 }
 
 function applyDiscard(
@@ -95,7 +107,9 @@ function applyDiscard(
     removeOne(board.hand, event.tile);
   }
 
-  const discard = toDiscard(event, board.river.length + 1);
+  // 鳴かれた印(calledBy)は捨てた時点では伏せ、鳴きイベント（applyMeld）が開く瞬間に付ける
+  // （再生で「捨てた直後から薄い」誤演出を防ぐ）。
+  const discard = { ...toDiscard(event, board.river.length + 1), calledBy: null };
   board.river.push(discard);
   return discard;
 }
@@ -135,7 +149,7 @@ export function buildPlaybackState(kifu: Kifu, shownDiscards: number): PlaybackS
       activeDiscard = { seat: event.seat, riverIndex: seats[event.seat].river.length - 1 };
       if (event.riichi) kyotaku += 1; // リーチ宣言＝リーチ棒（供託）+1。
     } else if (morph) {
-      applyMeld(seats[event.seat], event);
+      applyMeld(seats, event);
       activeDraw = null;
     }
   }

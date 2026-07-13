@@ -13,6 +13,7 @@ export function BoardTile({
   review,
   selected,
   flash,
+  called,
   label,
   onClick,
 }: {
@@ -23,6 +24,8 @@ export function BoardTile({
   review?: boolean;
   selected?: boolean;
   flash?: boolean;
+  /** 鳴かれた捨て牌（他家の鳴きへ移った牌）。河で薄表示にする。 */
+  called?: boolean;
   label: string;
   onClick: (e: React.MouseEvent) => void;
 }) {
@@ -35,6 +38,7 @@ export function BoardTile({
     review ? s.review : "",
     selected ? s.sel : "",
     flash ? s.flash : "",
+    called ? s.called : "",
   ]
     .filter(Boolean)
     .join(" ");
@@ -42,6 +46,7 @@ export function BoardTile({
     <button
       type="button"
       className={cls}
+      data-called={called ? "" : undefined}
       aria-label={`${label} を編集`}
       onClick={(e) => {
         e.stopPropagation();

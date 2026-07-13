@@ -13,6 +13,11 @@ export type UpdateKifuResult = { ok: true } | { ok: false; reason: "not_found" |
 /** 局順(seq)の上限。roundNameForSeq が表せる範囲（東一〜北四）に合わせる。 */
 export const MAX_SEQ = 16;
 
+/** seq 省略時の自動採番（既存局数+1）。連荘で局数が16を超えても保存可能な範囲に頭打ちする。 */
+export function autoSeq(existingCount: number): number {
+  return Math.min(existingCount + 1, MAX_SEQ);
+}
+
 export class UpdateKifu {
   constructor(private readonly gameLogs: GameLogRepository) {}
 

@@ -27,11 +27,48 @@ const discard = (over: Partial<Extract<TimelineEvent, { kind: "discard" }>>): Ti
   tile: "1m",
   tsumogiri: false,
   riichi: false,
+  calledBy: null,
   confidence: 1,
   ...over,
 });
 
 const hand = (tiles: string[]) => tiles.map((tile) => ({ tile, confidence: 1 }));
+
+describe("再生と鳴かれた捨て牌（鳴きが開く瞬間に薄表示へ）", () => {
+  const ponFromEast = {
+    kind: "meld" as const,
+    seat: "south" as const,
+    meld: {
+      type: "pon" as const,
+      tiles: [
+        { tile: "5p" as const, confidence: 1 },
+        { tile: "5p" as const, confidence: 1 },
+        { tile: "5p" as const, confidence: 1 },
+      ],
+      from: "east" as const,
+    },
+  };
+  const k = () =>
+    kifu({
+      timeline: [
+        discard({ seat: "east", tile: "5p", calledBy: "south" }),
+        ponFromEast,
+        discard({ seat: "south", tile: "1m" }),
+      ],
+    });
+
+  it("鳴きが開く前（打牌1手目まで）は薄表示にしない", () => {
+    const s = playbackKifu(k(), 1);
+    expect(s.seats.south.melds).toHaveLength(0); // 鳴きは次の打牌と一緒に開く
+    expect(s.seats.east.river[0]?.calledBy).toBeNull();
+  });
+
+  it("鳴きが開く（打牌2手目）と同時に、鳴き元の捨て牌へ薄表示の印が付く", () => {
+    const s = playbackKifu(k(), 2);
+    expect(s.seats.south.melds).toHaveLength(1);
+    expect(s.seats.east.river[0]?.calledBy).toBe("south");
+  });
+});
 
 describe("buildPlaybackState（再生ステップの局面導出）", () => {
   it("0手目は配牌を保持し、河はまだ空にする", () => {

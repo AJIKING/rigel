@@ -11,6 +11,8 @@ import {
   type TimelineEvent,
 } from "@rigel/schema";
 import {
+  calledByLabel,
+  cycleCalledBy,
   deriveTimeline,
   nextDiscardSeat,
   seatLabel,
@@ -141,6 +143,7 @@ export function TimelineEditor({
         tile: null,
         tsumogiri: false,
         riichi: false,
+        calledBy: null,
         confidence: 1,
       },
     ]);
@@ -238,6 +241,18 @@ export function TimelineEditor({
                       onClick={() => updateDiscard(i, (x) => ({ ...x, riichi: !x.riichi }))}
                     >
                       リーチ
+                    </button>
+                    {/* この捨て牌を誰が鳴いたか（なし→下家→対面→上家の順送り。河は薄表示になる）。 */}
+                    <button
+                      className={`${s.riichi} ${e.calledBy ? s.on : ""}`}
+                      onClick={() =>
+                        updateDiscard(i, (x) => ({
+                          ...x,
+                          calledBy: cycleCalledBy(x.calledBy, x.seat),
+                        }))
+                      }
+                    >
+                      {calledByLabel(e.calledBy)}
                     </button>
                   </>
                 ) : (

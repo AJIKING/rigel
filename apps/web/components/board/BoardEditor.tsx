@@ -22,6 +22,7 @@ import {
   removeMeld,
   removeRiverTile,
   resultModeOf,
+  setDiscardCalledBy as setDiscardCalledByShared,
   setDoraTile,
   sortHandTiles,
   sortKifuHands,
@@ -184,6 +185,11 @@ function cameraSeatOf(seat: Seat, bottomSeat: Seat): CameraSeat {
   return CAMS.find((cam) => toAbsoluteSeat(cam, bottomSeat) === seat) ?? "bottom";
 }
 
+/** 下家（次の打牌席）。捨て牌から鳴きを作るときの鳴き主の既定に使う。 */
+function shimochaOf(seat: Seat): Seat {
+  return SEAT_ORDER[(SEAT_ORDER.indexOf(seat) + 1) % 4]!;
+}
+
 /** 手牌修正後のフラッシュ位置。理牌で牌が動くので、applyTileEdit と同じ安定ソートを
  *  元 index 付きで再現して「動いた先」を求める。 */
 function handIndexAfterEdit(kifu: Kifu, loc: TileLocation, code: Tile): number {
@@ -325,7 +331,8 @@ function Editor(p: EditorProps) {
   const [roundMenu, setRoundMenu] = useState(false);
   // 局順（東一局=1〜北四局=16）。作成後も変更できる（保存時に kifu と一緒に送る）。
   // Editor は key={log.id} で局ごとに再マウントされるため、初期値は log.seq で足りる。
-  const [seqValue, setSeqValue] = useState(log.seq);
+  // 旧自動採番の seq>16 は北四局へ丸める（API が seq>16 を拒否し保存不能になるため）。
+  const [seqValue, setSeqValue] = useState(Math.min(Math.max(1, log.seq), MAX_SEQ));
   const [addOpen, setAddOpen] = useState(false);
   const [rulesOpen, setRulesOpen] = useState(false);
   const [delArm, setDelArm] = useState(false);
@@ -399,6 +406,8 @@ function Editor(p: EditorProps) {
     setSel({ kind: "edit", loc });
     setSuit((code?.[1] as Suit) ?? "m");
     setMeldType("none");
+    // 捨て牌から鳴きを作るときの鳴き主の既定は下家（捨てた本人が既定になるのを防ぐ）。
+    if (loc.area === "river") setMeldWho(cameraSeatOf(shimochaOf(loc.seat), bottomSeat));
     setPop(popAnchor((e.currentTarget as HTMLElement).getBoundingClientRect()));
   }
   function openAdd(e: React.MouseEvent, seat: Seat, area: "hand" | "river") {
@@ -446,16 +455,25 @@ function Editor(p: EditorProps) {
       const owner = toAbsoluteSeat(meldWho, bottomSeat);
       const kanMap = { minkan: "kan_open", ankan: "kan_closed", kakan: "kan_added" } as const;
       const type = meldType === "chi" ? "chi" : meldType === "pon" ? "pon" : kanMap[kanType];
+      // 捨て牌（河の編集）から作った鳴きは「誰から鳴いたか」を自動で結線する:
+      //   from=捨て主、その捨て牌に calledBy=鳴き主（牌は河に残して薄表示）。暗槓は from を持たない。
+      const calledLoc =
+        sel.kind === "edit" && sel.loc.area === "river" && type !== "kan_closed" ? sel.loc : null;
+      const from = calledLoc && calledLoc.seat !== owner ? calledLoc.seat : null;
       // 鳴きを seats に足したあと、timeline が非空なら同期（reconcileTimeline は空なら no-op）。
       setKifu(
         reconcileTimeline(
-          mutateKifu(kifu, (d) =>
+          mutateKifu(kifu, (d) => {
             d.seats[owner].melds.push({
               type,
               tiles: meldTiles(meldType, code).map((t) => ({ tile: t, confidence: 1 })),
-              from: null,
-            }),
-          ),
+              from,
+            });
+            if (calledLoc && from) {
+              const discard = d.seats[calledLoc.seat].river[calledLoc.index];
+              if (discard) discard.calledBy = owner;
+            }
+          }),
         ),
       );
       closePop();
@@ -582,6 +600,13 @@ function Editor(p: EditorProps) {
       const discard = d.seats[loc.seat].river[loc.index];
       if (discard) discard.tsumogiri = tsumogiri;
     });
+  }
+
+  // 鳴かれた捨て牌の印（誰が鳴いたか）。牌は河に残し、手順（timeline）にも同期する
+  //（実体は @rigel/ui の共有純関数＝mobile と同一挙動）。
+  function setDiscardCalledBy(calledBy: Seat | null) {
+    if (sel?.kind !== "edit" || sel.loc.area !== "river") return;
+    setKifu(setDiscardCalledByShared(kifu, sel.loc.seat, sel.loc.index, calledBy));
   }
 
   // リーチ宣言牌（横向き）を切り替える。河への追加中は追加する牌へ適用する。
@@ -1085,6 +1110,7 @@ function Editor(p: EditorProps) {
           onApplyTile={applyTile}
           onSetDiscardKind={setDiscardKind}
           onSetDiscardRiichi={setDiscardRiichi}
+          onSetDiscardCalledBy={setDiscardCalledBy}
           onDelete={deleteSelected}
           onClose={closePop}
         />

@@ -15,9 +15,13 @@ import {
   setDoraTile,
   roundNameForSeq,
   seatLabel,
+  calledByLabel,
+  cycleCalledBy,
+  setDiscardCalledBy,
   setDiscardFlags,
   sortKifuHands,
   windOf,
+  MAX_SEQ,
   SEAT_ORDER,
   type MeldAddType,
   type PickerSuit,
@@ -76,7 +80,8 @@ export function KifuEditor({
 }) {
   // 読み込んだ配牌は理牌して載せる（AIドラフト等の正規化。表示順＝データ順で index 編集を壊さない）。
   const [kifu, setKifu] = useState(() => sortKifuHands(initialKifu));
-  const [seq, setSeq] = useState(initialSeq);
+  // 旧自動採番の seq>16 は北四局へ丸める（API が seq>16 を拒否し保存不能になるため。web と同じ）。
+  const [seq, setSeq] = useState(Math.min(Math.max(1, initialSeq), MAX_SEQ));
   const [seat, setSeat] = useState<Seat>(initialKifu.cameraBottomSeat ?? "east");
   const [picker, setPicker] = useState<Picker>(null);
   // 盤面（席ごと）/ 手順（タイムライン）の編集モード。web の 盤面/手順 タブと同等。
@@ -443,7 +448,13 @@ export function KifuEditor({
           }
           discard={
             editingDiscard
-              ? { riichi: editingDiscard.riichi, tsumogiri: editingDiscard.tsumogiri ?? false }
+              ? {
+                  riichi: editingDiscard.riichi,
+                  tsumogiri: editingDiscard.tsumogiri ?? false,
+                  // 鳴かれた印は席名つきラベルで順送り（なし→下家→対面→上家）。
+                  calledOn: editingDiscard.calledBy !== null,
+                  calledLabel: calledByLabel(editingDiscard.calledBy),
+                }
               : null
           }
           onPick={onPick}
@@ -458,6 +469,17 @@ export function KifuEditor({
               setDiscardFlags(kifu, seat, discardIndex, {
                 tsumogiri: !editingDiscard.tsumogiri,
               }),
+            );
+          }}
+          onToggleCalledBy={() => {
+            if (discardIndex < 0 || !editingDiscard) return;
+            setKifu(
+              setDiscardCalledBy(
+                kifu,
+                seat,
+                discardIndex,
+                cycleCalledBy(editingDiscard.calledBy, seat),
+              ),
             );
           }}
           onClose={() => setPicker(null)}

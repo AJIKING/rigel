@@ -8,6 +8,8 @@ import {
   type TimelineEvent,
 } from "@rigel/schema";
 import {
+  calledByLabel,
+  cycleCalledBy,
   deriveTimeline,
   nextDiscardSeat,
   seatLabel,
@@ -112,6 +114,7 @@ export function TimelineEditor({
         tile: null,
         tsumogiri: false,
         riichi: false,
+        calledBy: null,
         confidence: 1,
       },
     ]);
@@ -200,6 +203,22 @@ export function TimelineEditor({
                   accessibilityRole="button"
                 >
                   <Text style={[styles.riichiText, e.riichi && styles.riichiTextOn]}>リーチ</Text>
+                </Pressable>
+                {/* この捨て牌を誰が鳴いたか（なし→下家→対面→上家の順送り。河は薄表示になる）。 */}
+                <Pressable
+                  style={[styles.riichi, e.calledBy != null && styles.riichiOn]}
+                  onPress={() =>
+                    update(i, (x) =>
+                      x.kind === "discard"
+                        ? { ...x, calledBy: cycleCalledBy(x.calledBy, x.seat) }
+                        : x,
+                    )
+                  }
+                  accessibilityRole="button"
+                >
+                  <Text style={[styles.riichiText, e.calledBy != null && styles.riichiTextOn]}>
+                    {calledByLabel(e.calledBy)}
+                  </Text>
                 </Pressable>
               </>
             ) : (

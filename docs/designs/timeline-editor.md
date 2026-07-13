@@ -180,6 +180,24 @@ river/melds に**書き戻す**。`draw`・鳴きの厳密な割り込み順は�
    **フェーズ→表示物の写像（`stepDisplay`）**は `@rigel/ui` playback.ts。各ビューアが
    持つのはフェーズ state とボタンハンドラだけ（@rigel/ui は React 非依存のため hooks は置かない）。
 
+8. **（2026-07-13 追記）鳴かれた捨て牌は `calledBy` で表す。**
+   ポン/チー/カンで持っていかれた捨て牌は、`Discard`・`DiscardEvent` の `calledBy`
+   （鳴いた席。null=鳴かれていない。既定 null＝後方互換）で記録する。
+   **牌は河に残して薄表示**（opacity 0.38・`data-called`）にする（巡目・打牌順を保つ案を採用。
+   河から外す案は「何を捨てたか」と巡目が失われるため不採用）。
+   - 盤面タブ: 捨て牌ピッカーに「鳴かれた」行（なし/他3席）。捨て牌から鳴きを作ると
+     **from=捨て主・calledBy=鳴き主・鳴き主の既定=下家** を自動で結線する（暗槓は除く）。
+   - 手順タブ: 打牌行に「鳴かれ」順送りボタン（なし→下家→対面→上家。順送りは
+     `cycleCalledBy`、印付けは `setDiscardCalledBy`＝@rigel/ui 共有で web/mobile 同一挙動）。
+   - mobile 編集も対応済み: 河の編集シートに「鳴かれ」チップ、手順タブに同ボタン。
+   - 往復整合: buildTimelineFromSeats / reconcileTimeline / timelineToSeats / playback の
+     toDiscard がすべて calledBy を通す。
+   - AI 取り込み（assembleKifu）は calledBy=null（写真の河に鳴かれた牌は写らない。人が手順で足す）。
+   - **再生連動**: 編集済（timeline あり）の再生では、捨てた時点は通常表示、**鳴きが開く瞬間
+     （＝次の打牌と一緒）に薄表示へ変わる**（buildPlaybackState: applyDiscard が calledBy を
+     伏せて積み、applyMeld が鳴き元(from)の直近の捨て牌へ印を付ける）。timeline の無い
+     スナップショット牌譜は静的表示（常時薄表示）。牌が飛んで移動するアニメーションは未実装（後続）。
+
 **[未確定]（実装時に確認）**
 - モバイル（Expo）対応の時期（まず web、モバイルは後続）。
 - `meta.junme`（最終巡目）を timeline から自動上書きするか、手入力を尊重して検証のみにするか。

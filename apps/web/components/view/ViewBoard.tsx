@@ -23,6 +23,7 @@ export function ViewTile({
   highlight,
   drop,
   flyIn,
+  called,
 }: {
   code?: Tile | null;
   kind?: "river" | "meld";
@@ -35,6 +36,8 @@ export function ViewTile({
   drop?: boolean;
   /** フライイン演出（手牌右端のスロットへ入った1枚）。 */
   flyIn?: boolean;
+  /** 鳴かれた捨て牌（他家の鳴きへ移った牌）。河で薄表示にする。 */
+  called?: boolean;
 }) {
   const cls = [
     s.tile,
@@ -46,6 +49,7 @@ export function ViewTile({
     highlight ? s.target : "",
     drop ? s.drop : "",
     flyIn ? s.flyIn : "",
+    called ? s.called : "",
   ]
     .filter(Boolean)
     .join(" ");
@@ -54,12 +58,19 @@ export function ViewTile({
   // data-drop / data-draw も同様に、演出対象の検証用フック。
   const dataDrop = drop ? "" : undefined;
   const dataDraw = flyIn ? "" : undefined;
+  const dataCalled = called ? "" : undefined;
   if (back)
     return (
       <span className={cls} data-tile={kind ?? "hand"} data-drop={dataDrop} data-draw={dataDraw} />
     );
   return (
-    <span className={cls} data-tile={kind ?? "hand"} data-drop={dataDrop} data-draw={dataDraw}>
+    <span
+      className={cls}
+      data-tile={kind ?? "hand"}
+      data-drop={dataDrop}
+      data-draw={dataDraw}
+      data-called={dataCalled}
+    >
       <OssTileFace code={code ?? null} />
     </span>
   );
@@ -159,6 +170,7 @@ export function ViewBoard({
                         kind="river"
                         lay={d.riichi}
                         tsumogiri={d.tsumogiri}
+                        called={!!d.calledBy}
                         highlight={
                           highlightRiver?.seat === seat && highlightRiver.index === ri * 6 + ci
                         }

@@ -1,6 +1,7 @@
 import type { GameLog } from "@rigel/client";
 import { KifuSchema, type Kifu } from "@rigel/schema";
 import { fireEvent, render, screen, within } from "@testing-library/react-native";
+import { StyleSheet, type StyleProp, type ViewStyle } from "react-native";
 import { KifuPlayer } from "./KifuPlayer";
 
 /** 親=東・手前=東の局を最小の指定で組む。seats は指定した席だけ上書き、その他は空。 */
@@ -401,6 +402,22 @@ describe("KifuPlayer", () => {
     // 東家の視点に戻すと再び裏向きになる。
     fireEvent.press(screen.getByLabelText("東家の視点にする"));
     expect(screen.queryByLabelText("發")).toBeNull();
+  });
+
+  it("鳴かれた捨て牌（calledBy）は河で薄表示になる", () => {
+    const k = makeKifu({
+      east: {
+        river: [
+          { order: 1, tile: "5p", calledBy: "south" },
+          { order: 2, tile: "1m" },
+        ],
+      },
+    });
+    render(<KifuPlayer logs={[log(1, k)]} />);
+    const opacityOf = (label: string) =>
+      StyleSheet.flatten(screen.getByLabelText(label).props.style as StyleProp<ViewStyle>).opacity;
+    expect(opacityOf("5筒")).toBe(0.38);
+    expect(opacityOf("1萬")).toBeUndefined();
   });
 
   it("選手情報（players）がある半荘は、ネームプレートに選手名とポイント状況を出す", () => {

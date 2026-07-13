@@ -51,6 +51,7 @@ const disc = (seat: TimelineEvent["seat"], tile: string): TimelineEvent => ({
   tile: tile as never,
   tsumogiri: false,
   riichi: false,
+  calledBy: null,
   confidence: 1,
 });
 
@@ -159,6 +160,47 @@ describe("timelineToSeats / syncSeatsFromTimeline", () => {
     expect(synced.seats.east.river[0]).toMatchObject({ tile: "1z", riichi: true });
     // 鳴きは melds に入る → 盤面は melds を描画。
     expect(synced.seats.south.melds[0]).toMatchObject({ type: "pon", from: "east" });
+  });
+});
+
+describe("鳴かれた捨て牌（calledBy）の往復", () => {
+  it("timeline→盤面: 打牌イベントの calledBy が river へ同期される", () => {
+    const k = kifu({
+      timeline: [{ ...disc("east", "5p"), calledBy: "south" }, disc("south", "1m")],
+    });
+    const synced = syncSeatsFromTimeline(k);
+    expect(synced.seats.east.river[0]).toMatchObject({ tile: "5p", calledBy: "south" });
+    expect(synced.seats.south.river[0]).toMatchObject({ tile: "1m", calledBy: null });
+  });
+
+  it("盤面→timeline: buildTimelineFromSeats が river の calledBy を引き継ぐ", () => {
+    const k = kifu({
+      seats: {
+        east: { river: [{ ...river(1, "5p"), calledBy: "south" }] },
+        south: {},
+        west: {},
+        north: {},
+      },
+    });
+    const tl = buildTimelineFromSeats(k);
+    expect(tl[0]).toMatchObject({ kind: "discard", seat: "east", tile: "5p", calledBy: "south" });
+  });
+
+  it("reconcileTimeline: 盤面編集後も river の calledBy が timeline に保たれる", () => {
+    const k = kifu({
+      seats: {
+        east: { river: [{ ...river(1, "5p"), calledBy: "south" }] },
+        south: {},
+        west: {},
+        north: {},
+      },
+      timeline: [disc("east", "5p")], // 旧 timeline は calledBy なし（seats 側が編集面）
+    });
+    const next = reconcileTimeline(k);
+    const first = next.timeline[0];
+    if (first?.kind !== "discard") throw new Error("discard expected");
+    expect(first.calledBy).toBe("south");
+    expect(next.seats.east.river[0]?.calledBy).toBe("south");
   });
 });
 

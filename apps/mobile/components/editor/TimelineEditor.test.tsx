@@ -91,6 +91,17 @@ describe("TimelineEditor（手順エディタ）", () => {
     expect(k.seats.east.river).toHaveLength(0);
   });
 
+  it("「鳴き」ボタンで鳴いた席を順送りできる（河にも同期。web と同一挙動）", () => {
+    const spy = jest.fn();
+    render(<Harness onKifu={spy} />);
+    fireEvent.press(screen.getByText("＋打牌")); // 東の打牌
+    fireEvent.press(screen.getByText("鳴きなし")); // なし→下家（南家）
+    const k = last(spy);
+    expect(k.timeline[0]).toMatchObject({ kind: "discard", calledBy: "south" });
+    expect(k.seats.east.river[0]?.calledBy).toBe("south");
+    expect(screen.getByText("鳴き→南家")).toBeTruthy();
+  });
+
   it("＋鳴きで鳴きを足し、種別を切り替えられる（席の鳴きに反映）", () => {
     const spy = jest.fn();
     render(<Harness onKifu={spy} />);

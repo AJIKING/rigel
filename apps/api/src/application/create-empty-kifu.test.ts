@@ -125,6 +125,16 @@ describe("CreateEmptyKifu", () => {
     expect(log2?.kifu.meta.dealer).toBe("south");
   });
 
+  it("seq 省略時の自動採番は 16(北四局) で頭打ちにする（17局目以降が保存不能な seq にならない）", async () => {
+    const { uc, gameLogs } = make({ games: [game("g1", "u1")], plan: "pro" });
+    for (let i = 0; i < 17; i++)
+      await uc.execute({ userId: "u1", gameId: "g1", cameraBottomSeat: "east" });
+    // 17局目・18局目も seq は 16 に丸める（update-kifu の MAX_SEQ=16 と整合）。
+    const seqs = gameLogs.saved.map((l) => l.seq);
+    expect(seqs[15]).toBe(16);
+    expect(seqs[16]).toBe(16);
+  });
+
   it("meta.dealer を明示したときは局順からの導出で上書きしない", async () => {
     const { uc, gameLogs } = make({ games: [game("g1", "u1")] });
     const result = await uc.execute({

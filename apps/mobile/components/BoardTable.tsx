@@ -213,6 +213,7 @@ export function BoardTable({
                         h={rtHt}
                         riichi={d.riichi}
                         tsumogiri={d.tsumogiri}
+                        called={!!d.calledBy}
                         highlight={
                           highlightRiver?.seat === seat &&
                           highlightRiver.index === ri * RIVER_COLS + ci

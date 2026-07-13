@@ -42,6 +42,7 @@ export function buildTimelineFromSeats(kifu: Kifu): TimelineEvent[] {
         tile: d.tile,
         tsumogiri: d.tsumogiri,
         riichi: d.riichi,
+        calledBy: d.calledBy,
         confidence: d.confidence,
       });
     }
@@ -111,6 +112,8 @@ export function reconcileTimeline(kifu: Kifu): Kifu {
         tile: d.tile,
         tsumogiri: d.tsumogiri,
         riichi: d.riichi,
+        // 鳴かれた印は盤面（seats.river）が編集面なのでそのまま採用する。
+        calledBy: d.calledBy,
         confidence: d.confidence,
       });
     }
@@ -201,6 +204,7 @@ export function timelineToSeats(timeline: TimelineEvent[]): SeatRivers {
         tile: e.tile,
         riichi: e.riichi,
         tsumogiri: e.tsumogiri,
+        calledBy: e.calledBy,
         confidence: e.confidence,
       });
     } else {

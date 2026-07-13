@@ -7,6 +7,7 @@ import type { GameLog } from "../domain/kifu/game-log";
 import type { GameLogRepository } from "../domain/kifu/game-log.repository";
 import { draftLimit } from "../domain/user/user";
 import { isOverLimit } from "./limits";
+import { autoSeq } from "./update-kifu.usecase";
 import type { UserRepository } from "../domain/user/user.repository";
 
 /** 作成時に焼き込める局メタ（写真に写らない情報。記録のみ・点数計算はしない）。 */
@@ -139,8 +140,8 @@ export class CreateEmptyKifu {
     }
 
     const existing = await gameLogs.listByGame(game.id);
-    // 局順は自由に選べる（東一局=1〜北四局=16）。省略時は既存の次。
-    const seq = params.seq ?? existing.length + 1;
+    // 局順は自由に選べる（東一局=1〜北四局=16）。省略時は既存の次（16で頭打ち）。
+    const seq = params.seq ?? autoSeq(existing.length);
     // ルール・選手情報・公開範囲・編集状態は半荘単位。既存局があれば引き継ぐ（局ごとにバラけさせない）。
     const kifu = emptyKifu(now().toISOString(), params.cameraBottomSeat, params.meta, seq);
     if (existing[0]) {

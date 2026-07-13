@@ -48,7 +48,8 @@ export function assembleKifu(params: AssembleParams): Kifu {
 
   for (const cam of CameraSeatSchema.options) {
     const abs = toAbsoluteSeat(cam, cameraBottomSeat);
-    seats[abs].river = rivers[cam].discards;
+    // AI 出力は「写真に写っている河」＝鳴かれた牌は元々含まれない（calledBy は人が手順で足す）。
+    seats[abs].river = rivers[cam].discards.map((d) => ({ ...d, calledBy: null }));
 
     const hand = hands?.[cam];
     if (hand) {

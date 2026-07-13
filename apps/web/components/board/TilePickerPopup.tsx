@@ -1,6 +1,7 @@
 "use client";
 
 import { toAbsoluteSeat, type CameraSeat, type Kifu, type Seat, type Tile } from "@rigel/schema";
+import { otherSeats } from "@rigel/ui";
 import { NUMS, SUITS, windOf, type Suit } from "../../lib/board";
 import { OssTileFace } from "../OssTileFace";
 import { type Selection } from "./shared";
@@ -30,6 +31,8 @@ export interface TilePickerPopupProps {
   onApplyTile: (code: Tile) => void;
   onSetDiscardKind: (tsumogiri: boolean) => void;
   onSetDiscardRiichi: (riichi: boolean) => void;
+  /** 鳴かれた捨て牌の印（誰が鳴いたか。null=鳴かれていない）。河の牌の編集時のみ。 */
+  onSetDiscardCalledBy: (calledBy: Seat | null) => void;
   /** 編集中の牌（手牌/河）または鳴きを取り除く（mobile の「削除」と同等）。 */
   onDelete: () => void;
   onClose: () => void;
@@ -70,6 +73,16 @@ export function TilePickerPopup(p: TilePickerPopupProps) {
 
   // 捨て方・リーチ・鳴きの操作ボックスを出すか（鳴きは meld 自体の編集時以外いつでも）。
   const showOps = sel?.kind === "add" || (sel?.kind === "edit" && sel.loc.area !== "meld");
+
+  // 「鳴かれた」（この捨て牌を誰が鳴いたか）。既存の河の牌の編集時だけ出す。
+  const calledEdit =
+    sel?.kind === "edit" && sel.loc.area === "river"
+      ? {
+          discarder: sel.loc.seat,
+          calledBy: kifu.seats[sel.loc.seat].river[sel.loc.index]?.calledBy ?? null,
+        }
+      : null;
+  const calledCandidates = calledEdit ? otherSeats(calledEdit.discarder) : [];
 
   return (
     <>
@@ -151,6 +164,28 @@ export function TilePickerPopup(p: TilePickerPopupProps) {
                       onClick={() => p.onSetDiscardRiichi(rc)}
                     >
                       {lbl}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+            {calledEdit && (
+              <div className={s.meRow}>
+                <span className={s.meLabel}>鳴かれた</span>
+                <div className={s.meSeg}>
+                  <button
+                    className={calledEdit.calledBy === null ? s.on : ""}
+                    onClick={() => p.onSetDiscardCalledBy(null)}
+                  >
+                    なし
+                  </button>
+                  {calledCandidates.map((abs) => (
+                    <button
+                      key={abs}
+                      className={calledEdit.calledBy === abs ? s.on : ""}
+                      onClick={() => p.onSetDiscardCalledBy(abs)}
+                    >
+                      {names[abs] || `${windOf(abs, dealer)}家`}
                     </button>
                   ))}
                 </div>

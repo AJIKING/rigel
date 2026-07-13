@@ -303,6 +303,10 @@
   /* 左右席も手前/対面と同じ牌サイズにそろえる（基準値=themeBoard を継承）。 */
   gap: 14px;
 }
+/* 鳴かれた捨て牌（他家の鳴きへ移った牌）。河に残して薄く見せる。 */
+.called {
+  opacity: 0.38;
+}
 .nameplate {
   display: flex;
   align-items: center;

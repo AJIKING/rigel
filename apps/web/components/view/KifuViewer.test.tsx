@@ -125,6 +125,22 @@ describe("KifuViewer", () => {
     expect(screen.getByRole("button", { name: "東一局 1本場 第1局" })).toBeTruthy();
   });
 
+  it("鳴かれた捨て牌（calledBy）は河で薄表示の印（data-called）が付く", () => {
+    const d = detail([
+      makeKifu({
+        east: {
+          river: [
+            { order: 1, tile: "5p", calledBy: "south" },
+            { order: 2, tile: "1m" },
+          ],
+        },
+      }),
+    ]);
+    const { container } = renderViewer(d);
+    // 鳴かれた1枚にだけ印が付く。
+    expect(container.querySelectorAll("[data-called]").length).toBe(1);
+  });
+
   it("配牌は理牌して表示する（保存順が乱れていても萬→筒→索→字の順）", () => {
     const d = detail([
       makeKifu({

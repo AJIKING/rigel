@@ -115,6 +115,9 @@ export const DiscardSchema = z.object({
   riichi: z.boolean().default(false),
   /** 自摸切り(ツモった牌をそのまま捨てた)なら true。既定は手出し(false)。UIで少しグレー表示。 */
   tsumogiri: z.boolean().default(false),
+  /** この捨て牌を鳴いた席（ポン/チー/カンで持っていかれた）。null=鳴かれていない。
+   *  牌は河に残して印を付ける表現（[決定] 2026-07-13。巡目・打牌順を保つ。表示は薄く）。 */
+  calledBy: SeatSchema.nullable().default(null),
   confidence: ConfidenceSchema.default(1),
 });
 export type Discard = z.infer<typeof DiscardSchema>;
@@ -176,6 +179,8 @@ export const DiscardEventSchema = z.object({
   tsumogiri: z.boolean().default(false),
   /** 横向きの牌 = リーチ宣言牌。 */
   riichi: z.boolean().default(false),
+  /** この捨て牌を鳴いた席（Discard.calledBy と同義。河と手順の往復で保つ）。 */
+  calledBy: SeatSchema.nullable().default(null),
   confidence: ConfidenceSchema.default(1),
 });
 export type DiscardEvent = z.infer<typeof DiscardEventSchema>;

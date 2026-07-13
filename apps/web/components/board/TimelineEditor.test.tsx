@@ -88,6 +88,22 @@ describe("TimelineEditor", () => {
     expect(next.timeline[0]).toMatchObject({ kind: "discard", tile: null });
   });
 
+  it("「鳴き」ボタンで鳴いた席を順送りできる（なし→下家→…→なし。河にも同期）", () => {
+    const onChange = vi.fn();
+    render(
+      <TimelineEditor
+        kifu={kifu([disc("east", "5p")])}
+        dealer="east"
+        names={NAMES}
+        onChange={onChange}
+      />,
+    );
+    fireEvent.click(screen.getByText("鳴きなし"));
+    const next = onChange.mock.calls[0]![0] as Kifu;
+    expect(next.timeline[0]).toMatchObject({ kind: "discard", calledBy: "south" });
+    expect(next.seats.east.river[0]).toMatchObject({ tile: "5p", calledBy: "south" });
+  });
+
   it("手出し/ツモ切りトグルで tsumogiri が反転する", () => {
     const onChange = vi.fn();
     render(

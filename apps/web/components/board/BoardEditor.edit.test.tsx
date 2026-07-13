@@ -153,6 +153,19 @@ describe("BoardEditor 局順（作成する局の反映と変更）", () => {
     expect(kifu.meta.dealer).toBe("south");
   });
 
+  it("seq が 16 を超える既存局（旧自動採番）は北四局(16)に丸めて表示・保存する（保存不能の回復）", async () => {
+    const d = makeDetail([{ id: "l1" }]);
+    d.logs[0]!.seq = 17; // 旧: 17局目の自動採番。API は seq>16 を拒否するため保存できなかった。
+    const { container } = render(<BoardEditor initialDetail={d} gameId="g1" logId="l1" />);
+    await screen.findByRole("button", { name: "保存" });
+    expect(container.querySelector("header nav b")?.textContent).toBe("北四局");
+
+    fireEvent.click(screen.getByRole("button", { name: "保存" }));
+    await waitFor(() => expect(h.updateKifuAction).toHaveBeenCalled());
+    const [, , seq] = h.updateKifuAction.mock.calls[0] as [string, Kifu, number];
+    expect(seq).toBe(16);
+  });
+
   it("局順の変更を保存すると半荘を再取得し、局メニューもリロード不要で新しい局順になる", async () => {
     const d = makeDetail([{ id: "l1" }]);
     d.logs[0]!.seq = 3;
@@ -190,6 +203,51 @@ describe("BoardEditor 局順（作成する局の反映と変更）", () => {
 
     // 1本場の局へ切り替わる（パンくずの局名ボタンが 1本場 になる）。
     expect(screen.getByRole("button", { name: "東一局 1本場" })).toBeTruthy();
+  });
+});
+
+describe("BoardEditor 鳴かれた捨て牌（calledBy）", () => {
+  it("捨て牌ダイアログの「鳴かれた」で鳴いた席を記録できる（牌は河に残り薄表示になる）", async () => {
+    const { container } = render(
+      <BoardEditor initialDetail={makeDetail([{ id: "l1" }])} gameId="g1" logId="l1" />,
+    );
+    // 東家の河に 5p を追加。
+    fireEvent.click(await screen.findByRole("button", { name: "東家に捨て牌を追加" }));
+    let dialog = screen.getByRole("dialog", { name: "牌を選ぶ" });
+    fireEvent.click(within(dialog).getByText("筒"));
+    fireEvent.click(within(dialog).getByRole("button", { name: tileLabel("5p") }));
+    // その捨て牌を開いて「鳴かれた」を南家に。
+    fireEvent.click(screen.getByRole("button", { name: "東家の河 1枚目 を編集" }));
+    dialog = screen.getByRole("dialog", { name: "牌を選ぶ" });
+    fireEvent.click(within(dialog).getByRole("button", { name: "南家" }));
+    // 盤面では薄表示（data-called）になる。
+    expect(container.querySelector("[data-called]")).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("button", { name: "保存" }));
+    await waitFor(() => expect(h.updateKifuAction).toHaveBeenCalled());
+    const [, kifu] = h.updateKifuAction.mock.calls[0] as [string, Kifu];
+    expect(kifu.seats.east.river[0]).toMatchObject({ tile: "5p", calledBy: "south" });
+  });
+
+  it("捨て牌から鳴きを作ると、鳴き主の既定=下家・from=捨て主・calledBy=鳴き主 が自動で入る", async () => {
+    render(<BoardEditor initialDetail={makeDetail([{ id: "l1" }])} gameId="g1" logId="l1" />);
+    // 東家の河に 5p を追加 → その捨て牌からポンを作る。
+    fireEvent.click(await screen.findByRole("button", { name: "東家に捨て牌を追加" }));
+    let dialog = screen.getByRole("dialog", { name: "牌を選ぶ" });
+    fireEvent.click(within(dialog).getByText("筒"));
+    fireEvent.click(within(dialog).getByRole("button", { name: tileLabel("5p") }));
+    fireEvent.click(screen.getByRole("button", { name: "東家の河 1枚目 を編集" }));
+    dialog = screen.getByRole("dialog", { name: "牌を選ぶ" });
+    fireEvent.click(within(dialog).getByRole("button", { name: "ポン" }));
+    fireEvent.click(within(dialog).getByRole("button", { name: tileLabel("5p") }));
+
+    fireEvent.click(screen.getByRole("button", { name: "保存" }));
+    await waitFor(() => expect(h.updateKifuAction).toHaveBeenCalled());
+    const [, kifu] = h.updateKifuAction.mock.calls[0] as [string, Kifu];
+    // 鳴き主の既定は捨て主の下家（南家）。誰から鳴いたか（from=東家）も自動で入る。
+    expect(kifu.seats.south.melds[0]).toMatchObject({ type: "pon", from: "east" });
+    // 捨て牌は河に残り、鳴かれた印が付く。
+    expect(kifu.seats.east.river[0]).toMatchObject({ tile: "5p", calledBy: "south" });
   });
 });
 

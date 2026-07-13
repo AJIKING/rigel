@@ -226,6 +226,7 @@ describe("KifuSchema（牌譜1件の最終検証）", () => {
       tile: "1m",
       tsumogiri: false,
       riichi: false,
+      calledBy: null,
       confidence: 1,
     });
   });
@@ -426,6 +427,47 @@ describe("toAbsoluteSeat（カメラ相対→絶対席）", () => {
   // 回転方向に依存する。東家を手前に置いた実写真で目視確認してから期待値を確定し、ここを埋める。
   // 確定するまで具体値を焼き付けない（自分たちの開発ガイドの規律）。
   it.todo("手前=東のとき right/top/left が 南/西/北 に対応する（実機確認後に確定）");
+});
+
+describe("鳴かれた捨て牌（calledBy）", () => {
+  const base = {
+    schemaVersion: "1.0.0",
+    capturedAt: "2026-07-13T00:00:00.000Z",
+    seats: { east: {}, south: {}, west: {}, north: {} },
+  };
+
+  it("Discard.calledBy に鳴いた席を記録できる（河に残して印を付ける表現）", () => {
+    const kifu = KifuSchema.parse({
+      ...base,
+      seats: {
+        ...base.seats,
+        east: { river: [{ order: 1, tile: "5p", calledBy: "south" }] },
+      },
+    });
+    expect(kifu.seats.east.river[0]?.calledBy).toBe("south");
+  });
+
+  it("旧データ（calledBy なし）は null に補完される（後方互換）", () => {
+    const kifu = KifuSchema.parse({
+      ...base,
+      seats: { ...base.seats, east: { river: [{ order: 1, tile: "5p" }] } },
+    });
+    expect(kifu.seats.east.river[0]?.calledBy).toBeNull();
+  });
+
+  it("手順の打牌イベントにも calledBy を持てる（既定 null）", () => {
+    const kifu = KifuSchema.parse({
+      ...base,
+      timeline: [
+        { kind: "discard", seat: "east", tile: "5p", calledBy: "south" },
+        { kind: "discard", seat: "south", tile: "1m" },
+      ],
+    });
+    const [a, b] = kifu.timeline;
+    if (a?.kind !== "discard" || b?.kind !== "discard") throw new Error("discard expected");
+    expect(a.calledBy).toBe("south");
+    expect(b.calledBy).toBeNull();
+  });
 });
 
 describe("dealerForSeq（局順→親の席。api の作成時と web の局順変更で共用）", () => {

@@ -132,6 +132,12 @@ export function seatLabel(seat: Seat): string {
   return SEAT_LABELS[seat];
 }
 
+/** 鳴かれた捨て牌（calledBy）の共通表記（「鳴きなし」「鳴き→南家」）。
+ *  web の手順タブ・mobile の手順タブ/編集チップで共用する（表記ゆれ防止）。 */
+export function calledByLabel(calledBy: Seat | null): string {
+  return calledBy ? `鳴き→${seatLabel(calledBy)}家` : "鳴きなし";
+}
+
 const CAMERA_LABELS: Record<CameraSeat, string> = {
   bottom: "手前",
   right: "右",

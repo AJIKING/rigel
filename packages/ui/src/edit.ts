@@ -160,6 +160,7 @@ export function addRiverTile(
     tile,
     riichi: flags.riichi ?? false,
     tsumogiri: flags.tsumogiri ?? false,
+    calledBy: null,
     confidence: 1,
   });
   return syncBoardEdit(KifuSchema.parse(d));
@@ -190,6 +191,33 @@ export function setDiscardFlags(
     if (flags.tsumogiri !== undefined) discard.tsumogiri = flags.tsumogiri;
   }
   return syncBoardEdit(KifuSchema.parse(d));
+}
+
+/** 鳴かれた捨て牌の印（誰が鳴いたか。null=解除）。timeline 非空なら手順にも同期する。 */
+export function setDiscardCalledBy(
+  kifu: Kifu,
+  seat: Seat,
+  index: number,
+  calledBy: Seat | null,
+): Kifu {
+  const d = clone(kifu);
+  const discard = d.seats[seat].river[index];
+  if (discard) discard.calledBy = calledBy;
+  return syncBoardEdit(KifuSchema.parse(d));
+}
+
+/** 自席以外の3席を下家順で返す（鳴き先の候補。ピッカーの選択肢と順送りで共用）。 */
+export function otherSeats(self: Seat): Seat[] {
+  return [1, 2, 3].map((k) => SEAT_ORDER[(SEAT_ORDER.indexOf(self) + k) % 4]!);
+}
+
+/** 「鳴き先」の順送り（なし→下家→対面→上家→なし。自席は出ない）。
+ *  web の手順タブ・mobile の編集チップで共用する。 */
+export function cycleCalledBy(cur: Seat | null, self: Seat): Seat | null {
+  const others = otherSeats(self);
+  if (cur === null) return others[0]!;
+  const i = others.indexOf(cur);
+  return i < 0 || i === others.length - 1 ? null : others[i + 1]!;
 }
 
 /** ピッカー向けの鳴き種別（スキーマの kan_open/closed/added は web 側で選ぶ。既定は明槓）。 */

@@ -1,6 +1,6 @@
 import { KifuSchema, type Kifu } from "@rigel/schema";
 import { describe, expect, it } from "vitest";
-import { applyTileEdit } from "./index";
+import { applyTileEdit, calledByLabel } from "./index";
 import { deriveTimeline, syncSeatsFromTimeline } from "./timeline";
 import {
   addHandTile,
@@ -18,7 +18,10 @@ import {
   removeRiverTile,
   resultModeOf,
   setDoraTile,
+  setDiscardCalledBy,
   setDiscardFlags,
+  cycleCalledBy,
+  otherSeats,
   sortHandTiles,
   sortKifuHands,
   SUITS,
@@ -32,6 +35,40 @@ function kifu(seats: Record<string, unknown> = {}): Kifu {
     seats: { east: {}, south: {}, west: {}, north: {}, ...seats },
   });
 }
+
+describe("鳴かれた捨て牌（setDiscardCalledBy / cycleCalledBy）", () => {
+  it("cycleCalledBy は なし→下家→対面→上家→なし を巡回する（自席は出ない）", () => {
+    expect(cycleCalledBy(null, "east")).toBe("south");
+    expect(cycleCalledBy("south", "east")).toBe("west");
+    expect(cycleCalledBy("west", "east")).toBe("north");
+    expect(cycleCalledBy("north", "east")).toBeNull();
+    expect(cycleCalledBy(null, "north")).toBe("east");
+  });
+
+  it("otherSeats は自席以外の3席を下家順で返す（鳴き先の候補）", () => {
+    expect(otherSeats("east")).toEqual(["south", "west", "north"]);
+    expect(otherSeats("west")).toEqual(["north", "east", "south"]);
+  });
+
+  it("calledByLabel は「鳴きなし/鳴き→◯家」の共通表記（web/mobile の編集UIで共用）", () => {
+    expect(calledByLabel(null)).toBe("鳴きなし");
+    expect(calledByLabel("south")).toBe("鳴き→南家");
+  });
+
+  it("setDiscardCalledBy は指定の捨て牌に印を付け、timeline 非空なら手順にも同期する", () => {
+    const base = KifuSchema.parse({
+      ...kifu({ east: { river: [{ order: 1, tile: "5p" }] } }),
+      timeline: [{ kind: "discard", seat: "east", tile: "5p" }],
+    });
+    const marked = setDiscardCalledBy(base, "east", 0, "south");
+    expect(marked.seats.east.river[0]?.calledBy).toBe("south");
+    const first = marked.timeline[0];
+    if (first?.kind !== "discard") throw new Error("discard expected");
+    expect(first.calledBy).toBe("south");
+    // null で解除できる。
+    expect(setDiscardCalledBy(marked, "east", 0, null).seats.east.river[0]?.calledBy).toBeNull();
+  });
+});
 
 describe("mutateKifu（複製→変更→Zod再検証の共通ヘルパ）", () => {
   it("変更した新しい Kifu を返し、元は不変", () => {

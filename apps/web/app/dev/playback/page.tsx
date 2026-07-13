@@ -52,6 +52,7 @@ const discard = (
   tile,
   tsumogiri: false,
   riichi: false,
+  calledBy: null,
   confidence: 1,
   ...over,
 });

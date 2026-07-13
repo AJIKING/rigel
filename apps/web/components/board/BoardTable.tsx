@@ -125,6 +125,7 @@ export function BoardTable(p: BoardTableProps) {
                                   kind="river"
                                   lay={d.riichi}
                                   tsumogiri={d.tsumogiri}
+                                  called={!!d.calledBy}
                                   review={needsReview(d)}
                                   selected={sel?.kind === "edit" && fkey(sel.loc) === fkey(loc)}
                                   flash={flashKey === fkey(loc)}

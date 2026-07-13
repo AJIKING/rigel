@@ -22,17 +22,26 @@ export function TilePickerSheet({
   onDelete,
   onToggleRiichi,
   onToggleTsumogiri,
+  onToggleCalledBy,
   onClose,
 }: {
   title: string;
   initialSuit?: PickerSuit;
-  /** 河の牌を編集中のときのフラグ状態（それ以外は null）。 */
-  discard?: { riichi: boolean; tsumogiri: boolean } | null;
+  /** 河の牌を編集中のときのフラグ状態（それ以外は null）。
+   *  calledLabel/calledOn は「鳴かれた」チップの表示（ラベルは呼び出し側が席名つきで組む）。 */
+  discard?: {
+    riichi: boolean;
+    tsumogiri: boolean;
+    calledOn?: boolean;
+    calledLabel?: string;
+  } | null;
   canDelete?: boolean;
   onPick: (tile: Tile) => void;
   onDelete?: () => void;
   onToggleRiichi?: () => void;
   onToggleTsumogiri?: () => void;
+  /** 「鳴かれた」チップの順送り（なし→下家→対面→上家→なし）。 */
+  onToggleCalledBy?: () => void;
   onClose: () => void;
 }) {
   const [suit, setSuit] = useState<PickerSuit>(initialSuit);
@@ -64,6 +73,13 @@ export function TilePickerSheet({
             <>
               <Chip label="リーチ" on={discard.riichi} onPress={() => onToggleRiichi?.()} />
               <Chip label="ツモ切り" on={discard.tsumogiri} onPress={() => onToggleTsumogiri?.()} />
+              {discard.calledLabel ? (
+                <Chip
+                  label={discard.calledLabel}
+                  on={discard.calledOn ?? false}
+                  onPress={() => onToggleCalledBy?.()}
+                />
+              ) : null}
             </>
           ) : null}
           {canDelete ? <DangerButton label="削除" onPress={() => onDelete?.()} /> : null}

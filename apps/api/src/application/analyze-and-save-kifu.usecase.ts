@@ -19,6 +19,7 @@ import type { GameLogRepository } from "../domain/kifu/game-log.repository";
 import { firstOfNextMonthUtc } from "../domain/user/user";
 import type { UserRepository } from "../domain/user/user.repository";
 import { MAX_LOGS_PER_GAME } from "./create-empty-kifu.usecase";
+import { autoSeq } from "./update-kifu.usecase";
 
 export type AnalyzeResult =
   { ok: true; gameLog: GameLog; gameId: string } | { ok: false; reason: AnalyzeReason };
@@ -93,7 +94,8 @@ export class AnalyzeAndSaveKifu {
       id: newId(),
       userId: user.id,
       gameId: game.id,
-      seq: existing.length + 1,
+      // 局順の自動採番（16で頭打ち。連荘で局数が16を超えても保存可能な範囲に収める）。
+      seq: autoSeq(existing.length),
       kifu,
       // 公開範囲・編集状態は半荘単位（既存局があれば引き継ぐ）。新規半荘は非公開・下書きで開始。
       visibility: existing[0]?.visibility ?? "private",

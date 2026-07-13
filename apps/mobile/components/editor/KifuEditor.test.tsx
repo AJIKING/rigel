@@ -84,6 +84,30 @@ describe("KifuEditor（モバイル編集画面）", () => {
     expect(saved.seats.east.hand).toHaveLength(0);
   });
 
+  it("seq が 16 を超える既存局（旧自動採番）は北四局(16)に丸めて保存する（API拒否の回復）", () => {
+    const onSave = jest.fn();
+    render(<KifuEditor initialKifu={makeKifu()} initialSeq={17} onSave={onSave} />);
+    fireEvent.press(screen.getByText("保存"));
+    expect(onSave.mock.calls[0]![1]).toBe(16);
+  });
+
+  it("河の編集シートの「鳴き」チップで鳴いた席を順送りできる（web と同一挙動）", () => {
+    const onSave = jest.fn();
+    render(<KifuEditor initialKifu={makeKifu()} initialSeq={1} onSave={onSave} />);
+    fireEvent.press(screen.getByText(/プレビュー/)); // 牌ラベルの重複を避けるため畳む
+    fireEvent.press(screen.getByLabelText("河に追加"));
+    fireEvent.press(screen.getByText("筒"));
+    fireEvent.press(screen.getByLabelText("5筒"));
+    // 追加ピッカーは開いたまま＝直前の捨て牌の切り方チップが出ている。なし→下家（南家）。
+    fireEvent.press(screen.getByText("鳴きなし"));
+    expect(screen.getByText("鳴き→南家")).toBeTruthy();
+    fireEvent.press(screen.getByText("閉じる"));
+
+    fireEvent.press(screen.getByText("保存"));
+    const saved = onSave.mock.calls[0]![0] as Kifu;
+    expect(saved.seats.east.river[0]?.calledBy).toBe("south");
+  });
+
   it("局順を変えると親も局順に連動する（東二局=南家。web の局順変更と同一挙動）", () => {
     const onSave = jest.fn();
     render(<KifuEditor initialKifu={makeKifu()} initialSeq={1} onSave={onSave} />);

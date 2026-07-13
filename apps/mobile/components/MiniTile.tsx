@@ -27,6 +27,7 @@ export function MiniTile({
   riichi = false,
   tsumogiri = false,
   highlight = false,
+  called = false,
 }: {
   code?: TileCode | null;
   w: number;
@@ -35,12 +36,15 @@ export function MiniTile({
   riichi?: boolean;
   tsumogiri?: boolean;
   highlight?: boolean;
+  /** 鳴かれた捨て牌（他家の鳴きへ移った牌）。河で薄表示にする（web と同じ 0.38）。 */
+  called?: boolean;
 }) {
   const box: ViewStyle = {
     width: w,
     height: h,
     borderRadius: Math.max(1, w * 0.1),
     transform: riichi ? [{ rotate: "90deg" }] : undefined,
+    opacity: called ? 0.38 : undefined,
   };
 
   if (back) {
