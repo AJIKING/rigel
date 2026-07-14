@@ -133,9 +133,7 @@ export function KifuEditor({
       return;
     }
     if (picker.kind === "add-meld")
-      setKifu(
-        addMeld(kifu, seat, picker.meld, code, picker.meld === "chi" ? chiIndex : undefined),
-      );
+      setKifu(addMeld(kifu, seat, picker.meld, code, picker.meld === "chi" ? chiIndex : undefined));
     else if (picker.kind === "edit-hand")
       setKifu(applyTileEdit(kifu, { seat, area: "hand", index: picker.index }, code));
     else if (picker.kind === "edit-river")

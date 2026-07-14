@@ -18,8 +18,7 @@ import { firstOfNextMonthUtc } from "../domain/user/user";
 import type { UserRepository } from "../domain/user/user.repository";
 
 export type AnalyzeProblemDraftResult =
-  | { ok: true; kifu: Kifu }
-  | { ok: false; reason: "user_not_found" | "quota_exceeded" };
+  { ok: true; kifu: Kifu } | { ok: false; reason: "user_not_found" | "quota_exceeded" };
 
 export interface AnalyzeProblemDraftDeps {
   users: UserRepository;
@@ -42,7 +41,10 @@ export class AnalyzeProblemDraft {
     return { ok: true };
   }
 
-  async execute(params: { userId: string; input: AnalysisInput }): Promise<AnalyzeProblemDraftResult> {
+  async execute(params: {
+    userId: string;
+    input: AnalysisInput;
+  }): Promise<AnalyzeProblemDraftResult> {
     const { users, analyzer, store, now } = this.deps;
 
     const user = await users.findById(params.userId);

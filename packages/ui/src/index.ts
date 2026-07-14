@@ -778,9 +778,7 @@ export function kifuToProblemDraft(
   const overflow = tiles.length > max;
   const drawn = overflow ? tiles[tiles.length - 1]! : null;
   const hand = sortHandTiles(
-    (overflow ? tiles.slice(0, -1) : tiles)
-      .slice(0, max)
-      .map((tile) => ({ tile, confidence: 1 })),
+    (overflow ? tiles.slice(0, -1) : tiles).slice(0, max).map((tile) => ({ tile, confidence: 1 })),
   ).flatMap((t) => (t.tile ? [t.tile] : []));
   const rivers = Object.fromEntries(
     SEAT_ORDER.map((seat) => [
@@ -923,9 +921,7 @@ export function choiceKeyLabel(key: string): string {
     const b = after[0];
     const tile = b === undefined ? null : tileOf(b);
     if (after.length === 0 || (after.length === 1 && tile)) {
-      const chiTiles = run
-        ? ([0, 1, 2].map((k) => `${run[k]}${run[3]}`) as Tile[])
-        : null;
+      const chiTiles = run ? ([0, 1, 2].map((k) => `${run[k]}${run[3]}`) as Tile[]) : null;
       return actionLabel({ type: "call", call: a, chiTiles, discard: tile });
     }
   }

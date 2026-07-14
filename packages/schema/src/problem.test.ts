@@ -92,9 +92,7 @@ describe("チーの構成（chiTiles）", () => {
 
   it("choiceKey は構成つきチーを別の選択肢として数える（赤5は5に正規化）", () => {
     const key = (chiTiles: Tile[] | null) =>
-      choiceKey(
-        ProblemActionSchema.parse({ type: "call", call: "chi", chiTiles, discard: "1m" }),
-      );
+      choiceKey(ProblemActionSchema.parse({ type: "call", call: "chi", chiTiles, discard: "1m" }));
     expect(key(["3p", "4p", "5p"])).toBe("call:chi:345p:1m");
     expect(key(["4p", "0p", "6p"])).toBe("call:chi:456p:1m");
     expect(key(null)).toBe("call:chi:1m"); // 旧回答のキーは不変

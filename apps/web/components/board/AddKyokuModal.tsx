@@ -164,12 +164,7 @@ export function AddKyokuModal({
         {effMode === "ai" ? (
           <div className={s.modalBody}>
             {quotaLabel && <p className={s.note}>{quotaLabel}</p>}
-            <PhotoField
-              wide
-              label="河（卓を上から1枚）"
-              file={river}
-              onChange={setRiver}
-            />
+            <PhotoField wide label="河（卓を上から1枚）" file={river} onChange={setRiver} />
             <div className={s.upGrid}>
               {HANDS.map(({ cam, label }) => (
                 <PhotoField

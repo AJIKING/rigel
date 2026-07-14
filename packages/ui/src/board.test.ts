@@ -64,7 +64,12 @@ describe("hasPlayerPoints", () => {
   const zero = { name: "", points: 0 };
   it("1人でもポイントが記録されていれば true", () => {
     expect(
-      hasPlayerPoints({ east: { name: "多井", points: 12.3 }, south: zero, west: zero, north: zero }),
+      hasPlayerPoints({
+        east: { name: "多井", points: 12.3 },
+        south: zero,
+        west: zero,
+        north: zero,
+      }),
     ).toBe(true);
     expect(
       hasPlayerPoints({ east: zero, south: { name: "", points: -0.1 }, west: zero, north: zero }),

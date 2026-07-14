@@ -27,11 +27,7 @@ export function PhotoField({
 }) {
   return (
     <label className={`${s.up} ${wide ? s.upRiver : ""} ${file ? s.filled : ""}`}>
-      <input
-        type="file"
-        accept="image/*"
-        onChange={(e) => onChange(e.target.files?.[0] ?? null)}
-      />
+      <input type="file" accept="image/*" onChange={(e) => onChange(e.target.files?.[0] ?? null)} />
       <div className={s.upIn}>
         {icon === "camera" ? (
           <svg viewBox="0 0 24 24">

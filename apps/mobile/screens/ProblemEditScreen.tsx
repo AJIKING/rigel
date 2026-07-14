@@ -47,7 +47,13 @@ import { MiniTile } from "../components/MiniTile";
 import { Segment } from "../components/Segment";
 import { Stepper } from "../components/Stepper";
 import { TilePickerSheet } from "../components/editor/TilePickerSheet";
-import { analyzeProblem, createProblem, getProblem, updateProblem, type ProblemPost } from "../lib/api";
+import {
+  analyzeProblem,
+  createProblem,
+  getProblem,
+  updateProblem,
+  type ProblemPost,
+} from "../lib/api";
 import { useAuth } from "../lib/auth";
 import type { RootStackParamList } from "../lib/navigation";
 import { pickImage, type PickedImage } from "../lib/pick-image";
@@ -388,9 +394,7 @@ function EditorBody({ initial, token }: { initial?: ProblemPost; token: string |
             >
               <Text style={styles.photoGoText}>{analyzing ? "解析中…" : "AI再現"}</Text>
             </Pressable>
-            <Text style={styles.hint}>
-              読み違いは下の編集で直せます（画像は保存されません）。
-            </Text>
+            <Text style={styles.hint}>読み違いは下の編集で直せます（画像は保存されません）。</Text>
           </View>
         ) : null}
         {/* AIの読み取りメモ（グレア・見切れ等）と要確認（低confidence）。人の確認を促す。 */}
