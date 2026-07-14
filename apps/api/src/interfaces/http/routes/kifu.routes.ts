@@ -5,16 +5,8 @@ import { CameraSeatSchema, SeatSchema } from "@rigel/schema";
 import type { Hono } from "hono";
 import type { AnalysisInput, ImageRef } from "../../../domain/kifu/analyzer";
 import { reasonStatus, requireAuth, type AppEnv } from "../shared";
-import { isValidImageFile, MAX_IMAGE_COUNT } from "../limits";
+import { asFile, isValidImageFile, toImageRef, MAX_IMAGE_COUNT } from "../limits";
 import { parseKifu } from "../validate";
-
-function asFile(value: unknown): File | null {
-  return value instanceof File ? value : null;
-}
-
-async function toImageRef(file: File): Promise<ImageRef> {
-  return { data: await file.arrayBuffer(), mimeType: file.type || "image/jpeg" };
-}
 
 export function registerKifuRoutes(app: Hono<AppEnv>): void {
   // 牌譜JSONの検証のみ（保存はしない）。背骨スキーマで弾く。

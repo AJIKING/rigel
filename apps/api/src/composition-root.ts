@@ -7,6 +7,7 @@
 // ============================================================
 
 import { AnalyzeAndSaveKifu } from "./application/analyze-and-save-kifu.usecase";
+import { AnalyzeProblemDraft } from "./application/analyze-problem-draft.usecase";
 import { AuthenticateWithGoogle } from "./application/authenticate-with-google.usecase";
 import { CreateEmptyKifu } from "./application/create-empty-kifu.usecase";
 import { DeleteGame } from "./application/delete-game.usecase";
@@ -62,6 +63,7 @@ import { DrizzleUserRepository } from "./infrastructure/user/drizzle-user.reposi
 
 export interface AppContainer {
   analyzeAndSaveKifu: AnalyzeAndSaveKifu;
+  analyzeProblemDraft: AnalyzeProblemDraft;
   getKifu: GetKifu;
   listKifu: ListKifu;
   updateKifu: UpdateKifu;
@@ -160,16 +162,20 @@ export function buildContainer(env: Env): AppContainer {
     ? new HttpRevenueCatGateway({ stripePublicKey: env.REVENUECAT_STRIPE_PUBLIC_KEY })
     : null;
 
+  const analysisStore = new DrizzleAnalysisStore(db);
+
   return {
     analyzeAndSaveKifu: new AnalyzeAndSaveKifu({
       users,
       games: gamesRepo,
       gameLogs,
       analyzer,
-      store: new DrizzleAnalysisStore(db),
+      store: analysisStore,
       now,
       newId,
     }),
+    // 何切るの写真AI再現（保存なし・ドラフト返却のみ。課金カウントは共有ストアで原子加算）。
+    analyzeProblemDraft: new AnalyzeProblemDraft({ users, analyzer, store: analysisStore, now }),
     getKifu: new GetKifu(gameLogs),
     listKifu: new ListKifu(gameLogs),
     updateKifu: new UpdateKifu(gameLogs),

@@ -727,6 +727,96 @@ export function assembleProblem(draft: ProblemDraft): { problem?: Problem; error
   return { problem: parsed.data };
 }
 
+/** kifuToProblemDraft が返す要確認牌（低 confidence で読まれた牌）。 */
+export interface DraftReviewTile {
+  tile: Tile;
+  confidence: number;
+}
+
+/** 要確認牌の共通表記（例「要確認: 1萬(0.4)、9索(0.5)」。空なら空文字）。web/mobile で共用。 */
+export function reviewSummaryLabel(review: DraftReviewTile[]): string {
+  if (review.length === 0) return "";
+  return `要確認: ${review.map((r) => `${tileLabel(r.tile)}(${r.confidence.toFixed(1)})`).join("、")}`;
+}
+
+/**
+ * AIドラフト（写真解析結果の Kifu 形）を何切る編集ドラフト（ProblemDraft）へ写す。
+ * Problem は確定牌のみの世界なので、null 牌（読めなかった牌）は落とす＝推測して埋めない。
+ * null を含む副露も丸ごと落とし、残った副露で手牌上限（13 - 3×副露）を数える。
+ * 手牌が上限を超えて読めたら、読み順の末尾をツモ欄に置く（[決定] 2026-07-14。作者が直せる）。
+ * それでも入り切らない牌は省き、readingNotes で告げる（黙って捨てない）。
+ * Problem は confidence を持てないため、低確信の牌は review として返し UI で明示する
+ * （「自信満々の誤読を出さない」＝確定牌への無言の昇格を防ぐ信頼ゲート）。
+ */
+export function kifuToProblemDraft(
+  kifu: Kifu,
+  pov: Seat,
+): { draft: ProblemDraft; readingNotes: string; review: DraftReviewTile[] } {
+  const board = kifu.seats[pov];
+  const melds = board.melds.filter((m) => m.tiles.every((t) => t.tile !== null));
+  const tiles = board.hand.flatMap((t) => (t.tile ? [t.tile] : []));
+  const max = problemHandMax(melds.length);
+  const overflow = tiles.length > max;
+  const drawn = overflow ? tiles[tiles.length - 1]! : null;
+  const hand = sortHandTiles(
+    (overflow ? tiles.slice(0, -1) : tiles)
+      .slice(0, max)
+      .map((tile) => ({ tile, confidence: 1 })),
+  ).flatMap((t) => (t.tile ? [t.tile] : []));
+  const rivers = Object.fromEntries(
+    SEAT_ORDER.map((seat) => [
+      seat,
+      kifu.seats[seat].river.flatMap((d) =>
+        d.tile ? [{ tile: d.tile, tsumogiri: d.tsumogiri }] : [],
+      ),
+    ]),
+  ) as Record<Seat, DraftRiverTile[]>;
+
+  // 低 confidence で読まれた牌（手牌・副露・全席の河）。UI が「要確認」として人に見せる。
+  const review: DraftReviewTile[] = [];
+  const collect = (t: ReadTile) => {
+    if (t.tile !== null && needsReview(t)) review.push({ tile: t.tile, confidence: t.confidence });
+  };
+  board.hand.forEach(collect);
+  melds.forEach((m) => m.tiles.forEach(collect));
+  SEAT_ORDER.forEach((seat) => kifu.seats[seat].river.forEach(collect));
+
+  // 上限＋ツモ1枚に入り切らず省いた枚数（黙って捨てない）。
+  const dropped = overflow ? Math.max(0, tiles.length - 1 - max) : 0;
+  const readingNotes = [
+    kifu.readingNotes,
+    dropped > 0 ? `読み取った手牌が多すぎたため${dropped}枚を省きました。` : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
+
+  return {
+    review,
+    readingNotes,
+    draft: {
+      kind: "discard",
+      pov,
+      hand,
+      melds,
+      drawn,
+      // 鳴き判断へ切り替えたときの対象席の既定（自席は不可なので下家）。
+      targetSeat: SEAT_ORDER[(SEAT_ORDER.indexOf(pov) + 1) % 4]!,
+      rivers,
+      meta: {
+        dealer: kifu.meta.dealer,
+        roundWind: kifu.meta.roundWind,
+        honba: kifu.meta.honba,
+        kyotaku: kifu.meta.kyotaku,
+        junme: kifu.meta.junme,
+        dora: kifu.meta.dora,
+      },
+      scores: null,
+      rules: kifu.rules,
+      explanation: "",
+    },
+  };
+}
+
 /** チー構成の表示（例 "345筒"。赤5は5表記＝集計キーと同じ同一視。スート名は SUITS と共用）。 */
 export function chiRunLabel(run: Tile[]): string {
   const digits = run

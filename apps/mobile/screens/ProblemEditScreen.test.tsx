@@ -1,4 +1,4 @@
-import { ProblemSchema, type Problem } from "@rigel/schema";
+import { KifuSchema, ProblemSchema, type Problem } from "@rigel/schema";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react-native";
 import { makePost } from "./problem-test-helpers";
 import { ProblemEditScreen } from "./ProblemEditScreen";
@@ -11,7 +11,10 @@ jest.mock("@react-navigation/native", () => ({
   useRoute: () => ({ params: mockParams }),
 }));
 
-let mockAuth: { token: string | null; user: { plan: string } | null };
+let mockAuth: {
+  token: string | null;
+  user: { plan: string; remainingCalls?: number; monthlyCallQuota?: number } | null;
+};
 jest.mock("../lib/auth", () => ({
   useAuth: () => mockAuth,
 }));
@@ -19,10 +22,17 @@ jest.mock("../lib/auth", () => ({
 const mockGetProblem = jest.fn();
 const mockCreateProblem = jest.fn();
 const mockUpdateProblem = jest.fn();
+const mockAnalyzeProblem = jest.fn();
 jest.mock("../lib/api", () => ({
   getProblem: (...args: unknown[]) => mockGetProblem(...args),
   createProblem: (...args: unknown[]) => mockCreateProblem(...args),
   updateProblem: (...args: unknown[]) => mockUpdateProblem(...args),
+  analyzeProblem: (...args: unknown[]) => mockAnalyzeProblem(...args),
+}));
+
+const mockPickImage = jest.fn();
+jest.mock("../lib/pick-image", () => ({
+  pickImage: (...args: unknown[]) => mockPickImage(...args),
 }));
 
 /** 手牌13枚を入力し、ピッカーは開いたままにする（13枚目で入力先の自動切替を観察する用）。 */
@@ -55,6 +65,54 @@ describe("ProblemEditScreen（何切る問題の作成/編集）", () => {
     jest.clearAllMocks();
     mockAuth = { token: "t", user: { plan: "free" } };
     mockParams = undefined;
+  });
+
+  it("写真から作成: 解析結果（AIドラフト）がエディタへ流し込まれ、読み取りメモが出る", async () => {
+    mockAuth = { token: "t", user: { plan: "pro", remainingCalls: 300, monthlyCallQuota: 320 } };
+    mockPickImage.mockResolvedValue({
+      status: "picked",
+      file: { uri: "file://h.jpg", name: "h.jpg", type: "image/jpeg" },
+    });
+    mockAnalyzeProblem.mockResolvedValue({
+      ok: true,
+      kifu: KifuSchema.parse({
+        schemaVersion: "1.0.0",
+        capturedAt: "2026-07-14T00:00:00.000Z",
+        cameraBottomSeat: "east",
+        seats: {
+          east: {
+            hand: [
+              { tile: "1m", confidence: 0.5 }, // 低confidence → 要確認として明示
+              { tile: null, confidence: 0 }, // 読めない牌は落ちる
+            ],
+          },
+          south: { river: [{ order: 1, tile: "9s", confidence: 0.8 }] },
+          west: {},
+          north: {},
+        },
+        readingNotes: "グレアで1枚読めず",
+      }),
+    });
+    render(<ProblemEditScreen />);
+
+    // 残枠は撮る前に見せる（送信後の枠切れで手間を無駄にしない。Capture と同方針）。
+    expect(screen.getByText("解析枠 残り 300 / 320（今月）")).toBeTruthy();
+    fireEvent.press(screen.getByText(/手牌の写真/));
+    await waitFor(() => expect(mockPickImage).toHaveBeenCalled());
+    fireEvent.press(screen.getByText("AI再現"));
+
+    // 読み取りメモ・要確認（低confidence=1萬 0.5）が出て、手牌・河が流し込まれる。
+    expect(await screen.findByText(/グレアで1枚読めず/)).toBeTruthy();
+    expect(screen.getByText(/要確認: .*1萬\(0\.5\)/)).toBeTruthy();
+    expect(mockAnalyzeProblem).toHaveBeenCalled();
+    // 手牌チップ・南家の河チップ（盤面プレビューにも同じ牌が出るため複数一致を許容）。
+    expect(screen.getAllByLabelText("1萬").length).toBeGreaterThan(0);
+    expect(screen.getAllByLabelText("9索").length).toBeGreaterThan(0);
+  });
+
+  it("free プランには「写真から作成」を出さない（解析枠0＝kifu と同方針）", () => {
+    render(<ProblemEditScreen />); // mockAuth 既定 = free
+    expect(screen.queryByText(/写真から作成/)).toBeNull();
   });
 
   it("13枚+ツモ+コメントを入れて公開保存すると、答えを持たない problem が createProblem に渡る", async () => {

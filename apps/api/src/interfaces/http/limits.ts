@@ -30,3 +30,13 @@ export function isValidImageFile(file: File): boolean {
     (ALLOWED_IMAGE_MIME as readonly string[]).includes(file.type)
   );
 }
+
+/** multipart のフィールドを File として安全に取り出す（文字列などは null）。 */
+export function asFile(value: unknown): File | null {
+  return value instanceof File ? value : null;
+}
+
+/** File → 解析用 ImageRef（バイト列＋MIME）。永続化はしない前提で使い捨てる。 */
+export async function toImageRef(file: File): Promise<{ data: ArrayBuffer; mimeType: string }> {
+  return { data: await file.arrayBuffer(), mimeType: file.type || "image/jpeg" };
+}

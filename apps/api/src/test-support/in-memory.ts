@@ -1,6 +1,10 @@
 // テスト用の in-memory リポジトリ（ポートのフェイク実装）。本番バンドルには含まれない。
 
-import type { AnalysisCommitInput, AnalysisStore } from "../domain/analysis/analysis-store";
+import type {
+  AnalysisCommitInput,
+  AnalysisCounterDelta,
+  AnalysisStore,
+} from "../domain/analysis/analysis-store";
 import type { AccountStore } from "../domain/user/account-store";
 import type { RevenueCatEventRepository } from "../domain/billing/revenuecat";
 import type { Game } from "../domain/game/game";
@@ -322,6 +326,10 @@ export class InMemoryAnalysisStore implements AnalysisStore {
   async commit({ newGame, gameLog, counter }: AnalysisCommitInput): Promise<void> {
     if (newGame) await this.games.save(newGame);
     await this.gameLogs.save(gameLog);
+    await this.recordCalls(counter);
+  }
+
+  async recordCalls(counter: AnalysisCounterDelta): Promise<void> {
     // 本物（SQL の加算）と同じ意味になるよう、保存済みの状態に差分を適用する
     //（月境界のリセット判定はドメイン＝User.recordGeminiCalls が持つ）。
     const user = await this.users.findById(counter.userId);

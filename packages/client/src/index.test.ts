@@ -15,6 +15,34 @@ const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
 
 describe("createApiClient", () => {
+  it("analyzeProblem は POST /problems/analyze してドラフト Kifu を返す（保存なし）", async () => {
+    const kifu = KifuSchema.parse({
+      schemaVersion: "1.0.0",
+      capturedAt: "2026-07-14T00:00:00.000Z",
+      seats: { east: {}, south: {}, west: {}, north: {} },
+    });
+    const client = createApiClient(
+      "https://api.test",
+      fakeFetch2((url, init) => {
+        expect(url).toBe("https://api.test/problems/analyze");
+        expect(init?.method).toBe("POST");
+        return json({ ok: true, kifu });
+      }),
+    );
+    const result = await client.analyzeProblem("tok", new FormData());
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.kifu.schemaVersion).toBe("1.0.0");
+  });
+
+  it("analyzeProblem の失敗は status と reason を返す（枠切れ 403 など）", async () => {
+    const client = createApiClient(
+      "https://api.test",
+      fakeFetch(() => json({ ok: false, reason: "quota_exceeded" }, 403)),
+    );
+    const result = await client.analyzeProblem("tok", new FormData());
+    expect(result).toEqual({ ok: false, status: 403, reason: "quota_exceeded" });
+  });
+
   it("getGames は一覧を返す", async () => {
     const client = createApiClient(
       "https://api.test",

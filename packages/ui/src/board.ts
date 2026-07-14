@@ -1,7 +1,7 @@
 // @rigel/ui — 盤面表示の共有ヘルパ（プラットフォーム非依存）。
 // web/mobile 両ビューアが同じ「席の自風・局名・河の巡送り」ロジックを共有する。
 
-import type { Agari, Kifu, Players, Seat } from "@rigel/schema";
+import type { Agari, Kifu, MeldType, Players, Seat } from "@rigel/schema";
 import { deriveTimeline } from "./timeline";
 
 /** 局結果コード（スキーマの ResultSchema と一致。型が未エクスポートのためここで定義）。 */
@@ -36,6 +36,15 @@ export function roundNameForSeq(seq: number): string {
 export function roundHonbaLabel(seq: number, honba: number): string {
   return `${roundNameForSeq(seq)} ${honba}本場`;
 }
+
+/** 鳴き種別の表示名（手順タブ・鳴き一覧で共用。web/mobile の表記ゆれ防止）。 */
+export const MELD_TYPE_LABELS: Record<MeldType, string> = {
+  pon: "ポン",
+  chi: "チー",
+  kan_open: "大明槓",
+  kan_closed: "暗槓",
+  kan_added: "加槓",
+};
 
 /** リーグ戦ポイントが1人でも記録されているか。全員 0.0 の選手情報は「まだ記録していない」
  *  とみなし、再生画面のポイント表示は既定で隠す（トグルで出せる）。web/mobile 共用。 */

@@ -5,7 +5,6 @@ import {
   type DiscardEvent,
   type Kifu,
   type Meld,
-  type MeldType,
   type Seat,
   type Tile,
   type TimelineEvent,
@@ -23,19 +22,12 @@ import {
   seatLabel,
   syncSeatsFromTimeline,
   timelineTurns,
+  MELD_TYPE_LABELS,
 } from "@rigel/ui";
 import { useState } from "react";
 import { OssTileFace } from "../OssTileFace";
 import { NUMS, SUITS, type Suit } from "../../lib/board";
 import s from "./timeline-editor.module.css";
-
-const MELD_LABEL: Record<MeldType, string> = {
-  pon: "ポン",
-  chi: "チー",
-  kan_open: "大明槓",
-  kan_closed: "暗槓",
-  kan_added: "加槓",
-};
 
 /** ピッカーの対象。draw/disc は打牌イベント、mtile は鳴き牌。 */
 type PickTarget =
@@ -248,7 +240,7 @@ export function TimelineEditor({
                 ) : (
                   <>
                     <button className={s.kind} onClick={() => commit(cycleMeldType(timeline, i))}>
-                      {MELD_LABEL[e.meld.type]}
+                      {MELD_TYPE_LABELS[e.meld.type]}
                     </button>
                     <span className={s.mtiles}>
                       {e.meld.tiles.map((rt, ti) => (

@@ -12,6 +12,7 @@ import {
 } from "@rigel/schema";
 import {
   analyze,
+  analyzeProblem,
   answerProblem,
   createCheckout,
   createPortal,
@@ -109,6 +110,11 @@ export async function createGameAction(cameraBottomSeat: Seat, meta?: KifuMetaIn
 
 export async function analyzeAction(form: FormData) {
   return analyze(await requireToken(), form);
+}
+
+/** 何切るの写真AI再現（保存なし・Kifu 形のドラフト返却のみ）。 */
+export async function analyzeProblemAction(form: FormData) {
+  return analyzeProblem(await requireToken(), form);
 }
 
 export async function updateProfileAction(update: { handle?: string; displayName?: string }) {

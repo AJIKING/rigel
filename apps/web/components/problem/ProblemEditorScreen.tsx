@@ -3,6 +3,7 @@
 import {
   RulesSchema,
   SeatSchema,
+  type Kifu,
   type Meld,
   type ProblemKind,
   type Rules,
@@ -14,7 +15,10 @@ import {
   assembleProblem,
   compareTiles,
   draftToKifu,
+  kifuToProblemDraft,
+  planCanAnalyze,
   problemHandMax,
+  reviewSummaryLabel,
   problemRiverTiles,
   seatLabel,
   tileLabel,
@@ -30,6 +34,7 @@ import { useRouter } from "next/navigation";
 import { useMemo, useRef, useState } from "react";
 import { createProblemAction, updateProblemAction } from "../../app/actions";
 import { type ProblemPost } from "../../lib/api";
+import { useAuth } from "../../lib/auth-context";
 import { useBoardScale } from "../../lib/use-board-scale";
 import { AppHeader } from "../AppHeader";
 import { RulesDialog } from "../board/RulesDialog";
@@ -37,6 +42,7 @@ import { Stepper } from "../board/Stepper";
 import { OssTileFace } from "../OssTileFace";
 import { ViewBoard } from "../view/ViewBoard";
 import { ProblemBoardCenter } from "./ProblemBoardCenter";
+import { ProblemPhotoModal } from "./ProblemPhotoModal";
 import s from "./problem.module.css";
 
 /** 牌グリッドの入力先。 */
@@ -159,7 +165,10 @@ function TileChipRow({
  */
 export function ProblemEditorScreen({ initial }: { initial?: ProblemPost }) {
   const router = useRouter();
+  const { user } = useAuth();
   const p0 = initial?.problem;
+  // 写真からのAI再現は有料プランのみ（free は解析枠0。kifu の AddKyokuModal と同一方針）。
+  const canAnalyze = planCanAnalyze(user?.plan ?? "free");
 
   const [kind, setKind] = useState<ProblemKind>(p0?.kind ?? "discard");
   const [pov, setPov] = useState<Seat>(p0?.pov ?? "east");
@@ -193,6 +202,30 @@ export function ProblemEditorScreen({ initial }: { initial?: ProblemPost }) {
   const [suit, setSuit] = useState<PickerSuit>("m");
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  // 写真からのAI再現。流し込み後は readingNotes と要確認（低confidence）を出して人の確認を促す。
+  const [photoOpen, setPhotoOpen] = useState(false);
+  const [readingNotes, setReadingNotes] = useState("");
+  const [aiReview, setAiReview] = useState("");
+
+  /** AIドラフト（Kifu 形）をエディタの各状態へ流し込む（変換は @rigel/ui の共有純関数）。 */
+  function applyAiDraft(kifu: Kifu) {
+    const { draft, readingNotes: notes, review } = kifuToProblemDraft(kifu, pov);
+    setHand(draft.hand);
+    setMelds(draft.melds);
+    setDrawn(draft.drawn);
+    setRivers(draft.rivers);
+    setDora(draft.meta.dora);
+    setJunme(draft.meta.junme);
+    setHonba(draft.meta.honba);
+    setKyotaku(draft.meta.kyotaku);
+    if (draft.meta.dealer) setDealer(draft.meta.dealer);
+    if (draft.meta.roundWind) setRoundWind(draft.meta.roundWind);
+    setReadingNotes(notes);
+    // 低confidenceの牌は「要確認」として明示する（黙って確定牌に昇格させない＝信頼ゲート）。
+    setAiReview(reviewSummaryLabel(review));
+    setPhotoOpen(false);
+    setErr(null);
+  }
 
   const handMax = problemHandMax(melds.length);
   const sortedHand = [...hand].sort(compareTiles);
@@ -412,7 +445,16 @@ export function ProblemEditorScreen({ initial }: { initial?: ProblemPost }) {
           <button type="button" className={s.rulesBtn} onClick={() => setRulesOpen(true)}>
             ⚙ ルール設定
           </button>
+          {/* 写真からのAI再現（有料のみ）。手牌・河のベースを流し込み、作者が修正する。 */}
+          {canAnalyze && (
+            <button type="button" className={s.rulesBtn} onClick={() => setPhotoOpen(true)}>
+              📷 写真から作成
+            </button>
+          )}
         </div>
+        {/* AIの読み取りメモ（グレア・見切れ等）と要確認（低confidence）。人の確認を促す。 */}
+        {readingNotes && <p className={s.hint}>読み取りメモ: {readingNotes}</p>}
+        {aiReview && <p className={s.hint}>{aiReview}</p>}
         <Stepper label="巡目" unit="巡目" value={junme} min={1} max={30} set={setJunme} />
         <Stepper label="本場" unit="本場" value={honba} min={0} max={19} set={setHonba} />
         <Stepper label="供託" unit="本" value={kyotaku} min={0} max={9} set={setKyotaku} />
@@ -624,6 +666,10 @@ export function ProblemEditorScreen({ initial }: { initial?: ProblemPost }) {
             setRulesOpen(false);
           }}
         />
+      )}
+
+      {photoOpen && (
+        <ProblemPhotoModal pov={pov} onClose={() => setPhotoOpen(false)} onDone={applyAiDraft} />
       )}
     </div>
   );

@@ -65,6 +65,21 @@ describe("GeminiAnalyzer.analyze", () => {
     expect(kifu.seats.east.river[0]?.tile).toBe("1m");
   });
 
+  it("河なし（手牌のみ＝何切る用）は河の読み取りをスキップし、呼び出し数にも数えない", async () => {
+    const client = new FakeClient();
+    const analyzer = new GeminiAnalyzer(makeDeps(client, new FakePreprocessor()));
+
+    const { kifu, geminiCalls } = await analyzer.analyze({
+      hands: { bottom: img("hand-bottom") },
+      cameraBottomSeat: "east",
+    });
+
+    expect(client.riverCalls).toBe(0); // 河は読まない
+    expect(geminiCalls).toBe(1); // 手牌1枚ぶんだけ課金
+    expect(kifu.seats.east.hand[0]?.tile).toBe("2p");
+    expect(kifu.seats.east.river).toEqual([]); // 河は空のまま（推測しない）
+  });
+
   it("手牌が提供された方向だけ読み、その席の手牌に入る", async () => {
     const client = new FakeClient();
     const analyzer = new GeminiAnalyzer(makeDeps(client, new FakePreprocessor()));

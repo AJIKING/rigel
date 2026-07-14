@@ -81,6 +81,21 @@ describe("HTTP app (Hono)", () => {
     expect(res.status).toBe(400);
   });
 
+  it("POST /problems/analyze はトークン無しで 401", async () => {
+    const res = await app.request("/problems/analyze", { method: "POST" }, fakeEnv);
+    expect(res.status).toBe(401);
+  });
+
+  it("POST /problems/analyze は認証済みでも hand（自分の手牌写真）が無ければ 400", async () => {
+    const token = await new JwtSessionService({ secret: "test-secret" }).issue("u1");
+    const res = await app.request(
+      "/problems/analyze",
+      { method: "POST", headers: { authorization: `Bearer ${token}` } },
+      fakeEnv,
+    );
+    expect(res.status).toBe(400);
+  });
+
   // 「量」の防御（乱用耐性）。形が正しくても大きすぎるものは入口で弾く。
   describe("サイズ・種別の上限", () => {
     const auth = async () => new JwtSessionService({ secret: "test-secret" }).issue("u1");

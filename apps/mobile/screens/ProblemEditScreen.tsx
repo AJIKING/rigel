@@ -2,6 +2,7 @@ import { useNavigation, useRoute, type RouteProp } from "@react-navigation/nativ
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import {
   RulesSchema,
+  type Kifu,
   type Meld,
   type Problem,
   type ProblemKind,
@@ -10,12 +11,17 @@ import {
 } from "@rigel/schema";
 import {
   addDraftMeld,
+  analysisQuotaLabel,
+  analyzeErrorMessage,
   assembleProblem,
   compareTiles,
   draftToKifu,
+  kifuToProblemDraft,
+  planCanAnalyze,
   problemHandMax,
   problemRiverTiles,
   problemRoundLabel,
+  reviewSummaryLabel,
   seatLabel,
   tileLabel,
   LIMIT_MESSAGES,
@@ -41,9 +47,10 @@ import { MiniTile } from "../components/MiniTile";
 import { Segment } from "../components/Segment";
 import { Stepper } from "../components/Stepper";
 import { TilePickerSheet } from "../components/editor/TilePickerSheet";
-import { createProblem, getProblem, updateProblem, type ProblemPost } from "../lib/api";
+import { analyzeProblem, createProblem, getProblem, updateProblem, type ProblemPost } from "../lib/api";
 import { useAuth } from "../lib/auth";
 import type { RootStackParamList } from "../lib/navigation";
+import { pickImage, type PickedImage } from "../lib/pick-image";
 import { KIND_LABELS } from "../lib/problems";
 import { colors, radius } from "../lib/theme";
 
@@ -95,7 +102,12 @@ export function ProblemEditScreen() {
 function EditorBody({ initial, token }: { initial?: ProblemPost; token: string | null }) {
   const nav = useNavigation<Nav>();
   const insets = useSafeAreaInsets();
+  const { user } = useAuth();
   const p0 = initial?.problem;
+  // 写真からのAI再現は有料プランのみ（free は解析枠0。kifu の Capture と同一方針）。
+  const canAnalyze = planCanAnalyze(user?.plan ?? "free");
+  // 残枠は撮る前に見せる（送信後の枠切れで撮影の手間を無駄にしない。Capture と同方針）。
+  const quotaLabel = analysisQuotaLabel(user?.remainingCalls, user?.monthlyCallQuota);
 
   const [kind, setKind] = useState<ProblemKind>(p0?.kind ?? "discard");
   const [pov, setPov] = useState<Seat>(p0?.pov ?? "east");
@@ -128,6 +140,69 @@ function EditorBody({ initial, token }: { initial?: ProblemPost; token: string |
   const [target, setTarget] = useState<Target>(null);
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  // 写真からのAI再現（手牌=必須・河=任意）。流し込み後は readingNotes で人の確認を促す。
+  const [handPhoto, setHandPhoto] = useState<PickedImage | null>(null);
+  const [riverPhoto, setRiverPhoto] = useState<PickedImage | null>(null);
+  const [analyzing, setAnalyzing] = useState(false);
+  const [readingNotes, setReadingNotes] = useState("");
+  const [aiReview, setAiReview] = useState("");
+
+  /** 写真を選んで onPicked に渡す（Capture と同じ流儀）。 */
+  async function pickInto(onPicked: (file: PickedImage) => void) {
+    const result = await pickImage();
+    if (result.status === "picked") {
+      setErr(null);
+      onPicked(result.file);
+    } else if (result.status === "denied") {
+      setErr("写真へのアクセスが許可されていません。設定アプリから許可してください。");
+    }
+  }
+
+  /** AIドラフト（Kifu 形）をエディタの各状態へ流し込む（変換は @rigel/ui＝web と同一挙動）。 */
+  function applyAiDraft(kifu: Kifu) {
+    const { draft, readingNotes: notes, review } = kifuToProblemDraft(kifu, pov);
+    setHand(draft.hand);
+    setMelds(draft.melds);
+    setDrawn(draft.drawn);
+    setRivers(draft.rivers);
+    setDora(draft.meta.dora);
+    setJunme(draft.meta.junme);
+    setHonba(draft.meta.honba);
+    setKyotaku(draft.meta.kyotaku);
+    if (draft.meta.dealer) setDealer(draft.meta.dealer);
+    if (draft.meta.roundWind) setRoundWind(draft.meta.roundWind);
+    setReadingNotes(notes);
+    // 低confidenceの牌は「要確認」として明示する（黙って確定牌に昇格させない＝信頼ゲート）。
+    setAiReview(reviewSummaryLabel(review));
+    setErr(null);
+  }
+
+  async function onAnalyzePhotos() {
+    if (!token) {
+      setErr("ログインが必要です。");
+      return;
+    }
+    if (!handPhoto) {
+      setErr("自分の手牌の写真を選んでください。");
+      return;
+    }
+    setErr(null);
+    setAnalyzing(true);
+    try {
+      const form = new FormData();
+      // RN の FormData はファイルを {uri,name,type} で受け取る（DOM 型に合わせて cast）。
+      form.append("hand", handPhoto as unknown as Blob);
+      if (riverPhoto) form.append("river", riverPhoto as unknown as Blob);
+      form.append("cameraBottomSeat", pov);
+      const result = await analyzeProblem(token, form);
+      if (result.ok) applyAiDraft(result.kifu);
+      else setErr(analyzeErrorMessage(result.status, result.reason));
+    } catch {
+      setErr("通信に失敗しました。");
+    } finally {
+      setAnalyzing(false);
+    }
+  }
   // 盤面プレビュー（牌譜と同じ回転卓に編集内容を即時反映。KifuEditor と同じ折りたたみ・既定 open）。
   const [previewOpen, setPreviewOpen] = useState(true);
   const { width } = useWindowDimensions();
@@ -281,6 +356,46 @@ function EditorBody({ initial, token }: { initial?: ProblemPost; token: string |
           accessibilityLabel="タイトル"
           onChangeText={setTitle}
         />
+
+        {/* 写真からのAI再現（有料のみ）。手牌・河のベースを流し込み、作者が修正する。 */}
+        {canAnalyze ? (
+          <View style={styles.photoBox}>
+            <Text style={styles.rowLabel}>写真から作成（AI再現）</Text>
+            {quotaLabel ? <Text style={styles.hint}>{quotaLabel}</Text> : null}
+            <Pressable
+              style={styles.photoBtn}
+              onPress={() => void pickInto(setHandPhoto)}
+              accessibilityRole="button"
+            >
+              <Text style={styles.photoBtnText}>
+                {handPhoto ? `手牌の写真: ${handPhoto.name}` : "手牌の写真を選ぶ（必須）"}
+              </Text>
+            </Pressable>
+            <Pressable
+              style={styles.photoBtn}
+              onPress={() => void pickInto(setRiverPhoto)}
+              accessibilityRole="button"
+            >
+              <Text style={styles.photoBtnText}>
+                {riverPhoto ? `河の写真: ${riverPhoto.name}` : "河の写真を選ぶ（任意）"}
+              </Text>
+            </Pressable>
+            <Pressable
+              style={[styles.photoGo, analyzing && styles.photoGoOff]}
+              disabled={analyzing}
+              onPress={() => void onAnalyzePhotos()}
+              accessibilityRole="button"
+            >
+              <Text style={styles.photoGoText}>{analyzing ? "解析中…" : "AI再現"}</Text>
+            </Pressable>
+            <Text style={styles.hint}>
+              読み違いは下の編集で直せます（画像は保存されません）。
+            </Text>
+          </View>
+        ) : null}
+        {/* AIの読み取りメモ（グレア・見切れ等）と要確認（低confidence）。人の確認を促す。 */}
+        {readingNotes ? <Text style={styles.hint}>読み取りメモ: {readingNotes}</Text> : null}
+        {aiReview ? <Text style={styles.hint}>{aiReview}</Text> : null}
 
         {/* 出題形式 */}
         <View style={styles.segRow}>
@@ -660,6 +775,29 @@ const styles = StyleSheet.create({
   segRow: { flexDirection: "row", alignItems: "center", gap: 8 },
   rowLabel: { color: colors.w45, fontSize: 12, fontWeight: "700", width: 64 },
   hint: { color: colors.w45, fontSize: 11.5, lineHeight: 17 },
+  /* 写真からのAI再現（有料のみ） */
+  photoBox: {
+    gap: 8,
+    backgroundColor: colors.chrome,
+    borderRadius: radius.card,
+    padding: 10,
+  },
+  photoBtn: {
+    borderWidth: 1,
+    borderColor: colors.line,
+    borderRadius: radius.base,
+    paddingVertical: 9,
+    paddingHorizontal: 10,
+  },
+  photoBtnText: { color: colors.w70, fontSize: 12.5 },
+  photoGo: {
+    backgroundColor: colors.accent,
+    borderRadius: radius.base,
+    paddingVertical: 9,
+    alignItems: "center",
+  },
+  photoGoOff: { opacity: 0.6 },
+  photoGoText: { color: "#1c1f1e", fontSize: 13, fontWeight: "800" },
   metaBox: {
     gap: 10,
     backgroundColor: colors.chrome,

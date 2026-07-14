@@ -22,6 +22,7 @@ import {
   sortKifuHands,
   windOf,
   MAX_SEQ,
+  MELD_TYPE_LABELS,
   SEAT_ORDER,
   type MeldAddType,
   type PickerSuit,
@@ -54,13 +55,10 @@ type Picker =
   | null;
 
 // チー/ポンに加え、カンは種別（大明槓/暗槓/加槓）まで選べる（web の TilePickerPopup と同等）。
-const MELD_LABELS: { type: MeldAddType; label: string }[] = [
-  { type: "chi", label: "チー" },
-  { type: "pon", label: "ポン" },
-  { type: "kan_open", label: "大明槓" },
-  { type: "kan_closed", label: "暗槓" },
-  { type: "kan_added", label: "加槓" },
-];
+// 表示名は共有の MELD_TYPE_LABELS（手順タブと表記を揃える）。
+const MELD_LABELS: { type: MeldAddType; label: string }[] = (
+  ["chi", "pon", "kan_open", "kan_closed", "kan_added"] as const
+).map((type) => ({ type, label: MELD_TYPE_LABELS[type] }));
 
 /**
  * 牌譜の編集画面本体（手入力）。席ごとの手牌・河・鳴きを編集し、保存で親へ返す。

@@ -12,13 +12,13 @@ vi.mock("../../app/actions", () => h);
 
 import { AddKyokuModal } from "./AddKyokuModal";
 
-/** /api/me をスタブしてプランを差し込む（AuthProvider が起動時に読む）。 */
-function stubMe(plan: string | null) {
+/** /api/me をスタブしてプランを差し込む（AuthProvider が起動時に読む）。extra で残枠なども足せる。 */
+function stubMe(plan: string | null, extra: Record<string, unknown> = {}) {
   vi.stubGlobal(
     "fetch",
     vi.fn(async () => ({
       ok: true,
-      json: async () => ({ user: plan ? { id: "u1", plan } : null }),
+      json: async () => ({ user: plan ? { id: "u1", plan, ...extra } : null }),
     })),
   );
 }
@@ -50,5 +50,11 @@ describe("AddKyokuModal のプラン別出し分け（mobile の Capture と同�
     renderModal();
     expect((await screen.findAllByRole("button", { name: "AI再現" })).length).toBeGreaterThan(0);
     expect(screen.queryByText(/写真からのAI再現（撮影→自動で牌譜化）/)).toBeNull();
+  });
+
+  it("解析の残枠を撮る前に見せる（送信後の枠切れで撮影の手間を無駄にしない。mobile Capture と同方針）", async () => {
+    stubMe("next", { remainingCalls: 92, monthlyCallQuota: 100 });
+    renderModal();
+    expect(await screen.findByText("解析枠 残り 92 / 100（今月）")).toBeTruthy();
   });
 });

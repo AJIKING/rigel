@@ -29,6 +29,7 @@ export const {
   getPublicGameDetail,
   getGame,
   analyze,
+  analyzeProblem,
   createPortal,
   createGame,
   createEmptyKifu,

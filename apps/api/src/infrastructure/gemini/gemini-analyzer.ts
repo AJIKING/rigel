@@ -33,14 +33,23 @@ export class GeminiAnalyzer implements Analyzer {
     const { client, preprocessor, riverPrompt, riverModel, handPrompt, handModel, now } = this.deps;
 
     // 河1枚 → 4方向の正立画像 → 各方向を並列に読む（Zod 検証済み）。
-    const directionImages = await preprocessor.split(input.riverImage);
-    const riverDeps = { client, prompt: riverPrompt, model: riverModel };
-    const riverEntries = await Promise.all(
-      CameraSeatSchema.options.map(
-        async (cam) => [cam, await readRiverDirection(riverDeps, directionImages[cam])] as const,
-      ),
-    );
-    const rivers = Object.fromEntries(riverEntries) as Record<CameraSeat, AiRiverResponse>;
+    // 河なし（何切る用: 手牌のみ）は読み取りをスキップし、空の河にする（推測しない）。
+    let riverCalls = 0;
+    const emptyRiver = (): AiRiverResponse => ({ discards: [], notes: "" });
+    let rivers = Object.fromEntries(
+      CameraSeatSchema.options.map((cam) => [cam, emptyRiver()]),
+    ) as Record<CameraSeat, AiRiverResponse>;
+    if (input.riverImage) {
+      const directionImages = await preprocessor.split(input.riverImage);
+      const riverDeps = { client, prompt: riverPrompt, model: riverModel };
+      const riverEntries = await Promise.all(
+        CameraSeatSchema.options.map(
+          async (cam) => [cam, await readRiverDirection(riverDeps, directionImages[cam])] as const,
+        ),
+      );
+      rivers = Object.fromEntries(riverEntries) as Record<CameraSeat, AiRiverResponse>;
+      riverCalls = riverEntries.length;
+    }
 
     // 手牌（提供された方向だけ）を並列に読む。撮影時点で正立なので前処理は不要。
     const handDeps = { client, prompt: handPrompt, model: handModel };
@@ -59,8 +68,8 @@ export class GeminiAnalyzer implements Analyzer {
       capturedAt: now().toISOString(),
     });
 
-    // 河は4方向ぶん、手牌は提供された枚数ぶん呼び出す。
-    const geminiCalls = riverEntries.length + handEntries.length;
+    // 河は読んだ方向ぶん（無ければ0）、手牌は提供された枚数ぶん呼び出す。
+    const geminiCalls = riverCalls + handEntries.length;
     return { kifu, geminiCalls };
   }
 }

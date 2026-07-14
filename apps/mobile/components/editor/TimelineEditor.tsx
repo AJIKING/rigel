@@ -2,7 +2,6 @@ import {
   KifuSchema,
   type Kifu,
   type Meld,
-  type MeldType,
   type Seat,
   type Tile,
   type TimelineEvent,
@@ -20,20 +19,13 @@ import {
   seatLabel,
   syncSeatsFromTimeline,
   timelineTurns,
+  MELD_TYPE_LABELS,
 } from "@rigel/ui";
 import { useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { colors, radius } from "../../lib/theme";
 import { MiniTile } from "../MiniTile";
 import { TilePickerSheet } from "./TilePickerSheet";
-
-const MELD_LABEL: Record<MeldType, string> = {
-  pon: "ポン",
-  chi: "チー",
-  kan_open: "大明槓",
-  kan_closed: "暗槓",
-  kan_added: "加槓",
-};
 
 /** ピッカーの対象（打牌のツモ/捨て、または鳴き牌）。 */
 type Pick =
@@ -219,7 +211,7 @@ export function TimelineEditor({
                   onPress={() => commit(cycleMeldType(timeline, i))}
                   accessibilityRole="button"
                 >
-                  <Text style={styles.kindText}>{MELD_LABEL[e.meld.type]}</Text>
+                  <Text style={styles.kindText}>{MELD_TYPE_LABELS[e.meld.type]}</Text>
                 </Pressable>
                 <View style={styles.mtiles}>
                   {e.meld.tiles.map((rt, ti) => (

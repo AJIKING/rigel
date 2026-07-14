@@ -33,4 +33,7 @@ export interface AnalysisCommitInput {
 export interface AnalysisStore {
   /** newGame・gameLog・カウンタ加算を1トランザクションでまとめて保存する。 */
   commit(input: AnalysisCommitInput): Promise<void>;
+  /** カウンタ加算だけを原子適用する（行は増やさない）。
+   *  何切るの写真解析のように「解析するが保存しない」経路の課金に使う。 */
+  recordCalls(counter: AnalysisCounterDelta): Promise<void>;
 }

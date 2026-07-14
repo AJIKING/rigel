@@ -3,7 +3,10 @@
 // 回答（認証必須・1人1回 upsert・レスポンスはシンプル）・分布（認証必須）。
 // 保存上限は free 20問（draft+published 合算。reason: problem_limit → 403）。
 
+import { SeatSchema } from "@rigel/schema";
 import type { Hono } from "hono";
+import type { AnalysisInput } from "../../../domain/kifu/analyzer";
+import { asFile, isValidImageFile, toImageRef, MAX_IMAGE_COUNT } from "../limits";
 import { reasonStatus, requireAuth, type AppEnv } from "../shared";
 
 /** body から status を安全に取り出す（不正値は undefined）。 */
@@ -12,6 +15,46 @@ function parseStatus(v: unknown): "draft" | "published" | undefined {
 }
 
 export function registerProblemRoutes(app: Hono<AppEnv>): void {
+  // 撮影画像 → 何切るドラフト（**保存しない**。Kifu 形のドラフトを返すだけ。画像も非保存）。
+  // フォーム: hand(file 必須=自分の手牌), river(file 任意), cameraBottomSeat(任意・既定 east=出題視点)。
+  // Plan: docs/plans/problem-photo-analyze.md
+  app.post("/problems/analyze", requireAuth, async (c) => {
+    const userId = c.get("userId")!;
+
+    const form = await c.req.formData().catch(() => null);
+    const hand = asFile(form?.get("hand"));
+    if (!hand) return c.json({ error: "hand(file・自分の手牌) が必要です" }, 400);
+    const river = asFile(form?.get("river"));
+    const seat = SeatSchema.safeParse(form?.get("cameraBottomSeat"));
+
+    // 画像の妥当性は「バイトを読む前」に File のメタデータで判定（/analyze と同じ入口規律）。
+    const files = river ? [hand, river] : [hand];
+    if (files.length > MAX_IMAGE_COUNT || !files.every(isValidImageFile)) {
+      return c.json({ error: "画像は JPEG/PNG/WebP/HEIC、1枚あたりの上限を超えないこと" }, 400);
+    }
+
+    // 枠のプリフライト（画像をメモリへ載せる前）。free（枠0）はここで弾く。
+    const uc = c.get("container").analyzeProblemDraft;
+    const pre = await uc.preflight(userId);
+    if (!pre.ok) return c.json({ ok: false, reason: pre.reason }, reasonStatus(pre.reason));
+
+    const input: AnalysisInput = {
+      riverImage: river ? await toImageRef(river) : undefined,
+      hands: { bottom: await toImageRef(hand) },
+      cameraBottomSeat: seat.success ? seat.data : "east",
+    };
+
+    try {
+      const result = await uc.execute({ userId, input });
+      if (!result.ok) {
+        return c.json({ ok: false, reason: result.reason }, reasonStatus(result.reason));
+      }
+      return c.json({ ok: true, kifu: result.kifu });
+    } catch {
+      return c.json({ ok: false, error: "解析に失敗しました" }, 502);
+    }
+  });
+
   // 公開一覧（published のみ・新着順。閲覧は自由）。
   app.get("/problems", async (c) => {
     const posts = await c.get("container").listPublishedProblems.execute();

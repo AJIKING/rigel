@@ -113,6 +113,15 @@ describe.each(subjects)("AnalysisStore 契約: %s", (_name, make) => {
     await s.seedUser(paidUser());
   });
 
+  it("recordCalls はカウントだけを原子加算する（局・半荘は増えない＝何切るの写真解析用）", async () => {
+    await s.store.recordCalls(counter(3));
+    expect(await s.findUserCount("u1")).toBe(3);
+    expect(await s.findLog("l1")).toBeNull(); // 行は何も増えない
+    // 追加加算も差分適用（絶対値の書き戻しではない）。
+    await s.store.recordCalls(counter(2));
+    expect(await s.findUserCount("u1")).toBe(5);
+  });
+
   it("局のすべてのフィールドを保存する（status/visibility を DB 既定値に落とさない）", async () => {
     await s.store.commit({ newGame: game(), gameLog: log(), counter: counter(4) });
 

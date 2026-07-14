@@ -1,4 +1,11 @@
-import { ProblemSchema, PROBLEM_SCHEMA_VERSION, type Problem, type Tile } from "@rigel/schema";
+import {
+  KifuSchema,
+  ProblemSchema,
+  PROBLEM_SCHEMA_VERSION,
+  type Kifu,
+  type Problem,
+  type Tile,
+} from "@rigel/schema";
 import { describe, expect, it } from "vitest";
 import {
   actionLabel,
@@ -10,8 +17,10 @@ import {
   canSubmitProblemAnswer,
   chiRunLabel,
   choiceKeyLabel,
+  kifuToProblemDraft,
   problemChiVariants,
   problemHandMax,
+  reviewSummaryLabel,
   problemRiverTiles,
   problemRoundLabel,
   problemToKifu,
@@ -56,6 +65,201 @@ function makeProblem(): Problem {
     rules: { kuitan: false },
   });
 }
+
+describe("kifuToProblemDraft（写真AI再現: AIドラフト→何切る編集ドラフト）", () => {
+  /** AI解析結果の Kifu ドラフト（confidence・null 混在）を最小指定で組む。 */
+  function aiKifu(over: Record<string, unknown> = {}): Kifu {
+    return KifuSchema.parse({
+      schemaVersion: "1.0.0",
+      capturedAt: "2026-07-14T00:00:00.000Z",
+      cameraBottomSeat: "east",
+      seats: { east: {}, south: {}, west: {}, north: {} },
+      ...over,
+    });
+  }
+
+  it("手牌の null 牌（読めなかった牌）は落とし、確定牌だけを理牌して写す（推測しない）", () => {
+    const k = aiKifu({
+      seats: {
+        east: {
+          hand: [
+            { tile: "3p", confidence: 0.9 },
+            { tile: null, confidence: 0 },
+            { tile: "1m", confidence: 0.4 },
+          ],
+        },
+        south: {},
+        west: {},
+        north: {},
+      },
+      readingNotes: "グレアで1枚読めず",
+    });
+    const { draft, readingNotes } = kifuToProblemDraft(k, "east");
+    expect(draft.kind).toBe("discard");
+    expect(draft.pov).toBe("east");
+    expect(draft.hand).toEqual(["1m", "3p"]); // null は持ち込まない・理牌
+    expect(draft.drawn).toBeNull(); // 上限以下ならツモ欄は空のまま
+    expect(readingNotes).toBe("グレアで1枚読めず");
+  });
+
+  it("低 confidence の牌は要確認として返す（黙って確定牌に昇格させない）", () => {
+    const k = aiKifu({
+      seats: {
+        east: {
+          hand: [
+            { tile: "1m", confidence: 0.4 }, // 低確信 → 要確認
+            { tile: "3p", confidence: 0.95 },
+          ],
+        },
+        south: { river: [{ order: 1, tile: "9s", confidence: 0.5 }] }, // 低確信 → 要確認
+        west: {},
+        north: {},
+      },
+    });
+    const { review } = kifuToProblemDraft(k, "east");
+    expect(review).toEqual([
+      { tile: "1m", confidence: 0.4 },
+      { tile: "9s", confidence: 0.5 },
+    ]);
+    // 表示用の共通表記（web/mobile で同じ文言）。
+    expect(reviewSummaryLabel(review)).toBe("要確認: 1萬(0.4)、9索(0.5)");
+    expect(reviewSummaryLabel([])).toBe("");
+  });
+
+  it("上限を超えて読めた牌を省いたときは readingNotes で知らせる（黙って捨てない）", () => {
+    const fifteen = Array.from({ length: 12 }, (_, i) => ({
+      tile: `${(i % 9) + 1}m`,
+      confidence: 1,
+    }));
+    const k = aiKifu({
+      seats: {
+        east: {
+          hand: fifteen, // 12枚読めた
+          melds: [
+            {
+              type: "pon",
+              tiles: [
+                { tile: "5z", confidence: 1 },
+                { tile: "5z", confidence: 1 },
+                { tile: "5z", confidence: 1 },
+              ],
+              from: null,
+            },
+          ],
+        },
+        south: {},
+        west: {},
+        north: {},
+      },
+    });
+    // 上限 = 13 - 3×1副露 = 10枚 + ツモ1枚 → 12枚読みなら1枚が入り切らない。
+    const { draft, readingNotes } = kifuToProblemDraft(k, "east");
+    expect(draft.hand).toHaveLength(10);
+    expect(draft.drawn).not.toBeNull();
+    expect(readingNotes).toContain("1枚を省きました");
+  });
+
+  it("手牌が上限（副露3枚換算で13枚）を超えて読めたら、読み順の末尾をツモ欄に置く", () => {
+    const fourteen: Tile[] = [
+      "1m",
+      "2m",
+      "3m",
+      "4m",
+      "5m",
+      "6m",
+      "7m",
+      "8m",
+      "9m",
+      "1p",
+      "2p",
+      "3p",
+      "4p",
+      "5p", // 読み順の末尾＝ツモ欄へ
+    ];
+    const k = aiKifu({
+      seats: {
+        east: { hand: fourteen.map((tile) => ({ tile, confidence: 1 })) },
+        south: {},
+        west: {},
+        north: {},
+      },
+    });
+    const { draft } = kifuToProblemDraft(k, "east");
+    expect(draft.hand).toHaveLength(13);
+    expect(draft.drawn).toBe("5p");
+  });
+
+  it("null を含む副露は丸ごと落とし（確定牌の世界）、残った副露で手牌上限を数える", () => {
+    const k = aiKifu({
+      seats: {
+        east: {
+          hand: Array.from({ length: 11 }, (_, i) => ({
+            tile: `${(i % 9) + 1}m`,
+            confidence: 1,
+          })),
+          melds: [
+            {
+              type: "pon",
+              tiles: [
+                { tile: "5z", confidence: 1 },
+                { tile: "5z", confidence: 1 },
+                { tile: "5z", confidence: 1 },
+              ],
+              from: null,
+            },
+            {
+              type: "chi",
+              tiles: [
+                { tile: "1s", confidence: 1 },
+                { tile: null, confidence: 0 },
+                { tile: "3s", confidence: 1 },
+              ],
+              from: null,
+            },
+          ],
+        },
+        south: {},
+        west: {},
+        north: {},
+      },
+    });
+    const { draft } = kifuToProblemDraft(k, "east");
+    expect(draft.melds).toHaveLength(1); // null 入りのチーは落ちる
+    // 上限 = 13 - 3×1副露 = 10枚 → 11枚目（読み順の末尾）はツモ欄へ。
+    expect(draft.hand).toHaveLength(10);
+    expect(draft.drawn).not.toBeNull();
+  });
+
+  it("4席の河（ツモ切り込み・null はスキップ）とドラ・巡目・本場/供託・親/場風・ルールを引き継ぐ", () => {
+    const k = aiKifu({
+      seats: {
+        east: { hand: [{ tile: "1m", confidence: 1 }] },
+        south: {
+          river: [
+            { order: 1, tile: "9s", tsumogiri: true, confidence: 0.8 },
+            { order: 2, tile: null, confidence: 0 },
+          ],
+        },
+        west: {},
+        north: {},
+      },
+      meta: { dealer: "south", roundWind: "east", honba: 2, kyotaku: 1, junme: 7, dora: ["3z"] },
+      rules: { kuitan: false },
+    });
+    const { draft } = kifuToProblemDraft(k, "east");
+    expect(draft.rivers.south).toEqual([{ tile: "9s", tsumogiri: true }]); // null はスキップ
+    expect(draft.meta).toMatchObject({
+      dealer: "south",
+      roundWind: "east",
+      honba: 2,
+      kyotaku: 1,
+      junme: 7,
+      dora: ["3z"],
+    });
+    expect(draft.rules?.kuitan).toBe(false);
+    expect(draft.targetSeat).not.toBe("east"); // 鳴き判断に切り替えても自席にならない既定
+  });
+});
 
 describe("チーの構成（鳴き判断の回答）", () => {
   it("problemChiVariants は対象牌を含む順子のうち、残り2枚が手牌にある候補だけを返す", () => {

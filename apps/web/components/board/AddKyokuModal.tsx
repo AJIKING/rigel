@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  analysisQuotaLabel,
   analyzeErrorMessage,
   cameraLabel,
   planCanAnalyze,
@@ -15,6 +16,7 @@ import { analyzeAction, createEmptyKifuAction, createGameAction } from "../../ap
 import { buildAnalyzeForm } from "../../lib/analyze-form";
 import { useAuth } from "../../lib/auth-context";
 import { DoraPicker } from "./DoraPicker";
+import { PhotoField } from "./PhotoField";
 import { Stepper } from "./Stepper";
 import s from "./board-editor.module.css";
 
@@ -44,6 +46,8 @@ export function AddKyokuModal({
   // 写真からのAI再現は有料プランのみ（free は解析枠0）。フリーには写真入力を出さない
   //（mobile の Capture と同一方針。実際の枠判定は API 側でも行う）。
   const canAnalyze = planCanAnalyze(user?.plan ?? "free");
+  // 残枠は撮る前に見せる（送信後の 403 で知るのでは撮影の手間が無駄になる。mobile Capture と同方針）。
+  const quotaLabel = analysisQuotaLabel(user?.remainingCalls, user?.monthlyCallQuota);
   const [mode, setMode] = useState<"ai" | "manual">("ai");
   const effMode = canAnalyze ? mode : "manual";
   const [seat, setSeat] = useState<Seat>(bottomSeat);
@@ -159,37 +163,23 @@ export function AddKyokuModal({
 
         {effMode === "ai" ? (
           <div className={s.modalBody}>
-            <label className={`${s.up} ${s.upRiver} ${river ? s.filled : ""}`}>
-              <input
-                type="file"
-                accept="image/*"
-                onChange={(e) => setRiver(e.target.files?.[0] ?? null)}
-              />
-              <div className={s.upIn}>
-                <svg viewBox="0 0 24 24">
-                  <path d="M3 8a2 2 0 0 1 2-2h2l1.5-2h7L19 6h0a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-                  <circle cx="12" cy="13" r="3.2" />
-                </svg>
-                <span>{river ? river.name : "河（卓を上から1枚）"}</span>
-              </div>
-            </label>
+            {quotaLabel && <p className={s.note}>{quotaLabel}</p>}
+            <PhotoField
+              wide
+              label="河（卓を上から1枚）"
+              file={river}
+              onChange={setRiver}
+            />
             <div className={s.upGrid}>
               {HANDS.map(({ cam, label }) => (
-                <label key={cam} className={`${s.up} ${hands[cam] ? s.filled : ""}`}>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={(e) =>
-                      setHands((h) => ({ ...h, [cam]: e.target.files?.[0] ?? undefined }))
-                    }
-                  />
-                  <div className={s.upIn}>
-                    <svg viewBox="0 0 24 24">
-                      <path d="M12 5v14M5 12h14" />
-                    </svg>
-                    <span>{hands[cam] ? `${cameraLabel(cam)}：選択済` : label}</span>
-                  </div>
-                </label>
+                <PhotoField
+                  key={cam}
+                  icon="plus"
+                  label={label}
+                  file={hands[cam] ?? null}
+                  selectedLabel={`${cameraLabel(cam)}：選択済`}
+                  onChange={(f) => setHands((h) => ({ ...h, [cam]: f ?? undefined }))}
+                />
               ))}
             </div>
             {error && (

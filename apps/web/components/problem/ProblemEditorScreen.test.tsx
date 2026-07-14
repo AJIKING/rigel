@@ -1,4 +1,4 @@
-import { ProblemSchema, type Problem } from "@rigel/schema";
+import { KifuSchema, ProblemSchema, type Problem } from "@rigel/schema";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { type ProblemPost } from "../../lib/api";
@@ -8,6 +8,7 @@ import { makeDiscardPost, stubMe } from "./test-helpers";
 const h = vi.hoisted(() => ({
   createProblemAction: vi.fn(),
   updateProblemAction: vi.fn(),
+  analyzeProblemAction: vi.fn(),
 }));
 vi.mock("../../app/actions", () => h);
 const push = vi.hoisted(() => vi.fn());
@@ -49,6 +50,7 @@ beforeEach(() => {
   push.mockReset();
   h.createProblemAction.mockReset().mockResolvedValue({ ok: true, problemId: "p1" });
   h.updateProblemAction.mockReset().mockResolvedValue({ ok: true, status: 200 });
+  h.analyzeProblemAction.mockReset();
 });
 
 afterEach(() => {
@@ -61,6 +63,62 @@ function fillHand() {
   fireEvent.click(screen.getByRole("button", { name: "筒" })); // スートタブ
   for (const label of TILE_LABELS.slice(9)) pick(label);
 }
+
+describe("ProblemEditorScreen: 写真から作成（AI再現）", () => {
+  const aiKifu = () =>
+    KifuSchema.parse({
+      schemaVersion: "1.0.0",
+      capturedAt: "2026-07-14T00:00:00.000Z",
+      cameraBottomSeat: "east",
+      seats: {
+        east: {
+          hand: [
+            { tile: "1m", confidence: 0.9 },
+            { tile: "2m", confidence: 0.6 },
+            { tile: null, confidence: 0 }, // 読めなかった牌は持ち込まれない
+          ],
+        },
+        south: { river: [{ order: 1, tile: "9s", confidence: 0.8 }] },
+        west: {},
+        north: {},
+      },
+      meta: { dora: ["3z"], junme: 7 },
+      readingNotes: "グレアで1枚読めず",
+    });
+
+  it("解析結果（AIドラフト）がエディタへ流し込まれ、読み取りメモが表示される", async () => {
+    stubMe("pro", { remainingCalls: 300, monthlyCallQuota: 320 });
+    h.analyzeProblemAction.mockResolvedValue({ ok: true, kifu: aiKifu() });
+    renderEditor();
+
+    fireEvent.click(await screen.findByRole("button", { name: /写真から作成/ }));
+    const dialog = screen.getByRole("dialog", { name: "写真から作成" });
+    // 残枠は撮る前に見せる（送信後の枠切れで手間を無駄にしない）。
+    expect(within(dialog).getByText("解析枠 残り 300 / 320（今月）")).toBeTruthy();
+    const handInput = within(dialog).getByLabelText(/自分の手牌/) as HTMLInputElement;
+    fireEvent.change(handInput, {
+      target: { files: [new File(["x"], "hand.jpg", { type: "image/jpeg" })] },
+    });
+    fireEvent.click(within(dialog).getByRole("button", { name: "AI再現" }));
+
+    await waitFor(() => expect(h.analyzeProblemAction).toHaveBeenCalled());
+    // 手牌・河・ドラが流し込まれる（null 牌は落ちる）。
+    expect(await screen.findByRole("button", { name: "1萬 を外す" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "2萬 を外す" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "南家の河の 9索 を外す" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "ドラ 西 を外す" })).toBeTruthy();
+    // 読み取りメモと要確認（低confidence=2萬 0.6）を表示して人の確認を促す。
+    expect(screen.getByText(/グレアで1枚読めず/)).toBeTruthy();
+    expect(screen.getByText(/要確認: .*2萬\(0\.6\)/)).toBeTruthy();
+  });
+
+  it("free プランには「写真から作成」を出さない（解析枠0＝kifu と同方針）", async () => {
+    stubMe("free");
+    renderEditor();
+    await screen.findByRole("group", { name: "牌を選ぶ" });
+    expect(screen.queryByRole("button", { name: /写真から作成/ })).toBeNull();
+  });
+});
 
 describe("ProblemEditorScreen: 何切るの作成", () => {
   it("手牌13枚＋ツモ＋答えを入れて公開保存できる", async () => {

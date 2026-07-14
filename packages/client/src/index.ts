@@ -124,6 +124,10 @@ export interface PublicGameCard {
 export type AnalyzeResult =
   { ok: true; gameId: string; logId: string } | { ok: false; status: number; reason?: string };
 
+/** 何切るの写真AI再現の結果（保存はされない。Kifu 形のドラフトが返る）。 */
+export type AnalyzeProblemResult =
+  { ok: true; kifu: Kifu } | { ok: false; status: number; reason?: string };
+
 export type CheckoutResult = { ok: true; url: string } | { ok: false; status: number };
 
 export interface ApiClient {
@@ -149,6 +153,11 @@ export interface ApiClient {
    * 必要フィールド: river, cameraBottomSeat（任意: hand_*, gameId）。
    */
   analyze(token: string, form: FormData): Promise<AnalyzeResult>;
+  /**
+   * 何切るの写真AI再現。撮影画像から盤面ドラフト（Kifu 形）を得る（保存はされない）。
+   * フォーム: hand(必須=自分の手牌), river(任意), cameraBottomSeat(任意=出題視点)。
+   */
+  analyzeProblem(token: string, form: FormData): Promise<AnalyzeProblemResult>;
   /** 牌譜の修正を保存する（所有者のみ）。seq=局順（東一局=1〜北四局=16。省略は現状維持）。 */
   updateKifu(
     token: string,
@@ -356,6 +365,21 @@ export function createApiClient(baseUrl: string, fetchImpl?: typeof fetch): ApiC
       if (res.ok) {
         const d = (await res.json()) as { gameId: string; logId: string };
         return { ok: true, gameId: d.gameId, logId: d.logId };
+      }
+      const body = (await res.json().catch(() => ({}))) as { reason?: string; error?: string };
+      return { ok: false, status: res.status, reason: body.reason ?? body.error };
+    },
+
+    async analyzeProblem(token, form) {
+      // content-type は付けない（fetch が multipart 境界を設定する）。
+      const res = await doFetch(`${baseUrl}/problems/analyze`, {
+        method: "POST",
+        headers: bearer(token),
+        body: form,
+      });
+      if (res.ok) {
+        const d = (await res.json()) as { kifu: Kifu };
+        return { ok: true, kifu: d.kifu };
       }
       const body = (await res.json().catch(() => ({}))) as { reason?: string; error?: string };
       return { ok: false, status: res.status, reason: body.reason ?? body.error };
