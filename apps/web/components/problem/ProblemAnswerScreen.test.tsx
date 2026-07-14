@@ -203,6 +203,42 @@ describe("ProblemAnswerScreen: 何切る", () => {
     expect(screen.getByText(/ログインすると回答分布/)).toBeTruthy();
   });
 
+  it("同じ牌が手牌に2枚あっても、選択枠はタップした1枚だけに付く", async () => {
+    stubMe("free");
+    // 4萬を2枚含む手牌（牌コードが同じでも位置で区別できることを確認する）。
+    const post = makeDiscardPost();
+    post.problem = ProblemSchema.parse({
+      ...post.problem,
+      seats: {
+        ...post.problem.seats,
+        east: {
+          hand: ["1m", "2m", "3m", "4m", "4m", "6m", "7m", "8m", "9m", "1p", "2p", "3p", "4p"].map(
+            (t) => ({ tile: t, confidence: 1 }),
+          ),
+        },
+      },
+    });
+    renderScreen(post);
+    await screen.findByText("あなたなら何を切る？");
+
+    const fours = screen.getAllByRole("button", { name: "4萬" });
+    expect(fours).toHaveLength(2);
+
+    // 1枚目を選ぶ → 枠は1枚だけ。
+    fireEvent.click(fours[0]!);
+    expect(fours[0]!.getAttribute("aria-pressed")).toBe("true");
+    expect(fours[1]!.getAttribute("aria-pressed")).toBe("false");
+
+    // 2枚目をタップすると選択が移る（同コードでも解除扱いにならない）。
+    fireEvent.click(fours[1]!);
+    expect(fours[0]!.getAttribute("aria-pressed")).toBe("false");
+    expect(fours[1]!.getAttribute("aria-pressed")).toBe("true");
+
+    // 同じ牌をもう一度タップすると選択解除。
+    fireEvent.click(fours[1]!);
+    expect(fours[1]!.getAttribute("aria-pressed")).toBe("false");
+  });
+
   it("牌を選ぶまで回答ボタンは無効", async () => {
     stubMe("free");
     renderScreen(discardPost());

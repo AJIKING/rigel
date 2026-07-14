@@ -112,6 +112,43 @@ describe("ProblemAnswerScreen（何切る回答画面）", () => {
     expect(screen.getByText("1萬切り")).toBeTruthy();
   });
 
+  it("同じ牌が手牌に2枚あっても、選択枠はタップした1枚だけに付く", async () => {
+    // 4萬を2枚含む手牌（牌コードが同じでも位置で区別できることを確認する）。
+    const post = makePost();
+    post.problem = {
+      ...post.problem,
+      seats: {
+        ...post.problem.seats,
+        east: {
+          ...post.problem.seats.east,
+          hand: ["1m", "2m", "3m", "4m", "4m", "6m", "7m", "8m", "9m", "1p", "2p", "3p", "1s"].map(
+            (tile) => ({ tile: tile as never, confidence: 1 }),
+          ),
+        },
+      },
+    };
+    mockGetProblem.mockResolvedValue(post);
+    render(<ProblemAnswerScreen />);
+
+    expect(await screen.findByText("テスト問題")).toBeTruthy();
+    const fours = screen.getAllByRole("button", { name: "4萬" });
+    expect(fours).toHaveLength(2);
+
+    // 1枚目を選ぶ → 選択状態は1枚だけ。
+    fireEvent.press(fours[0]!);
+    expect(fours[0]!.props.accessibilityState.selected).toBe(true);
+    expect(fours[1]!.props.accessibilityState.selected).toBe(false);
+
+    // 2枚目をタップすると選択が移る（同コードでも解除扱いにならない）。
+    fireEvent.press(fours[1]!);
+    expect(fours[0]!.props.accessibilityState.selected).toBe(false);
+    expect(fours[1]!.props.accessibilityState.selected).toBe(true);
+
+    // 同じ牌をもう一度タップすると選択解除。
+    fireEvent.press(fours[1]!);
+    expect(fours[1]!.props.accessibilityState.selected).toBe(false);
+  });
+
   it("牌を選ぶと回答ボタンの近くに「選択中:」の手を表示する（押し間違い防止）", async () => {
     mockGetProblem.mockResolvedValue(makePost());
     render(<ProblemAnswerScreen />);

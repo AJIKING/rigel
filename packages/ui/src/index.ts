@@ -569,6 +569,25 @@ export function answerNeedsTile(sel: Pick<ProblemAnswerSelection, "kind" | "call
   return sel.kind === "discard" || sel.call === "pon" || sel.call === "chi";
 }
 
+/** 回答UIで選択中の「切る牌」。牌コードでなく位置で持つ（同じ牌が手牌に2枚
+ *  あっても選択枠は1枚だけに付く）。index は理牌済み手牌内の位置、ツモ牌は -1。 */
+export interface PickedTile {
+  tile: Tile;
+  drawn: boolean;
+  index: number;
+}
+
+/** 切る牌の選択トグル（web/mobile の回答画面が共有）。同じ位置の再タップで解除、
+ *  別の位置なら選択が移る。位置は index + drawn の組で同一判定する。 */
+export function togglePickedTile(
+  picked: PickedTile | null,
+  tile: Tile,
+  drawn: boolean,
+  index: number,
+): PickedTile | null {
+  return picked?.index === index && picked.drawn === drawn ? null : { tile, drawn, index };
+}
+
 /** 手牌の目標枚数（副露は3枚換算。ProblemSchema の枚数整合と同じ前提）。 */
 export const PROBLEM_FULL_HAND = 13;
 

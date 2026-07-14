@@ -25,6 +25,7 @@ import {
   problemRoundLabel,
   problemToKifu,
   statsRatios,
+  togglePickedTile,
   CALL_CHOICES,
   PROBLEM_FULL_HAND,
   PROBLEM_KIND_LABELS,
@@ -502,6 +503,26 @@ describe("buildProblemAnswer / answerNeedsTile（回答UIの選択状態→ア�
     expect(answerNeedsTile({ kind: "call", call: "chi" })).toBe(true);
     expect(answerNeedsTile({ kind: "call", call: "kan" })).toBe(false);
     expect(answerNeedsTile({ kind: "call", call: "pass" })).toBe(false);
+  });
+});
+
+describe("togglePickedTile（切る牌の選択トグル。位置で区別＝同じ牌2枚でも枠は1つ）", () => {
+  it("未選択から選ぶと選択になり、同じ位置をもう一度で解除", () => {
+    const p1 = togglePickedTile(null, "4m", false, 3);
+    expect(p1).toEqual({ tile: "4m", drawn: false, index: 3 });
+    expect(togglePickedTile(p1, "4m", false, 3)).toBeNull();
+  });
+
+  it("同じ牌コードでも位置が違えば選択が移る（解除にならない）", () => {
+    const p1 = togglePickedTile(null, "4m", false, 3);
+    expect(togglePickedTile(p1, "4m", false, 4)).toEqual({ tile: "4m", drawn: false, index: 4 });
+  });
+
+  it("手牌とツモ牌は drawn で区別する（同じ牌コードでも別扱い）", () => {
+    const hand = togglePickedTile(null, "5p", false, 9);
+    expect(togglePickedTile(hand, "5p", true, -1)).toEqual({ tile: "5p", drawn: true, index: -1 });
+    const drawn = togglePickedTile(null, "5p", true, -1);
+    expect(togglePickedTile(drawn, "5p", true, -1)).toBeNull(); // ツモ牌の再タップは解除
   });
 });
 

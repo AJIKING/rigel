@@ -15,8 +15,10 @@ import {
   sortHandTiles,
   statsRatios,
   tileLabel,
+  togglePickedTile,
   CALL_CHOICES,
   windOf,
+  type PickedTile,
 } from "@rigel/ui";
 import Link from "next/link";
 import { useMemo, useRef, useState } from "react";
@@ -45,9 +47,10 @@ export function ProblemAnswerScreen({ post }: { post: ProblemPost }) {
   const targetTile = problemTargetTile(problem);
   const dealer = problem.meta.dealer;
 
-  // 選択は「どの牌を・どこから（手牌 or ツモ牌）」で持つ。同じ牌コードが手牌と
-  // ツモの両方にあっても区別し、ツモ牌タップ＝ツモ切りとして集計される。
-  const [picked, setPicked] = useState<{ tile: Tile; drawn: boolean } | null>(null);
+  // 選択は「どの牌を・どこから（手牌の何枚目 or ツモ牌）」で持つ。牌コードでなく
+  // 位置（index。ツモ牌は -1）で区別するので、同じ牌が手牌に2枚あっても選択枠は
+  // タップした1枚だけに付き、ツモ牌タップ＝ツモ切りとして集計される。
+  const [picked, setPicked] = useState<PickedTile | null>(null);
   const [riichi, setRiichi] = useState(false);
   const [call, setCall] = useState<"pass" | CallType | null>(null);
   // チーの構成（567/678/789 など）。候補は対象牌×手牌から導出し、既定は最初の候補。
@@ -95,9 +98,9 @@ export function ProblemAnswerScreen({ post }: { post: ProblemPost }) {
     setStats(null);
   }
 
-  function pickTile(tile: Tile, drawn: boolean) {
+  function pickTile(tile: Tile, drawn: boolean, index: number) {
     if (answered || !needsTile) return;
-    const next = picked?.tile === tile && picked.drawn === drawn ? null : { tile, drawn };
+    const next = togglePickedTile(picked, tile, drawn, index);
     setPicked(next);
     // リーチできない選択に変わったら宣言表示も下ろす（送信の正しさは sel 側で担保済み）。
     if (!canRiichiAfterDiscard(problem, next)) setRiichi(false);
@@ -181,7 +184,7 @@ export function ProblemAnswerScreen({ post }: { post: ProblemPost }) {
           <span className={s.rowLabel}>手牌</span>
           <span className={s.hand}>
             {hand.map((t, i) => {
-              const on = picked !== null && !picked.drawn && picked.tile === t.tile;
+              const on = picked !== null && !picked.drawn && picked.index === i;
               return t.tile ? (
                 <button
                   key={i}
@@ -190,7 +193,7 @@ export function ProblemAnswerScreen({ post }: { post: ProblemPost }) {
                   aria-label={tileLabel(t.tile)}
                   aria-pressed={on}
                   disabled={answered !== null || !needsTile}
-                  onClick={() => pickTile(t.tile!, false)}
+                  onClick={() => pickTile(t.tile!, false, i)}
                 >
                   <OssTileFace code={t.tile} />
                 </button>
@@ -203,7 +206,7 @@ export function ProblemAnswerScreen({ post }: { post: ProblemPost }) {
                 aria-label={tileLabel(problem.drawn)}
                 aria-pressed={picked?.drawn === true}
                 disabled={answered !== null}
-                onClick={() => pickTile(problem.drawn!, true)}
+                onClick={() => pickTile(problem.drawn!, true, -1)}
               >
                 <OssTileFace code={problem.drawn} />
               </button>

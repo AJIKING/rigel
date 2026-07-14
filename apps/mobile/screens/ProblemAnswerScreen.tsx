@@ -15,8 +15,10 @@ import {
   sortHandTiles,
   statsRatios,
   tileLabel,
+  togglePickedTile,
   windOf,
   CALL_CHOICES,
+  type PickedTile,
 } from "@rigel/ui";
 import { useEffect, useMemo, useState } from "react";
 import {
@@ -95,9 +97,10 @@ function AnswerBody({ post, token }: { post: ProblemPost; token: string | null }
   // 卓サイズは KifuEditor のプレビューと同じ算出（画面幅に合わせて clamp）。
   const boardSize = Math.max(240, Math.min(width - 28, 340));
 
-  // 選択は「どの牌を・どこから（手牌 or ツモ牌）」で持つ。同じ牌コードが手牌と
-  // ツモの両方にあっても区別し、ツモ牌タップ＝ツモ切りとして集計される。
-  const [picked, setPicked] = useState<{ tile: Tile; drawn: boolean } | null>(null);
+  // 選択は「どの牌を・どこから（手牌の何枚目 or ツモ牌）」で持つ。牌コードでなく
+  // 位置（index。ツモ牌は -1）で区別するので、同じ牌が手牌に2枚あっても選択枠は
+  // タップした1枚だけに付き、ツモ牌タップ＝ツモ切りとして集計される。
+  const [picked, setPicked] = useState<PickedTile | null>(null);
   const [riichi, setRiichi] = useState(false);
   const [call, setCall] = useState<"pass" | CallType | null>(null);
   // チーの構成（567/678/789 など）。候補は対象牌×手牌から導出し、既定は最初の候補。
@@ -144,9 +147,9 @@ function AnswerBody({ post, token }: { post: ProblemPost; token: string | null }
     setStats(null);
   }
 
-  function pickTile(tile: Tile, drawn: boolean) {
+  function pickTile(tile: Tile, drawn: boolean, index: number) {
     if (answered || !needsTile) return;
-    const next = picked?.tile === tile && picked.drawn === drawn ? null : { tile, drawn };
+    const next = togglePickedTile(picked, tile, drawn, index);
     setPicked(next);
     // リーチできない選択に変わったら宣言表示も下ろす（送信の正しさは sel 側で担保済み）。
     if (!canRiichiAfterDiscard(problem, next)) setRiichi(false);
@@ -212,13 +215,13 @@ function AnswerBody({ post, token }: { post: ProblemPost; token: string | null }
       <Text style={styles.section}>手牌</Text>
       <View style={styles.hand}>
         {hand.map((t, i) => {
-          const on = picked !== null && !picked.drawn && picked.tile === t.tile;
+          const on = picked !== null && !picked.drawn && picked.index === i;
           return t.tile ? (
             <Pressable
               key={i}
               style={on ? styles.sel : null}
               disabled={answered !== null || !needsTile}
-              onPress={() => pickTile(t.tile!, false)}
+              onPress={() => pickTile(t.tile!, false, i)}
               accessibilityRole="button"
               accessibilityLabel={tileLabel(t.tile)}
               accessibilityState={{ selected: on }}
@@ -231,7 +234,7 @@ function AnswerBody({ post, token }: { post: ProblemPost; token: string | null }
           <Pressable
             style={[styles.drawn, picked?.drawn ? styles.sel : null]}
             disabled={answered !== null}
-            onPress={() => pickTile(problem.drawn!, true)}
+            onPress={() => pickTile(problem.drawn!, true, -1)}
             accessibilityRole="button"
             accessibilityLabel={tileLabel(problem.drawn)}
             accessibilityState={{ selected: picked?.drawn === true }}
