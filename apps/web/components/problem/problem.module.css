@@ -222,7 +222,7 @@
 .answerBox,
 .resultBox {
   margin-top: 20px;
-  padding: 14px;
+  padding: 16px;
   border: 1px solid var(--line, rgba(255, 255, 255, 0.08));
   border-radius: 10px;
   background: var(--chrome-2, rgba(255, 255, 255, 0.04));
@@ -237,7 +237,7 @@
   border: 1px solid var(--line, rgba(255, 255, 255, 0.2));
   color: #fff;
   border-radius: var(--r, 3px);
-  padding: 6px 16px;
+  padding: 7px 18px;
   font-size: 13px;
   font-weight: 700;
   cursor: pointer;
@@ -258,7 +258,11 @@
   border: 1px solid var(--line, rgba(255, 255, 255, 0.13));
   border-radius: var(--r, 3px);
   padding: 2px;
-  margin-bottom: 8px;
+  margin-bottom: 10px;
+}
+/* セグメントが縦に並ぶ（鳴き→チーの構成）ときは行として分ける。 */
+.callSeg + .callSeg {
+  display: table;
 }
 .callSeg button {
   background: transparent;
@@ -267,7 +271,7 @@
   font-family: var(--round, inherit);
   font-weight: 700;
   font-size: 12px;
-  padding: 5px 11px;
+  padding: 6px 12px;
   border-radius: 2px;
   cursor: pointer;
   transition: 0.13s;
@@ -320,9 +324,9 @@
 /* 主ボタン（回答する・公開して保存）は牌譜エディタの .savebtn と同じ白。 */
 .submit {
   display: block;
-  margin-top: 12px;
+  margin-top: 16px;
   width: 100%;
-  padding: 9px;
+  padding: 11px;
   font-family: var(--round, inherit);
   color: #16181d;
   background: #fff;
@@ -339,6 +343,10 @@
 .submit:disabled {
   opacity: 0.5;
   cursor: default;
+}
+/* 回答ボタンの下の注記（※ログインすると…）はボタンに密着させない。 */
+.submit ~ .hint {
+  margin: 10px 0 0;
 }
 
 .myAnswer {
