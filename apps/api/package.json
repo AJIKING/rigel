@@ -24,7 +24,7 @@
     "zod": "^3.24.1"
   },
   "devDependencies": {
-    "@cloudflare/workers-types": "^4.20241218.0",
+    "@cloudflare/workers-types": "^5.20260715.1",
     "@types/sql.js": "^1.4.11",
     "drizzle-kit": "^0.31.10",
     "sql.js": "^1.14.1",

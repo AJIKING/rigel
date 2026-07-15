@@ -46,7 +46,7 @@ importers:
         version: link:../../packages/schema
       drizzle-orm:
         specifier: ^0.45.2
-        version: 0.45.2(@cloudflare/workers-types@4.20260627.1)(@types/sql.js@1.4.11)(gel@2.2.0)(sql.js@1.14.1)
+        version: 0.45.2(@cloudflare/workers-types@5.20260715.1)(@types/sql.js@1.4.11)(gel@2.2.0)(sql.js@1.14.1)
       hono:
         specifier: ^4.12.30
         version: 4.12.30
@@ -64,8 +64,8 @@ importers:
         version: 3.25.76
     devDependencies:
       '@cloudflare/workers-types':
-        specifier: ^4.20241218.0
-        version: 4.20260627.1
+        specifier: ^5.20260715.1
+        version: 5.20260715.1
       '@types/sql.js':
         specifier: ^1.4.11
         version: 1.4.11
@@ -77,7 +77,7 @@ importers:
         version: 1.14.1
       wrangler:
         specifier: ^3.99.0
-        version: 3.114.17(@cloudflare/workers-types@4.20260627.1)
+        version: 3.114.17(@cloudflare/workers-types@5.20260715.1)
 
   apps/mobile:
     dependencies:
@@ -184,7 +184,7 @@ importers:
     devDependencies:
       '@opennextjs/cloudflare':
         specifier: ^1.20.1
-        version: 1.20.1(next@15.5.19(@babel/core@7.29.7)(@playwright/test@1.61.1)(react-dom@19.2.7(react@19.2.7))(react@19.2.7))(wrangler@4.111.0)
+        version: 1.20.1(next@15.5.19(@babel/core@7.29.7)(@playwright/test@1.61.1)(react-dom@19.2.7(react@19.2.7))(react@19.2.7))(wrangler@4.111.0(@cloudflare/workers-types@5.20260715.1))
       '@playwright/test':
         specifier: ^1.61.1
         version: 1.61.1
@@ -208,7 +208,7 @@ importers:
         version: 25.0.1
       wrangler:
         specifier: ^4.111.0
-        version: 4.111.0
+        version: 4.111.0(@cloudflare/workers-types@5.20260715.1)
 
   packages/client:
     dependencies:
@@ -1307,8 +1307,8 @@ packages:
     cpu: [x64]
     os: [win32]
 
-  '@cloudflare/workers-types@4.20260627.1':
-    resolution: {integrity: sha512-QhVvier1eW9Ydw96N/Ez79i5CSGy7h39JucrUejQmAWQw9qBdlB1aOTjaD93EGYrV0t9U81YWetI3LcaxxILNw==}
+  '@cloudflare/workers-types@5.20260715.1':
+    resolution: {integrity: sha512-saxo/nMqQJ1dKDUXp1a2y/+IjKENFVD9+QRefHg5EjJZY20OG3xcEge4PGljbqZiF3AiU4o5ZLS3Vm7cayQIxg==}
 
   '@cspotcode/source-map-support@0.8.1':
     resolution: {integrity: sha512-IchNf6dN4tHoMFIn/7OE8LWZ19Y6q/67Bmf6vnGREv8RSbBVb9LPJxEcnwrcwX6ixSvaiGoomAUvu4YSxXrVgw==}
@@ -9368,7 +9368,7 @@ snapshots:
   '@cloudflare/workerd-windows-64@1.20260710.1':
     optional: true
 
-  '@cloudflare/workers-types@4.20260627.1': {}
+  '@cloudflare/workers-types@5.20260715.1': {}
 
   '@cspotcode/source-map-support@0.8.1':
     dependencies:
@@ -10693,7 +10693,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@opennextjs/cloudflare@1.20.1(next@15.5.19(@babel/core@7.29.7)(@playwright/test@1.61.1)(react-dom@19.2.7(react@19.2.7))(react@19.2.7))(wrangler@4.111.0)':
+  '@opennextjs/cloudflare@1.20.1(next@15.5.19(@babel/core@7.29.7)(@playwright/test@1.61.1)(react-dom@19.2.7(react@19.2.7))(react@19.2.7))(wrangler@4.111.0(@cloudflare/workers-types@5.20260715.1))':
     dependencies:
       '@ast-grep/napi': 0.40.5
       '@dotenvx/dotenvx': 1.31.0
@@ -10705,7 +10705,7 @@ snapshots:
       glob: 12.0.0
       next: 15.5.19(@babel/core@7.29.7)(@playwright/test@1.61.1)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
       ts-tqdm: 0.8.6
-      wrangler: 4.111.0
+      wrangler: 4.111.0(@cloudflare/workers-types@5.20260715.1)
       yargs: 18.0.0
     transitivePeerDependencies:
       - encoding
@@ -12527,9 +12527,9 @@ snapshots:
       esbuild: 0.25.12
       tsx: 4.23.1
 
-  drizzle-orm@0.45.2(@cloudflare/workers-types@4.20260627.1)(@types/sql.js@1.4.11)(gel@2.2.0)(sql.js@1.14.1):
+  drizzle-orm@0.45.2(@cloudflare/workers-types@5.20260715.1)(@types/sql.js@1.4.11)(gel@2.2.0)(sql.js@1.14.1):
     optionalDependencies:
-      '@cloudflare/workers-types': 4.20260627.1
+      '@cloudflare/workers-types': 5.20260715.1
       '@types/sql.js': 1.4.11
       gel: 2.2.0
       sql.js: 1.14.1
@@ -16248,7 +16248,7 @@ snapshots:
       '@cloudflare/workerd-linux-arm64': 1.20260710.1
       '@cloudflare/workerd-windows-64': 1.20260710.1
 
-  wrangler@3.114.17(@cloudflare/workers-types@4.20260627.1):
+  wrangler@3.114.17(@cloudflare/workers-types@5.20260715.1):
     dependencies:
       '@cloudflare/kv-asset-handler': 0.3.4
       '@cloudflare/unenv-preset': 2.0.2(unenv@2.0.0-rc.14)(workerd@1.20250718.0)
@@ -16261,14 +16261,14 @@ snapshots:
       unenv: 2.0.0-rc.14
       workerd: 1.20250718.0
     optionalDependencies:
-      '@cloudflare/workers-types': 4.20260627.1
+      '@cloudflare/workers-types': 5.20260715.1
       fsevents: 2.3.3
       sharp: 0.33.5
     transitivePeerDependencies:
       - bufferutil
       - utf-8-validate
 
-  wrangler@4.111.0:
+  wrangler@4.111.0(@cloudflare/workers-types@5.20260715.1):
     dependencies:
       '@cloudflare/kv-asset-handler': 0.5.0
       '@cloudflare/unenv-preset': 2.16.1(unenv@2.0.0-rc.24)(workerd@1.20260710.1)
@@ -16279,6 +16279,7 @@ snapshots:
       unenv: 2.0.0-rc.24
       workerd: 1.20260710.1
     optionalDependencies:
+      '@cloudflare/workers-types': 5.20260715.1
       fsevents: 2.3.3
     transitivePeerDependencies:
       - bufferutil
