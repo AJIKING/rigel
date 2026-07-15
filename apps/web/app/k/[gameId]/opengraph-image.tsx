@@ -1,7 +1,7 @@
 import { ImageResponse } from "next/og";
 import { STAR_COLOR, STAR_PATH } from "../../../components/StarMark";
 import { getPublicGameDetail } from "../../../lib/api-server";
-import { loadNotoSansJP } from "../../../lib/og-assets";
+import { loadOgFonts } from "../../../lib/og-assets";
 import { ogCard } from "../../../lib/og-meta";
 
 // /k/[gameId] の動的OG画像（SNSカード）。next/og(satori) でテキストカードを生成する。
@@ -16,13 +16,7 @@ export default async function OgImage({ params }: { params: Promise<{ gameId: st
   const { gameId } = await params;
   const card = ogCard(await getPublicGameDetail(gameId).catch(() => null));
   const byline = card.author ? `by ${card.author}` : "";
-  const [bold, regular] = await Promise.all([
-    loadNotoSansJP(card.title, 700),
-    loadNotoSansJP(`${card.info}${byline}RIGEL`, 400),
-  ]);
-  const fonts: { name: string; data: ArrayBuffer; weight: 400 | 700 }[] = [];
-  if (bold) fonts.push({ name: "NotoSansJP", data: bold, weight: 700 });
-  if (regular) fonts.push({ name: "NotoSansJP", data: regular, weight: 400 });
+  const fonts = await loadOgFonts(card.title, `${card.info}${byline}RIGEL`);
 
   return new ImageResponse(
     <div

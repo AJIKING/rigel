@@ -2,7 +2,7 @@ import { tileAssetName } from "@rigel/ui";
 import { ImageResponse } from "next/og";
 import { STAR_COLOR, STAR_PATH } from "../../../components/StarMark";
 import { getProblem } from "../../../lib/api-server";
-import { loadNotoSansJP, loadTileImages } from "../../../lib/og-assets";
+import { loadOgFonts, loadTileImages } from "../../../lib/og-assets";
 import { problemOgCard, siteBaseUrl } from "../../../lib/og-meta";
 
 // /p/[id] の動的OG画像（SNSカード）。/k と同じ next/og(satori) 流儀で、
@@ -29,13 +29,7 @@ export default async function OgImage({ params }: { params: Promise<{ id: string
       ? await loadTileImages(tiles.map((t) => `${siteBaseUrl()}/tiles/${tileAssetName(t)}.svg`))
       : null;
 
-  const [bold, regular] = await Promise.all([
-    loadNotoSansJP(card.title, 700),
-    loadNotoSansJP(`${card.info}あなたなら何を切る？RIGEL`, 400),
-  ]);
-  const fonts: { name: string; data: ArrayBuffer; weight: 400 | 700 }[] = [];
-  if (bold) fonts.push({ name: "NotoSansJP", data: bold, weight: 700 });
-  if (regular) fonts.push({ name: "NotoSansJP", data: regular, weight: 400 });
+  const fonts = await loadOgFonts(card.title, `${card.info}あなたなら何を切る？RIGEL`);
 
   return new ImageResponse(
     <div
