@@ -787,9 +787,10 @@ function Editor(p: EditorProps) {
                                 setRoundMenu(false);
                               }}
                             >
-                              {/* 本場も出す：連荘（同じ局順の局）を区別できる唯一の手掛かり。 */}
-                              {roundHonbaLabel(l.seq, l.kifu.meta.honba)}
-                              <small>第{l.seq}局</small>
+                              {/* 本場も出す：連荘（同じ局順の局）を区別できる唯一の手掛かり。
+                                  ラベルと第n局の間は実スペース（JSX の改行は空白にならず、
+                                  ビューアの局メニューとアクセシブルネームがずれるため）。 */}
+                              {roundHonbaLabel(l.seq, l.kifu.meta.honba)} <small>第{l.seq}局</small>
                               {review > 0 && <small className={s.reviewCnt}>要確認 {review}</small>}
                             </button>
                           );
