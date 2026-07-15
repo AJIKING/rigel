@@ -1,13 +1,15 @@
 <svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
   <defs>
+    <!-- 背景は明るめのエメラルド（暗い盤面色だとホーム画面/タブで沈むため、
+         アイコンだけ1段明るいフェルト緑にして目立たせる）。 -->
     <radialGradient id="bg" cx="50%" cy="40%" r="78%">
-      <stop offset="0" stop-color="#14976e"/>
-      <stop offset="55%" stop-color="#0b6249"/>
-      <stop offset="100%" stop-color="#063a2b"/>
+      <stop offset="0" stop-color="#25cf97"/>
+      <stop offset="55%" stop-color="#13a274"/>
+      <stop offset="100%" stop-color="#0b6b4a"/>
     </radialGradient>
     <radialGradient id="vig" cx="50%" cy="46%" r="72%">
       <stop offset="60%" stop-color="#000000" stop-opacity="0"/>
-      <stop offset="100%" stop-color="#000000" stop-opacity="0.30"/>
+      <stop offset="100%" stop-color="#000000" stop-opacity="0.20"/>
     </radialGradient>
     <linearGradient id="tile" x1="0" y1="0" x2="1" y2="1">
       <stop offset="0" stop-color="#fffdf7"/>

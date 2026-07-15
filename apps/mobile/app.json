@@ -29,7 +29,7 @@
       "package": "jp.co.plaria.rigel",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#0b6249"
+        "backgroundColor": "#13a274"
       }
     },
     "web": {
