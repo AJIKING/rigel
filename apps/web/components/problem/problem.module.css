@@ -142,17 +142,21 @@
   min-width: 0;
   margin: 0;
 }
+/* 回答後はこのボタンだけが次の操作。無効ボタンに見えないよう、
+   共有ボタン等の控えめな線より明るい線・文字＋薄い面で「押せる」ことを示す。 */
 .redoBtn {
-  background: transparent;
-  border: 1px solid var(--line, rgba(255, 255, 255, 0.2));
-  color: var(--w70, rgba(255, 255, 255, 0.7));
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.38);
+  color: rgba(255, 255, 255, 0.92);
   border-radius: var(--r, 3px);
-  padding: 4px 12px;
+  padding: 6px 14px;
   font-size: 12px;
   cursor: pointer;
   flex: none;
 }
 .redoBtn:hover {
+  background: rgba(255, 255, 255, 0.14);
+  border-color: rgba(255, 255, 255, 0.55);
   color: #fff;
 }
 /* 分布バー: 自分の回答はアクセント色で強調。 */
