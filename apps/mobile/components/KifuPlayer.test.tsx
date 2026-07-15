@@ -83,6 +83,40 @@ describe("KifuPlayer", () => {
     expect(screen.getByText("立直")).toBeTruthy();
   });
 
+  it("結果（ロン/放銃）は和了演出を見るまでネームプレートに出さない（ネタバレ防止）", () => {
+    render(<KifuPlayer logs={[log(1, kifuWithAgari())]} />);
+    // 初期の全表示でも結果タグはまだ出さない。
+    expect(screen.queryByText("ロン")).toBeNull();
+    expect(screen.queryByText("放銃")).toBeNull();
+    // 情報シートの「結果」も伏せる。
+    fireEvent.press(screen.getByText("情報"));
+    expect(screen.queryAllByText(/ロン/).length).toBe(0);
+    fireEvent.press(screen.getByLabelText("閉じる（背景）"));
+    // 和了演出を開いて閉じたら、以後は結果タグを出してよい。
+    fireEvent.press(screen.getByLabelText("1手進む"));
+    fireEvent.press(screen.getByLabelText("前へ"));
+    expect(screen.getByText("放銃")).toBeTruthy();
+  });
+
+  it("情報シートはシート外（背景）タップで閉じられる", () => {
+    render(<KifuPlayer logs={[log(1, emptyKifu())]} />);
+    fireEvent.press(screen.getByText("情報"));
+    expect(screen.getByText("局情報")).toBeTruthy();
+    fireEvent.press(screen.getByLabelText("閉じる（背景）"));
+    expect(screen.queryByText("局情報")).toBeNull();
+  });
+
+  it("局ナビのサブ表示は「局」でなく本場を出す", () => {
+    render(<KifuPlayer logs={[log(1, emptyKifu())]} />);
+    expect(screen.queryByText("局")).toBeNull(); // 旧サブラベル「局」は廃止。
+    expect(screen.getByText("0本場")).toBeTruthy();
+  });
+
+  it("全画面ボタンは置かない（モバイルは全画面でもデザインが変わらないため）", () => {
+    render(<KifuPlayer logs={[log(1, emptyKifu())]} />);
+    expect(screen.queryByLabelText("全画面")).toBeNull();
+  });
+
   it("局送りで移動した局は最終巡目ではなく開始位置（打牌前）で表示される", () => {
     // 移動先に河1枚を持たせる（全表示なら1手進んだ状態＝「1手戻る」が有効になってしまう）。
     const second = makeKifu({
@@ -523,16 +557,21 @@ describe("KifuPlayer", () => {
     expect(screen.getByText("多井")).toBeTruthy();
   });
 
-  it("情報シートで半荘ルールを確認できる（プリセット名＋各項目の値）", () => {
+  it("情報シートで半荘ルールを確認できる（見出しタップで開閉・既定は閉）", () => {
     render(<KifuPlayer logs={[log(1, emptyKifu())]} />);
     fireEvent.press(screen.getByText("情報"));
-    // 見出しに一致プリセット名（既定ルール＝Mリーグ相当）。
+    // 見出しに一致プリセット名（既定ルール＝Mリーグ相当）。中身は折りたたみ既定。
     expect(screen.getByText("ルール（Mリーグ）")).toBeTruthy();
-    // 項目名と値のペアが出る（値ラベルは共有の ruleSummaryRows 由来）。
+    expect(screen.queryByText("切り上げ満貫")).toBeNull();
+    // 見出しタップで展開（値ラベルは共有の ruleSummaryRows 由来）。
+    fireEvent.press(screen.getByText("ルール（Mリーグ）"));
     expect(screen.getByText("切り上げ満貫")).toBeTruthy();
     expect(screen.getByText("ウマ")).toBeTruthy();
     expect(screen.getByText("10-30")).toBeTruthy();
     expect(screen.getByText("喰いタン")).toBeTruthy();
+    // もう一度タップで畳める。
+    fireEvent.press(screen.getByText("ルール（Mリーグ）"));
+    expect(screen.queryByText("切り上げ満貫")).toBeNull();
   });
 
   it("手牌トグルで相手の手牌が表(牌)/裏に切り替わる", () => {

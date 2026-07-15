@@ -138,6 +138,24 @@ describe("KifuViewer", () => {
     expect((screen.getByLabelText("1手戻る") as HTMLButtonElement).disabled).toBe(true);
   });
 
+  it("サイドパネルの結果・裏ドラは和了演出を見るまで伏せる（ネタバレ防止）", () => {
+    const k = kifuWithAgari();
+    k.meta.uraDora.push("6z");
+    // リーチ和了にして裏ドラ行が意味を持つようにする。
+    k.agari[0]!.riichi = ["east"];
+    renderViewer(detail([k]));
+    // 初期表示（全表示）でも結果はまだ伏せる。
+    expect(screen.getByText("—（再生で確認）")).toBeTruthy();
+    expect(screen.queryByText("ロン")).toBeNull();
+    expect(screen.queryByText("裏ドラ")).toBeNull();
+    // 和了演出を開いて閉じたら結果・裏ドラを出す。
+    fireEvent.click(screen.getByLabelText("1手進む"));
+    fireEvent.click(screen.getByRole("button", { name: "‹ 前へ" }));
+    expect(screen.getByText("ロン")).toBeTruthy();
+    expect(screen.getByText("裏ドラ")).toBeTruthy();
+    expect(screen.queryByText("—（再生で確認）")).toBeNull();
+  });
+
   it("和了ダイアログ: 最終局では「次の局へ」を無効にする", () => {
     renderViewer(detail([kifuWithAgari()]));
     fireEvent.click(screen.getByLabelText("1手進む"));

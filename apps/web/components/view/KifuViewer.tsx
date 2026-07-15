@@ -69,6 +69,9 @@ export function KifuViewer({ detail, gameId }: { detail: PublicGameDetail; gameI
   const [shareLabel, setShareLabel] = useState("共有");
   // 上がりオーバーレイ。次ボタンで開き、閉じるボタン/前ボタン/位置移動で閉じる。
   const [agariOpen, setAgariOpen] = useState(false);
+  // 結果のネタバレ防止: 和了演出に達するまで、サイドパネルの「結果」「裏ドラ」を伏せる。
+  // 局を移動したらまた伏せる（mobile の KifuPlayer と同一挙動）。
+  const [resultSeen, setResultSeen] = useState(false);
   // 視点席（ネームプレート押下で切替）。null は牌譜どおり（撮影者が手前）。局を跨いでも保つ。
   const [povSeat, setPovSeat] = useState<Seat | null>(null);
   // リーグ戦ポイントの表示。null=自動（全員 0.0 なら隠す）。トグルで明示 ON/OFF。
@@ -147,6 +150,7 @@ export function KifuViewer({ detail, gameId }: { detail: PublicGameDetail; gameI
       // 末尾（初期の全表示含む）: ツモ和了なら先に和了牌をツモり、次押しで和了演出。
       if (kifu.agari.length === 0) return;
       setReveal(frame.order.length); // -1（全表示）でも実位置に確定させる。
+      setResultSeen(true); // 和了演出に入る＝以後は結果を出してよい。
       if (frame.tsumoWin && stepPhase !== "winDraw") {
         setStepPhase("winDraw");
         return;
@@ -195,6 +199,7 @@ export function KifuViewer({ detail, gameId }: { detail: PublicGameDetail; gameI
     setStepPhase(null);
     setRoundMenu(false);
     setAgariOpen(false);
+    setResultSeen(false); // 新しい局ではまた結果を伏せる。
   }
 
   // 取得・not-found は Server Component 側で処理済み。ここは局が空のときだけ守る。
@@ -226,6 +231,8 @@ export function KifuViewer({ detail, gameId }: { detail: PublicGameDetail; gameI
   const isPrivate = detail.logs[0]?.visibility === "private";
   // 和了（ロン/ツモ）のときだけ裏ドラを出す（リーチ和了で意味を持つため）。
   const isWin = viewKifu.result === "ron" || viewKifu.result === "tsumo";
+  // 結果を出してよいか（和了の無い局＝流局はネタバレ要素が無いのでそのまま）。
+  const revealResult = resultSeen || kifu.agari.length === 0;
 
   function onShare() {
     const url = typeof window !== "undefined" ? window.location.href : "";
@@ -560,11 +567,12 @@ export function KifuViewer({ detail, gameId }: { detail: PublicGameDetail; gameI
                 <b>{viewKifu.meta.kyotaku}本</b>
               </div>
               <DoraRow label="ドラ" codes={viewKifu.meta.dora} />
+              {/* 結果・裏ドラはネタバレ防止のため、和了演出を見るまで伏せる。 */}
               <div className={s.irow}>
                 <span>結果</span>
-                <b>{resultLabel(viewKifu.result)}</b>
+                <b>{revealResult ? resultLabel(viewKifu.result) : "—（再生で確認）"}</b>
               </div>
-              {isWin && <DoraRow label="裏ドラ" codes={viewKifu.meta.uraDora} />}
+              {revealResult && isWin && <DoraRow label="裏ドラ" codes={viewKifu.meta.uraDora} />}
             </div>
 
             <div className={s.ssec}>

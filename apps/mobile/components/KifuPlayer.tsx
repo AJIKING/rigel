@@ -62,7 +62,9 @@ export function KifuPlayer({
   const [sheetOpen, setSheetOpen] = useState(false);
   // 和了シート。次ボタンで開き、閉じるボタン/前ボタン/位置移動で閉じる。
   const [agariOpen, setAgariOpen] = useState(false);
-  const [fs, setFs] = useState(false); // 全画面（上部バーを畳んで卓を最大化）
+  // 結果のネタバレ防止: 和了演出に達するまで、ネームプレートの結果タグ（ツモ/ロン/放銃）や
+  // 情報シートの「結果」「裏ドラ」を伏せる。局を移動したらまた伏せる。
+  const [resultSeen, setResultSeen] = useState(false);
   // 視点席（席タップで切替）。null は牌譜どおり（撮影者が手前）。局を跨いでも保つ。
   const [povSeat, setPovSeat] = useState<Seat | null>(null);
   // リーグ戦ポイントの表示。null=自動（全員 0.0 なら隠す）。トグルで明示 ON/OFF。
@@ -110,8 +112,12 @@ export function KifuPlayer({
 
   const roundLabel = roundNameForSeq(log.seq);
   const showAgari = agariOpen && kifu.agari.length > 0;
-  // 卓は横幅いっぱいまで拡大（上限は大画面向けの保険）。縦は上部バー(全画面時は無し)＋場ナビ分を控える。
-  const boardSize = Math.max(240, Math.min(width - 8, height - (fs ? 150 : 240), 520));
+  // 結果を出してよいか（和了の無い局＝流局はネタバレ要素が無いのでそのまま）。
+  const revealResult = resultSeen || kifu.agari.length === 0;
+  // 盤面に渡す局面: 結果を伏せている間は agari を空にしてネームプレートの結果タグを消す。
+  const tableKifu = revealResult ? boardKifu : { ...boardKifu, agari: [] };
+  // 卓は横幅いっぱいまで拡大（上限は大画面向けの保険）。縦は上部バー＋場ナビ分を控える。
+  const boardSize = Math.max(240, Math.min(width - 8, height - 240, 520));
 
   /** 局の切替（局送り・和了シートの「次の局へ」共通）。
    *  移動先は開始位置（配牌＝打牌前）から再生する。初期表示（reveal=-1 の全表示）と
@@ -121,6 +127,7 @@ export function KifuPlayer({
     setReveal(0);
     setStepPhase(null);
     setAgariOpen(false);
+    setResultSeen(false); // 新しい局ではまた結果を伏せる。
   }
 
   /** 再生位置ジャンプ（巡目送りなど）。半歩は挟まず演出も出さない。 */
@@ -141,6 +148,7 @@ export function KifuPlayer({
       // 末尾（初期の全表示含む）: ツモ和了なら先に和了牌をツモり、次押しで和了演出。
       if (kifu.agari.length === 0) return;
       setReveal(frame.order.length); // -1（全表示）でも実位置に確定させる。
+      setResultSeen(true); // 和了演出に入る＝以後は結果を出してよい。
       if (frame.tsumoWin && stepPhase !== "winDraw") {
         setStepPhase("winDraw");
         return;
@@ -184,50 +192,36 @@ export function KifuPlayer({
 
   return (
     <View style={styles.root}>
-      {/* 上部バー（全画面時は畳む） */}
-      {fs ? (
-        <Pressable
-          style={[styles.fsExit, { top: insets.top + 6 }]}
-          onPress={() => setFs(false)}
-          accessibilityRole="button"
-          accessibilityLabel="全画面を終了"
-        >
-          <ExpandIcon color={colors.accent} exit />
-        </Pressable>
-      ) : (
-        <View style={styles.vbar}>
-          <View style={styles.ttl}>
-            <Text style={styles.title} numberOfLines={1}>
-              {title || roundLabel}
-            </Text>
-            <View style={styles.sub}>
-              {isPublic ? <Text style={styles.pub}>公開</Text> : null}
-              {isPublic ? <Dot /> : null}
-              {authorLabel ? (
-                <>
-                  <Text style={styles.subText}>{authorLabel}</Text>
-                  <Dot />
-                </>
-              ) : null}
-              <Text style={styles.subText}>{logs.length}局</Text>
-            </View>
+      {/* 上部バー（全画面ボタンは廃止＝モバイルは全画面でもデザインが変わらない） */}
+      <View style={styles.vbar}>
+        <View style={styles.ttl}>
+          <Text style={styles.title} numberOfLines={1}>
+            {title || roundLabel}
+          </Text>
+          <View style={styles.sub}>
+            {isPublic ? <Text style={styles.pub}>公開</Text> : null}
+            {isPublic ? <Dot /> : null}
+            {authorLabel ? (
+              <>
+                <Text style={styles.subText}>{authorLabel}</Text>
+                <Dot />
+              </>
+            ) : null}
+            <Text style={styles.subText}>{logs.length}局</Text>
           </View>
-          {isPublic ? (
-            <IconButton label="共有" onPress={() => void onShare()}>
-              <ShareIcon color={colors.w70} />
-            </IconButton>
-          ) : null}
-          {/* 手牌表示は下の場ナビ「手牌」トグルに一本化（目のアイコンは廃止＝機能重複の解消）。 */}
-          <IconButton label="全画面" onPress={() => setFs(true)}>
-            <ExpandIcon color={colors.w70} />
-          </IconButton>
         </View>
-      )}
+        {isPublic ? (
+          <IconButton label="共有" onPress={() => void onShare()}>
+            <ShareIcon color={colors.w70} />
+          </IconButton>
+        ) : null}
+        {/* 手牌表示は下の場ナビ「手牌」トグルに一本化（目のアイコンは廃止＝機能重複の解消）。 */}
+      </View>
 
       {/* 盤面 */}
       <View style={styles.stage}>
         <BoardTable
-          kifu={boardKifu}
+          kifu={tableKifu}
           bottomSeat={bottomSeat}
           dealer={dealer}
           roundLabel={roundLabel}
@@ -255,7 +249,8 @@ export function KifuPlayer({
               onPress={() => switchLog(gi - 1)}
               label="前の局"
             />
-            <GroupLabel main={roundLabel} sub="局" />
+            {/* サブは本場（「局」の字は冗長。連荘の区別に本場の方が情報になる）。 */}
+            <GroupLabel main={roundLabel} sub={`${kifu.meta.honba}本場`} />
             <NavBtn
               icon="nextLog"
               disabled={gi >= logs.length - 1}
@@ -305,51 +300,55 @@ export function KifuPlayer({
         </View>
       </View>
 
-      {/* 情報シート（backdrop 無し＝出したまま下の場ナビを操作できる） */}
+      {/* 情報シート（背景タップで閉じる）。セクションは見出しタップで開閉し、
+          既定は局情報だけ開く（全部並べると縦に長く見づらいため）。 */}
       {sheetOpen ? (
-        <BottomSheet onClose={() => setSheetOpen(false)} backdrop={false} maxHeight="70%">
+        <BottomSheet onClose={() => setSheetOpen(false)} maxHeight="70%">
           <ScrollView contentContainerStyle={styles.sheetBody}>
-            <Text style={styles.h3}>局情報</Text>
-            <KV k="親" v={`${windOf(dealer, dealer)}家`} />
-            <View style={styles.kv}>
-              <Text style={styles.kvK}>ドラ</Text>
-              <View style={styles.kvTiles}>
-                {viewKifu.meta.dora.length === 0 ? (
-                  <Text style={styles.kvV}>—</Text>
-                ) : (
-                  viewKifu.meta.dora.map((t, i) => (
-                    <MiniTile key={`${t}-${i}`} code={t} w={20} h={28} />
-                  ))
-                )}
+            <Section title="局情報" defaultOpen>
+              <KV k="親" v={`${windOf(dealer, dealer)}家`} />
+              <View style={styles.kv}>
+                <Text style={styles.kvK}>ドラ</Text>
+                <View style={styles.kvTiles}>
+                  {viewKifu.meta.dora.length === 0 ? (
+                    <Text style={styles.kvV}>—</Text>
+                  ) : (
+                    viewKifu.meta.dora.map((t, i) => (
+                      <MiniTile key={`${t}-${i}`} code={t} w={20} h={28} />
+                    ))
+                  )}
+                </View>
               </View>
-            </View>
-            <View style={styles.kv}>
-              <Text style={styles.kvK}>裏ドラ</Text>
-              <View style={styles.kvTiles}>
-                {viewKifu.meta.uraDora.length === 0 ? (
-                  <Text style={styles.kvV}>—</Text>
-                ) : (
-                  viewKifu.meta.uraDora.map((t, i) => (
-                    <MiniTile key={`${t}-${i}`} code={t} w={20} h={28} />
-                  ))
-                )}
+              <View style={styles.kv}>
+                <Text style={styles.kvK}>裏ドラ</Text>
+                <View style={styles.kvTiles}>
+                  {/* 結果と同じくネタバレ要素なので、和了演出を見るまで伏せる。 */}
+                  {!revealResult || viewKifu.meta.uraDora.length === 0 ? (
+                    <Text style={styles.kvV}>—</Text>
+                  ) : (
+                    viewKifu.meta.uraDora.map((t, i) => (
+                      <MiniTile key={`${t}-${i}`} code={t} w={20} h={28} />
+                    ))
+                  )}
+                </View>
               </View>
-            </View>
-            <KV k="本場 / 供託" v={`${viewKifu.meta.honba}本場 / ${viewKifu.meta.kyotaku}`} />
-            <KV k="結果" v={resultLabel(viewKifu.result)} />
-            <Text style={styles.h3}>各家</Text>
-            {SEAT_ORDER.map((seat) => (
-              <KV
-                key={seat}
-                k={`${windOf(seat, dealer)}家`}
-                v={`手牌${viewKifu.seats[seat].hand.length}枚 / 河${viewKifu.seats[seat].river.length}${` / ${startPoints[seat].toLocaleString()}点`}`}
-              />
-            ))}
+              <KV k="本場 / 供託" v={`${viewKifu.meta.honba}本場 / ${viewKifu.meta.kyotaku}`} />
+              {/* 結果はネタバレ防止のため、和了演出を見るまで伏せる。 */}
+              <KV k="結果" v={revealResult ? resultLabel(viewKifu.result) : "—（再生で確認）"} />
+            </Section>
+            <Section title="各家">
+              {SEAT_ORDER.map((seat) => (
+                <KV
+                  key={seat}
+                  k={`${windOf(seat, dealer)}家`}
+                  v={`手牌${viewKifu.seats[seat].hand.length}枚 / 河${viewKifu.seats[seat].river.length}${` / ${startPoints[seat].toLocaleString()}点`}`}
+                />
+              ))}
+            </Section>
             {/* 選手情報（players がある半荘のみ）。ネームプレートの選手名は切り詰められる
                 ことがあるため、ここではフル名＋ポイント状況を一覧できるようにする。 */}
             {kifu.players ? (
-              <>
-                <Text style={styles.h3}>選手情報</Text>
+              <Section title="選手情報">
                 {SEAT_ORDER.map((seat) => (
                   <KV
                     key={`p-${seat}`}
@@ -357,13 +356,14 @@ export function KifuPlayer({
                     v={signedPoints(kifu.players?.[seat].points ?? 0)}
                   />
                 ))}
-              </>
+              </Section>
             ) : null}
             {/* 半荘ルール（半荘単位＝全局共通）。web のサイドパネルと同じ要約行。 */}
-            <Text style={styles.h3}>ルール（{rulePresetLabel(kifu.rules)}）</Text>
-            {ruleSummaryRows(kifu.rules).map((r) => (
-              <KV key={r.title} k={r.title} v={r.value} />
-            ))}
+            <Section title={`ルール（${rulePresetLabel(kifu.rules)}）`}>
+              {ruleSummaryRows(kifu.rules).map((r) => (
+                <KV key={r.title} k={r.title} v={r.value} />
+              ))}
+            </Section>
           </ScrollView>
         </BottomSheet>
       ) : null}
@@ -386,6 +386,32 @@ export function KifuPlayer({
 
 function Dot() {
   return <View style={styles.dot} />;
+}
+/** 情報シートのセクション（見出しタップで開閉）。既定は閉＝縦長になりすぎない。 */
+function Section({
+  title,
+  defaultOpen = false,
+  children,
+}: {
+  title: string;
+  defaultOpen?: boolean;
+  children: React.ReactNode;
+}) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <View style={styles.section}>
+      <Pressable
+        style={styles.sectionHead}
+        onPress={() => setOpen((v) => !v)}
+        accessibilityRole="button"
+        accessibilityState={{ expanded: open }}
+      >
+        <Text style={styles.h3}>{title}</Text>
+        <Text style={styles.sectionChevron}>{open ? "▴" : "▾"}</Text>
+      </Pressable>
+      {open ? children : null}
+    </View>
+  );
 }
 function KV({ k, v }: { k: string; v: string }) {
   return (
@@ -483,23 +509,6 @@ function ShareIcon({ color }: { color: string }) {
     </Svg>
   );
 }
-function ExpandIcon({ color, exit = false }: { color: string; exit?: boolean }) {
-  return (
-    <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
-      <Path
-        d={
-          exit
-            ? "M9 4H4v5M20 9V4h-5M9 20H4v-5M15 20h5v-5"
-            : "M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"
-        }
-        stroke={color}
-        strokeWidth={2}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </Svg>
-  );
-}
 type NavIconName = "prevLog" | "nextLog" | "prevJunme" | "nextJunme" | "stepPrev" | "stepNext";
 
 /** 場ナビのボタンアイコン（局送り=先頭バー付き三角、巡送り=二連三角、1手=三角）。 */
@@ -531,17 +540,6 @@ const styles = StyleSheet.create({
   pub: { color: colors.accent, fontSize: 11, fontWeight: "700" },
   dot: { width: 3, height: 3, borderRadius: 1.5, backgroundColor: colors.w45, marginHorizontal: 6 },
   ib: { width: 44, height: 44, alignItems: "center", justifyContent: "center" },
-  fsExit: {
-    position: "absolute",
-    right: 10,
-    zIndex: 10,
-    width: 40,
-    height: 40,
-    alignItems: "center",
-    justifyContent: "center",
-    borderRadius: 20,
-    backgroundColor: "rgba(0,0,0,0.35)",
-  },
   stage: { flex: 1, alignItems: "center", justifyContent: "center", padding: 2 },
   nav: {
     paddingHorizontal: 14,
@@ -581,7 +579,21 @@ const styles = StyleSheet.create({
   togText: { color: colors.w70, fontWeight: "800", fontSize: 13.5 },
   togTextOn: { color: colors.accent },
   sheetBody: { paddingBottom: 8 },
-  h3: { color: colors.w45, fontWeight: "800", fontSize: 12, marginTop: 12, marginBottom: 8 },
+  h3: { color: colors.w45, fontWeight: "800", fontSize: 12 },
+  // 情報シートのセクション（見出しタップで開閉）。
+  section: {
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.line2,
+    paddingBottom: 8,
+    marginBottom: 4,
+  },
+  sectionHead: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingVertical: 10,
+  },
+  sectionChevron: { color: colors.w45, fontSize: 12 },
   kv: {
     flexDirection: "row",
     justifyContent: "space-between",
