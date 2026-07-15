@@ -9,6 +9,7 @@ import {
   nextDiscardSeat,
   reconcileTimeline,
   removeTimelineEvent,
+  setTimelineCall,
   syncCalledByForMeld,
   syncSeatsFromTimeline,
   timelineToSeats,
@@ -413,5 +414,50 @@ describe("reconcileTimeline（盤面編集→timeline を巡目正規化で同�
       },
     });
     expect(reconcileTimeline(k).timeline).toEqual([]);
+  });
+});
+
+describe("setTimelineCall（手順タブの鳴き選択: 鳴いた人を選ぶと鳴き行＋打牌行が入る）", () => {
+  it("なし→席: 鳴き印＋鳴き行（ポン・from=捨て主）＋鳴いた人の打牌行（牌は後で選ぶ）を挿入", () => {
+    const tl = [disc("east", "5p"), disc("south", "1s")];
+    const res = setTimelineCall(tl, 0, "west");
+    expect(res).toHaveLength(4);
+    expect(res[0]).toMatchObject({ kind: "discard", calledBy: "west" });
+    expect(res[1]).toMatchObject({
+      kind: "meld",
+      seat: "west",
+      meld: { type: "pon", from: "east" },
+    });
+    const meldEv = res[1];
+    if (meldEv?.kind !== "meld") throw new Error("meld expected");
+    expect(meldEv.meld.tiles.map((t) => t.tile)).toEqual(["5p", "5p", "5p"]);
+    expect(res[2]).toMatchObject({ kind: "discard", seat: "west", tile: null });
+    expect(res[3]).toMatchObject({ kind: "discard", seat: "south", tile: "1s" });
+  });
+
+  it("席→別席: 鳴き印と連動行（鳴き・未入力の打牌）の席を付け替える", () => {
+    const tl = setTimelineCall([disc("east", "5p")], 0, "west");
+    const res = setTimelineCall(tl, 0, "north");
+    expect(res[0]).toMatchObject({ calledBy: "north" });
+    expect(res[1]).toMatchObject({ kind: "meld", seat: "north" });
+    expect(res[2]).toMatchObject({ kind: "discard", seat: "north", tile: null });
+  });
+
+  it("席→なし: 鳴き印を解除し連動行を取り除く（牌の入った打牌行はユーザー入力なので残す）", () => {
+    const tl = setTimelineCall([disc("east", "5p")], 0, "west");
+    expect(setTimelineCall(tl, 0, null)).toEqual([disc("east", "5p")]);
+    const filled = tl.map((e, i) =>
+      i === 2 && e.kind === "discard" ? { ...e, tile: "9m" as never } : e,
+    );
+    const res = setTimelineCall(filled, 0, null);
+    expect(res).toHaveLength(2);
+    expect(res[0]).toMatchObject({ kind: "discard", calledBy: null });
+    expect(res[1]).toMatchObject({ kind: "discard", seat: "west", tile: "9m" });
+  });
+
+  it("同じ席を選び直したとき・打牌以外の行は何もしない", () => {
+    const tl = setTimelineCall([disc("east", "5p")], 0, "west");
+    expect(setTimelineCall(tl, 0, "west")).toBe(tl);
+    expect(setTimelineCall(tl, 1, "north")).toBe(tl);
   });
 });

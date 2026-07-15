@@ -5,8 +5,11 @@ import {
   addRiverTile,
   applyResultMode,
   applyTileEdit,
+  callDiscard,
+  chiVariants,
   deriveWinResult,
   mutateKifu,
+  otherSeats,
   removeDoraTile,
   removeHandTile,
   removeMeld,
@@ -15,9 +18,6 @@ import {
   setDoraTile,
   roundNameForSeq,
   seatLabel,
-  calledByLabel,
-  cycleCalledBy,
-  setDiscardCalledBy,
   setDiscardFlags,
   sortKifuHands,
   windOf,
@@ -39,7 +39,7 @@ import { DrawForm } from "./DrawForm";
 import { MiniTile } from "../MiniTile";
 import { Segment } from "../Segment";
 import { Stepper } from "../Stepper";
-import { TilePickerSheet } from "./TilePickerSheet";
+import { TilePickerSheet, type CallState } from "./TilePickerSheet";
 import { TimelineEditor } from "./TimelineEditor";
 
 /** ピッカーが「今なにを編集しているか」。 */
@@ -84,6 +84,8 @@ export function KifuEditor({
   const [picker, setPicker] = useState<Picker>(null);
   // チーの並び（選んだ牌を 0=左端/1=中央/2=右端 に置く）。鳴き追加シートのチップで選ぶ。
   const [chiIndex, setChiIndex] = useState<0 | 1 | 2>(1);
+  // 捨て牌から鳴く選択状態（edit-river のシートで使う。開くたびにリセット）。
+  const [call, setCall] = useState<CallState>({ type: null, caller: "south", chiRun: null });
   // 盤面（席ごと）/ 手順（タイムライン）の編集モード。web の 盤面/手順 タブと同等。
   const [mode, setMode] = useState<"board" | "timeline">("board");
   // 盤面プレビュー（編集を即時反映。席タップで編集対象を切替）。
@@ -136,9 +138,22 @@ export function KifuEditor({
       setKifu(addMeld(kifu, seat, picker.meld, code, picker.meld === "chi" ? chiIndex : undefined));
     else if (picker.kind === "edit-hand")
       setKifu(applyTileEdit(kifu, { seat, area: "hand", index: picker.index }, code));
-    else if (picker.kind === "edit-river")
-      setKifu(applyTileEdit(kifu, { seat, area: "river", index: picker.index }, code));
-    else if (picker.kind === "dora" || picker.kind === "uradora") {
+    else if (picker.kind === "edit-river") {
+      // 鳴き種別が選ばれていれば「この捨て牌を鳴く」: 鳴き牌・from・鳴き印は捨て牌から
+      // 自動で結線し、選んだ牌は鳴いた人がその後に切った牌になる（共有純関数＝web と同一挙動）。
+      if (call.type) {
+        setKifu(
+          callDiscard(kifu, seat, picker.index, {
+            caller: call.caller,
+            type: call.type,
+            chiRun: call.chiRun,
+            discardTile: code,
+          }),
+        );
+      } else {
+        setKifu(applyTileEdit(kifu, { seat, area: "river", index: picker.index }, code));
+      }
+    } else if (picker.kind === "dora" || picker.kind === "uradora") {
       const kind = picker.kind === "dora" ? "dora" : "uraDora";
       setKifu(setDoraTile(kifu, kind, code, picker.index));
     }
@@ -336,13 +351,15 @@ export function KifuEditor({
               {board.river.map((d, i) => (
                 <Pressable
                   key={`r${i}`}
-                  onPress={() =>
+                  onPress={() => {
+                    // 鳴きの選択状態は開くたびにリセット（鳴いた人の既定=捨て主の下家）。
+                    setCall({ type: null, caller: otherSeats(seat)[0]!, chiRun: null });
                     setPicker({
                       kind: "edit-river",
                       index: i,
                       suit: (d.tile?.[1] as PickerSuit) ?? "m",
-                    })
-                  }
+                    });
+                  }}
                   accessibilityRole="button"
                 >
                   <MiniTile code={d.tile} w={30} h={42} riichi={d.riichi} tsumogiri={d.tsumogiri} />
@@ -455,9 +472,6 @@ export function KifuEditor({
               ? {
                   riichi: editingDiscard.riichi,
                   tsumogiri: editingDiscard.tsumogiri ?? false,
-                  // 鳴かれた印は席名つきラベルで順送り（なし→下家→対面→上家）。
-                  calledOn: editingDiscard.calledBy !== null,
-                  calledLabel: calledByLabel(editingDiscard.calledBy),
                 }
               : null
           }
@@ -475,16 +489,24 @@ export function KifuEditor({
               }),
             );
           }}
-          onToggleCalledBy={() => {
-            if (discardIndex < 0 || !editingDiscard) return;
+          // 捨て牌から鳴く（edit-river のみ）。鳴いた人の候補は捨て主以外の3席（選手名優先）。
+          call={picker.kind === "edit-river" ? call : null}
+          callers={otherSeats(seat).map((s) => ({
+            seat: s,
+            label: kifu.players?.[s]?.name || windName(s),
+          }))}
+          chiRuns={editingDiscard?.tile ? chiVariants(editingDiscard.tile) : []}
+          onCallChange={setCall}
+          onCallCreate={() => {
+            if (picker.kind !== "edit-river" || !call.type) return;
             setKifu(
-              setDiscardCalledBy(
-                kifu,
-                seat,
-                discardIndex,
-                cycleCalledBy(editingDiscard.calledBy, seat),
-              ),
+              callDiscard(kifu, seat, picker.index, {
+                caller: call.caller,
+                type: call.type,
+                chiRun: call.chiRun,
+              }),
             );
+            setPicker(null);
           }}
           chi={picker?.kind === "add-meld" && picker.meld === "chi" ? { index: chiIndex } : null}
           onChiIndex={setChiIndex}

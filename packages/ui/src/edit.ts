@@ -12,11 +12,18 @@ import {
   KifuSchema,
   type Agari,
   type Kifu,
+  type Meld,
   type Seat,
   type Tile,
+  type TimelineEvent,
 } from "@rigel/schema";
 import { SEAT_ORDER } from "./board";
-import { reconcileTimeline } from "./timeline";
+import {
+  deriveTimeline,
+  makeDiscardEvent,
+  reconcileTimeline,
+  syncSeatsFromTimeline,
+} from "./timeline";
 
 /**
  * 盤面(seats)を編集した後の共通後処理。timeline が非空なら「打牌＝東南西北×巡目順」に
@@ -307,6 +314,55 @@ export function addMeld(
   hand.splice(Math.max(0, hand.length - handTilesUsed(type))); // 末尾から鳴いた枚数を除く
   // 新しい鳴きは timeline で「末尾（最新）」に入る（reconcile がアンカー無し=末尾として扱う）。
   return syncBoardEdit(KifuSchema.parse(d));
+}
+
+/**
+ * 捨て牌を鳴く（河の牌からの鳴き作成を1操作に束ねる。web/mobile のピッカーで共用）。
+ *  - 鳴き: type（チー/ポン/カン=大明槓）。牌は鳴かれた捨て牌から構成し、from=捨て主
+ *  - 捨て牌: calledBy=鳴いた人（牌は河に残して薄表示）
+ *  - discardTile を渡すと「鳴いた人がその後に切った牌」を鳴きの直後に挿入する
+ *  鳴きと打牌の並びを確定させるため、手順（timeline）を正典化して返す。
+ */
+export function callDiscard(
+  kifu: Kifu,
+  discarder: Seat,
+  riverIndex: number,
+  opts: { caller: Seat; type: MeldPick; chiRun?: Tile[] | null; discardTile?: Tile },
+): Kifu {
+  if (opts.caller === discarder) return kifu;
+  const timeline = deriveTimeline(kifu);
+  // 河の index → timeline 上の打牌イベント位置（同席の打牌を数えて対応づける）。
+  let seen = 0;
+  let evIndex = -1;
+  for (let i = 0; i < timeline.length; i++) {
+    const e = timeline[i]!;
+    if (e.kind === "discard" && e.seat === discarder && seen++ === riverIndex) {
+      evIndex = i;
+      break;
+    }
+  }
+  const called = timeline[evIndex];
+  if (called?.kind !== "discard") return kifu;
+
+  const calledTile = called.tile;
+  // 鳴き牌の並び: チーは選んだ並び（鳴かれた牌を含むときだけ）を優先。牌が未定なら空スロット。
+  const shape: (Tile | null)[] = calledTile
+    ? opts.type === "chi" && opts.chiRun?.includes(calledTile)
+      ? opts.chiRun
+      : meldTiles(opts.type, calledTile)
+    : Array.from({ length: opts.type === "kan" ? 4 : 3 }, () => null);
+  const meld: Meld = {
+    type: opts.type === "kan" ? "kan_open" : opts.type,
+    tiles: shape.map((t) => ({ tile: t, confidence: 1 })),
+    from: discarder,
+  };
+
+  const events = timeline.slice();
+  events[evIndex] = { ...called, calledBy: opts.caller };
+  const insert: TimelineEvent[] = [{ kind: "meld", seat: opts.caller, meld }];
+  if (opts.discardTile !== undefined) insert.push(makeDiscardEvent(opts.caller, opts.discardTile));
+  events.splice(evIndex + 1, 0, ...insert);
+  return syncSeatsFromTimeline(KifuSchema.parse({ ...kifu, timeline: events }));
 }
 
 /** 鳴きを丸ごと取り除く。timeline 非空なら対応する鳴きイベントも除去（アンカー整列を維持）。

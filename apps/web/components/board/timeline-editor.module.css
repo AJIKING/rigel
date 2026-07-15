@@ -304,6 +304,48 @@
   border-color: var(--vermilion);
   color: var(--vermilion);
 }
+/* 「鳴き」メニュー（この捨て牌を鳴いた人を選ぶ）。 */
+.callTitle {
+  margin: 14px 14px 0;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--w70);
+}
+.callSeats {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 7px;
+  padding: 12px 14px 0;
+}
+.callSeats button {
+  padding: 9px 0;
+  border-radius: var(--r-sm);
+  border: 1px solid var(--line);
+  background: var(--chrome-2);
+  color: var(--w70);
+  font-family: var(--round);
+  font-size: 12.5px;
+  font-weight: 700;
+  cursor: pointer;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.callSeats button:hover {
+  color: var(--w85);
+}
+.callSeats button.on {
+  background: #fff;
+  border-color: #fff;
+  color: #16181d;
+}
+.callHint {
+  margin: 10px 14px 14px;
+  font-size: 10.5px;
+  color: var(--w45);
+  text-align: center;
+}
+
 .pcell {
   position: relative;
   aspect-ratio: 3/4;

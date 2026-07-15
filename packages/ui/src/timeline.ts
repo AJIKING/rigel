@@ -6,6 +6,7 @@
 import {
   KifuSchema,
   type Discard,
+  type DiscardEvent,
   type Kifu,
   type Meld,
   type MeldType,
@@ -57,6 +58,20 @@ export function buildTimelineFromSeats(kifu: Kifu): TimelineEvent[] {
 /** kifu が timeline を持てばそれを、無ければ席ごとから構築して返す。 */
 export function deriveTimeline(kifu: Kifu): TimelineEvent[] {
   return kifu.timeline.length > 0 ? kifu.timeline : buildTimelineFromSeats(kifu);
+}
+
+/** 手入力の打牌イベント（手出し・確定扱い）。＋打牌や鳴き直後の打牌行の生成で共用する。 */
+export function makeDiscardEvent(seat: Seat, tile: Tile | null = null): DiscardEvent {
+  return {
+    kind: "discard",
+    seat,
+    draw: null,
+    tile,
+    tsumogiri: false,
+    riichi: false,
+    calledBy: null,
+    confidence: 1,
+  };
 }
 
 /**
@@ -281,6 +296,55 @@ export function removeTimelineEvent(timeline: TimelineEvent[], index: number): T
       ? syncCalledByForMeld(timeline, index, e.seat, e.meld.from, null)
       : timeline;
   return base.filter((_, k) => k !== index);
+}
+
+/**
+ * 手順タブの「鳴き」操作。打牌 index の鳴き印（calledBy）を caller に付け替え、
+ * 連動行（直後の鳴き行と、その直後の鳴いた人の未入力打牌行）を追随させる。
+ *  - なし→席: 印を付け、直後に鳴き行（ポン・鳴かれた牌×3・from=捨て主）と
+ *    鳴いた人の打牌行（tile=null。何を切ったかは後で選ぶ）を挿入する
+ *  - 席→別席: 印と連動行の席を付け替える（鳴き種別・牌のユーザー編集は保つ）
+ *  - 席→なし: 印を解除し連動行を取り除く（牌の入った打牌行はユーザー入力なので残す）
+ */
+export function setTimelineCall(
+  timeline: TimelineEvent[],
+  index: number,
+  caller: Seat | null,
+): TimelineEvent[] {
+  const e = timeline[index];
+  if (e?.kind !== "discard" || e.calledBy === caller) return timeline;
+  const old = e.calledBy;
+  const next = timeline.slice();
+  next[index] = { ...e, calledBy: caller };
+
+  // 連動行の特定: 直後の鳴き行（from=この打牌の席・鳴き主=旧印）と、その直後の未入力打牌行。
+  const meldAt = index + 1;
+  const m = old ? next[meldAt] : undefined;
+  const linkedMeld = m?.kind === "meld" && m.meld.from === e.seat && m.seat === old ? m : null;
+  const d2 = linkedMeld ? next[meldAt + 1] : undefined;
+  const linkedEmpty = d2?.kind === "discard" && d2.seat === old && d2.tile === null ? d2 : null;
+
+  if (caller === null) {
+    if (linkedMeld) next.splice(meldAt, linkedEmpty ? 2 : 1);
+    return next;
+  }
+  if (old === null) {
+    const shape: (Tile | null)[] = e.tile ? [e.tile, e.tile, e.tile] : [null, null, null];
+    next.splice(
+      meldAt,
+      0,
+      {
+        kind: "meld",
+        seat: caller,
+        meld: { type: "pon", tiles: shape.map((t) => ({ tile: t, confidence: 1 })), from: e.seat },
+      },
+      makeDiscardEvent(caller),
+    );
+    return next;
+  }
+  if (linkedMeld) next[meldAt] = { ...linkedMeld, seat: caller };
+  if (linkedEmpty) next[meldAt + 1] = { ...linkedEmpty, seat: caller };
+  return next;
 }
 
 /** 各イベントの巡目（親の打牌ごとに +1）。timeline と同じ長さの配列を返す。 */

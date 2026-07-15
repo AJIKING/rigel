@@ -91,21 +91,52 @@ describe("KifuEditor（モバイル編集画面）", () => {
     expect(onSave.mock.calls[0]![1]).toBe(16);
   });
 
-  it("河の編集シートの「鳴き」チップで鳴いた席を順送りできる（web と同一挙動）", () => {
+  it("捨て牌の編集シートから鳴ける: 鳴いた人を選び、牌選択＝鳴いた人が切った牌（鳴かれた順送りは廃止）", () => {
     const onSave = jest.fn();
     render(<KifuEditor initialKifu={makeKifu()} initialSeq={1} onSave={onSave} />);
     fireEvent.press(screen.getByText(/プレビュー/)); // 牌ラベルの重複を避けるため畳む
+    // 河に 5p を追加（追加シートに「鳴かれた」の順送りチップはもう無い）。
     fireEvent.press(screen.getByLabelText("河に追加"));
     fireEvent.press(screen.getByText("筒"));
     fireEvent.press(screen.getByLabelText("5筒"));
-    // 追加ピッカーは開いたまま＝直前の捨て牌の切り方チップが出ている。なし→下家（南家）。
-    fireEvent.press(screen.getByText("鳴きなし"));
-    expect(screen.getByText("鳴き→南家")).toBeTruthy();
+    expect(screen.queryByText("鳴きなし")).toBeNull();
     fireEvent.press(screen.getByText("閉じる"));
+
+    // その捨て牌を開いて ポン → 切った牌に 1萬（鳴いた人の既定は下家＝南家）。
+    fireEvent.press(screen.getByLabelText("5筒"));
+    fireEvent.press(screen.getByLabelText("ポンで鳴く"));
+    fireEvent.press(screen.getByText("萬"));
+    fireEvent.press(screen.getByLabelText("1萬"));
 
     fireEvent.press(screen.getByText("保存"));
     const saved = onSave.mock.calls[0]![0] as Kifu;
+    // 鳴き牌=5p×3・from=捨て主（東家）・鳴き印=南家 が自動で入る。
+    expect(saved.seats.south.melds[0]).toMatchObject({ type: "pon", from: "east" });
+    expect(saved.seats.south.melds[0]?.tiles.map((t) => t.tile)).toEqual(["5p", "5p", "5p"]);
     expect(saved.seats.east.river[0]?.calledBy).toBe("south");
+    // 選んだ 1萬 は南家（鳴いた人）の捨て牌になる。
+    expect(saved.seats.south.river[0]?.tile).toBe("1m");
+  });
+
+  it("「切った牌を選ばず作成」で鳴きだけ作れる（捨て牌からのカンは大明槓）", () => {
+    const onSave = jest.fn();
+    render(<KifuEditor initialKifu={makeKifu()} initialSeq={1} onSave={onSave} />);
+    fireEvent.press(screen.getByText(/プレビュー/));
+    fireEvent.press(screen.getByLabelText("河に追加"));
+    fireEvent.press(screen.getByText("筒"));
+    fireEvent.press(screen.getByLabelText("5筒"));
+    fireEvent.press(screen.getByText("閉じる"));
+
+    fireEvent.press(screen.getByLabelText("5筒"));
+    fireEvent.press(screen.getByLabelText("カンで鳴く"));
+    fireEvent.press(screen.getByText("切った牌を選ばず作成"));
+
+    fireEvent.press(screen.getByText("保存"));
+    const saved = onSave.mock.calls[0]![0] as Kifu;
+    expect(saved.seats.south.melds[0]).toMatchObject({ type: "kan_open", from: "east" });
+    expect(saved.seats.south.melds[0]?.tiles).toHaveLength(4);
+    expect(saved.seats.east.river[0]?.calledBy).toBe("south");
+    expect(saved.seats.south.river).toHaveLength(0);
   });
 
   it("チーの並び（左端/中央/右端）を選んで鳴きを追加できる", () => {

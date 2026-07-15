@@ -17,6 +17,7 @@ import {
   removeMeld,
   removeRiverTile,
   resultModeOf,
+  callDiscard,
   setDoraTile,
   setDiscardCalledBy,
   setDiscardFlags,
@@ -55,6 +56,12 @@ describe("鳴かれた捨て牌（setDiscardCalledBy / cycleCalledBy）", () => 
   it("calledByLabel は「鳴きなし/鳴き→◯家」の共通表記（web/mobile の編集UIで共用）", () => {
     expect(calledByLabel(null)).toBe("鳴きなし");
     expect(calledByLabel("south")).toBe("鳴き→南家");
+  });
+
+  it("calledByLabel は選手名があれば名前を優先する（無名は◯家のまま）", () => {
+    expect(calledByLabel("south", "太郎")).toBe("鳴き→太郎");
+    expect(calledByLabel("south", "")).toBe("鳴き→南家");
+    expect(calledByLabel(null, "太郎")).toBe("鳴きなし");
   });
 
   it("chiVariants は選んだ牌を含む順子の候補を返す（両端1-9内・赤5は位置に残す）", () => {
@@ -458,5 +465,66 @@ describe("meldTiles / SUITS / NUMS（ピッカー素材）", () => {
     expect(SUITS.map((s) => s.suit)).toEqual(["m", "p", "s", "z"]);
     expect(NUMS.m).toContain("0m");
     expect(NUMS.z).toHaveLength(7);
+  });
+});
+
+describe("callDiscard（捨て牌から鳴く: 鳴き作成＋結線＋鳴いた人の打牌）", () => {
+  const base = () => kifu({ east: { river: [{ order: 1, tile: "5p" }] } });
+
+  it("ポン: 鳴き（from=捨て主）と鳴き印が付き、鳴いた人の切った牌が手順の直後に入る", () => {
+    const res = callDiscard(base(), "east", 0, {
+      caller: "south",
+      type: "pon",
+      discardTile: "1m",
+    });
+    expect(res.seats.south.melds[0]).toMatchObject({ type: "pon", from: "east" });
+    expect(res.seats.south.melds[0]!.tiles.map((t) => t.tile)).toEqual(["5p", "5p", "5p"]);
+    expect(res.seats.east.river[0]).toMatchObject({ tile: "5p", calledBy: "south" });
+    // 鳴いた人の打牌は手出し扱いで河に入る。
+    expect(res.seats.south.river[0]).toMatchObject({ tile: "1m", tsumogiri: false });
+    // 手順は 打牌(東5p)→鳴き(南)→打牌(南1m) の順に確定する。
+    expect(res.timeline.map((e) => e.kind)).toEqual(["discard", "meld", "discard"]);
+    expect(res.timeline[1]).toMatchObject({ kind: "meld", seat: "south" });
+    expect(res.timeline[2]).toMatchObject({ kind: "discard", seat: "south", tile: "1m" });
+  });
+
+  it("チー: 選んだ並び（chiRun）を鳴き牌に使う", () => {
+    const k = kifu({ east: { river: [{ order: 1, tile: "7p" }] } });
+    const res = callDiscard(k, "east", 0, {
+      caller: "south",
+      type: "chi",
+      chiRun: ["7p", "8p", "9p"],
+      discardTile: "1m",
+    });
+    expect(res.seats.south.melds[0]!.tiles.map((t) => t.tile)).toEqual(["7p", "8p", "9p"]);
+    expect(res.seats.south.melds[0]!.from).toBe("east");
+  });
+
+  it("カンは大明槓（kan_open・同牌4枚）として作る", () => {
+    const res = callDiscard(base(), "east", 0, { caller: "west", type: "kan" });
+    expect(res.seats.west.melds[0]).toMatchObject({ type: "kan_open", from: "east" });
+    expect(res.seats.west.melds[0]!.tiles.map((t) => t.tile)).toEqual(["5p", "5p", "5p", "5p"]);
+  });
+
+  it("切った牌を選ばなければ鳴きだけ作る（打牌は挿入しない）", () => {
+    const res = callDiscard(base(), "east", 0, { caller: "south", type: "pon" });
+    expect(res.seats.south.river).toHaveLength(0);
+    expect(res.timeline.map((e) => e.kind)).toEqual(["discard", "meld"]);
+  });
+
+  it("自分の捨て牌は鳴けない（そのまま返す）", () => {
+    const res = callDiscard(base(), "east", 0, { caller: "east", type: "pon" });
+    expect(res).toEqual(base());
+  });
+
+  it("鳴きと切った牌は、鳴かれた打牌の直後（後続の打牌より前）に入る", () => {
+    const k = kifu({
+      east: { river: [{ order: 1, tile: "5p" }] },
+      south: { river: [{ order: 1, tile: "1s" }] },
+    });
+    const res = callDiscard(k, "east", 0, { caller: "west", type: "pon", discardTile: "9m" });
+    expect(
+      res.timeline.map((e) => (e.kind === "discard" ? `${e.seat}:${e.tile}` : `meld:${e.seat}`)),
+    ).toEqual(["east:5p", "meld:west", "west:9m", "south:1s"]);
   });
 });

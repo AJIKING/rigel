@@ -11,15 +11,17 @@ import {
 } from "@rigel/schema";
 import {
   calledByLabel,
-  cycleCalledBy,
   cycleEventSeat,
   cycleMeldFrom,
   cycleMeldType,
   deriveTimeline,
+  makeDiscardEvent,
   nextDiscardSeat,
   nextMeldFrom,
+  otherSeats,
   removeTimelineEvent,
   seatLabel,
+  setTimelineCall,
   syncSeatsFromTimeline,
   timelineTurns,
   MELD_TYPE_LABELS,
@@ -56,6 +58,11 @@ export function TimelineEditor({
   const [dragIdx, setDragIdx] = useState<number | null>(null);
   const [pick, setPick] = useState<PickTarget | null>(null);
   const [pickSuit, setPickSuit] = useState<Suit>("m");
+  // 「鳴き」メニューを開いている打牌行（鳴いた人を選ぶ。null=閉）。
+  const [callPick, setCallPick] = useState<number | null>(null);
+
+  /** 席の表示名（選手名を優先。無名は「南家」のような席名）。 */
+  const seatName = (seat: Seat) => names[seat] || `${seatLabel(seat)}家`;
 
   /** ピッカーの編集対象に現在入っている牌（選択ハイライトに使う）。 */
   function currentOf(t: PickTarget): Tile | null {
@@ -116,19 +123,7 @@ export function TimelineEditor({
 
   function addDiscard() {
     // 追加席は東南西北×巡目を順に埋める（必ず新巡目・東にならないように）。
-    commit([
-      ...timeline,
-      {
-        kind: "discard",
-        seat: nextDiscardSeat(timeline, dealer),
-        draw: null,
-        tile: null,
-        tsumogiri: false,
-        riichi: false,
-        calledBy: null,
-        confidence: 1,
-      },
-    ]);
+    commit([...timeline, makeDiscardEvent(nextDiscardSeat(timeline, dealer))]);
   }
   function addMeld() {
     const meld: Meld = {
@@ -224,17 +219,13 @@ export function TimelineEditor({
                     >
                       リーチ
                     </button>
-                    {/* この捨て牌を誰が鳴いたか（なし→下家→対面→上家の順送り。河は薄表示になる）。 */}
+                    {/* この捨て牌を誰が鳴いたか。メニューで鳴いた人を選ぶと、鳴き行と
+                        「鳴いた人が切った牌」の行が直後に入る（河は薄表示になる）。 */}
                     <button
                       className={`${s.riichi} ${e.calledBy ? s.on : ""}`}
-                      onClick={() =>
-                        updateDiscard(i, (x) => ({
-                          ...x,
-                          calledBy: cycleCalledBy(x.calledBy, x.seat),
-                        }))
-                      }
+                      onClick={() => setCallPick(i)}
                     >
-                      {calledByLabel(e.calledBy)}
+                      {calledByLabel(e.calledBy, e.calledBy ? names[e.calledBy] : null)}
                     </button>
                   </>
                 ) : (
@@ -255,7 +246,7 @@ export function TimelineEditor({
                     </span>
                     {e.meld.type !== "kan_closed" && (
                       <button className={s.from} onClick={() => commit(cycleMeldFrom(timeline, i))}>
-                        {seatLabel(e.meld.from ?? nextMeldFrom(null, e.seat))}
+                        {seatName(e.meld.from ?? nextMeldFrom(null, e.seat))}
                         <b>から</b>
                       </button>
                     )}
@@ -275,6 +266,38 @@ export function TimelineEditor({
           );
         })}
       </div>
+
+      {callPick !== null &&
+        (() => {
+          const ev = timeline[callPick];
+          if (ev?.kind !== "discard") return null;
+          const choose = (seat: Seat | null) => {
+            commit(setTimelineCall(timeline, callPick, seat));
+            setCallPick(null);
+          };
+          return (
+            <div className={s.pov} onClick={() => setCallPick(null)}>
+              <div className={s.pcard} onClick={(e) => e.stopPropagation()}>
+                <p className={s.callTitle}>この捨て牌を鳴いた人</p>
+                <div className={s.callSeats}>
+                  <button className={ev.calledBy === null ? s.on : ""} onClick={() => choose(null)}>
+                    なし
+                  </button>
+                  {otherSeats(ev.seat).map((seat) => (
+                    <button
+                      key={seat}
+                      className={ev.calledBy === seat ? s.on : ""}
+                      onClick={() => choose(seat)}
+                    >
+                      {seatName(seat)}
+                    </button>
+                  ))}
+                </div>
+                <p className={s.callHint}>選ぶと手順に鳴きと「鳴いた人が切った牌」の行が入ります</p>
+              </div>
+            </div>
+          );
+        })()}
 
       {pick && (
         <div className={s.pov} onClick={() => setPick(null)}>

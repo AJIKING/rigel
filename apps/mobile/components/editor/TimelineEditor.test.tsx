@@ -91,15 +91,49 @@ describe("TimelineEditor（手順エディタ）", () => {
     expect(k.seats.east.river).toHaveLength(0);
   });
 
-  it("「鳴き」ボタンで鳴いた席を順送りできる（河にも同期。web と同一挙動）", () => {
+  it("「鳴き」ボタンは鳴いた人の選択メニューを開き、選ぶと鳴き行＋切った牌の行が入る", () => {
     const spy = jest.fn();
     render(<Harness onKifu={spy} />);
     fireEvent.press(screen.getByText("＋打牌")); // 東の打牌
-    fireEvent.press(screen.getByText("鳴きなし")); // なし→下家（南家）
+    fireEvent.press(screen.getByText("鳴きなし")); // メニューを開く
+    fireEvent.press(screen.getByText("南家")); // 鳴いた人を選ぶ
     const k = last(spy);
+    // 鳴き印＋鳴き行（ポン・from=捨て主）＋鳴いた人の打牌行（切った牌は後で選ぶ）が入る。
+    expect(k.timeline).toHaveLength(3);
     expect(k.timeline[0]).toMatchObject({ kind: "discard", calledBy: "south" });
+    expect(k.timeline[1]).toMatchObject({
+      kind: "meld",
+      seat: "south",
+      meld: { type: "pon", from: "east" },
+    });
+    expect(k.timeline[2]).toMatchObject({ kind: "discard", seat: "south", tile: null });
     expect(k.seats.east.river[0]?.calledBy).toBe("south");
     expect(screen.getByText("鳴き→南家")).toBeTruthy();
+  });
+
+  it("メニューの「なし」で解除でき、連動の鳴き行・未入力の打牌行も消える", () => {
+    const spy = jest.fn();
+    render(<Harness onKifu={spy} />);
+    fireEvent.press(screen.getByText("＋打牌"));
+    fireEvent.press(screen.getByText("鳴きなし"));
+    fireEvent.press(screen.getByText("南家"));
+    fireEvent.press(screen.getByText("鳴き→南家")); // もう一度メニューを開く
+    fireEvent.press(screen.getByText("なし"));
+    const k = last(spy);
+    expect(k.timeline).toHaveLength(1);
+    expect(k.timeline[0]).toMatchObject({ kind: "discard", calledBy: null });
+    expect(k.seats.south.melds).toHaveLength(0);
+  });
+
+  it("鳴き表示は選手名を優先する（鳴き→名前。無名は◯家のまま）", () => {
+    const spy = jest.fn();
+    const initial = KifuSchema.parse({
+      ...emptyKifu(),
+      players: { south: { name: "太郎" } },
+      timeline: [{ kind: "discard", seat: "east", tile: "5p", calledBy: "south" }],
+    });
+    render(<Harness onKifu={spy} initial={initial} />);
+    expect(screen.getByText("鳴き→太郎")).toBeTruthy();
   });
 
   it("鳴きの「から」を変えると鳴き元の捨て牌に鳴き印が付く（手順→捨て牌の同期）", () => {
@@ -121,7 +155,7 @@ describe("TimelineEditor（手順エディタ）", () => {
     });
     render(<Harness onKifu={spy} initial={initial} />);
     // から: 北→東（自席=南は飛ばす）。東の直前の打牌（5p）に鳴き印が付く。
-    fireEvent.press(screen.getByText("北から"));
+    fireEvent.press(screen.getByText("北家から"));
     const k = last(spy);
     expect(k.timeline[0]).toMatchObject({ kind: "discard", calledBy: "south" });
     expect(k.seats.east.river[0]?.calledBy).toBe("south");

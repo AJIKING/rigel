@@ -1066,6 +1066,25 @@
   text-align: center;
   margin: 2px 0 0;
 }
+/* 捨て牌からの鳴きを「切った牌を選ばず」作成するボタン（ピッカー下部）。 */
+.meCreate {
+  display: block;
+  width: 100%;
+  margin-top: 6px;
+  padding: 6px 8px;
+  background: var(--chrome-2);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  color: var(--w70);
+  font-family: var(--round);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: 0.15s;
+}
+.meCreate:hover {
+  color: var(--w85);
+}
 /* ピッカー内の削除ボタン（牌/鳴き）。mobile の TilePickerSheet「削除」と同等の操作。 */
 .pkDel {
   display: block;

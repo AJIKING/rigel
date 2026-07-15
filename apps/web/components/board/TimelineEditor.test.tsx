@@ -88,7 +88,7 @@ describe("TimelineEditor", () => {
     expect(next.timeline[0]).toMatchObject({ kind: "discard", tile: null });
   });
 
-  it("「鳴き」ボタンで鳴いた席を順送りできる（なし→下家→…→なし。河にも同期）", () => {
+  it("「鳴き」ボタンは鳴いた人の選択メニューを開き、選ぶと鳴き行＋切った牌の行が入る", () => {
     const onChange = vi.fn();
     render(
       <TimelineEditor
@@ -99,9 +99,60 @@ describe("TimelineEditor", () => {
       />,
     );
     fireEvent.click(screen.getByText("鳴きなし"));
+    // メニュー（なし/南家/西家/北家。捨て主の東家は出ない）から南家を選ぶ。
+    expect(screen.queryByRole("button", { name: "東家" })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "南家" }));
     const next = onChange.mock.calls[0]![0] as Kifu;
+    // 鳴き印＋鳴き行（ポン・from=捨て主）＋鳴いた人の打牌行（切った牌は後で選ぶ）が入る。
+    expect(next.timeline).toHaveLength(3);
     expect(next.timeline[0]).toMatchObject({ kind: "discard", calledBy: "south" });
+    expect(next.timeline[1]).toMatchObject({
+      kind: "meld",
+      seat: "south",
+      meld: { type: "pon", from: "east" },
+    });
+    expect(next.timeline[2]).toMatchObject({ kind: "discard", seat: "south", tile: null });
     expect(next.seats.east.river[0]).toMatchObject({ tile: "5p", calledBy: "south" });
+  });
+
+  it("メニューの「なし」で解除でき、連動の鳴き行・未入力の打牌行も消える", () => {
+    const onChange = vi.fn();
+    const meld = {
+      kind: "meld" as const,
+      seat: "south" as const,
+      meld: {
+        type: "pon" as const,
+        tiles: [{ tile: "5p" }, { tile: "5p" }, { tile: "5p" }],
+        from: "east" as const,
+      },
+    };
+    const empty = { ...disc("south", "1m"), tile: null };
+    render(
+      <TimelineEditor
+        kifu={kifu([{ ...disc("east", "5p"), calledBy: "south" }, meld, empty])}
+        dealer="east"
+        names={NAMES}
+        onChange={onChange}
+      />,
+    );
+    fireEvent.click(screen.getByText("鳴き→南家"));
+    fireEvent.click(screen.getByRole("button", { name: "なし" }));
+    const next = onChange.mock.calls[0]![0] as Kifu;
+    expect(next.timeline).toHaveLength(1);
+    expect(next.timeline[0]).toMatchObject({ kind: "discard", calledBy: null });
+    expect(next.seats.south.melds).toHaveLength(0);
+  });
+
+  it("鳴きの表示は選手名を優先する（鳴き→名前。無名は◯家のまま）", () => {
+    render(
+      <TimelineEditor
+        kifu={kifu([{ ...disc("east", "5p"), calledBy: "south" }])}
+        dealer="east"
+        names={{ ...NAMES, south: "太郎" }}
+        onChange={vi.fn()}
+      />,
+    );
+    expect(screen.getByText("鳴き→太郎")).toBeTruthy();
   });
 
   it("鳴きの「から」を変えると鳴き元の捨て牌に鳴き印が付く（手順→捨て牌の同期）", () => {

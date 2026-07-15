@@ -13,6 +13,7 @@ import {
   addRiverTile,
   applyResultMode,
   applyTileEdit,
+  callDiscard,
   collectReviewItems,
   deriveWinResult,
   mutateKifu,
@@ -22,7 +23,6 @@ import {
   removeMeld,
   removeRiverTile,
   resultModeOf,
-  setDiscardCalledBy as setDiscardCalledByShared,
   setDoraTile,
   sortHandTiles,
   sortKifuHands,
@@ -456,13 +456,23 @@ function Editor(p: EditorProps) {
     // 鳴き種別が選ばれていれば、追加/編集どちらのピッカーからでも鳴きを作成する。
     if (meldType !== "none" && (sel.kind === "add" || sel.loc.area !== "meld")) {
       const owner = toAbsoluteSeat(meldWho, bottomSeat);
+      // 捨て牌（河の編集）から鳴く: 鳴き牌・from・calledBy は捨て牌から自動で結線し、
+      // 選んだ牌は「鳴いた人がその後に切った牌」として鳴きの直後に入る（共有純関数）。
+      if (sel.kind === "edit" && sel.loc.area === "river") {
+        setKifu(
+          callDiscard(kifu, sel.loc.seat, sel.loc.index, {
+            caller: owner,
+            type: meldType,
+            chiRun,
+            discardTile: code,
+          }),
+        );
+        closePop();
+        return;
+      }
+      // 追加ピッカー/配牌からの鳴き: 鳴き元は不明（from=null）。カンは種類を選べる。
       const kanMap = { minkan: "kan_open", ankan: "kan_closed", kakan: "kan_added" } as const;
       const type = meldType === "chi" ? "chi" : meldType === "pon" ? "pon" : kanMap[kanType];
-      // 捨て牌（河の編集）から作った鳴きは「誰から鳴いたか」を自動で結線する:
-      //   from=捨て主、その捨て牌に calledBy=鳴き主（牌は河に残して薄表示）。暗槓は from を持たない。
-      const calledLoc =
-        sel.kind === "edit" && sel.loc.area === "river" && type !== "kan_closed" ? sel.loc : null;
-      const from = calledLoc && calledLoc.seat !== owner ? calledLoc.seat : null;
       // チーは「並び」で選んだ順子を優先（選んだ牌を含むときだけ。それ以外は従来の自動）。
       const tiles =
         meldType === "chi" && chiRun && chiRun.includes(code) ? chiRun : meldTiles(meldType, code);
@@ -473,12 +483,8 @@ function Editor(p: EditorProps) {
             d.seats[owner].melds.push({
               type,
               tiles: tiles.map((t) => ({ tile: t, confidence: 1 })),
-              from,
+              from: null,
             });
-            if (calledLoc && from) {
-              const discard = d.seats[calledLoc.seat].river[calledLoc.index];
-              if (discard) discard.calledBy = owner;
-            }
           }),
         ),
       );
@@ -608,11 +614,17 @@ function Editor(p: EditorProps) {
     });
   }
 
-  // 鳴かれた捨て牌の印（誰が鳴いたか）。牌は河に残し、手順（timeline）にも同期する
-  //（実体は @rigel/ui の共有純関数＝mobile と同一挙動）。
-  function setDiscardCalledBy(calledBy: Seat | null) {
-    if (sel?.kind !== "edit" || sel.loc.area !== "river") return;
-    setKifu(setDiscardCalledByShared(kifu, sel.loc.seat, sel.loc.index, calledBy));
+  /** 捨て牌からの鳴きを「切った牌を選ばず」作成する（鳴きの結線だけ行い、打牌は足さない）。 */
+  function createMeldOnly() {
+    if (sel?.kind !== "edit" || sel.loc.area !== "river" || meldType === "none") return;
+    setKifu(
+      callDiscard(kifu, sel.loc.seat, sel.loc.index, {
+        caller: toAbsoluteSeat(meldWho, bottomSeat),
+        type: meldType,
+        chiRun,
+      }),
+    );
+    closePop();
   }
 
   // リーチ宣言牌（横向き）を切り替える。河への追加中は追加する牌へ適用する。
@@ -1122,7 +1134,7 @@ function Editor(p: EditorProps) {
           onApplyTile={applyTile}
           onSetDiscardKind={setDiscardKind}
           onSetDiscardRiichi={setDiscardRiichi}
-          onSetDiscardCalledBy={setDiscardCalledBy}
+          onCreateMeldOnly={createMeldOnly}
           onDelete={deleteSelected}
           onClose={closePop}
         />

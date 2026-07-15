@@ -11,6 +11,7 @@ export function Chip({
   disabled = false,
   onPress,
   a11ySelected = true,
+  a11yLabel,
 }: {
   label: string;
   on?: boolean;
@@ -18,6 +19,8 @@ export function Chip({
   onPress?: () => void;
   /** accessibilityState.selected を付けるか（単なるボタン用途では false）。 */
   a11ySelected?: boolean;
+  /** 読み上げ/テスト用ラベル（同名チップが画面に並ぶときの区別に使う）。省略時は label。 */
+  a11yLabel?: string;
 }) {
   return (
     <Pressable
@@ -26,6 +29,7 @@ export function Chip({
       onPress={onPress}
       accessibilityRole="button"
       accessibilityState={a11ySelected ? { selected: on } : undefined}
+      accessibilityLabel={a11yLabel}
     >
       <Text style={[styles.text, on && styles.textOn]}>{label}</Text>
     </Pressable>

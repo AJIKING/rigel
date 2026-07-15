@@ -8,15 +8,17 @@ import {
 } from "@rigel/schema";
 import {
   calledByLabel,
-  cycleCalledBy,
   cycleEventSeat,
   cycleMeldFrom,
   cycleMeldType,
   deriveTimeline,
+  makeDiscardEvent,
   nextDiscardSeat,
   nextMeldFrom,
+  otherSeats,
   removeTimelineEvent,
   seatLabel,
+  setTimelineCall,
   syncSeatsFromTimeline,
   timelineTurns,
   MELD_TYPE_LABELS,
@@ -24,6 +26,8 @@ import {
 import { useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { colors, radius } from "../../lib/theme";
+import { BottomSheet } from "../BottomSheet";
+import { Chip } from "../Chip";
 import { MiniTile } from "../MiniTile";
 import { TilePickerSheet } from "./TilePickerSheet";
 
@@ -52,6 +56,11 @@ export function TimelineEditor({
   const timeline = deriveTimeline(kifu);
   const turns = timelineTurns(timeline, dealer);
   const [pick, setPick] = useState<Pick>(null);
+  // 「鳴き」メニューを開いている打牌行（鳴いた人を選ぶ。null=閉）。
+  const [callPick, setCallPick] = useState<number | null>(null);
+
+  /** 席の表示名（選手名を優先。無名は「南家」のような席名）。 */
+  const seatName = (s: Seat) => kifu.players?.[s]?.name || `${seatLabel(s)}家`;
 
   /** 新しい timeline を正典にして盤面を同期し、親へ返す。 */
   function commit(next: TimelineEvent[]) {
@@ -88,19 +97,7 @@ export function TimelineEditor({
 
   function addDiscard() {
     // 追加席は東南西北×巡目を順に埋める（必ず新巡目・東にならないように）。
-    commit([
-      ...timeline,
-      {
-        kind: "discard",
-        seat: nextDiscardSeat(timeline, dealer),
-        draw: null,
-        tile: null,
-        tsumogiri: false,
-        riichi: false,
-        calledBy: null,
-        confidence: 1,
-      },
-    ]);
+    commit([...timeline, makeDiscardEvent(nextDiscardSeat(timeline, dealer))]);
   }
   function addMeld() {
     const meld: Meld = {
@@ -187,20 +184,18 @@ export function TimelineEditor({
                 >
                   <Text style={[styles.riichiText, e.riichi && styles.riichiTextOn]}>リーチ</Text>
                 </Pressable>
-                {/* この捨て牌を誰が鳴いたか（なし→下家→対面→上家の順送り。河は薄表示になる）。 */}
+                {/* この捨て牌を誰が鳴いたか。メニューで鳴いた人を選ぶと、鳴き行と
+                    「鳴いた人が切った牌」の行が直後に入る（河は薄表示になる）。 */}
                 <Pressable
                   style={[styles.riichi, e.calledBy != null && styles.riichiOn]}
-                  onPress={() =>
-                    update(i, (x) =>
-                      x.kind === "discard"
-                        ? { ...x, calledBy: cycleCalledBy(x.calledBy, x.seat) }
-                        : x,
-                    )
-                  }
+                  onPress={() => setCallPick(i)}
                   accessibilityRole="button"
                 >
                   <Text style={[styles.riichiText, e.calledBy != null && styles.riichiTextOn]}>
-                    {calledByLabel(e.calledBy)}
+                    {calledByLabel(
+                      e.calledBy,
+                      e.calledBy ? kifu.players?.[e.calledBy]?.name : null,
+                    )}
                   </Text>
                 </Pressable>
               </>
@@ -232,7 +227,7 @@ export function TimelineEditor({
                     accessibilityRole="button"
                   >
                     <Text style={styles.fromText}>
-                      {seatLabel(e.meld.from ?? nextMeldFrom(null, e.seat))}から
+                      {seatName(e.meld.from ?? nextMeldFrom(null, e.seat))}から
                     </Text>
                   </Pressable>
                 ) : null}
@@ -273,6 +268,36 @@ export function TimelineEditor({
       {pick ? (
         <TilePickerSheet title="牌を選ぶ" onPick={onPick} onClose={() => setPick(null)} />
       ) : null}
+
+      {/* 「鳴き」メニュー（この捨て牌を鳴いた人を選ぶ。web の手順タブと同一挙動）。 */}
+      {callPick !== null &&
+        (() => {
+          const ev = timeline[callPick];
+          if (ev?.kind !== "discard") return null;
+          const choose = (s: Seat | null) => {
+            commit(setTimelineCall(timeline, callPick, s));
+            setCallPick(null);
+          };
+          return (
+            <BottomSheet onClose={() => setCallPick(null)}>
+              <Text style={styles.callTitle}>この捨て牌を鳴いた人</Text>
+              <View style={styles.callSeats}>
+                <Chip label="なし" on={ev.calledBy === null} onPress={() => choose(null)} />
+                {otherSeats(ev.seat).map((s) => (
+                  <Chip
+                    key={s}
+                    label={seatName(s)}
+                    on={ev.calledBy === s}
+                    onPress={() => choose(s)}
+                  />
+                ))}
+              </View>
+              <Text style={styles.callHint}>
+                選ぶと手順に鳴きと「鳴いた人が切った牌」の行が入ります
+              </Text>
+            </BottomSheet>
+          );
+        })()}
     </View>
   );
 }
@@ -381,6 +406,9 @@ const styles = StyleSheet.create({
   },
   fromText: { color: colors.w70, fontSize: 11, fontWeight: "700" },
   spacer: { flex: 1 },
+  callTitle: { color: colors.white, fontSize: 15, fontWeight: "800", marginBottom: 12 },
+  callSeats: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  callHint: { color: colors.w45, fontSize: 10.5, marginTop: 12 },
   iconBtn: { width: 26, height: 30, alignItems: "center", justifyContent: "center" },
   icon: { color: colors.w70, fontSize: 12 },
   iconOff: { color: colors.line },
