@@ -1,3 +1,4 @@
+import { PROBLEM_SCHEMA_VERSION } from "@rigel/schema";
 import { describe, expect, it } from "vitest";
 import {
   DEFAULT_DESCRIPTION,
@@ -6,6 +7,7 @@ import {
   buildProblemMetadata,
   buildProfileMetadata,
   ogCard,
+  problemOgCard,
   type ProblemMetaInput,
   type PublicGameSummary,
   type PublicProfileSummary,
@@ -66,7 +68,8 @@ describe("buildProblemMetadata", () => {
     expect(meta.openGraph?.siteName).toBe("Rigel");
     expect(meta.openGraph?.url).toBe("/p/p1");
     expect(meta.alternates?.canonical).toBe("/p/p1");
-    expect(meta.twitter?.card).toBe("summary");
+    // /p は opengraph-image で手牌カードを動的生成する（/k と同じ流儀）。
+    expect(meta.twitter?.card).toBe("summary_large_image");
     expect(meta.robots).toBeUndefined();
   });
 
@@ -88,6 +91,78 @@ describe("buildProblemMetadata", () => {
     expect(meta.title).toBe(DEFAULT_TITLE);
     expect(meta.description).toBe(DEFAULT_DESCRIPTION);
     expect(meta.openGraph).toBeUndefined();
+  });
+});
+
+describe("problemOgCard", () => {
+  // 手牌はわざと理牌前の順で置き、カードでは理牌済みで出ることを確認する。
+  const HAND = ["9m", "1m", "5m", "2m", "3m", "4m", "6m", "7m", "8m", "1p", "2p", "3p", "4p"];
+  const discardProblem = {
+    schemaVersion: PROBLEM_SCHEMA_VERSION,
+    kind: "discard",
+    pov: "east",
+    drawn: "5s",
+    seats: {
+      east: { hand: HAND.map((t) => ({ tile: t, confidence: 1 })) },
+      south: {},
+      west: {},
+      north: {},
+    },
+    meta: { dealer: "east", roundWind: "west", junme: 9 },
+  };
+
+  it("公開の何切るからタイトル・種別/局情報・理牌済み手牌＋ツモ牌を組み立てる", () => {
+    const card = problemOgCard({ ...problem, problem: discardProblem });
+    expect(card.title).toBe("南3局の押し引き");
+    expect(card.info).toBe("何切る・西場 9巡目");
+    expect(card.hand).toEqual([
+      "1m",
+      "2m",
+      "3m",
+      "4m",
+      "5m",
+      "6m",
+      "7m",
+      "8m",
+      "9m",
+      "1p",
+      "2p",
+      "3p",
+      "4p",
+    ]);
+    expect(card.drawn).toBe("5s");
+  });
+
+  it("鳴き判断はツモ牌なし・種別ラベルは「鳴き判断」", () => {
+    const callProblem = {
+      ...discardProblem,
+      kind: "call",
+      drawn: null,
+      targetSeat: "south",
+      seats: {
+        ...discardProblem.seats,
+        south: { river: [{ order: 1, tile: "5s", confidence: 1 }] },
+      },
+    };
+    const card = problemOgCard({ ...problem, problem: callProblem });
+    expect(card.info).toBe("鳴き判断・西場 9巡目");
+    expect(card.drawn).toBeNull();
+    expect(card.hand).toHaveLength(13);
+  });
+
+  it("下書き・不存在は汎用カード（問題情報・手牌を一切含めない）", () => {
+    const draft = problemOgCard({ ...problem, status: "draft", problem: discardProblem });
+    expect(draft.title).not.toContain("押し引き");
+    expect(draft.hand).toEqual([]);
+    expect(draft.drawn).toBeNull();
+    expect(problemOgCard(null)).toEqual(draft);
+  });
+
+  it("スキーマ検証に落ちる問題データは手牌を出さない（タイトルのみ。信頼ゲート）", () => {
+    const card = problemOgCard({ ...problem, problem: { broken: true } });
+    expect(card.title).toBe("南3局の押し引き");
+    expect(card.hand).toEqual([]);
+    expect(card.drawn).toBeNull();
   });
 });
 

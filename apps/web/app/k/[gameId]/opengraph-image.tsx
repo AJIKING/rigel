@@ -1,33 +1,16 @@
 import { ImageResponse } from "next/og";
 import { STAR_COLOR, STAR_PATH } from "../../../components/StarMark";
 import { getPublicGameDetail } from "../../../lib/api-server";
+import { loadNotoSansJP } from "../../../lib/og-assets";
 import { ogCard } from "../../../lib/og-meta";
 
 // /k/[gameId] の動的OG画像（SNSカード）。next/og(satori) でテキストカードを生成する。
 // 非公開・不存在の半荘は ogCard(null) の汎用カードになり、半荘情報を一切漏らさない。
-// 和文フォントは Google Fonts からカード文言ぶんだけサブセット取得する（数KB。
-// 送るのは公開半荘の文言のみ）。取得失敗時は内蔵欧文フォントで描画を継続する。
+// 和文フォントの取得失敗時は内蔵欧文フォントで描画を継続する（lib/og-assets）。
 
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 export const alt = "麻雀牌譜 | Rigel";
-
-async function loadNotoSansJP(text: string, weight: 400 | 700): Promise<ArrayBuffer | null> {
-  try {
-    const css = await (
-      await fetch(
-        `https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@${weight}&text=${encodeURIComponent(text)}`,
-      )
-    ).text();
-    // UA なしの fetch には woff2 でなく truetype/opentype の URL が返る（satori が読める形式）。
-    const url = css.match(/src: url\((.+?)\) format\('(?:opentype|truetype)'\)/)?.[1];
-    if (!url) return null;
-    const res = await fetch(url);
-    return res.ok ? await res.arrayBuffer() : null;
-  } catch {
-    return null;
-  }
-}
 
 export default async function OgImage({ params }: { params: Promise<{ gameId: string }> }) {
   const { gameId } = await params;

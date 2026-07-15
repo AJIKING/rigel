@@ -2,6 +2,8 @@
 // メタデータを組み立てる純粋関数。非公開・不存在（null）ではサイト既定にフォールバックし、
 // 対象の情報を一切含めない（プライバシー: 非公開データの存在をメタデータから漏らさない）。
 
+import { ProblemSchema, type Tile } from "@rigel/schema";
+import { PROBLEM_KIND_LABELS, problemRoundLabel, sortHandTiles } from "@rigel/ui";
 import { fmtDateSlash } from "./format";
 
 /** メタデータに必要な最小限の公開半荘情報（PublicGameDetail のサブセット）。 */
@@ -109,7 +111,48 @@ export function buildProblemMetadata(post: ProblemMetaInput | null): ShareMetada
   const title = post.title || UNTITLED_PROBLEM;
   const description = "何切る問題。あなたの一打を選んで、みんなの回答分布と比べられます。";
   if (post.status !== "published") return { title, description, robots: { index: false } };
-  return shareMeta(title, description, `/p/${post.id}`, { type: "article", card: "summary" });
+  // /p は opengraph-image で手牌カードを動的生成する（/k と同じ流儀）。
+  return shareMeta(title, description, `/p/${post.id}`, {
+    type: "article",
+    card: "summary_large_image",
+  });
+}
+
+/** OG画像カードに必要な最小限の何切る情報（problem は未検証の生JSON）。 */
+export interface ProblemOgInput extends ProblemMetaInput {
+  problem: unknown;
+}
+
+/** 何切るOG画像カードの内容（タイトル・種別/局情報・理牌済み手牌＋ツモ牌）。
+ *  文言と牌の選定をここで一元化し、画像レンダラ（opengraph-image）はレイアウトだけを担う。
+ *  信頼ゲート: problem は ProblemSchema 検証を通った場合のみ手牌を出す。
+ *  下書き・不存在は汎用カードで問題情報を一切漏らさない。 */
+export function problemOgCard(post: ProblemOgInput | null): {
+  title: string;
+  info: string;
+  hand: Tile[];
+  drawn: Tile | null;
+} {
+  const generic = {
+    title: "何切る",
+    info: "あなたの一打を選んで、みんなの回答分布と比べよう",
+    hand: [] as Tile[],
+    drawn: null as Tile | null,
+  };
+  if (!post || post.status !== "published") return generic;
+  const title = post.title || UNTITLED_PROBLEM;
+  const parsed = ProblemSchema.safeParse(post.problem);
+  if (!parsed.success) return { ...generic, title };
+  const problem = parsed.data;
+  const hand = sortHandTiles(problem.seats[problem.pov].hand)
+    .map((t) => t.tile)
+    .filter((t): t is Tile => t !== null);
+  return {
+    title,
+    info: `${PROBLEM_KIND_LABELS[problem.kind]}・${problemRoundLabel(problem.meta)}`,
+    hand,
+    drawn: problem.kind === "discard" ? problem.drawn : null,
+  };
 }
 
 /** メタデータに必要な最小限の公開プロフィール情報（PublicProfile のサブセット）。 */
