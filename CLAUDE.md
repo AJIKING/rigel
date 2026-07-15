@@ -146,6 +146,8 @@ AI精度の実測 / UI共有手段 / 認証実装 / 無料枠・価格。**勝�
 - ツールチェーン：Node.js >= 20 / **pnpm 10**（workspace）/ turborepo / Vitest / **Jest(mobile=jest-expo + React Native Testing Library)** / ESLint / Prettier。Workers は wrangler（M5/M7 で本格導入）、モバイルは Expo（M5+）。
 - AI の鍵などの秘匿情報は `.env` / `.dev.vars`（読み取りは権限で deny 済み・コミットしない。雛形は `.env.example`）。AI 呼び出しは **AI Gateway 経由**。
 - 検証コマンドは [docs/開発ガイド/04_検証とCIゲート.md](docs/開発ガイド/04_検証とCIゲート.md) に一元化。ルートで `pnpm typecheck / lint / format:check / test / build`。CI は `.github/workflows/ci.yml`。
+- **依存のバージョン固定（override・ペア制約）には全て理由がある。** 依存を上げる前・依存起因で壊れた時は
+  [docs/開発ガイド/07_依存固定台帳.md](docs/開発ガイド/07_依存固定台帳.md) を必ず読む。固定を増減したら台帳も同じコミットで更新する。
 
 ---
 
