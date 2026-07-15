@@ -68,12 +68,20 @@ workflows:
       - name: iOS ネイティブプロジェクトを生成（expo prebuild）
         # --no-install: pod install / npm install をスキップ（pnpm で導入済み・pod は次工程）
         # --clean: ios/ を作り直してビルドの再現性を上げる
+        # set -e: Codemagic のスクリプトは途中コマンドの失敗で止まらないため明示する。
+        # EXPO_NO_GIT_STATUS=1: --clean の git dirty 確認をスキップ（.npmrc を書き換えている）。
+        # 末尾の検証: ios/Podfile が無いままだと次工程（CocoaPods）の分かりにくい失敗になるため、
+        # 生成できていなければこのステップで止める（真のエラーがこのステップのログに出る）。
         script: |
+          set -eo pipefail
           cd apps/mobile
-          CI=1 npx expo prebuild --platform ios --no-install --clean
+          npx expo --version
+          CI=1 EXPO_NO_GIT_STATUS=1 npx expo prebuild --platform ios --no-install --clean
+          test -f ios/Podfile || { echo "ERROR: expo prebuild が ios/Podfile を生成していません（上のログを確認）"; exit 1; }
 
       - name: CocoaPods
         script: |
+          set -eo pipefail
           cd apps/mobile/ios
           pod install
 
@@ -81,6 +89,7 @@ workflows:
       # 認証情報（APP_STORE_CONNECT_*）は上の integrations から環境変数で渡される。
       - name: 署名ファイルを取得・作成して適用
         script: |
+          set -eo pipefail
           cd apps/mobile/ios
           app-store-connect fetch-signing-files "$BUNDLE_ID" \
             --type IOS_APP_STORE --platform IOS --create
@@ -151,9 +160,13 @@ workflows:
         script: pnpm --filter mobile typecheck
 
       - name: Android ネイティブプロジェクトを生成（expo prebuild）
+        # set -e / EXPO_NO_GIT_STATUS / 生成検証は iOS 側と同じ理由。
         script: |
+          set -eo pipefail
           cd apps/mobile
-          CI=1 npx expo prebuild --platform android --no-install --clean
+          npx expo --version
+          CI=1 EXPO_NO_GIT_STATUS=1 npx expo prebuild --platform android --no-install --clean
+          test -f android/gradlew || { echo "ERROR: expo prebuild が android/ を生成していません（上のログを確認）"; exit 1; }
 
       - name: キーストアを配置
         script: |
