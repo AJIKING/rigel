@@ -45,7 +45,7 @@ describe("AgariSheet（和了演出シート）", () => {
         north: {},
       },
     });
-    render(<AgariSheet kifu={k} dealer="east" onClose={jest.fn()} />);
+    render(<AgariSheet kifu={k} dealer="east" onClose={jest.fn()} onNext={null} />);
 
     // 並び: 理牌した手牌（1萬→9索）→ 副露（白×3）→ 和了牌（5筒・白枠の別枠）。
     const labels = screen

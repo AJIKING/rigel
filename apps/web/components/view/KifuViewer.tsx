@@ -194,6 +194,17 @@ export function KifuViewer({ detail, gameId }: { detail: PublicGameDetail; gameI
     setAgariOpen(false);
   }
 
+  /** 和了ダイアログの「次の局へ」: 次局の開始位置（配牌＝0手目）から再生を続ける。
+   *  局送りボタン（全表示で開く）と違い、通しで再生する導線なので開始位置に置く。 */
+  function nextLogStart() {
+    if (gi >= detail.logs.length - 1) return;
+    setGi(gi + 1);
+    setReveal(0);
+    setStepPhase(null);
+    setRoundMenu(false);
+    setAgariOpen(false);
+  }
+
   // 取得・not-found は Server Component 側で処理済み。ここは局が空のときだけ守る。
   if (!log || !kifu || !frame || !step)
     return (
@@ -487,7 +498,12 @@ export function KifuViewer({ detail, gameId }: { detail: PublicGameDetail; gameI
           {/* 和了は最後の演出（drop / 和了牌のフライイン）を見せ切ってから遅延して開く。 */}
           {/* 和了演出は次ボタンで開く（末尾: ロン=打牌の次、ツモ=和了牌ツモの次）。 */}
           {agariOpen && kifu.agari.length > 0 && (
-            <AgariOverlay kifu={viewKifu} dealer={dealer} onClose={() => setAgariOpen(false)} />
+            <AgariOverlay
+              kifu={viewKifu}
+              dealer={dealer}
+              onClose={() => setAgariOpen(false)}
+              onNext={gi < detail.logs.length - 1 ? nextLogStart : null}
+            />
           )}
         </div>
 

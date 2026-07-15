@@ -120,6 +120,16 @@ export function KifuPlayer({
     setAgariOpen(false);
   }
 
+  /** 和了シートの「次の局へ」: 次局の開始位置（配牌＝0手目）から再生を続ける。
+   *  局送りボタン（全表示で開く）と違い、通しで再生する導線なので開始位置に置く。 */
+  function nextLogStart() {
+    if (gi >= logs.length - 1) return;
+    setGi(gi + 1);
+    setReveal(0);
+    setStepPhase(null);
+    setAgariOpen(false);
+  }
+
   /** 再生位置ジャンプ（巡目送りなど）。半歩は挟まず演出も出さない。 */
   function jumpTo(nextReveal: number) {
     setReveal(nextReveal);
@@ -372,6 +382,7 @@ export function KifuPlayer({
           dealer={dealer}
           ownerName={ownerName}
           onClose={() => setAgariOpen(false)}
+          onNext={gi < logs.length - 1 ? nextLogStart : null}
         />
       ) : null}
     </View>

@@ -99,15 +99,18 @@ function WinBlock({ agari, kifu, dealer }: { agari: Agari; kifu: Kifu; dealer: S
 }
 
 /** 上がりオーバーレイ。再生が和了に達したとき、kifu.agari（ダブロン等は複数）と
- *  scoreAgari から和了牌ポップ・裏ドラめくり・役/打点・点数移動を表示する。 */
+ *  scoreAgari から和了牌ポップ・裏ドラめくり・役/打点・点数移動を表示する。
+ *  onNext は「次の局の開始へ」（最終局は null で無効表示）。前へ＝閉じる（ダイアログ前の盤面）。 */
 export function AgariOverlay({
   kifu,
   dealer,
   onClose,
+  onNext,
 }: {
   kifu: Kifu;
   dealer: Seat;
   onClose: () => void;
+  onNext: (() => void) | null;
 }) {
   const agaris = kifu.agari;
   if (agaris.length === 0) return null;
@@ -138,6 +141,22 @@ export function AgariOverlay({
                 </span>
               </div>
             ))}
+          </div>
+
+          {/* ダイアログからの移動: 前へ＝閉じて直前の盤面 / 次の局へ＝次局の開始。
+              閉じる（✕）だけだと次の局への導線が無いため、ここに置く。 */}
+          <div className={s.nav}>
+            <button type="button" className={s.navBtn} onClick={onClose}>
+              ‹ 前へ
+            </button>
+            <button
+              type="button"
+              className={`${s.navBtn} ${s.navNext}`}
+              disabled={!onNext}
+              onClick={() => onNext?.()}
+            >
+              次の局へ ›
+            </button>
           </div>
         </div>
       </div>

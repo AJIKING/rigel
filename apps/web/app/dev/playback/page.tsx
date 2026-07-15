@@ -76,24 +76,36 @@ function playbackKifu(): Kifu {
       discard("south", "6z", "2s", { riichi: true }), // リーチ宣言（供託+1）
       discard("east", "7p", "2m"), // 手出し
     ],
+    // 和了で締める（和了ダイアログの「前へ / 次の局へ」ナビの実ブラウザ検証用）。
+    result: "ron",
+    agari: [
+      {
+        winner: "east",
+        from: "south",
+        winTile: "3p",
+        yaku: [{ name: "平和", han: 1 }],
+        fu: 30,
+      },
+    ],
   });
 }
+
+const devLog = (seq: number, kifu: Kifu) => ({
+  id: `dev-playback-log${seq}`,
+  userId: "dev",
+  gameId: "dev-playback",
+  seq,
+  kifu,
+  visibility: "public" as const,
+  status: "complete" as const,
+  createdAt: "2026-06-28T00:00:00.000Z",
+});
 
 const DETAIL: PublicGameDetail = {
   game: { id: "dev-playback", title: "再生演出検証", createdAt: "2026-06-28T00:00:00.000Z" },
   owner: { id: "dev", handle: "dev", displayName: "dev" },
-  logs: [
-    {
-      id: "dev-playback-log",
-      userId: "dev",
-      gameId: "dev-playback",
-      seq: 1,
-      kifu: playbackKifu(),
-      visibility: "public",
-      status: "complete",
-      createdAt: "2026-06-28T00:00:00.000Z",
-    },
-  ],
+  // 2局目を置く: 和了ダイアログの「次の局へ」で次局の開始に移れることを確認するため。
+  logs: [devLog(1, playbackKifu()), devLog(2, playbackKifu())],
 };
 
 export default function DevPlaybackPage() {

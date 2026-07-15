@@ -83,6 +83,35 @@ describe("KifuPlayer", () => {
     expect(screen.getByText("立直")).toBeTruthy();
   });
 
+  it("和了シート: 「前へ」でシート前の盤面へ、「次の局へ」で次局の開始へ移動できる", () => {
+    // 2局目にも河1枚を持たせる（全表示と開始位置を「1手戻る」の活性で区別するため）。
+    const second = makeKifu({
+      east: { river: [{ order: 1, tile: "2m", riichi: false, confidence: 1 }] },
+    });
+    render(<KifuPlayer logs={[log(1, kifuWithAgari()), log(2, second)]} />);
+    fireEvent.press(screen.getByLabelText("1手進む")); // 末尾（全表示）→ 和了演出
+    expect(screen.getByText("立直")).toBeTruthy();
+
+    // 前へ: シートを閉じて同じ局の末尾に戻る（局は変わらない）。
+    fireEvent.press(screen.getByLabelText("前へ"));
+    expect(screen.queryByText("立直")).toBeNull();
+    expect(screen.getAllByText("東一局").length).toBeGreaterThan(0);
+
+    // もう一度開いて 次の局へ: 次局の開始位置（0手目）へ移動する。
+    fireEvent.press(screen.getByLabelText("1手進む"));
+    fireEvent.press(screen.getByLabelText("次の局へ"));
+    expect(screen.queryByText("立直")).toBeNull();
+    expect(screen.getAllByText("東二局").length).toBeGreaterThan(0);
+    // 開始位置なら1手も進んでいない＝「1手戻る」が無効（全表示なら河1枚ぶん進んで有効）。
+    expect(screen.getByLabelText("1手戻る").props.accessibilityState?.disabled).toBe(true);
+  });
+
+  it("和了シート: 最終局では「次の局へ」を無効にする", () => {
+    render(<KifuPlayer logs={[log(1, kifuWithAgari())]} />);
+    fireEvent.press(screen.getByLabelText("1手進む"));
+    expect(screen.getByLabelText("次の局へ").props.accessibilityState?.disabled).toBe(true);
+  });
+
   it("次ボタンで半歩ずつ刻む（1押し目=ツモ牌が右端へ、2押し目=打牌が河へ）。前ボタンは逆", () => {
     const k = makeKifu(
       {

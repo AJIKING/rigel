@@ -103,6 +103,37 @@ describe("KifuViewer", () => {
     expect(screen.queryByText("立直")).toBeNull();
   });
 
+  it("和了ダイアログ: 「前へ」でダイアログ前の盤面へ、「次の局へ」で次局の開始へ移動できる", () => {
+    // 2局目にも河1枚を持たせる（全表示と開始位置を「1手戻る」の活性で区別するため）。
+    const second = makeKifu({
+      east: { river: [{ order: 1, tile: "2m", riichi: false, confidence: 1 }] },
+    });
+    renderViewer(detail([kifuWithAgari(), second]));
+    // 末尾（初期全表示）から次ボタンで和了ダイアログを開く。
+    fireEvent.click(screen.getByLabelText("1手進む"));
+    expect(screen.getByText("立直")).toBeTruthy();
+
+    // 前へ: ダイアログを閉じて同じ局の末尾に戻る（局は変わらない）。
+    fireEvent.click(screen.getByRole("button", { name: "‹ 前へ" }));
+    expect(screen.queryByText("立直")).toBeNull();
+    expect((screen.getByLabelText("局を選択") as HTMLSelectElement).value).toBe("0");
+
+    // もう一度開いて 次の局へ: 次局の「開始位置」（全表示ではなく0手目）へ移動する。
+    fireEvent.click(screen.getByLabelText("1手進む"));
+    fireEvent.click(screen.getByRole("button", { name: "次の局へ ›" }));
+    expect(screen.queryByText("立直")).toBeNull();
+    expect((screen.getByLabelText("局を選択") as HTMLSelectElement).value).toBe("1");
+    // 開始位置なら1手も進んでいない＝「1手戻る」が無効（全表示なら河1枚ぶん進んでいて有効になる）。
+    expect((screen.getByLabelText("1手戻る") as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  it("和了ダイアログ: 最終局では「次の局へ」を無効にする", () => {
+    renderViewer(detail([kifuWithAgari()]));
+    fireEvent.click(screen.getByLabelText("1手進む"));
+    const next = screen.getByRole("button", { name: "次の局へ ›" }) as HTMLButtonElement;
+    expect(next.disabled).toBe(true);
+  });
+
   it("局名は配列位置ではなく局順(seq)から出す（公開サブセット）", () => {
     // seq 1 と 3 だけ公開された半荘。配列位置(gi)基準だと2局目が「東二局」に化ける。
     const d = detail([kifu(), kifu()]);

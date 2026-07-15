@@ -284,3 +284,40 @@
   color: var(--vermilion);
   font-weight: 800;
 }
+
+/* ダイアログからの移動（前へ / 次の局へ）。次の局へは主導線としてアクセント色。 */
+.nav {
+  display: flex;
+  gap: 8px;
+  margin-top: 16px;
+}
+.navBtn {
+  flex: 1;
+  padding: 9px 0;
+  border-radius: var(--r);
+  border: 1px solid rgba(255, 255, 255, 0.32);
+  background: rgba(255, 255, 255, 0.07);
+  color: rgba(255, 255, 255, 0.92);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.navBtn:hover {
+  background: rgba(255, 255, 255, 0.13);
+  color: #fff;
+}
+.navNext {
+  border-color: transparent;
+  background: var(--accent);
+  color: #0c0e12;
+}
+.navNext:hover {
+  background: var(--accent);
+  color: #0c0e12;
+  filter: brightness(1.08);
+}
+.navNext:disabled {
+  opacity: 0.4;
+  cursor: default;
+  filter: none;
+}

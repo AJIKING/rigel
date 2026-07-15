@@ -1,21 +1,24 @@
 import { totalHan, type Agari, type Kifu, type Seat } from "@rigel/schema";
 import { kyokuDeltas, scoreAgari, sortHandTiles, windOf, SEAT_ORDER } from "@rigel/ui";
-import { ScrollView, StyleSheet, Text, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { colors, radius } from "../lib/theme";
 import { BottomSheet, SheetCloseButton } from "./BottomSheet";
 import { MiniTile } from "./MiniTile";
 
-/** 和了演出シート（和了牌・役・打点・点数増減）。点数の絶対値は記録しないため増減のみ表示。 */
+/** 和了演出シート（和了牌・役・打点・点数増減）。点数の絶対値は記録しないため増減のみ表示。
+ *  onNext は「次の局の開始へ」（最終局は null で無効表示）。前へ＝閉じる（シート前の盤面）。 */
 export function AgariSheet({
   kifu,
   dealer,
   ownerName,
   onClose,
+  onNext,
 }: {
   kifu: Kifu;
   dealer: Seat;
   ownerName?: string | null;
   onClose: () => void;
+  onNext: (() => void) | null;
 }) {
   const deltas = kyokuDeltas(kifu);
 
@@ -46,6 +49,28 @@ export function AgariSheet({
               </View>
             );
           })}
+        </View>
+
+        {/* シートからの移動: 前へ＝閉じて直前の盤面 / 次の局へ＝次局の開始。
+            閉じるだけだと次の局への導線が無いため、ここに置く（web の AgariOverlay と同調）。 */}
+        <View style={styles.nav}>
+          <Pressable
+            style={styles.navBtn}
+            onPress={onClose}
+            accessibilityRole="button"
+            accessibilityLabel="前へ"
+          >
+            <Text style={styles.navText}>‹ 前へ</Text>
+          </Pressable>
+          <Pressable
+            style={[styles.navBtn, styles.navNext, !onNext && styles.navNextDisabled]}
+            disabled={!onNext}
+            onPress={() => onNext?.()}
+            accessibilityRole="button"
+            accessibilityLabel="次の局へ"
+          >
+            <Text style={[styles.navText, styles.navNextText]}>次の局へ ›</Text>
+          </Pressable>
         </View>
 
         <SheetCloseButton onPress={onClose} />
@@ -198,6 +223,21 @@ const styles = StyleSheet.create({
   },
   totalLabel: { fontSize: 12.5, color: colors.w70 },
   totalScore: { fontWeight: "800", fontSize: 22, color: colors.white },
+  // シートからの移動（前へ / 次の局へ）。次の局へは主導線としてアクセント色。
+  nav: { flexDirection: "row", gap: 8, marginTop: 14 },
+  navBtn: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: radius.base,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.32)",
+    backgroundColor: "rgba(255,255,255,0.07)",
+    alignItems: "center",
+  },
+  navText: { color: "rgba(255,255,255,0.92)", fontSize: 13, fontWeight: "700" },
+  navNext: { borderColor: "transparent", backgroundColor: colors.accent },
+  navNextDisabled: { opacity: 0.4 },
+  navNextText: { color: "#0c0e12" },
   deltas: { flexDirection: "row", gap: 6, marginTop: 4 },
   dc: {
     flex: 1,
