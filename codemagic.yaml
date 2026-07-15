@@ -41,7 +41,7 @@ workflows:
       groups:
         - appstore_credentials # CERTIFICATE_PRIVATE_KEY
         - rigel_mobile_env # EXPO_PUBLIC_API_URL / EXPO_PUBLIC_GOOGLE_CLIENT_ID
-      node: 22
+      node: 24
       xcode: latest
       cocoapods: default
       vars:
@@ -140,7 +140,7 @@ workflows:
         - keystore_credentials # CM_KEYSTORE / CM_KEYSTORE_PASSWORD / CM_KEY_ALIAS / CM_KEY_PASSWORD
         - google_play_credentials # GCLOUD_SERVICE_ACCOUNT_CREDENTIALS
         - rigel_mobile_env # EXPO_PUBLIC_API_URL / EXPO_PUBLIC_GOOGLE_CLIENT_ID
-      node: 22
+      node: 24
       java: 17
       vars:
         PACKAGE_NAME: "jp.co.plaria.rigel" # app.json の android.package と一致

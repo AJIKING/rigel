@@ -143,7 +143,7 @@ AI精度の実測 / UI共有手段 / 認証実装 / 無料枠・価格。**勝�
   リネームし、以後 `next dev` の OG 画像が ENOENT で落ちる。`.ttf.bin` を `.ttf` に**コピー**して復旧
   （`.bin` は残す）。ローカル `cf:preview`/`wrangler dev` は Windows 非対応で全ルート500（本番は CI/Linux ビルドで問題なし）。
 - git 管理済み（`main` ブランチ）。M0（モノレポ土台）/ M1（`@rigel/schema`）構築済み。`api`/`ui` は土台のみ、`web`/`mobile` は未作成。
-- ツールチェーン：Node.js >= 20 / **pnpm 10**（workspace）/ turborepo / Vitest / **Jest(mobile=jest-expo + React Native Testing Library)** / ESLint / Prettier。Workers は wrangler（M5/M7 で本格導入）、モバイルは Expo（M5+）。
+- ツールチェーン：Node.js >= 22.12（実運用は 24。CI/deploy/Codemagic も 24）/ **pnpm 10**（workspace）/ turborepo / Vitest / **Jest(mobile=jest-expo + React Native Testing Library)** / ESLint / Prettier。Workers は wrangler（M5/M7 で本格導入）、モバイルは Expo（M5+）。
 - AI の鍵などの秘匿情報は `.env` / `.dev.vars`（読み取りは権限で deny 済み・コミットしない。雛形は `.env.example`）。AI 呼び出しは **AI Gateway 経由**。
 - 検証コマンドは [docs/開発ガイド/04_検証とCIゲート.md](docs/開発ガイド/04_検証とCIゲート.md) に一元化。ルートで `pnpm typecheck / lint / format:check / test / build`。CI は `.github/workflows/ci.yml`。
 - **依存のバージョン固定（override・ペア制約）には全て理由がある。** 依存を上げる前・依存起因で壊れた時は

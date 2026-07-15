@@ -5,7 +5,7 @@
   "description": "麻雀 牌譜サイト — 写真から牌譜ドラフトを自動生成するモノレポ",
   "packageManager": "pnpm@10.13.1",
   "engines": {
-    "node": ">=20"
+    "node": ">=22.12"
   },
   "type": "module",
   "scripts": {
@@ -26,7 +26,7 @@
       "@types/react": "19.2.17",
       "tar": ">=7.5.11",
       "@expo/cli>tar": "^6.2.1",
-      "@types/node": "20.17.6"
+      "@types/node": "22.20.1"
     }
   },
   "devDependencies": {
