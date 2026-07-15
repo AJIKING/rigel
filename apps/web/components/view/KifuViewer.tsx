@@ -186,19 +186,11 @@ export function KifuViewer({ detail, gameId }: { detail: PublicGameDetail; gameI
   const mainRef = useRef<HTMLDivElement>(null);
   const scale = useBoardScale(mainRef, fs ? 32 : narrow ? 12 : 48, [sideOpen]);
 
+  /** 局の切替（局送り・局選択・和了ダイアログの「次の局へ」共通）。
+   *  移動先は開始位置（配牌＝打牌前）から再生する。初期表示（reveal=-1 の全表示）と
+   *  違い、局を移動する操作は「頭から見る」意図なので最終巡目にしない。 */
   function switchLog(i: number) {
     setGi(i);
-    setReveal(-1);
-    setStepPhase(null);
-    setRoundMenu(false);
-    setAgariOpen(false);
-  }
-
-  /** 和了ダイアログの「次の局へ」: 次局の開始位置（配牌＝0手目）から再生を続ける。
-   *  局送りボタン（全表示で開く）と違い、通しで再生する導線なので開始位置に置く。 */
-  function nextLogStart() {
-    if (gi >= detail.logs.length - 1) return;
-    setGi(gi + 1);
     setReveal(0);
     setStepPhase(null);
     setRoundMenu(false);
@@ -502,7 +494,7 @@ export function KifuViewer({ detail, gameId }: { detail: PublicGameDetail; gameI
               kifu={viewKifu}
               dealer={dealer}
               onClose={() => setAgariOpen(false)}
-              onNext={gi < detail.logs.length - 1 ? nextLogStart : null}
+              onNext={gi < detail.logs.length - 1 ? () => switchLog(gi + 1) : null}
             />
           )}
         </div>

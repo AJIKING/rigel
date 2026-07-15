@@ -78,6 +78,17 @@ describe("KifuViewer", () => {
     expect(select.value).toBe("0");
   });
 
+  it("局送りで移動した局は最終巡目ではなく開始位置（打牌前）で表示される", () => {
+    // 移動先に河1枚を持たせる（全表示なら1手進んだ状態＝「1手戻る」が有効になってしまう）。
+    const second = makeKifu({
+      east: { river: [{ order: 1, tile: "2m", riichi: false, confidence: 1 }] },
+    });
+    renderViewer(detail([kifu(), second]));
+    fireEvent.click(screen.getAllByLabelText("次の局")[0]!);
+    // 開始位置＝1手も進んでいない。
+    expect((screen.getByLabelText("1手戻る") as HTMLButtonElement).disabled).toBe(true);
+  });
+
   it("手牌表示トグルで相手手牌の表示状態が切り替わる", () => {
     renderViewer(detail([kifu()]));
     const toggle = screen.getByText("手牌表示");

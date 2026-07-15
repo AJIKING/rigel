@@ -113,18 +113,11 @@ export function KifuPlayer({
   // 卓は横幅いっぱいまで拡大（上限は大画面向けの保険）。縦は上部バー(全画面時は無し)＋場ナビ分を控える。
   const boardSize = Math.max(240, Math.min(width - 8, height - (fs ? 150 : 240), 520));
 
+  /** 局の切替（局送り・和了シートの「次の局へ」共通）。
+   *  移動先は開始位置（配牌＝打牌前）から再生する。初期表示（reveal=-1 の全表示）と
+   *  違い、局を移動する操作は「頭から見る」意図なので最終巡目にしない。 */
   function switchLog(i: number) {
     setGi(i);
-    setReveal(-1);
-    setStepPhase(null);
-    setAgariOpen(false);
-  }
-
-  /** 和了シートの「次の局へ」: 次局の開始位置（配牌＝0手目）から再生を続ける。
-   *  局送りボタン（全表示で開く）と違い、通しで再生する導線なので開始位置に置く。 */
-  function nextLogStart() {
-    if (gi >= logs.length - 1) return;
-    setGi(gi + 1);
     setReveal(0);
     setStepPhase(null);
     setAgariOpen(false);
@@ -382,7 +375,7 @@ export function KifuPlayer({
           dealer={dealer}
           ownerName={ownerName}
           onClose={() => setAgariOpen(false)}
-          onNext={gi < logs.length - 1 ? nextLogStart : null}
+          onNext={gi < logs.length - 1 ? () => switchLog(gi + 1) : null}
         />
       ) : null}
     </View>
