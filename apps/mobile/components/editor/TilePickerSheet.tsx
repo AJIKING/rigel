@@ -85,7 +85,10 @@ export function TilePickerSheet({
         <View style={styles.actions}>
           {discard ? (
             <>
-              <Chip label="リーチ" on={discard.riichi} onPress={() => onToggleRiichi?.()} />
+              {/* リーチは牌譜の河のみ（何切るの河には無い）。ハンドラの有無で出し分ける。 */}
+              {onToggleRiichi ? (
+                <Chip label="リーチ" on={discard.riichi} onPress={() => onToggleRiichi()} />
+              ) : null}
               <Chip label="ツモ切り" on={discard.tsumogiri} onPress={() => onToggleTsumogiri?.()} />
               {discard.calledLabel ? (
                 <Chip

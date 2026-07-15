@@ -46,7 +46,20 @@ import { ProblemPhotoModal } from "./ProblemPhotoModal";
 import s from "./problem.module.css";
 
 /** 牌グリッドの入力先。 */
-type Target = "hand" | "drawn" | "dora" | `river:${Seat}` | `meld:${"pon" | "chi" | "kan"}`;
+type Target =
+  | "hand"
+  | "drawn"
+  | "dora"
+  | `river:${Seat}`
+  | `riveredit:${Seat}:${number}`
+  | `meld:${"pon" | "chi" | "kan"}`;
+
+/** riveredit ターゲットの分解（席と河 index）。mobile の同名ヘルパと同形。 */
+function parseRiverEdit(t: Target): { seat: Seat; index: number } | null {
+  if (!t.startsWith("riveredit:")) return null;
+  const [, seat, index] = t.split(":");
+  return { seat: seat as Seat, index: Number(index) };
+}
 
 /** 席セレクト（selwrap＝自前シェブロン付き）。自分の席・対象席・場風・親で共用。 */
 function SeatSelect({
@@ -79,18 +92,19 @@ function SeatSelect({
   );
 }
 
-/** 河のチップ行。タップで手出し⇄ツモ切りを切替（ツモ切りはグレー表示）、✕で外す。
+/** 河のチップ行。牌タップで編集モード（変更・削除・ツモ切り切替）へ。✕ボタンは廃止。
  *  空なら描かない。 */
 function RiverChipRow({
   seat,
   tiles,
-  onToggle,
-  onRemove,
+  editingIndex,
+  onEdit,
 }: {
   seat: Seat;
   tiles: DraftRiverTile[];
-  onToggle: (index: number) => void;
-  onRemove: (index: number) => void;
+  /** 編集モード中の河 index（この席でなければ null）。チップを強調する。 */
+  editingIndex: number | null;
+  onEdit: (index: number) => void;
 }) {
   if (tiles.length === 0) return null;
   return (
@@ -98,27 +112,18 @@ function RiverChipRow({
       <span className={s.rowLabel}>{seatLabel(seat)}家の河</span>
       <span className={s.tiles}>
         {tiles.map((d, i) => (
-          <span key={`${d.tile}-${i}`} className={s.riverChip}>
-            <button
-              type="button"
-              className={`${s.handTileSmall} ${d.tsumogiri ? s.tsumogiriChip : ""}`}
-              aria-pressed={d.tsumogiri}
-              aria-label={`${seatLabel(seat)}家の河の ${tileLabel(d.tile)} を${
-                d.tsumogiri ? "手出し" : "ツモ切り"
-              }にする`}
-              onClick={() => onToggle(i)}
-            >
-              <OssTileFace code={d.tile} />
-            </button>
-            <button
-              type="button"
-              className={s.chipX}
-              aria-label={`${seatLabel(seat)}家の河の ${tileLabel(d.tile)} を外す`}
-              onClick={() => onRemove(i)}
-            >
-              ×
-            </button>
-          </span>
+          <button
+            key={`${d.tile}-${i}`}
+            type="button"
+            className={`${s.handTileSmall} ${d.tsumogiri ? s.tsumogiriChip : ""} ${
+              editingIndex === i ? s.sel : ""
+            }`}
+            aria-pressed={editingIndex === i}
+            aria-label={`${seatLabel(seat)}家の河${i + 1}（${tileLabel(d.tile)}）を変更`}
+            onClick={() => onEdit(i)}
+          >
+            <OssTileFace code={d.tile} />
+          </button>
         ))}
       </span>
     </div>
@@ -272,8 +277,16 @@ export function ProblemEditorScreen({ initial }: { initial?: ProblemPost }) {
       setDora((cur) => [...cur, code]);
     } else if (target.startsWith("river:")) {
       const seat = target.slice("river:".length) as Seat;
-      // 置くときは手出し。ツモ切りはチップのタップで後から切り替える。
+      // 置くときは手出し。ツモ切りは牌タップ→編集モードで後から切り替える。
       setRivers((cur) => ({ ...cur, [seat]: [...cur[seat], { tile: code, tsumogiri: false }] }));
+    } else if (target.startsWith("riveredit:")) {
+      const re = parseRiverEdit(target)!;
+      // 既存の河の牌を置き換える（ツモ切りフラグは保持）。置き換えたら通常入力へ戻る。
+      setRivers((cur) => ({
+        ...cur,
+        [re.seat]: cur[re.seat].map((d, j) => (j === re.index ? { ...d, tile: code } : d)),
+      }));
+      setTarget("hand");
     } else if (target.startsWith("meld:")) {
       const type = target.slice("meld:".length) as "pon" | "chi" | "kan";
       // 副露の生成と手牌の3枚換算圧迫は共有純関数（mobile と同一挙動）。
@@ -350,6 +363,9 @@ export function ProblemEditorScreen({ initial }: { initial?: ProblemPost }) {
       label: `${seatLabel(seat)}家の河`,
     })),
   ];
+  // 河の牌の編集モード（チップタップで入る）。牌グリッドは置き換え先の選択になる。
+  const riverEdit = parseRiverEdit(target);
+  const riverEditTile = riverEdit ? rivers[riverEdit.seat][riverEdit.index] : null;
 
   return (
     <div className={`${s.app} themeBoard`}>
@@ -495,6 +511,8 @@ export function ProblemEditorScreen({ initial }: { initial?: ProblemPost }) {
             seatName={{ seat: pov, name: "あなた" }}
             highlightRiver={previewHighlight}
             center={<ProblemBoardCenter meta={{ roundWind, junme, dora, honba, kyotaku }} />}
+            // 入力（自分の席・親）が絶対席なので、プレートも絶対席で出す（ずれ防止）。
+            absolutePlates
           />
         </div>
 
@@ -556,19 +574,12 @@ export function ProblemEditorScreen({ initial }: { initial?: ProblemPost }) {
             key={seat}
             seat={seat}
             tiles={rivers[seat]}
-            onToggle={(i) =>
-              setRivers((cur) => ({
-                ...cur,
-                [seat]: cur[seat].map((d, j) => (j === i ? { ...d, tsumogiri: !d.tsumogiri } : d)),
-              }))
-            }
-            onRemove={(i) =>
-              setRivers((cur) => ({ ...cur, [seat]: cur[seat].filter((_, j) => j !== i) }))
-            }
+            editingIndex={riverEdit?.seat === seat ? riverEdit.index : null}
+            onEdit={(i) => setTarget(`riveredit:${seat}:${i}`)}
           />
         ))}
         {SEAT_ORDER.some((seat) => rivers[seat].length > 0) && (
-          <p className={s.hint}>河の牌はタップでツモ切り⇄手出しを切り替えられます。</p>
+          <p className={s.hint}>河の牌はタップで変更・削除・ツモ切り切替ができます。</p>
         )}
 
         {/* 入力先セレクタ＋牌グリッド */}
@@ -596,6 +607,49 @@ export function ProblemEditorScreen({ initial }: { initial?: ProblemPost }) {
               </div>
             </div>
           ))}
+          {/* 河の牌の編集モード: 牌グリッド=置き換え、ここでツモ切り切替・削除・キャンセル。 */}
+          {riverEdit && riverEditTile && (
+            <div className={s.targetRow}>
+              <span className={s.rowLabel}>
+                {seatLabel(riverEdit.seat)}家の河{riverEdit.index + 1}（
+                {tileLabel(riverEditTile.tile)}）を編集中
+              </span>
+              <div className={s.targetChips}>
+                <button
+                  type="button"
+                  className={`${s.targetChip} ${riverEditTile.tsumogiri ? s.on : ""}`}
+                  aria-pressed={riverEditTile.tsumogiri}
+                  onClick={() =>
+                    setRivers((cur) => ({
+                      ...cur,
+                      [riverEdit.seat]: cur[riverEdit.seat].map((d, j) =>
+                        j === riverEdit.index ? { ...d, tsumogiri: !d.tsumogiri } : d,
+                      ),
+                    }))
+                  }
+                >
+                  {riverEditTile.tsumogiri ? "手出しにする" : "ツモ切りにする"}
+                </button>
+                <button
+                  type="button"
+                  className={s.targetChip}
+                  aria-label="河の牌を削除"
+                  onClick={() => {
+                    setRivers((cur) => ({
+                      ...cur,
+                      [riverEdit.seat]: cur[riverEdit.seat].filter((_, j) => j !== riverEdit.index),
+                    }));
+                    setTarget("hand");
+                  }}
+                >
+                  削除
+                </button>
+                <button type="button" className={s.targetChip} onClick={() => setTarget("hand")}>
+                  キャンセル
+                </button>
+              </div>
+            </div>
+          )}
           <div className={s.callSeg}>
             {SUITS.map((su) => (
               <button

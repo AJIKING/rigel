@@ -63,7 +63,21 @@ import { colors, radius } from "../lib/theme";
 type Nav = NativeStackNavigationProp<RootStackParamList, "ProblemEdit">;
 
 /** 牌ピッカーの入力先。null=閉じている。 */
-type Target = "hand" | "drawn" | "dora" | `river:${Seat}` | `meld:${MeldPick}` | null;
+type Target =
+  | "hand"
+  | "drawn"
+  | "dora"
+  | `river:${Seat}`
+  | `riveredit:${Seat}:${number}`
+  | `meld:${MeldPick}`
+  | null;
+
+/** riveredit ターゲットの分解（席と河 index）。 */
+function parseRiverEdit(t: Target): { seat: Seat; index: number } | null {
+  if (!t?.startsWith("riveredit:")) return null;
+  const [, seat, index] = t.split(":");
+  return { seat: seat as Seat, index: Number(index) };
+}
 
 const MELD_PICKS: { type: MeldPick; label: string }[] = [
   { type: "pon", label: "副露:ポン" },
@@ -147,6 +161,8 @@ function EditorBody({ initial, token }: { initial?: ProblemPost; token: string |
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   // 写真からのAI再現（手牌=必須・河=任意）。流し込み後は readingNotes で人の確認を促す。
+  // 新規作成は開いて出す。既存問題の編集では折りたたみ既定（見出しタップで開ける）。
+  const [photoOpen, setPhotoOpen] = useState(!initial);
   const [handPhoto, setHandPhoto] = useState<PickedImage | null>(null);
   const [riverPhoto, setRiverPhoto] = useState<PickedImage | null>(null);
   const [analyzing, setAnalyzing] = useState(false);
@@ -268,8 +284,20 @@ function EditorBody({ initial, token }: { initial?: ProblemPost; token: string |
     }
     if (target.startsWith("river:")) {
       const seat = target.slice("river:".length) as Seat;
-      // 置くときは手出し。ツモ切りはチップのタップで後から切り替える。
+      // 置くときは手出し。ツモ切りは牌タップ→編集ピッカーで後から切り替える。
       setRivers((cur) => ({ ...cur, [seat]: [...cur[seat], { tile: code, tsumogiri: false }] }));
+      return;
+    }
+    const riveredit = parseRiverEdit(target);
+    if (riveredit) {
+      // 既存の河の牌を置き換える（ツモ切りフラグは保持）。置き換えたら閉じる。
+      setRivers((cur) => ({
+        ...cur,
+        [riveredit.seat]: cur[riveredit.seat].map((d, j) =>
+          j === riveredit.index ? { ...d, tile: code } : d,
+        ),
+      }));
+      setTarget(null);
       return;
     }
     const type = target.slice("meld:".length) as MeldPick;
@@ -345,10 +373,15 @@ function EditorBody({ initial, token }: { initial?: ProblemPost; token: string |
     if (t?.startsWith("river:")) {
       return `${seatLabel(t.slice("river:".length) as Seat)}家の河に追加`;
     }
+    const re = parseRiverEdit(t);
+    if (re) return `${seatLabel(re.seat)}家の河${re.index + 1}を変更`;
     if (t) return `${MELD_PICKS.find((m) => `meld:${m.type}` === t)?.label}を追加`;
     return "";
   }
   const pickerTitle = pickerTitleOf(target);
+  // 河の牌の編集中はピッカーに「ツモ切り」「削除」を出す（チップの✕は廃止）。
+  const riverEdit = parseRiverEdit(target);
+  const riverEditTile = riverEdit ? rivers[riverEdit.seat][riverEdit.index] : null;
 
   return (
     <View style={styles.root}>
@@ -363,38 +396,52 @@ function EditorBody({ initial, token }: { initial?: ProblemPost; token: string |
           onChangeText={setTitle}
         />
 
-        {/* 写真からのAI再現（有料のみ）。手牌・河のベースを流し込み、作者が修正する。 */}
+        {/* 写真からのAI再現（有料のみ）。手牌・河のベースを流し込み、作者が修正する。
+            新規作成では開いて出す。既存問題の編集では盤面が既に埋まっていて出番が薄いので
+            折りたたみ既定（見出しタップで開ける）。 */}
         {canAnalyze ? (
           <View style={styles.photoBox}>
-            <Text style={styles.rowLabel}>写真から作成（AI再現）</Text>
-            {quotaLabel ? <Text style={styles.hint}>{quotaLabel}</Text> : null}
             <Pressable
-              style={styles.photoBtn}
-              onPress={() => void pickInto(setHandPhoto)}
+              onPress={() => setPhotoOpen((v) => !v)}
               accessibilityRole="button"
+              accessibilityState={{ expanded: photoOpen }}
             >
-              <Text style={styles.photoBtnText}>
-                {handPhoto ? `手牌の写真: ${handPhoto.name}` : "手牌の写真を選ぶ（必須）"}
-              </Text>
+              <Text style={styles.rowLabel}>{photoOpen ? "▾" : "▸"} 写真から作成（AI再現）</Text>
             </Pressable>
-            <Pressable
-              style={styles.photoBtn}
-              onPress={() => void pickInto(setRiverPhoto)}
-              accessibilityRole="button"
-            >
-              <Text style={styles.photoBtnText}>
-                {riverPhoto ? `河の写真: ${riverPhoto.name}` : "河の写真を選ぶ（任意）"}
-              </Text>
-            </Pressable>
-            <Pressable
-              style={[styles.photoGo, analyzing && styles.photoGoOff]}
-              disabled={analyzing}
-              onPress={() => void onAnalyzePhotos()}
-              accessibilityRole="button"
-            >
-              <Text style={styles.photoGoText}>{analyzing ? "解析中…" : "AI再現"}</Text>
-            </Pressable>
-            <Text style={styles.hint}>読み違いは下の編集で直せます（画像は保存されません）。</Text>
+            {photoOpen ? (
+              <>
+                {quotaLabel ? <Text style={styles.hint}>{quotaLabel}</Text> : null}
+                <Pressable
+                  style={styles.photoBtn}
+                  onPress={() => void pickInto(setHandPhoto)}
+                  accessibilityRole="button"
+                >
+                  <Text style={styles.photoBtnText}>
+                    {handPhoto ? `手牌の写真: ${handPhoto.name}` : "手牌の写真を選ぶ（必須）"}
+                  </Text>
+                </Pressable>
+                <Pressable
+                  style={styles.photoBtn}
+                  onPress={() => void pickInto(setRiverPhoto)}
+                  accessibilityRole="button"
+                >
+                  <Text style={styles.photoBtnText}>
+                    {riverPhoto ? `河の写真: ${riverPhoto.name}` : "河の写真を選ぶ（任意）"}
+                  </Text>
+                </Pressable>
+                <Pressable
+                  style={[styles.photoGo, analyzing && styles.photoGoOff]}
+                  disabled={analyzing}
+                  onPress={() => void onAnalyzePhotos()}
+                  accessibilityRole="button"
+                >
+                  <Text style={styles.photoGoText}>{analyzing ? "解析中…" : "AI再現"}</Text>
+                </Pressable>
+                <Text style={styles.hint}>
+                  読み違いは下の編集で直せます（画像は保存されません）。
+                </Text>
+              </>
+            ) : null}
           </View>
         ) : null}
         {/* AIの読み取りメモ（グレア・見切れ等）と要確認（低confidence）。人の確認を促す。 */}
@@ -513,6 +560,8 @@ function EditorBody({ initial, token }: { initial?: ProblemPost; token: string |
               showHands={false}
               size={previewSize}
               highlightRiver={previewHighlight}
+              // 入力（自分の席・親）が絶対席なので、プレートも絶対席で出す（ずれ防止）。
+              absolutePlates
             />
           </View>
         ) : null}
@@ -594,26 +643,18 @@ function EditorBody({ initial, token }: { initial?: ProblemPost; token: string |
           ))}
         </View>
 
-        {/* 各席の河（チップタップで手出し⇄ツモ切り、✕で削除） */}
+        {/* 各席の河（牌タップで変更・削除・ツモ切り切替のピッカーを開く） */}
         {SEAT_ORDER.map((seat) => (
           <RiverRow
             key={seat}
             seat={seat}
             tiles={rivers[seat]}
-            onToggle={(i) =>
-              setRivers((cur) => ({
-                ...cur,
-                [seat]: cur[seat].map((d, j) => (j === i ? { ...d, tsumogiri: !d.tsumogiri } : d)),
-              }))
-            }
-            onRemove={(i) =>
-              setRivers((cur) => ({ ...cur, [seat]: cur[seat].filter((_, j) => j !== i) }))
-            }
+            onEdit={(i) => setTarget(`riveredit:${seat}:${i}`)}
             onAdd={() => setTarget(`river:${seat}`)}
           />
         ))}
         {SEAT_ORDER.some((seat) => rivers[seat].length > 0) ? (
-          <Text style={styles.riverHint}>河の牌はタップでツモ切り⇄手出しを切り替えられます。</Text>
+          <Text style={styles.riverHint}>河の牌はタップで変更・削除・ツモ切り切替ができます。</Text>
         ) : null}
 
         {/* 正解は設けない（多様な正解を前提に、回答の分布を見る）。コメントだけ書ける。 */}
@@ -651,7 +692,40 @@ function EditorBody({ initial, token }: { initial?: ProblemPost; token: string |
       </View>
 
       {target ? (
-        <TilePickerSheet title={pickerTitle} onPick={onPick} onClose={() => setTarget(null)} />
+        <TilePickerSheet
+          title={pickerTitle}
+          onPick={onPick}
+          onClose={() => setTarget(null)}
+          // 河の牌の編集中: ツモ切り切替と削除（リーチ・鳴かれは何切るの河には無い）。
+          discard={
+            riverEdit && riverEditTile
+              ? { riichi: false, tsumogiri: riverEditTile.tsumogiri }
+              : null
+          }
+          onToggleTsumogiri={
+            riverEdit
+              ? () =>
+                  setRivers((cur) => ({
+                    ...cur,
+                    [riverEdit.seat]: cur[riverEdit.seat].map((d, j) =>
+                      j === riverEdit.index ? { ...d, tsumogiri: !d.tsumogiri } : d,
+                    ),
+                  }))
+              : undefined
+          }
+          canDelete={riverEdit !== null}
+          onDelete={
+            riverEdit
+              ? () => {
+                  setRivers((cur) => ({
+                    ...cur,
+                    [riverEdit.seat]: cur[riverEdit.seat].filter((_, j) => j !== riverEdit.index),
+                  }));
+                  setTarget(null);
+                }
+              : undefined
+          }
+        />
       ) : null}
     </View>
   );
@@ -659,18 +733,16 @@ function EditorBody({ initial, token }: { initial?: ProblemPost; token: string |
 
 /* ---- 小物 ---- */
 
-/** 河の行。チップタップで手出し⇄ツモ切りを切替（ツモ切りはグレー表示）、✕で外す。 */
+/** 河の行。牌タップで編集ピッカー（変更・削除・ツモ切り切替）を開く。✕ボタンは廃止。 */
 function RiverRow({
   seat,
   tiles,
-  onToggle,
-  onRemove,
+  onEdit,
   onAdd,
 }: {
   seat: Seat;
   tiles: DraftRiverTile[];
-  onToggle: (index: number) => void;
-  onRemove: (index: number) => void;
+  onEdit: (index: number) => void;
   onAdd: () => void;
 }) {
   return (
@@ -678,26 +750,16 @@ function RiverRow({
       <Text style={styles.rowLabel}>{`${seatLabel(seat)}家の河`}</Text>
       <View style={styles.tilesInRow}>
         {tiles.map((d, i) => (
-          <View key={`${d.tile}-${i}`} style={styles.riverChip}>
-            <Pressable
-              onPress={() => onToggle(i)}
-              accessibilityRole="button"
-              accessibilityState={{ selected: d.tsumogiri }}
-              accessibilityLabel={`${seatLabel(seat)}家の河${i + 1}（${tileLabel(d.tile)}）を${
-                d.tsumogiri ? "手出し" : "ツモ切り"
-              }にする`}
-            >
-              <MiniTile code={d.tile} w={26} h={36} tsumogiri={d.tsumogiri} />
-            </Pressable>
-            <Pressable
-              style={styles.chipX}
-              onPress={() => onRemove(i)}
-              accessibilityRole="button"
-              accessibilityLabel={`${seatLabel(seat)}家の河${i + 1}（${tileLabel(d.tile)}）を外す`}
-            >
-              <Text style={styles.chipXText}>×</Text>
-            </Pressable>
-          </View>
+          <Pressable
+            key={`${d.tile}-${i}`}
+            style={styles.riverChip}
+            onPress={() => onEdit(i)}
+            accessibilityRole="button"
+            accessibilityState={{ selected: d.tsumogiri }}
+            accessibilityLabel={`${seatLabel(seat)}家の河${i + 1}（${tileLabel(d.tile)}）を変更`}
+          >
+            <MiniTile code={d.tile} w={26} h={36} tsumogiri={d.tsumogiri} />
+          </Pressable>
         ))}
         <AddButton label={`${seatLabel(seat)}家の河に追加`} onPress={onAdd} small />
       </View>

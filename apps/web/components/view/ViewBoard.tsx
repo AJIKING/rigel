@@ -1,7 +1,7 @@
 "use client";
 
 import { toAbsoluteSeat, type CameraSeat, type Kifu, type Seat, type Tile } from "@rigel/schema";
-import { signedPoints, splitDrawnTile, type DrawnTile } from "@rigel/ui";
+import { seatLabel, signedPoints, splitDrawnTile, type DrawnTile } from "@rigel/ui";
 import { chunk, windOf } from "../../lib/board";
 import { OssTileFace } from "../OssTileFace";
 import s from "./kifu-view.module.css";
@@ -96,6 +96,7 @@ export function ViewBoard({
   showPlayerPoints = true,
   animateDiscard = null,
   drawnTile = null,
+  absolutePlates = false,
 }: {
   kifu: Kifu;
   bottomSeat: Seat;
@@ -123,6 +124,9 @@ export function ViewBoard({
   /** 手牌の右端に離して置く1枚（再生中の一時ツモ／末尾のツモ和了牌）。出現時に
    *  フライインする。出すタイミングは呼び出し側（演出フェーズ／frame.tsumoWin）が決める。 */
   drawnTile?: DrawnTile | null;
+  /** ネームプレートを絶対席（東家…＋親マーク）で出す。編集プレビュー用:
+   *  入力（自分の席・親）が絶対席なので、風表記（親基準）だとずれて見えるため。 */
+  absolutePlates?: boolean;
 }) {
   return (
     <div className={s.stage} style={{ height: 768 * scale }}>
@@ -144,11 +148,16 @@ export function ViewBoard({
           );
           const riverShown = board.river.slice(0, revealed?.[seat] ?? board.river.length);
           // 選手名（リーグ戦の記録）＞ 画面固有の表示名（撮影者名など）＞「◯家」。
+          // absolutePlates は絶対席＋親マーク（編集プレビュー: 入力とずれない表記）。
           const player = kifu.players?.[seat];
-          const name = player?.name || (seatName?.seat === seat && seatName.name) || `${wind}家`;
+          const fallbackName = absolutePlates
+            ? `${seatLabel(seat)}家${seat === dealer ? "（親）" : ""}`
+            : `${wind}家`;
+          const name = player?.name || (seatName?.seat === seat && seatName.name) || fallbackName;
           const plate = (
             <>
-              <span className={s.wd}>{wind}</span>
+              {/* 風の1文字は親基準の表記なので、絶対席モードでは出さない（混乱の元）。 */}
+              {absolutePlates ? null : <span className={s.wd}>{wind}</span>}
               <span className={s.nm}>{name}</span>
               {points && <span className={s.pts}>{points[seat].toLocaleString()}点</span>}
               {/* リーグ戦等の積み上げポイント状況（players がある半荘のみ）。

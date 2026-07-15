@@ -105,7 +105,7 @@ describe("ProblemEditorScreen: 写真から作成（AI再現）", () => {
     // 手牌・河・ドラが流し込まれる（null 牌は落ちる）。
     expect(await screen.findByRole("button", { name: "1萬 を外す" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "2萬 を外す" })).toBeTruthy();
-    expect(screen.getByRole("button", { name: "南家の河の 9索 を外す" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "南家の河1（9索）を変更" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "ドラ 西 を外す" })).toBeTruthy();
     // 読み取りメモと要確認（低confidence=2萬 0.6）を表示して人の確認を促す。
     expect(screen.getByText(/グレアで1枚読めず/)).toBeTruthy();
@@ -257,8 +257,8 @@ describe("ProblemEditorScreen: 袋小路（無反応・解決不能なエラー�
   });
 });
 
-describe("ProblemEditorScreen: 河のツモ切り指定", () => {
-  it("河チップのタップでツモ切り⇄手出しを切替でき、保存 problem の river に乗る", async () => {
+describe("ProblemEditorScreen: 河の牌の編集（タップで変更・削除・ツモ切り）", () => {
+  it("河チップのタップで編集モードになり、ツモ切り切替が保存 problem の river に乗る", async () => {
     stubMe("free");
     renderEditor();
     await screen.findByRole("group", { name: "牌を選ぶ" });
@@ -268,16 +268,10 @@ describe("ProblemEditorScreen: 河のツモ切り指定", () => {
     // 東家の河に 1筒 を置く（既定は手出し）。
     fireEvent.click(screen.getByRole("button", { name: "東家の河" }));
     pick("1筒");
-    const toggle = screen.getByRole("button", { name: "東家の河の 1筒 をツモ切りにする" });
-    expect(toggle.getAttribute("aria-pressed")).toBe("false");
 
-    // タップでツモ切りへ（もう一度で手出しに戻せる）。
-    fireEvent.click(toggle);
-    expect(
-      screen
-        .getByRole("button", { name: "東家の河の 1筒 を手出しにする" })
-        .getAttribute("aria-pressed"),
-    ).toBe("true");
+    // チップタップで編集モード → ツモ切り切替。
+    fireEvent.click(screen.getByRole("button", { name: "東家の河1（1筒）を変更" }));
+    fireEvent.click(screen.getByRole("button", { name: "ツモ切りにする" }));
 
     fireEvent.click(screen.getByRole("button", { name: "下書き保存" }));
     await waitFor(() => expect(h.createProblemAction).toHaveBeenCalled());
@@ -285,14 +279,43 @@ describe("ProblemEditorScreen: 河のツモ切り指定", () => {
     expect(input.problem.seats.east.river.map((d) => d.tsumogiri)).toEqual([true]);
   });
 
-  it("河チップの✕で牌を削除できる（タップは切替に変わったため）", async () => {
+  it("河チップのタップ→牌グリッドで別の牌に変更できる", async () => {
     stubMe("free");
     renderEditor();
     await screen.findByRole("group", { name: "牌を選ぶ" });
     fireEvent.click(screen.getByRole("button", { name: "東家の河" }));
     pick("1萬");
-    fireEvent.click(screen.getByRole("button", { name: "東家の河の 1萬 を外す" }));
-    expect(screen.queryByRole("button", { name: "東家の河の 1萬 をツモ切りにする" })).toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: "東家の河1（1萬）を変更" }));
+    pick("9萬");
+    expect(screen.getByRole("button", { name: "東家の河1（9萬）を変更" })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "東家の河1（1萬）を変更" })).toBeNull();
+  });
+
+  it("河チップのタップ→「削除」で外せる（チップの✕は廃止）", async () => {
+    stubMe("free");
+    renderEditor();
+    await screen.findByRole("group", { name: "牌を選ぶ" });
+    fireEvent.click(screen.getByRole("button", { name: "東家の河" }));
+    pick("1萬");
+
+    expect(screen.queryByRole("button", { name: "東家の河の 1萬 を外す" })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "東家の河1（1萬）を変更" }));
+    fireEvent.click(screen.getByRole("button", { name: "河の牌を削除" }));
+    expect(screen.queryByRole("button", { name: "東家の河1（1萬）を変更" })).toBeNull();
+  });
+});
+
+describe("ProblemEditorScreen: プレビューのネームプレート", () => {
+  it("絶対席＋（親）で出る（親を変えても自分の席とずれない）", async () => {
+    stubMe("free");
+    renderEditor();
+    await screen.findByRole("group", { name: "牌を選ぶ" });
+    // 親を南へ。自分の席は既定=東のまま。
+    fireEvent.change(screen.getByLabelText("親"), { target: { value: "south" } });
+    // 風表記（親基準）なら「南家」（=西の風）が出るはず。絶対席なら 南家（親） になる。
+    expect(screen.getByText("南家（親）")).toBeTruthy();
+    expect(screen.queryByText("南家")).toBeNull();
   });
 });
 

@@ -191,6 +191,17 @@ describe("ProblemEditScreen（何切る問題の作成/編集）", () => {
     expect(mockGoBack).not.toHaveBeenCalled();
   });
 
+  it("プレビューのネームプレートは絶対席＋（親）で出る（親を変えても自分の席とずれない）", () => {
+    render(<ProblemEditScreen />);
+    // 親を南へ（「南」は自分の席セグ→親セグの順に並ぶ）。自分の席は既定=東のまま。
+    fireEvent.press(screen.getAllByText("南")[1]!);
+    // 編集プレビューは絶対席で出し、親には（親）マークを付ける。
+    // 風表記（親基準）なら「南家」（=西の風）が出るはずで、絶対席なら出ない。
+    expect(screen.getByText("東家")).toBeTruthy();
+    expect(screen.getByText("南家（親）")).toBeTruthy();
+    expect(screen.queryByText("南家")).toBeNull();
+  });
+
   it("盤面プレビューは既定で表示され、折りたたみできる", () => {
     render(<ProblemEditScreen />);
     // 既定 open：卓中央に場風+巡目（既定=東場・6巡目）が出る。
@@ -255,7 +266,7 @@ describe("ProblemEditScreen（何切る問題の作成/編集）", () => {
     });
   });
 
-  it("河の牌はタップでツモ切り⇄手出しを切替でき、保存 problem の river に乗る", async () => {
+  it("河の牌はタップ→ピッカーでツモ切りを切替でき、保存 problem の river に乗る", async () => {
     mockCreateProblem.mockResolvedValue({ ok: true, status: 200 });
     render(<ProblemEditScreen />);
     inputFullHand();
@@ -267,9 +278,10 @@ describe("ProblemEditScreen（何切る問題の作成/編集）", () => {
     fireEvent.press(screen.getByLabelText("9筒"));
     fireEvent.press(screen.getByText("閉じる"));
 
-    // チップタップでツモ切りへ（もう一度で手出しに戻せる）。
-    fireEvent.press(screen.getByLabelText("東家の河1（9筒）をツモ切りにする"));
-    expect(screen.getByLabelText("東家の河1（9筒）を手出しにする")).toBeTruthy();
+    // チップタップで編集ピッカーが開き、「ツモ切り」チップで切替できる。
+    fireEvent.press(screen.getByLabelText("東家の河1（9筒）を変更"));
+    fireEvent.press(screen.getByText("ツモ切り"));
+    fireEvent.press(screen.getByText("閉じる"));
 
     fireEvent.press(screen.getByText("下書き保存"));
     await waitFor(() => expect(mockCreateProblem).toHaveBeenCalledTimes(1));
@@ -277,14 +289,48 @@ describe("ProblemEditScreen（何切る問題の作成/編集）", () => {
     expect(input.problem.seats.east.river.map((d) => d.tsumogiri)).toEqual([true]);
   });
 
-  it("河の✕で牌を削除できる（タップは切替に変わったため）", () => {
+  it("河の牌はタップ→ピッカーで別の牌に変更できる", () => {
     render(<ProblemEditScreen />);
     fireEvent.press(screen.getByLabelText("東家の河に追加"));
     fireEvent.press(screen.getByLabelText("1萬"));
     fireEvent.press(screen.getByText("閉じる"));
 
-    fireEvent.press(screen.getByLabelText("東家の河1（1萬）を外す"));
-    expect(screen.queryByLabelText("東家の河1（1萬）をツモ切りにする")).toBeNull();
+    // タップで編集ピッカーを開き、9萬 を選ぶと置き換わる。
+    fireEvent.press(screen.getByLabelText("東家の河1（1萬）を変更"));
+    fireEvent.press(screen.getByLabelText("9萬"));
+    expect(screen.getByLabelText("東家の河1（9萬）を変更")).toBeTruthy();
+    expect(screen.queryByLabelText("東家の河1（1萬）を変更")).toBeNull();
+  });
+
+  it("河の牌はタップ→ピッカーの「削除」で外せる（チップの✕は廃止）", () => {
+    render(<ProblemEditScreen />);
+    fireEvent.press(screen.getByLabelText("東家の河に追加"));
+    fireEvent.press(screen.getByLabelText("1萬"));
+    fireEvent.press(screen.getByText("閉じる"));
+
+    // ✕ボタンはもう無い。
+    expect(screen.queryByLabelText("東家の河1（1萬）を外す")).toBeNull();
+    fireEvent.press(screen.getByLabelText("東家の河1（1萬）を変更"));
+    fireEvent.press(screen.getByText("削除"));
+    expect(screen.queryByLabelText("東家の河1（1萬）を変更")).toBeNull();
+  });
+
+  it("写真から作成（AI再現）は新規では開いて出るが、既存問題の編集では折りたたみ既定", async () => {
+    mockAuth = { token: "t", user: { plan: "pro", remainingCalls: 300, monthlyCallQuota: 320 } };
+    // 新規: ボタンまで見える。
+    const first = render(<ProblemEditScreen />);
+    expect(screen.getByText(/手牌の写真を選ぶ/)).toBeTruthy();
+    first.unmount();
+
+    // 編集: 見出しはあるが中身は畳まれている。見出しタップで開ける。
+    mockParams = { problemId: "p1" };
+    mockGetProblem.mockResolvedValue(makePost({ id: "p1", title: "既存の問題" }));
+    render(<ProblemEditScreen />);
+    await screen.findByDisplayValue("既存の問題");
+    expect(screen.getByText(/写真から作成/)).toBeTruthy();
+    expect(screen.queryByText(/手牌の写真を選ぶ/)).toBeNull();
+    fireEvent.press(screen.getByText(/写真から作成/));
+    expect(screen.getByText(/手牌の写真を選ぶ/)).toBeTruthy();
   });
 
   it("problemId 付きは既存の問題を読み込み、保存で updateProblem を呼ぶ", async () => {
