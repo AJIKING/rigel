@@ -569,6 +569,15 @@ export function answerNeedsTile(sel: Pick<ProblemAnswerSelection, "kind" | "call
   return sel.kind === "discard" || sel.call === "pon" || sel.call === "chi";
 }
 
+/** 視点席の理牌済み手牌の牌コード（一覧サムネ・OG画像カードで共用）。
+ *  ProblemSchema は視点手牌の null を禁じているため通常すべて確定牌だが、
+ *  型上の null は除いて Tile[] に絞る。 */
+export function problemHandTiles(problem: Problem): Tile[] {
+  return sortHandTiles(problem.seats[problem.pov].hand)
+    .map((t) => t.tile)
+    .filter((t): t is Tile => t !== null);
+}
+
 /** 回答UIで選択中の「切る牌」。牌コードでなく位置で持つ（同じ牌が手牌に2枚
  *  あっても選択枠は1枚だけに付く）。index は理牌済み手牌内の位置、ツモ牌は -1。 */
 export interface PickedTile {

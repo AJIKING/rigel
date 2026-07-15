@@ -25,6 +25,7 @@ import {
   problemRoundLabel,
   problemToKifu,
   statsRatios,
+  problemHandTiles,
   togglePickedTile,
   CALL_CHOICES,
   PROBLEM_FULL_HAND,
@@ -503,6 +504,43 @@ describe("buildProblemAnswer / answerNeedsTile（回答UIの選択状態→ア�
     expect(answerNeedsTile({ kind: "call", call: "chi" })).toBe(true);
     expect(answerNeedsTile({ kind: "call", call: "kan" })).toBe(false);
     expect(answerNeedsTile({ kind: "call", call: "pass" })).toBe(false);
+  });
+});
+
+describe("problemHandTiles（視点席の理牌済み手牌の牌コード。サムネ・OG画像で共用）", () => {
+  it("視点席の手牌を理牌して牌コードの配列で返す", () => {
+    const p = ProblemSchema.parse({
+      schemaVersion: PROBLEM_SCHEMA_VERSION,
+      kind: "call",
+      pov: "south",
+      targetSeat: "west",
+      seats: {
+        east: {},
+        south: {
+          // わざと理牌前の順で置く（カードでは理牌済みで出ることを確認する）。
+          hand: ["9m", "1m", "5m", "2m", "3m", "4m", "6m", "7m", "8m", "1p", "2p", "3p", "1z"].map(
+            (t) => ({ tile: t, confidence: 1 }),
+          ),
+        },
+        west: { river: [{ order: 1, tile: "5p", confidence: 1 }] },
+        north: {},
+      },
+    });
+    expect(problemHandTiles(p)).toEqual([
+      "1m",
+      "2m",
+      "3m",
+      "4m",
+      "5m",
+      "6m",
+      "7m",
+      "8m",
+      "9m",
+      "1p",
+      "2p",
+      "3p",
+      "1z",
+    ]);
   });
 });
 

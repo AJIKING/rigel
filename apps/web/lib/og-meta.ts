@@ -3,7 +3,7 @@
 // 対象の情報を一切含めない（プライバシー: 非公開データの存在をメタデータから漏らさない）。
 
 import { ProblemSchema, type Tile } from "@rigel/schema";
-import { PROBLEM_KIND_LABELS, problemRoundLabel, sortHandTiles } from "@rigel/ui";
+import { PROBLEM_KIND_LABELS, problemHandTiles, problemRoundLabel } from "@rigel/ui";
 import { fmtDateSlash } from "./format";
 
 /** メタデータに必要な最小限の公開半荘情報（PublicGameDetail のサブセット）。 */
@@ -144,13 +144,10 @@ export function problemOgCard(post: ProblemOgInput | null): {
   const parsed = ProblemSchema.safeParse(post.problem);
   if (!parsed.success) return { ...generic, title };
   const problem = parsed.data;
-  const hand = sortHandTiles(problem.seats[problem.pov].hand)
-    .map((t) => t.tile)
-    .filter((t): t is Tile => t !== null);
   return {
     title,
+    hand: problemHandTiles(problem),
     info: `${PROBLEM_KIND_LABELS[problem.kind]}・${problemRoundLabel(problem.meta)}`,
-    hand,
     drawn: problem.kind === "discard" ? problem.drawn : null,
   };
 }
