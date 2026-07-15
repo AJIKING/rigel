@@ -629,6 +629,48 @@ export function problemRiverTiles(problem?: Problem): Record<Seat, DraftRiverTil
   return rivers;
 }
 
+// ---- 河ドラフトの編集（web/mobile の何切る編集で共用。牌タップ→変更/削除/ツモ切り） ----
+
+/** 「riveredit:席:index」のターゲット文字列を分解する（該当しなければ null）。 */
+export function parseRiverEditTarget(
+  t: string | null | undefined,
+): { seat: Seat; index: number } | null {
+  if (!t?.startsWith("riveredit:")) return null;
+  const [, seat, index] = t.split(":");
+  return { seat: seat as Seat, index: Number(index) };
+}
+
+/** 指定位置の牌だけ置き換える（ツモ切りフラグは保持・不変更新）。 */
+export function replaceDraftRiverTile(
+  rivers: Record<Seat, DraftRiverTile[]>,
+  seat: Seat,
+  index: number,
+  tile: Tile,
+): Record<Seat, DraftRiverTile[]> {
+  return { ...rivers, [seat]: rivers[seat].map((d, j) => (j === index ? { ...d, tile } : d)) };
+}
+
+/** 指定位置のツモ切りフラグだけ反転する（不変更新）。 */
+export function toggleDraftRiverTsumogiri(
+  rivers: Record<Seat, DraftRiverTile[]>,
+  seat: Seat,
+  index: number,
+): Record<Seat, DraftRiverTile[]> {
+  return {
+    ...rivers,
+    [seat]: rivers[seat].map((d, j) => (j === index ? { ...d, tsumogiri: !d.tsumogiri } : d)),
+  };
+}
+
+/** 指定位置の牌を外す（不変更新）。 */
+export function removeDraftRiverTile(
+  rivers: Record<Seat, DraftRiverTile[]>,
+  seat: Seat,
+  index: number,
+): Record<Seat, DraftRiverTile[]> {
+  return { ...rivers, [seat]: rivers[seat].filter((_, j) => j !== index) };
+}
+
 /** 副露を1組追加した編集状態を返す（3枚換算で溢れる手牌は末尾から外す。カンは kan_open）。 */
 export function addDraftMeld(
   hand: Tile[],

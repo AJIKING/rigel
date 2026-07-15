@@ -16,12 +16,16 @@ import {
   compareTiles,
   draftToKifu,
   kifuToProblemDraft,
+  parseRiverEditTarget,
   planCanAnalyze,
   problemHandMax,
+  removeDraftRiverTile,
+  replaceDraftRiverTile,
   reviewSummaryLabel,
   problemRiverTiles,
   seatLabel,
   tileLabel,
+  toggleDraftRiverTsumogiri,
   LIMIT_MESSAGES,
   NUMS,
   PROBLEM_KIND_LABELS,
@@ -46,6 +50,7 @@ import { ProblemPhotoModal } from "./ProblemPhotoModal";
 import s from "./problem.module.css";
 
 /** 牌グリッドの入力先。 */
+/** 牌グリッドの入力先。riveredit の分解は @rigel/ui（parseRiverEditTarget）。 */
 type Target =
   | "hand"
   | "drawn"
@@ -53,13 +58,6 @@ type Target =
   | `river:${Seat}`
   | `riveredit:${Seat}:${number}`
   | `meld:${"pon" | "chi" | "kan"}`;
-
-/** riveredit ターゲットの分解（席と河 index）。mobile の同名ヘルパと同形。 */
-function parseRiverEdit(t: Target): { seat: Seat; index: number } | null {
-  if (!t.startsWith("riveredit:")) return null;
-  const [, seat, index] = t.split(":");
-  return { seat: seat as Seat, index: Number(index) };
-}
 
 /** 席セレクト（selwrap＝自前シェブロン付き）。自分の席・対象席・場風・親で共用。 */
 function SeatSelect({
@@ -280,12 +278,9 @@ export function ProblemEditorScreen({ initial }: { initial?: ProblemPost }) {
       // 置くときは手出し。ツモ切りは牌タップ→編集モードで後から切り替える。
       setRivers((cur) => ({ ...cur, [seat]: [...cur[seat], { tile: code, tsumogiri: false }] }));
     } else if (target.startsWith("riveredit:")) {
-      const re = parseRiverEdit(target)!;
+      const re = parseRiverEditTarget(target)!;
       // 既存の河の牌を置き換える（ツモ切りフラグは保持）。置き換えたら通常入力へ戻る。
-      setRivers((cur) => ({
-        ...cur,
-        [re.seat]: cur[re.seat].map((d, j) => (j === re.index ? { ...d, tile: code } : d)),
-      }));
+      setRivers((cur) => replaceDraftRiverTile(cur, re.seat, re.index, code));
       setTarget("hand");
     } else if (target.startsWith("meld:")) {
       const type = target.slice("meld:".length) as "pon" | "chi" | "kan";
@@ -364,7 +359,7 @@ export function ProblemEditorScreen({ initial }: { initial?: ProblemPost }) {
     })),
   ];
   // 河の牌の編集モード（チップタップで入る）。牌グリッドは置き換え先の選択になる。
-  const riverEdit = parseRiverEdit(target);
+  const riverEdit = parseRiverEditTarget(target);
   const riverEditTile = riverEdit ? rivers[riverEdit.seat][riverEdit.index] : null;
 
   return (
@@ -620,12 +615,9 @@ export function ProblemEditorScreen({ initial }: { initial?: ProblemPost }) {
                   className={`${s.targetChip} ${riverEditTile.tsumogiri ? s.on : ""}`}
                   aria-pressed={riverEditTile.tsumogiri}
                   onClick={() =>
-                    setRivers((cur) => ({
-                      ...cur,
-                      [riverEdit.seat]: cur[riverEdit.seat].map((d, j) =>
-                        j === riverEdit.index ? { ...d, tsumogiri: !d.tsumogiri } : d,
-                      ),
-                    }))
+                    setRivers((cur) =>
+                      toggleDraftRiverTsumogiri(cur, riverEdit.seat, riverEdit.index),
+                    )
                   }
                 >
                   {riverEditTile.tsumogiri ? "手出しにする" : "ツモ切りにする"}
@@ -635,10 +627,7 @@ export function ProblemEditorScreen({ initial }: { initial?: ProblemPost }) {
                   className={s.targetChip}
                   aria-label="河の牌を削除"
                   onClick={() => {
-                    setRivers((cur) => ({
-                      ...cur,
-                      [riverEdit.seat]: cur[riverEdit.seat].filter((_, j) => j !== riverEdit.index),
-                    }));
+                    setRivers((cur) => removeDraftRiverTile(cur, riverEdit.seat, riverEdit.index));
                     setTarget("hand");
                   }}
                 >

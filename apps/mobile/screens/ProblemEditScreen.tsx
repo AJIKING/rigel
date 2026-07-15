@@ -17,13 +17,17 @@ import {
   compareTiles,
   draftToKifu,
   kifuToProblemDraft,
+  parseRiverEditTarget,
   planCanAnalyze,
   problemHandMax,
   problemRiverTiles,
   problemRoundLabel,
+  removeDraftRiverTile,
+  replaceDraftRiverTile,
   reviewSummaryLabel,
   seatLabel,
   tileLabel,
+  toggleDraftRiverTsumogiri,
   LIMIT_MESSAGES,
   SEAT_ORDER,
   type DraftRiverTile,
@@ -62,7 +66,7 @@ import { colors, radius } from "../lib/theme";
 
 type Nav = NativeStackNavigationProp<RootStackParamList, "ProblemEdit">;
 
-/** 牌ピッカーの入力先。null=閉じている。 */
+/** 牌ピッカーの入力先。null=閉じている。riveredit の分解は @rigel/ui（parseRiverEditTarget）。 */
 type Target =
   | "hand"
   | "drawn"
@@ -71,13 +75,6 @@ type Target =
   | `riveredit:${Seat}:${number}`
   | `meld:${MeldPick}`
   | null;
-
-/** riveredit ターゲットの分解（席と河 index）。 */
-function parseRiverEdit(t: Target): { seat: Seat; index: number } | null {
-  if (!t?.startsWith("riveredit:")) return null;
-  const [, seat, index] = t.split(":");
-  return { seat: seat as Seat, index: Number(index) };
-}
 
 const MELD_PICKS: { type: MeldPick; label: string }[] = [
   { type: "pon", label: "副露:ポン" },
@@ -288,15 +285,10 @@ function EditorBody({ initial, token }: { initial?: ProblemPost; token: string |
       setRivers((cur) => ({ ...cur, [seat]: [...cur[seat], { tile: code, tsumogiri: false }] }));
       return;
     }
-    const riveredit = parseRiverEdit(target);
+    const riveredit = parseRiverEditTarget(target);
     if (riveredit) {
       // 既存の河の牌を置き換える（ツモ切りフラグは保持）。置き換えたら閉じる。
-      setRivers((cur) => ({
-        ...cur,
-        [riveredit.seat]: cur[riveredit.seat].map((d, j) =>
-          j === riveredit.index ? { ...d, tile: code } : d,
-        ),
-      }));
+      setRivers((cur) => replaceDraftRiverTile(cur, riveredit.seat, riveredit.index, code));
       setTarget(null);
       return;
     }
@@ -373,14 +365,14 @@ function EditorBody({ initial, token }: { initial?: ProblemPost; token: string |
     if (t?.startsWith("river:")) {
       return `${seatLabel(t.slice("river:".length) as Seat)}家の河に追加`;
     }
-    const re = parseRiverEdit(t);
+    const re = parseRiverEditTarget(t);
     if (re) return `${seatLabel(re.seat)}家の河${re.index + 1}を変更`;
     if (t) return `${MELD_PICKS.find((m) => `meld:${m.type}` === t)?.label}を追加`;
     return "";
   }
   const pickerTitle = pickerTitleOf(target);
   // 河の牌の編集中はピッカーに「ツモ切り」「削除」を出す（チップの✕は廃止）。
-  const riverEdit = parseRiverEdit(target);
+  const riverEdit = parseRiverEditTarget(target);
   const riverEditTile = riverEdit ? rivers[riverEdit.seat][riverEdit.index] : null;
 
   return (
@@ -705,22 +697,16 @@ function EditorBody({ initial, token }: { initial?: ProblemPost; token: string |
           onToggleTsumogiri={
             riverEdit
               ? () =>
-                  setRivers((cur) => ({
-                    ...cur,
-                    [riverEdit.seat]: cur[riverEdit.seat].map((d, j) =>
-                      j === riverEdit.index ? { ...d, tsumogiri: !d.tsumogiri } : d,
-                    ),
-                  }))
+                  setRivers((cur) =>
+                    toggleDraftRiverTsumogiri(cur, riverEdit.seat, riverEdit.index),
+                  )
               : undefined
           }
           canDelete={riverEdit !== null}
           onDelete={
             riverEdit
               ? () => {
-                  setRivers((cur) => ({
-                    ...cur,
-                    [riverEdit.seat]: cur[riverEdit.seat].filter((_, j) => j !== riverEdit.index),
-                  }));
+                  setRivers((cur) => removeDraftRiverTile(cur, riverEdit.seat, riverEdit.index));
                   setTarget(null);
                 }
               : undefined
@@ -891,20 +877,8 @@ const styles = StyleSheet.create({
   prevWrap: { alignItems: "center", marginTop: 6 },
   tiles: { flexDirection: "row", flexWrap: "wrap", gap: 5, alignItems: "center" },
   tilesInRow: { flex: 1, flexDirection: "row", flexWrap: "wrap", gap: 5, alignItems: "center" },
-  // 河チップ（タップで手出し⇄ツモ切り、右上の✕で削除）。
-  riverChip: { position: "relative", paddingTop: 6, paddingRight: 6 },
-  chipX: {
-    position: "absolute",
-    top: 0,
-    right: 0,
-    width: 15,
-    height: 15,
-    borderRadius: 8,
-    backgroundColor: "rgba(0,0,0,0.55)",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  chipXText: { color: "rgba(255,255,255,0.85)", fontSize: 10, lineHeight: 12 },
+  // 河チップ（タップで編集ピッカー。✕は廃止）。
+  riverChip: { paddingVertical: 3 },
   riverHint: { color: colors.w45, fontSize: 11 },
   meldChip: {
     flexDirection: "row",

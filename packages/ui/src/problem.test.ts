@@ -25,7 +25,11 @@ import {
   problemRoundLabel,
   problemToKifu,
   statsRatios,
+  parseRiverEditTarget,
   problemHandTiles,
+  removeDraftRiverTile,
+  replaceDraftRiverTile,
+  toggleDraftRiverTsumogiri,
   togglePickedTile,
   CALL_CHOICES,
   PROBLEM_FULL_HAND,
@@ -541,6 +545,43 @@ describe("problemHandTiles（視点席の理牌済み手牌の牌コード。サ
       "3p",
       "1z",
     ]);
+  });
+});
+
+describe("河ドラフトの編集ヘルパ（web/mobile の何切る編集で共用）", () => {
+  const rivers = () => ({
+    east: [
+      { tile: "1m" as Tile, tsumogiri: false },
+      { tile: "2m" as Tile, tsumogiri: true },
+    ],
+    south: [],
+    west: [],
+    north: [],
+  });
+
+  it("parseRiverEditTarget: riveredit ターゲット文字列を席と index に分解する", () => {
+    expect(parseRiverEditTarget("riveredit:east:1")).toEqual({ seat: "east", index: 1 });
+    expect(parseRiverEditTarget("river:east")).toBeNull();
+    expect(parseRiverEditTarget(null)).toBeNull();
+  });
+
+  it("replaceDraftRiverTile: 指定位置の牌だけ置き換え、ツモ切りフラグは保持する", () => {
+    const next = replaceDraftRiverTile(rivers(), "east", 1, "9p");
+    expect(next.east).toEqual([
+      { tile: "1m", tsumogiri: false },
+      { tile: "9p", tsumogiri: true },
+    ]);
+  });
+
+  it("toggleDraftRiverTsumogiri: 指定位置のツモ切りだけ反転する", () => {
+    const next = toggleDraftRiverTsumogiri(rivers(), "east", 0);
+    expect(next.east.map((d) => d.tsumogiri)).toEqual([true, true]);
+  });
+
+  it("removeRiverTile: 指定位置の牌を外す（他席は不変）", () => {
+    const next = removeDraftRiverTile(rivers(), "east", 0);
+    expect(next.east).toEqual([{ tile: "2m", tsumogiri: true }]);
+    expect(next.south).toEqual([]);
   });
 });
 
