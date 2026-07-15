@@ -319,7 +319,7 @@ export function BoardTable({
         {/* ツモは中央に出さない（手牌へのフライイン演出で分かるため）。ドラのみ常設。 */}
         {kifu.meta.dora.length > 0 ? (
           <View style={styles.dora}>
-            <Text style={styles.doraLbl}>ドラ</Text>
+            <Text style={styles.doraLbl}>ドラ表示牌</Text>
             {kifu.meta.dora.map((t, i) => (
               <MiniTile key={`${t}-${i}`} code={t} w={B * 0.05} h={B * 0.07} />
             ))}

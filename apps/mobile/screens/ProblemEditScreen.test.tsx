@@ -254,15 +254,15 @@ describe("ProblemEditScreen（何切る問題の作成/編集）", () => {
 
     it("ドラ6枚目を置こうとすると、黙殺せず「ドラ表示は5枚まで」と知らせる", async () => {
       render(<ProblemEditScreen />);
-      fireEvent.press(screen.getByLabelText("ドラを追加"));
+      fireEvent.press(screen.getByLabelText("ドラ表示牌を追加"));
       for (const label of ["1萬", "2萬", "3萬", "4萬", "5萬"]) {
         fireEvent.press(screen.getByLabelText(label));
       }
       fireEvent.press(screen.getByLabelText("6萬")); // 6枚目は入らない
       expect(
-        await screen.findByText("ドラ表示は5枚までです（置いた牌はタップで外せます）。"),
+        await screen.findByText("ドラ表示牌は5枚までです（置いた牌はタップで外せます）。"),
       ).toBeTruthy();
-      expect(screen.queryByLabelText("ドラ6（6萬）を外す")).toBeNull();
+      expect(screen.queryByLabelText("ドラ表示牌6（6萬）を外す")).toBeNull();
     });
   });
 

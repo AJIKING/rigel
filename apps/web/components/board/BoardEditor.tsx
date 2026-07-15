@@ -877,13 +877,13 @@ function Editor(p: EditorProps) {
                     set={setKyotaku}
                   />
                   <DoraNavRow
-                    label="ドラ"
+                    label="ドラ表示牌"
                     tiles={dora}
                     onOpen={(e, i) => openDoraPicker(e, "dora", i)}
                     onRemove={(i) => setKifu(removeDoraTile(kifu, "dora", i))}
                   />
                   <DoraNavRow
-                    label="裏ドラ"
+                    label="裏ドラ表示牌"
                     tiles={uraDora}
                     onOpen={(e, i) => openDoraPicker(e, "uradora", i)}
                     onRemove={(i) => setKifu(removeDoraTile(kifu, "uraDora", i))}

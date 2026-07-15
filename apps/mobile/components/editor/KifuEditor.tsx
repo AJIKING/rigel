@@ -178,12 +178,12 @@ export function KifuEditor({
           ? `${MELD_LABELS.find((m) => m.type === picker.meld)?.label}を追加`
           : picker.kind === "dora"
             ? picker.index === undefined
-              ? "ドラを追加"
-              : "ドラを変更"
+              ? "ドラ表示牌を追加"
+              : "ドラ表示牌を変更"
             : picker.kind === "uradora"
               ? picker.index === undefined
-                ? "裏ドラを追加"
-                : "裏ドラを変更"
+                ? "裏ドラ表示牌を追加"
+                : "裏ドラ表示牌を変更"
               : "牌を変更";
 
   return (
@@ -235,13 +235,13 @@ export function KifuEditor({
           />
           {/* ドラ・裏ドラ（供託の下）。カンで増えるため複数枚（最大5）。牌タップで変更/削除、＋で追加。 */}
           <DoraEdit
-            label="ドラ"
+            label="ドラ表示牌"
             tiles={kifu.meta.dora}
             onEdit={(index) => setPicker({ kind: "dora", index })}
             onAdd={() => setPicker({ kind: "dora" })}
           />
           <DoraEdit
-            label="裏ドラ"
+            label="裏ドラ表示牌"
             tiles={kifu.meta.uraDora}
             onEdit={(index) => setPicker({ kind: "uradora", index })}
             onAdd={() => setPicker({ kind: "uradora" })}

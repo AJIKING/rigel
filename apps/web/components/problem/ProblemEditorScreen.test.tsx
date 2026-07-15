@@ -106,7 +106,7 @@ describe("ProblemEditorScreen: 写真から作成（AI再現）", () => {
     expect(await screen.findByRole("button", { name: "1萬 を外す" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "2萬 を外す" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "南家の河1（9索）を変更" })).toBeTruthy();
-    expect(screen.getByRole("button", { name: "ドラ 西 を外す" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "ドラ表示牌 西 を外す" })).toBeTruthy();
     // 読み取りメモと要確認（低confidence=2萬 0.6）を表示して人の確認を促す。
     expect(screen.getByText(/グレアで1枚読めず/)).toBeTruthy();
     expect(screen.getByText(/要確認: .*2萬\(0\.6\)/)).toBeTruthy();
@@ -240,10 +240,10 @@ describe("ProblemEditorScreen: 袋小路（無反応・解決不能なエラー�
     stubMe("free");
     renderEditor();
     await screen.findByRole("group", { name: "牌を選ぶ" });
-    fireEvent.click(screen.getByRole("button", { name: "ドラ" }));
+    fireEvent.click(screen.getByRole("button", { name: "ドラ表示牌" }));
     for (const label of TILE_LABELS.slice(0, 6)) pick(label); // 6枚目は入らない
-    expect(await screen.findByText(/ドラ表示は5枚まで/)).toBeTruthy();
-    expect(screen.queryByRole("button", { name: "ドラ 6萬 を外す" })).toBeNull();
+    expect(await screen.findByText(/ドラ表示牌は5枚まで/)).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "ドラ表示牌 6萬 を外す" })).toBeNull();
   });
 
   it("鳴き判断で手牌が13枚のとき、さらに置こうとしたら黙殺せず文言で知らせる", async () => {

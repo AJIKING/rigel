@@ -269,7 +269,7 @@ export function ProblemEditorScreen({ initial }: { initial?: ProblemPost }) {
       setDrawn(code);
     } else if (target === "dora") {
       if (dora.length >= 5) {
-        setErr("ドラ表示は5枚までです（置いた牌はタップで外せます）。");
+        setErr("ドラ表示牌は5枚までです（置いた牌はタップで外せます）。");
         return;
       }
       setDora((cur) => [...cur, code]);
@@ -342,7 +342,7 @@ export function ProblemEditorScreen({ initial }: { initial?: ProblemPost }) {
     );
   }
 
-  // 入力先は「自分の手」と「ドラ・河」の2グループに分けて見せる（1本のセグメントに
+  // 入力先は「自分の手」と「ドラ表示牌・河」の2グループに分けて見せる（1本のセグメントに
   // 詰め込むと潰れて読めない）。
   const handTargets: { key: Target; label: string }[] = [
     { key: "hand", label: `手牌（${hand.length}/${handMax}）` },
@@ -352,7 +352,7 @@ export function ProblemEditorScreen({ initial }: { initial?: ProblemPost }) {
     { key: "meld:kan", label: "副露:カン" },
   ];
   const tableTargets: { key: Target; label: string }[] = [
-    { key: "dora", label: "ドラ" },
+    { key: "dora", label: "ドラ表示牌" },
     ...SEAT_ORDER.map((seat) => ({
       key: `river:${seat}` as Target,
       label: `${seatLabel(seat)}家の河`,
@@ -559,9 +559,9 @@ export function ProblemEditorScreen({ initial }: { initial?: ProblemPost }) {
           </div>
         )}
         <TileChipRow
-          label="ドラ"
+          label="ドラ表示牌"
           tiles={dora}
-          removeLabel={(t) => `ドラ ${tileLabel(t)} を外す`}
+          removeLabel={(t) => `ドラ表示牌 ${tileLabel(t)} を外す`}
           onRemove={(i) => setDora((cur) => cur.filter((_, j) => j !== i))}
         />
         {SEAT_ORDER.map((seat) => (
@@ -582,7 +582,7 @@ export function ProblemEditorScreen({ initial }: { initial?: ProblemPost }) {
           {(
             [
               { group: "自分の手", items: handTargets },
-              { group: "ドラ・河", items: tableTargets },
+              { group: "ドラ表示牌・河", items: tableTargets },
             ] as const
           ).map(({ group, items }) => (
             <div key={group} className={s.targetRow}>

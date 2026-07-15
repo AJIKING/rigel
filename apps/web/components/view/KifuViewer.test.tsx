@@ -147,12 +147,12 @@ describe("KifuViewer", () => {
     // 初期表示（全表示）でも結果はまだ伏せる。
     expect(screen.getByText("—（再生で確認）")).toBeTruthy();
     expect(screen.queryByText("ロン")).toBeNull();
-    expect(screen.queryByText("裏ドラ")).toBeNull();
+    expect(screen.queryByText("裏ドラ表示牌")).toBeNull();
     // 和了演出を開いて閉じたら結果・裏ドラを出す。
     fireEvent.click(screen.getByLabelText("1手進む"));
     fireEvent.click(screen.getByRole("button", { name: "‹ 前へ" }));
     expect(screen.getByText("ロン")).toBeTruthy();
-    expect(screen.getByText("裏ドラ")).toBeTruthy();
+    expect(screen.getByText("裏ドラ表示牌")).toBeTruthy();
     expect(screen.queryByText("—（再生で確認）")).toBeNull();
   });
 

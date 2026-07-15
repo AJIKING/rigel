@@ -273,7 +273,7 @@ function EditorBody({ initial, token }: { initial?: ProblemPost; token: string |
     }
     if (target === "dora") {
       if (dora.length >= 5) {
-        setErr("ドラ表示は5枚までです（置いた牌はタップで外せます）。");
+        setErr("ドラ表示牌は5枚までです（置いた牌はタップで外せます）。");
         return;
       }
       setDora((cur) => [...cur, code]);
@@ -361,7 +361,7 @@ function EditorBody({ initial, token }: { initial?: ProblemPost; token: string |
   function pickerTitleOf(t: Target): string {
     if (t === "hand") return `手牌に追加（${hand.length}/${handMax}枚）`;
     if (t === "drawn") return "ツモ牌を選ぶ";
-    if (t === "dora") return `ドラを追加（${dora.length}/5枚）`;
+    if (t === "dora") return `ドラ表示牌を追加（${dora.length}/5枚）`;
     if (t?.startsWith("river:")) {
       return `${seatLabel(t.slice("river:".length) as Seat)}家の河に追加`;
     }
@@ -560,11 +560,11 @@ function EditorBody({ initial, token }: { initial?: ProblemPost; token: string |
 
         {/* ドラ */}
         <TileRow
-          label="ドラ"
+          label="ドラ表示牌"
           tiles={dora}
-          removeLabel={(t, i) => `ドラ${i + 1}（${tileLabel(t)}）を外す`}
+          removeLabel={(t, i) => `ドラ表示牌${i + 1}（${tileLabel(t)}）を外す`}
           onRemove={(i) => setDora((cur) => cur.filter((_, j) => j !== i))}
-          addLabel="ドラを追加"
+          addLabel="ドラ表示牌を追加"
           onAdd={dora.length < 5 ? () => setTarget("dora") : undefined}
         />
 

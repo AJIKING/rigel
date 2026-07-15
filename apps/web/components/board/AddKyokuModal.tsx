@@ -207,7 +207,7 @@ export function AddKyokuModal({
             <Stepper label="本場" unit="本場" value={honba} min={0} max={19} set={setHonba} />
             <Stepper label="供託" unit="本" value={kyotaku} min={0} max={9} set={setKyotaku} />
             <div className={s.steprow}>
-              <span className={s.stlabel}>ドラ</span>
+              <span className={s.stlabel}>ドラ表示牌</span>
               <DoraPicker value={dora} onPick={setDora} />
             </div>
             <p className={s.note}>空の盤面で局を作成します。牌は盤面の「＋」から手入力できます。</p>

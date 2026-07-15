@@ -356,7 +356,7 @@ export function KifuViewer({ detail, gameId }: { detail: PublicGameDetail; gameI
                       （手牌右端スロットへのフライイン演出で分かるため）。 */}
                   {boardKifu.meta.dora.length > 0 && (
                     <div className={s.dora}>
-                      <span>ドラ</span>
+                      <span>ドラ表示牌</span>
                       <DoraTiles codes={boardKifu.meta.dora} />
                     </div>
                   )}
@@ -566,13 +566,15 @@ export function KifuViewer({ detail, gameId }: { detail: PublicGameDetail; gameI
                 <span>供託</span>
                 <b>{viewKifu.meta.kyotaku}本</b>
               </div>
-              <DoraRow label="ドラ" codes={viewKifu.meta.dora} />
+              <DoraRow label="ドラ表示牌" codes={viewKifu.meta.dora} />
               {/* 結果・裏ドラはネタバレ防止のため、和了演出を見るまで伏せる。 */}
               <div className={s.irow}>
                 <span>結果</span>
                 <b>{revealResult ? resultLabel(viewKifu.result) : "—（再生で確認）"}</b>
               </div>
-              {revealResult && isWin && <DoraRow label="裏ドラ" codes={viewKifu.meta.uraDora} />}
+              {revealResult && isWin && (
+                <DoraRow label="裏ドラ表示牌" codes={viewKifu.meta.uraDora} />
+              )}
             </div>
 
             <div className={s.ssec}>

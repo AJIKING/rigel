@@ -26,7 +26,7 @@ export function DoraPicker({
 
   return (
     <>
-      <button type="button" className={s.doraPick} aria-label="ドラを選ぶ" onClick={toggle}>
+      <button type="button" className={s.doraPick} aria-label="ドラ表示牌を選ぶ" onClick={toggle}>
         <span className={s.doraT}>{value && <OssTileFace code={value} />}</span>
       </button>
       {pos && (
@@ -43,7 +43,7 @@ export function DoraPicker({
             className={s.tilepop}
             style={{ left: pos.x, top: pos.y }}
             role="dialog"
-            aria-label="ドラを選ぶ"
+            aria-label="ドラ表示牌を選ぶ"
             onClick={(e) => e.stopPropagation()}
           >
             <div className={s.tabs}>

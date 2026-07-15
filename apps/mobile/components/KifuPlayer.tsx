@@ -308,7 +308,7 @@ export function KifuPlayer({
             <Section title="局情報" defaultOpen>
               <KV k="親" v={`${windOf(dealer, dealer)}家`} />
               <View style={styles.kv}>
-                <Text style={styles.kvK}>ドラ</Text>
+                <Text style={styles.kvK}>ドラ表示牌</Text>
                 <View style={styles.kvTiles}>
                   {viewKifu.meta.dora.length === 0 ? (
                     <Text style={styles.kvV}>—</Text>
@@ -320,7 +320,7 @@ export function KifuPlayer({
                 </View>
               </View>
               <View style={styles.kv}>
-                <Text style={styles.kvK}>裏ドラ</Text>
+                <Text style={styles.kvK}>裏ドラ表示牌</Text>
                 <View style={styles.kvTiles}>
                   {/* 結果と同じくネタバレ要素なので、和了演出を見るまで伏せる。 */}
                   {!revealResult || viewKifu.meta.uraDora.length === 0 ? (

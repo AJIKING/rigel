@@ -249,11 +249,11 @@ describe("KifuEditor（モバイル編集画面）", () => {
   it("裏ドラを追加して保存できる（複数枚対応）", () => {
     const onSave = jest.fn();
     render(<KifuEditor initialKifu={makeKifu()} initialSeq={1} onSave={onSave} />);
-    fireEvent.press(screen.getByLabelText("裏ドラを追加"));
+    fireEvent.press(screen.getByLabelText("裏ドラ表示牌を追加"));
     fireEvent.press(screen.getByText("字")); // スートタブを字に切替
     fireEvent.press(screen.getByLabelText("發"));
     // 2枚目（カンで増えたケース）。
-    fireEvent.press(screen.getByLabelText("裏ドラを追加"));
+    fireEvent.press(screen.getByLabelText("裏ドラ表示牌を追加"));
     fireEvent.press(screen.getByText("字"));
     fireEvent.press(screen.getByLabelText("白"));
 
@@ -266,10 +266,10 @@ describe("KifuEditor（モバイル編集画面）", () => {
     const onSave = jest.fn();
     render(<KifuEditor initialKifu={makeKifu()} initialSeq={1} onSave={onSave} />);
     fireEvent.press(screen.getByText(/プレビュー/)); // 牌ラベル重複を避けるため畳む
-    fireEvent.press(screen.getByLabelText("ドラを追加"));
+    fireEvent.press(screen.getByLabelText("ドラ表示牌を追加"));
     fireEvent.press(screen.getByText("字"));
     fireEvent.press(screen.getByLabelText("發"));
-    fireEvent.press(screen.getByLabelText("ドラ1を変更")); // 追加した1枚を開く
+    fireEvent.press(screen.getByLabelText("ドラ表示牌1を変更")); // 追加した1枚を開く
     fireEvent.press(screen.getByText("削除"));
 
     fireEvent.press(screen.getByText("保存"));
