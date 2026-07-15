@@ -13,6 +13,7 @@ import { fmtDateSlash } from "../../lib/format";
 import { useFavorites } from "../../lib/use-favorites";
 import { AppHeader } from "../AppHeader";
 import { GameCard } from "../GameCard";
+import { ProblemThumb } from "./ProblemThumb";
 import gc from "../game-card.module.css";
 import s from "../list/kifu-list.module.css";
 
@@ -85,6 +86,7 @@ export function ProblemListScreen({ posts }: { posts: ProblemPost[] }) {
                     </span>
                   }
                   meta={fmtDateSlash(p.createdAt)}
+                  thumb={<ProblemThumb problem={p.problem} />}
                   faved={favs.has(p.id)}
                   onToggleFav={() => toggleFav(p.id)}
                   onOpen={() => router.push(`/p/${p.id}`)}

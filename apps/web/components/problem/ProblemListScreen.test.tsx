@@ -46,6 +46,20 @@ describe("ProblemListScreen（公開一覧。牌譜一覧と同じカードUI）
     expect(screen.getAllByText("何切る").length).toBeGreaterThan(0); // 出題形式バッジ
   });
 
+  it("カードのサムネイルに理牌済み手牌＋ツモ牌を出す（内容が一覧で伝わる）", async () => {
+    stubMe(null);
+    render(
+      <AuthProvider>
+        <ProblemListScreen posts={[post("p1")]} />
+      </AuthProvider>,
+    );
+    await screen.findByText("問題p1");
+    // makeDiscardPost の手牌13枚（1m..9m,1p..4p）＋ツモ牌 5p が牌画像で並ぶ。
+    expect(screen.getAllByAltText("1萬")).toHaveLength(1);
+    expect(screen.getAllByAltText("5筒")).toHaveLength(1); // ツモ牌
+    expect(screen.getAllByAltText(/萬|筒|索/)).toHaveLength(14);
+  });
+
   it("タイトルで検索できる（牌譜一覧と同じツールバー）", async () => {
     stubMe(null);
     render(

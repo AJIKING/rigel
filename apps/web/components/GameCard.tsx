@@ -46,6 +46,7 @@ export function GameCard({
   onToggleFav,
   onOpen,
   actions,
+  thumb,
 }: {
   title: string;
   badge?: ReactNode;
@@ -54,6 +55,8 @@ export function GameCard({
   onToggleFav: () => void;
   onOpen: () => void;
   actions?: ReactNode;
+  /** サムネイルの差し替え（何切る=手牌サムネ等）。省略時は卓チップ。 */
+  thumb?: ReactNode;
 }) {
   // カードは中に <button>（お気に入り）を含むため、<button> ではなく role=button の
   // クリック可能な要素にする（button の入れ子は不正で hydration エラーになる）。
@@ -71,7 +74,7 @@ export function GameCard({
       }}
     >
       <FavButton on={faved} onToggle={onToggleFav} />
-      <Thumb />
+      {thumb ?? <Thumb />}
       <div className={s.ctop}>
         <h3 className={s.ctitle}>{title}</h3>
         {badge}

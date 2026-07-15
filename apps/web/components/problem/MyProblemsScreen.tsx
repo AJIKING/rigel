@@ -11,6 +11,7 @@ import { useFavorites } from "../../lib/use-favorites";
 import { AppHeader } from "../AppHeader";
 import { GameCard } from "../GameCard";
 import { MyPageTabs } from "../mypage/MyPageTabs";
+import { ProblemThumb } from "./ProblemThumb";
 import gc from "../game-card.module.css";
 import s from "../list/kifu-list.module.css";
 import p9 from "./problem.module.css";
@@ -163,6 +164,7 @@ export function MyProblemsScreen({ initialPosts }: { initialPosts: ProblemPost[]
                     </>
                   }
                   meta={fmtDateSlash(post.createdAt)}
+                  thumb={<ProblemThumb problem={post.problem} />}
                   faved={favs.has(post.id)}
                   onToggleFav={() => toggleFav(post.id)}
                   onOpen={() => router.push(`/p/${post.id}`)}
