@@ -14,19 +14,19 @@
     "db:migrate": "wrangler d1 migrations apply rigel --remote"
   },
   "dependencies": {
-    "@cf-wasm/photon": "^0.3.6",
+    "@cf-wasm/photon": "^0.3.7",
     "@rigel/schema": "workspace:*",
     "drizzle-orm": "^0.45.2",
-    "hono": "^4.6.14",
+    "hono": "^4.12.30",
     "jose": "^6.2.3",
     "reflect-metadata": "^0.2.2",
-    "stripe": "^22.3.0",
+    "stripe": "^22.3.1",
     "zod": "^3.24.1"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20241218.0",
     "@types/sql.js": "^1.4.11",
-    "drizzle-kit": "^0.30.1",
+    "drizzle-kit": "^0.31.10",
     "sql.js": "^1.14.1",
     "wrangler": "^3.99.0"
   }
