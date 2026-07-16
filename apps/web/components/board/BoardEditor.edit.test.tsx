@@ -284,13 +284,16 @@ describe("BoardEditor 捨て牌から鳴く（鳴いた人→切った牌の導�
     expect(kifu.seats.south.river[0]?.tile).toBe("1m");
   });
 
-  it("「切った牌を選ばず作成」で鳴きだけ作れる（カンは大明槓固定・種類の行は出ない）", async () => {
+  it("カンは大明槓固定（種類の行は出ない）。牌選択＝嶺上後に切った牌（作成ボタンは無い）", async () => {
     render(<BoardEditor initialDetail={makeDetail([{ id: "l1" }])} gameId="g1" logId="l1" />);
     const dialog = await openRiverEdit("5p");
     fireEvent.click(within(dialog).getByRole("button", { name: "カン" }));
     // 捨て牌からのカンは大明槓しかないので、種類（大明槓/暗槓/加槓）の選択は出ない。
     expect(within(dialog).queryByText("暗槓")).toBeNull();
-    fireEvent.click(within(dialog).getByRole("button", { name: "切った牌を選ばず作成" }));
+    // 「切った牌を選ばず作成」は廃止（切った牌の選択で必ず河に並ぶ）。
+    expect(within(dialog).queryByText("切った牌を選ばず作成")).toBeNull();
+    fireEvent.click(within(dialog).getByText("萬"));
+    fireEvent.click(within(dialog).getByRole("button", { name: tileLabel("1m") }));
 
     fireEvent.click(screen.getByRole("button", { name: "保存" }));
     await waitFor(() => expect(h.updateKifuAction).toHaveBeenCalled());
@@ -298,7 +301,60 @@ describe("BoardEditor 捨て牌から鳴く（鳴いた人→切った牌の導�
     expect(kifu.seats.south.melds[0]).toMatchObject({ type: "kan_open", from: "east" });
     expect(kifu.seats.south.melds[0]?.tiles).toHaveLength(4);
     expect(kifu.seats.east.river[0]?.calledBy).toBe("south");
+    // 嶺上ツモの後に切った牌が河に並ぶ。
+    expect(kifu.seats.south.river[0]?.tile).toBe("1m");
+  });
+
+  it("河の追加ピッカーに鳴きの行は出ない（鳴きは捨て牌をタップして付ける）", async () => {
+    render(<BoardEditor initialDetail={makeDetail([{ id: "l1" }])} gameId="g1" logId="l1" />);
+    fireEvent.click(await screen.findByRole("button", { name: "東家に捨て牌を追加" }));
+    const dialog = screen.getByRole("dialog", { name: "牌を選ぶ" });
+    expect(within(dialog).queryByText("鳴き")).toBeNull();
+  });
+
+  it("配牌の追加ピッカーには鳴き作成が残る（暗槓など鳴き元の無い鳴きを作る導線）", async () => {
+    render(<BoardEditor initialDetail={makeDetail([{ id: "l1" }])} gameId="g1" logId="l1" />);
+    fireEvent.click(await screen.findByRole("button", { name: "東家の配牌に追加" }));
+    const dialog = screen.getByRole("dialog", { name: "牌を選ぶ" });
+    expect(within(dialog).getByText("鳴き")).toBeTruthy();
+    fireEvent.click(within(dialog).getByRole("button", { name: "カン" }));
+    fireEvent.click(within(dialog).getByRole("button", { name: "暗槓" }));
+    fireEvent.click(within(dialog).getByRole("button", { name: tileLabel("1m") }));
+
+    fireEvent.click(screen.getByRole("button", { name: "保存" }));
+    await waitFor(() => expect(h.updateKifuAction).toHaveBeenCalled());
+    const [, kifu] = h.updateKifuAction.mock.calls[0] as [string, Kifu];
+    expect(kifu.seats.east.melds[0]?.type).toBe("kan_closed");
+    expect(kifu.seats.east.melds[0]?.tiles.map((t) => t.tile)).toEqual(["1m", "1m", "1m", "1m"]);
+  });
+
+  it("鳴かれた捨て牌を開き直すと選択状態が復元され、選び直しは置き換えになる", async () => {
+    render(<BoardEditor initialDetail={makeDetail([{ id: "l1" }])} gameId="g1" logId="l1" />);
+    // ポンを作成（既定の鳴いた人=南家・切った牌 1m）。
+    let dialog = await openRiverEdit("5p");
+    fireEvent.click(within(dialog).getByRole("button", { name: "ポン" }));
+    fireEvent.click(within(dialog).getByText("萬"));
+    fireEvent.click(within(dialog).getByRole("button", { name: tileLabel("1m") }));
+
+    // 開き直すと ポン・南家 が選択済みで表示される。
+    fireEvent.click(screen.getByRole("button", { name: "東家の河 1枚目 を編集" }));
+    dialog = screen.getByRole("dialog", { name: "牌を選ぶ" });
+    expect(within(dialog).getByRole("button", { name: "ポン", pressed: true })).toBeTruthy();
+    expect(within(dialog).getByRole("button", { name: "南家", pressed: true })).toBeTruthy();
+
+    // 鳴いた人を西家に変えて切った牌を 2m にすると、置き換えられる（重複しない）。
+    fireEvent.click(within(dialog).getByRole("button", { name: "西家" }));
+    fireEvent.click(within(dialog).getByText("萬"));
+    fireEvent.click(within(dialog).getByRole("button", { name: tileLabel("2m") }));
+
+    fireEvent.click(screen.getByRole("button", { name: "保存" }));
+    await waitFor(() => expect(h.updateKifuAction).toHaveBeenCalled());
+    const [, kifu] = h.updateKifuAction.mock.calls[0] as [string, Kifu];
+    expect(kifu.seats.south.melds).toHaveLength(0);
     expect(kifu.seats.south.river).toHaveLength(0);
+    expect(kifu.seats.west.melds[0]).toMatchObject({ type: "pon", from: "east" });
+    expect(kifu.seats.west.river.map((d) => d.tile)).toEqual(["2m"]);
+    expect(kifu.seats.east.river[0]?.calledBy).toBe("west");
   });
 });
 

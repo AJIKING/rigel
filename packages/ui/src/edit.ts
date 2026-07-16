@@ -20,6 +20,7 @@ import {
 import { SEAT_ORDER } from "./board";
 import {
   deriveTimeline,
+  linkedCallAt,
   makeDiscardEvent,
   reconcileTimeline,
   syncSeatsFromTimeline,
@@ -316,11 +317,40 @@ export function addMeld(
   return syncBoardEdit(KifuSchema.parse(d));
 }
 
+/** 河の index → timeline 上の打牌イベント位置（同席の打牌を数えて対応づける）。 */
+function findDiscardEvent(timeline: TimelineEvent[], seat: Seat, riverIndex: number): number {
+  let seen = 0;
+  for (let i = 0; i < timeline.length; i++) {
+    const e = timeline[i]!;
+    if (e.kind === "discard" && e.seat === seat && seen++ === riverIndex) return i;
+  }
+  return -1;
+}
+
+/** 捨て牌に付いている既存の鳴き（直後の連動行）。ピッカー再表示の初期状態に使う。
+ *  鳴き印だけで連動行が無い（過去データ等）は null。 */
+export function discardCallOf(
+  kifu: Kifu,
+  discarder: Seat,
+  riverIndex: number,
+): { caller: Seat; type: MeldPick; chiRun: Tile[] | null } | null {
+  const timeline = deriveTimeline(kifu);
+  const evIndex = findDiscardEvent(timeline, discarder, riverIndex);
+  const linked = evIndex >= 0 ? linkedCallAt(timeline, evIndex) : null;
+  if (!linked) return null;
+  const { type: meldType, tiles: readTiles } = linked.meld.meld;
+  const type: MeldPick = meldType === "chi" ? "chi" : meldType === "pon" ? "pon" : "kan";
+  const tiles = readTiles.map((t) => t.tile);
+  const chiRun = type === "chi" && tiles.every((t): t is Tile => t !== null) ? tiles : null;
+  return { caller: linked.meld.seat, type, chiRun };
+}
+
 /**
  * 捨て牌を鳴く（河の牌からの鳴き作成を1操作に束ねる。web/mobile のピッカーで共用）。
  *  - 鳴き: type（チー/ポン/カン=大明槓）。牌は鳴かれた捨て牌から構成し、from=捨て主
  *  - 捨て牌: calledBy=鳴いた人（牌は河に残して薄表示）
  *  - discardTile を渡すと「鳴いた人がその後に切った牌」を鳴きの直後に挿入する
+ *  - 既に鳴かれている捨て牌なら連動行（鳴き・切った牌）を**置き換える**（重複させない）
  *  鳴きと打牌の並びを確定させるため、手順（timeline）を正典化して返す。
  */
 export function callDiscard(
@@ -330,18 +360,16 @@ export function callDiscard(
   opts: { caller: Seat; type: MeldPick; chiRun?: Tile[] | null; discardTile?: Tile },
 ): Kifu {
   if (opts.caller === discarder) return kifu;
-  const timeline = deriveTimeline(kifu);
-  // 河の index → timeline 上の打牌イベント位置（同席の打牌を数えて対応づける）。
-  let seen = 0;
-  let evIndex = -1;
-  for (let i = 0; i < timeline.length; i++) {
-    const e = timeline[i]!;
-    if (e.kind === "discard" && e.seat === discarder && seen++ === riverIndex) {
-      evIndex = i;
-      break;
-    }
+  let base = kifu;
+  let timeline = deriveTimeline(base);
+  let evIndex = findDiscardEvent(timeline, discarder, riverIndex);
+  if (evIndex < 0) {
+    // timeline が古く（stale）目的の打牌が無い → seats 基準で再整合してから探し直す。
+    base = reconcileTimeline(base);
+    timeline = deriveTimeline(base);
+    evIndex = findDiscardEvent(timeline, discarder, riverIndex);
   }
-  const called = timeline[evIndex];
+  const called = evIndex >= 0 ? timeline[evIndex] : undefined;
   if (called?.kind !== "discard") return kifu;
 
   const calledTile = called.tile;
@@ -358,11 +386,19 @@ export function callDiscard(
   };
 
   const events = timeline.slice();
+  // 既存の鳴き（連動行）が付いていれば取り除いて置き換える（重複作成しない）。
+  // 切った牌の行は、新しい牌を選んだとき（=置き換え）か未入力のときだけ除く。
+  const linked = linkedCallAt(timeline, evIndex);
+  if (linked) {
+    const removeDisc =
+      linked.discard !== null && (opts.discardTile !== undefined || linked.discard.tile === null);
+    events.splice(evIndex + 1, removeDisc ? 2 : 1);
+  }
   events[evIndex] = { ...called, calledBy: opts.caller };
   const insert: TimelineEvent[] = [{ kind: "meld", seat: opts.caller, meld }];
   if (opts.discardTile !== undefined) insert.push(makeDiscardEvent(opts.caller, opts.discardTile));
   events.splice(evIndex + 1, 0, ...insert);
-  return syncSeatsFromTimeline(KifuSchema.parse({ ...kifu, timeline: events }));
+  return syncSeatsFromTimeline(KifuSchema.parse({ ...base, timeline: events }));
 }
 
 /** 鳴きを丸ごと取り除く。timeline 非空なら対応する鳴きイベントも除去（アンカー整列を維持）。

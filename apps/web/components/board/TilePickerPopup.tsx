@@ -34,8 +34,6 @@ export interface TilePickerPopupProps {
   onApplyTile: (code: Tile) => void;
   onSetDiscardKind: (tsumogiri: boolean) => void;
   onSetDiscardRiichi: (riichi: boolean) => void;
-  /** 捨て牌からの鳴きを「切った牌を選ばず」作成する（河の牌の編集で鳴き種別を選んだときのみ）。 */
-  onCreateMeldOnly: () => void;
   /** 編集中の牌（手牌/河）または鳴きを取り除く（mobile の「削除」と同等）。 */
   onDelete: () => void;
   onClose: () => void;
@@ -77,10 +75,22 @@ export function TilePickerPopup(p: TilePickerPopupProps) {
   // 捨て方・リーチ・鳴きの操作ボックスを出すか（鳴きは meld 自体の編集時以外いつでも）。
   const showOps = sel?.kind === "add" || (sel?.kind === "edit" && sel.loc.area !== "meld");
 
-  // 捨て牌（河の牌）の編集か。鳴きは「この捨て牌を鳴く」導線になる:
-  // 鳴かれた牌・捨て主（from）は選んだ牌から決まるので、選ぶのは鳴いた人と切った牌だけ。
-  const riverEdit =
-    sel?.kind === "edit" && sel.loc.area === "river" ? { discarder: sel.loc.seat } : null;
+  // 「この捨て牌を鳴く」対象（河の牌の編集時のみ）。
+  // 鳴かれた牌・捨て主（from）は対象から決まるので、選ぶのは鳴いた人と切った牌だけ。
+  const callTarget =
+    sel?.kind === "edit" && sel.loc.area === "river"
+      ? { discarder: sel.loc.seat, index: sel.loc.index }
+      : null;
+  // チー並びの基準牌（捨て牌から鳴く=鳴かれた牌そのもの）。
+  const chiBase = callTarget
+    ? (kifu.seats[callTarget.discarder].river[callTarget.index]?.tile ?? null)
+    : current;
+  // 鳴き操作を出すか: 捨て牌を鳴く（編集時）か、配牌側（手牌）の鳴き作成。
+  // 河への追加中は出さない（鳴きは捨て牌をタップして付ける＝mobile と同じ整理）。
+  const showMeld =
+    callTarget !== null ||
+    (sel?.kind === "add" && sel.area === "hand") ||
+    (sel?.kind === "edit" && sel.loc.area === "hand");
 
   return (
     <>
@@ -167,21 +177,24 @@ export function TilePickerPopup(p: TilePickerPopupProps) {
                 </div>
               </div>
             )}
-            <div className={s.meRow}>
-              <span className={s.meLabel}>鳴き</span>
-              <div className={s.meSeg}>
-                {(["none", "chi", "pon", "kan"] as const).map((mt) => (
-                  <button
-                    key={mt}
-                    className={meldType === mt ? s.on : ""}
-                    onClick={() => p.setMeldType(mt)}
-                  >
-                    {{ none: "なし", chi: "チー", pon: "ポン", kan: "カン" }[mt]}
-                  </button>
-                ))}
+            {showMeld && (
+              <div className={s.meRow}>
+                <span className={s.meLabel}>鳴き</span>
+                <div className={s.meSeg}>
+                  {(["none", "chi", "pon", "kan"] as const).map((mt) => (
+                    <button
+                      key={mt}
+                      className={meldType === mt ? s.on : ""}
+                      aria-pressed={meldType === mt}
+                      onClick={() => p.setMeldType(mt)}
+                    >
+                      {{ none: "なし", chi: "チー", pon: "ポン", kan: "カン" }[mt]}
+                    </button>
+                  ))}
+                </div>
               </div>
-            </div>
-            {meldType !== "none" && (
+            )}
+            {showMeld && meldType !== "none" && (
               <>
                 <div className={s.meRow}>
                   <span className={s.meLabel}>鳴いた人</span>
@@ -189,11 +202,12 @@ export function TilePickerPopup(p: TilePickerPopupProps) {
                     {(["bottom", "right", "top", "left"] as const).map((cam) => {
                       const abs = toAbsoluteSeat(cam, bottomSeat);
                       // 捨て牌からの鳴きで、捨て主自身は鳴けないので出さない。
-                      if (riverEdit && abs === riverEdit.discarder) return null;
+                      if (callTarget && abs === callTarget.discarder) return null;
                       return (
                         <button
                           key={cam}
                           className={p.meldWho === cam ? s.on : ""}
+                          aria-pressed={p.meldWho === cam}
                           onClick={() => p.setMeldWho(cam)}
                         >
                           {names[abs] || `${windOf(abs, dealer)}家`}
@@ -202,18 +216,19 @@ export function TilePickerPopup(p: TilePickerPopupProps) {
                     })}
                   </div>
                 </div>
-                {/* チーの並び（選んだ牌を含む順子の候補）。編集中の牌が分かるときだけ出す。 */}
-                {meldType === "chi" && current && chiVariants(current).length > 0 && (
+                {/* チーの並び（鳴かれた牌/編集中の牌を含む順子の候補）。 */}
+                {meldType === "chi" && chiBase && chiVariants(chiBase).length > 0 && (
                   <div className={s.meRow}>
                     <span className={s.meLabel}>並び</span>
                     <div className={s.meSeg}>
-                      {chiVariants(current).map((run) => {
+                      {chiVariants(chiBase).map((run) => {
                         const key = run.join(",");
                         const label = chiRunLabel(run);
                         return (
                           <button
                             key={key}
                             className={p.chiRun?.join(",") === key ? s.on : ""}
+                            aria-pressed={p.chiRun?.join(",") === key}
                             onClick={() => p.setChiRun(run)}
                           >
                             {label}
@@ -224,7 +239,7 @@ export function TilePickerPopup(p: TilePickerPopupProps) {
                   </div>
                 )}
                 {/* 捨て牌からのカンは大明槓しかない（暗槓/加槓は捨て牌を取らない）ので種類は出さない。 */}
-                {meldType === "kan" && !riverEdit && (
+                {meldType === "kan" && !callTarget && (
                   <div className={s.meRow}>
                     <span className={s.meLabel}>種類</span>
                     <div className={s.meSeg}>
@@ -246,16 +261,11 @@ export function TilePickerPopup(p: TilePickerPopupProps) {
                     </div>
                   </div>
                 )}
-                {riverEdit ? (
-                  <>
-                    <p className={s.meHint}>牌を選ぶと、鳴いた人がその後に切った牌になります</p>
-                    <button className={s.meCreate} onClick={p.onCreateMeldOnly}>
-                      切った牌を選ばず作成
-                    </button>
-                  </>
-                ) : (
-                  <p className={s.meHint}>牌を選ぶと鳴きを作成します</p>
-                )}
+                <p className={s.meHint}>
+                  {callTarget
+                    ? "牌を選ぶと、鳴いた人がその後に切った牌になります"
+                    : "牌を選ぶと鳴きを作成します"}
+                </p>
               </>
             )}
           </div>

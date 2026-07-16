@@ -1,7 +1,7 @@
 "use client";
 
 import { toAbsoluteSeat, type CameraSeat, type Kifu, type Seat, type Tile } from "@rigel/schema";
-import { needsReview, seatResult, type TileLocation } from "@rigel/ui";
+import { meldTileViews, needsReview, seatResult, type TileLocation } from "@rigel/ui";
 import { chunk, windOf } from "../../lib/board";
 import { fkey, fmtPts, type Selection } from "./shared";
 import { BoardTile, DoraGlyph } from "./tiles";
@@ -185,30 +185,36 @@ export function BoardTable(p: BoardTableProps) {
                   )}
                   {board.melds.length > 0 && (
                     <div className={s.melds}>
-                      {board.melds.map((md, mi) => (
-                        <div key={mi} className={s.meld}>
-                          {md.tiles.map((t, ti) => {
-                            const loc: TileLocation = {
-                              seat,
-                              area: "meld",
-                              meldIndex: mi,
-                              index: ti,
-                            };
-                            return (
-                              <BoardTile
-                                key={ti}
-                                code={t.tile}
-                                kind="meld"
-                                lay={ti === 0}
-                                review={needsReview(t)}
-                                selected={sel?.kind === "edit" && fkey(sel.loc) === fkey(loc)}
-                                label={`${wind}家の鳴き`}
-                                onClick={(e) => p.onOpenEdit(e, loc, t.tile)}
-                              />
-                            );
-                          })}
-                        </div>
-                      ))}
+                      {/* 鳴きの向き・暗槓の背面は共有ルール（meldTileViews）。
+                          横向きの位置が鳴き元を示す（上家=左端・対面=左から2枚目・下家=右端）。 */}
+                      {board.melds.map((md, mi) => {
+                        const views = meldTileViews(md, seat);
+                        return (
+                          <div key={mi} className={s.meld}>
+                            {md.tiles.map((t, ti) => {
+                              const loc: TileLocation = {
+                                seat,
+                                area: "meld",
+                                meldIndex: mi,
+                                index: ti,
+                              };
+                              return (
+                                <BoardTile
+                                  key={ti}
+                                  code={t.tile}
+                                  kind="meld"
+                                  lay={views[ti]?.lay}
+                                  back={views[ti]?.back}
+                                  review={needsReview(t)}
+                                  selected={sel?.kind === "edit" && fkey(sel.loc) === fkey(loc)}
+                                  label={`${wind}家の鳴き`}
+                                  onClick={(e) => p.onOpenEdit(e, loc, t.tile)}
+                                />
+                              );
+                            })}
+                          </div>
+                        );
+                      })}
                     </div>
                   )}
                 </div>

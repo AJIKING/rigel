@@ -1,7 +1,7 @@
 // @rigel/ui — 盤面表示の共有ヘルパ（プラットフォーム非依存）。
 // web/mobile 両ビューアが同じ「席の自風・局名・河の巡送り」ロジックを共有する。
 
-import type { Agari, Kifu, MeldType, Players, Seat } from "@rigel/schema";
+import type { Agari, Kifu, Meld, MeldType, Players, Seat, Tile } from "@rigel/schema";
 import { deriveTimeline } from "./timeline";
 
 /** 局結果コード（スキーマの ResultSchema と一致。型が未エクスポートのためここで定義）。 */
@@ -45,6 +45,31 @@ export const MELD_TYPE_LABELS: Record<MeldType, string> = {
   kan_closed: "暗槓",
   kan_added: "加槓",
 };
+
+/** 鳴き1面子の1牌ぶんの見た目（横向き・背面）。 */
+export interface MeldTileView {
+  tile: Tile | null;
+  /** 鳴いた牌の横向き表示（位置で鳴き元を示す）。 */
+  lay: boolean;
+  /** 背面（暗槓の両端）。 */
+  back: boolean;
+}
+
+/**
+ * 鳴き1面子の表示列（web/mobile の盤面で共用）。実卓の作法に合わせる:
+ *  - 暗槓: 両端2枚を背面にする（横向きなし）
+ *  - それ以外: 鳴いた牌を横向きにし、位置で鳴き元を示す
+ *    （上家から=左端・対面から=左から2枚目・下家から=右端。from 不明は左端＝従来互換）
+ */
+export function meldTileViews(meld: Meld, caller: Seat): MeldTileView[] {
+  const n = meld.tiles.length;
+  if (meld.type === "kan_closed") {
+    return meld.tiles.map((t, i) => ({ tile: t.tile, lay: false, back: i === 0 || i === n - 1 }));
+  }
+  const rel = meld.from ? (SEAT_ORDER.indexOf(meld.from) - SEAT_ORDER.indexOf(caller) + 4) % 4 : 3; // from 不明は上家扱い（左端横向き＝従来表示の互換）
+  const layIdx = rel === 1 ? n - 1 : rel === 2 ? 1 : 0; // 1=下家, 2=対面, 3=上家
+  return meld.tiles.map((t, i) => ({ tile: t.tile, lay: i === layIdx, back: false }));
+}
 
 /** リーグ戦ポイントが1人でも記録されているか。全員 0.0 の選手情報は「まだ記録していない」
  *  とみなし、再生画面のポイント表示は既定で隠す（トグルで出せる）。web/mobile 共用。 */

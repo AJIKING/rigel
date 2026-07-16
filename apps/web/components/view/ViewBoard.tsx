@@ -1,7 +1,7 @@
 "use client";
 
 import { toAbsoluteSeat, type CameraSeat, type Kifu, type Seat, type Tile } from "@rigel/schema";
-import { seatLabel, signedPoints, splitDrawnTile, type DrawnTile } from "@rigel/ui";
+import { meldTileViews, seatLabel, signedPoints, splitDrawnTile, type DrawnTile } from "@rigel/ui";
 import { chunk, windOf } from "../../lib/board";
 import { OssTileFace } from "../OssTileFace";
 import s from "./kifu-view.module.css";
@@ -222,10 +222,12 @@ export function ViewBoard({
                 )}
                 {board.melds.length > 0 && (
                   <div className={s.melds}>
+                    {/* 鳴きの向き・暗槓の背面は共有ルール（meldTileViews）。
+                        横向きの位置が鳴き元を示す（上家=左端・対面=左から2枚目・下家=右端）。 */}
                     {board.melds.map((md, mi) => (
                       <div key={mi} className={s.meld}>
-                        {md.tiles.map((t, ti) => (
-                          <ViewTile key={ti} code={t.tile} kind="meld" lay={ti === 0} />
+                        {meldTileViews(md, seat).map((v, ti) => (
+                          <ViewTile key={ti} code={v.tile} kind="meld" lay={v.lay} back={v.back} />
                         ))}
                       </div>
                     ))}

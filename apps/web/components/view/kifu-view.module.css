@@ -448,6 +448,10 @@
      river-w のまま＝隣の牌にかぶる。差分を左右マージンで確保して重なりを防ぐ。 */
   margin-inline: calc((var(--river-h) - var(--river-w)) / 2);
 }
+/* 鳴き牌の横向きは鳴き牌の寸法でマージンを取る（河の寸法だと差分がずれる）。 */
+.tile.meldT.lay {
+  margin-inline: calc((var(--meld-h) - var(--meld-w)) / 2);
+}
 /* 自摸切りの捨牌ははっきりグレーアウトさせる（手出しと一目で区別）。 */
 .tile.tsumogiri {
   filter: grayscale(1) brightness(0.8);

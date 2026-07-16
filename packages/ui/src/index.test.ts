@@ -13,6 +13,7 @@ import {
   checkoutErrorMessage,
   collectReviewItems,
   describeTile,
+  meldTileViews,
   needsReview,
   planCanAnalyze,
   planKifuLimits,
@@ -381,5 +382,41 @@ describe("authorLabel", () => {
   it("どちらも無ければ既定の名無し（fallback 指定可）", () => {
     expect(authorLabel({ handle: null, name: null })).toBe("名無し");
     expect(authorLabel({}, "匿名")).toBe("匿名");
+  });
+});
+
+describe("meldTileViews（鳴きの表示: 横向き位置・暗槓の背面）", () => {
+  const meld = (type: string, tiles: string[], from: string | null) =>
+    ({
+      type,
+      tiles: tiles.map((t) => ({ tile: t, confidence: 1 })),
+      from,
+    }) as never;
+
+  it("暗槓は両端2枚が背面・横向きなし", () => {
+    const v = meldTileViews(meld("kan_closed", ["8s", "8s", "8s", "8s"], null), "east");
+    expect(v.map((x) => x.back)).toEqual([true, false, false, true]);
+    expect(v.every((x) => !x.lay)).toBe(true);
+    expect(v.map((x) => x.tile)).toEqual(["8s", "8s", "8s", "8s"]);
+  });
+
+  it("ポン: 上家から=左端・対面から=左から2枚目・下家から=右端が横向き", () => {
+    // 南家がポン。上家=東・対面=北・下家=西。
+    const lay = (from: string) =>
+      meldTileViews(meld("pon", ["5z", "5z", "5z"], from), "south").map((x) => x.lay);
+    expect(lay("east")).toEqual([true, false, false]);
+    expect(lay("north")).toEqual([false, true, false]);
+    expect(lay("west")).toEqual([false, false, true]);
+  });
+
+  it("大明槓も同じ規則（4枚。対面からは左から2枚目が横向き）", () => {
+    const v = meldTileViews(meld("kan_open", ["5p", "5p", "5p", "5p"], "north"), "south");
+    expect(v.map((x) => x.lay)).toEqual([false, true, false, false]);
+    expect(v.every((x) => !x.back)).toBe(true);
+  });
+
+  it("from 不明（AI 取り込み等）は左端を横向きにする（従来表示の互換）", () => {
+    const v = meldTileViews(meld("pon", ["5z", "5z", "5z"], null), "south");
+    expect(v.map((x) => x.lay)).toEqual([true, false, false]);
   });
 });

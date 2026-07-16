@@ -118,7 +118,7 @@ describe("KifuEditor（モバイル編集画面）", () => {
     expect(saved.seats.south.river[0]?.tile).toBe("1m");
   });
 
-  it("「切った牌を選ばず作成」で鳴きだけ作れる（捨て牌からのカンは大明槓）", () => {
+  it("捨て牌からのカンは大明槓固定。牌選択＝嶺上後に切った牌（作成ボタンは無い）", () => {
     const onSave = jest.fn();
     render(<KifuEditor initialKifu={makeKifu()} initialSeq={1} onSave={onSave} />);
     fireEvent.press(screen.getByText(/プレビュー/));
@@ -129,14 +129,51 @@ describe("KifuEditor（モバイル編集画面）", () => {
 
     fireEvent.press(screen.getByLabelText("5筒"));
     fireEvent.press(screen.getByLabelText("カンで鳴く"));
-    fireEvent.press(screen.getByText("切った牌を選ばず作成"));
+    // 「切った牌を選ばず作成」は廃止（切った牌の選択で必ず河に並ぶ）。
+    expect(screen.queryByText("切った牌を選ばず作成")).toBeNull();
+    fireEvent.press(screen.getByText("萬"));
+    fireEvent.press(screen.getByLabelText("1萬"));
 
     fireEvent.press(screen.getByText("保存"));
     const saved = onSave.mock.calls[0]![0] as Kifu;
     expect(saved.seats.south.melds[0]).toMatchObject({ type: "kan_open", from: "east" });
     expect(saved.seats.south.melds[0]?.tiles).toHaveLength(4);
     expect(saved.seats.east.river[0]?.calledBy).toBe("south");
+    // 嶺上ツモの後に切った牌が河に並ぶ。
+    expect(saved.seats.south.river[0]?.tile).toBe("1m");
+  });
+
+  it("鳴かれた捨て牌を開き直すと選択状態が復元され、選び直しは置き換えになる", () => {
+    const onSave = jest.fn();
+    render(<KifuEditor initialKifu={makeKifu()} initialSeq={1} onSave={onSave} />);
+    fireEvent.press(screen.getByText(/プレビュー/));
+    // ポンを作成（既定の鳴いた人=南家・切った牌 1萬）。
+    fireEvent.press(screen.getByLabelText("河に追加"));
+    fireEvent.press(screen.getByText("筒"));
+    fireEvent.press(screen.getByLabelText("5筒"));
+    fireEvent.press(screen.getByText("閉じる"));
+    fireEvent.press(screen.getByLabelText("5筒"));
+    fireEvent.press(screen.getByLabelText("ポンで鳴く"));
+    fireEvent.press(screen.getByText("萬"));
+    fireEvent.press(screen.getByLabelText("1萬"));
+
+    // 開き直すと ポン・南家 が選択済みで表示される。
+    fireEvent.press(screen.getByLabelText("5筒"));
+    expect(screen.getByRole("button", { name: "ポンで鳴く", selected: true })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "鳴いた人: 南家", selected: true })).toBeTruthy();
+
+    // 鳴いた人を西家に変えて切った牌を 2萬 にすると、置き換えられる（重複しない）。
+    fireEvent.press(screen.getByLabelText("鳴いた人: 西家"));
+    fireEvent.press(screen.getByText("萬"));
+    fireEvent.press(screen.getByLabelText("2萬"));
+
+    fireEvent.press(screen.getByText("保存"));
+    const saved = onSave.mock.calls[0]![0] as Kifu;
+    expect(saved.seats.south.melds).toHaveLength(0);
     expect(saved.seats.south.river).toHaveLength(0);
+    expect(saved.seats.west.melds[0]).toMatchObject({ type: "pon", from: "east" });
+    expect(saved.seats.west.river.map((d) => d.tile)).toEqual(["2m"]);
+    expect(saved.seats.east.river[0]?.calledBy).toBe("west");
   });
 
   it("チーの並び（左端/中央/右端）を選んで鳴きを追加できる", () => {

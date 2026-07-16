@@ -9,6 +9,7 @@ export function BoardTile({
   code,
   kind,
   lay,
+  back,
   tsumogiri,
   review,
   selected,
@@ -20,6 +21,8 @@ export function BoardTile({
   code: Tile | null;
   kind?: "river" | "meld";
   lay?: boolean;
+  /** 背面（暗槓の両端）。編集ボタンとしては生きたまま面だけ伏せる。 */
+  back?: boolean;
   tsumogiri?: boolean;
   review?: boolean;
   selected?: boolean;
@@ -34,6 +37,7 @@ export function BoardTile({
     kind === "river" ? s.riverT : "",
     kind === "meld" ? s.meldT : "",
     lay ? s.lay : "",
+    back ? s.back : "",
     tsumogiri ? s.tsumogiri : "",
     review ? s.review : "",
     selected ? s.sel : "",
@@ -53,7 +57,7 @@ export function BoardTile({
         onClick(e);
       }}
     >
-      <OssTileFace code={code} />
+      {back ? null : <OssTileFace code={code} />}
     </button>
   );
 }

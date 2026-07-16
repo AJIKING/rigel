@@ -304,6 +304,17 @@
   border-color: var(--vermilion);
   color: var(--vermilion);
 }
+/* ドラッグ中だけ出す「最後尾へ」のドロップ先。 */
+.dropEnd {
+  margin-top: 6px;
+  padding: 8px 0;
+  border: 1px dashed var(--line);
+  border-radius: var(--r-sm);
+  color: var(--w45);
+  font-size: 10.5px;
+  text-align: center;
+}
+
 /* 「鳴き」メニュー（この捨て牌を鳴いた人を選ぶ）。 */
 .callTitle {
   margin: 14px 14px 0;

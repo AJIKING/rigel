@@ -7,6 +7,7 @@ import {
   applyTileEdit,
   callDiscard,
   chiVariants,
+  discardCallOf,
   deriveWinResult,
   mutateKifu,
   otherSeats,
@@ -352,8 +353,14 @@ export function KifuEditor({
                 <Pressable
                   key={`r${i}`}
                   onPress={() => {
-                    // 鳴きの選択状態は開くたびにリセット（鳴いた人の既定=捨て主の下家）。
-                    setCall({ type: null, caller: otherSeats(seat)[0]!, chiRun: null });
+                    // 既に鳴かれている捨て牌なら選択状態を復元。未鳴きの既定=捨て主の下家。
+                    setCall(
+                      discardCallOf(kifu, seat, i) ?? {
+                        type: null,
+                        caller: otherSeats(seat)[0]!,
+                        chiRun: null,
+                      },
+                    );
                     setPicker({
                       kind: "edit-river",
                       index: i,
@@ -497,17 +504,6 @@ export function KifuEditor({
           }))}
           chiRuns={editingDiscard?.tile ? chiVariants(editingDiscard.tile) : []}
           onCallChange={setCall}
-          onCallCreate={() => {
-            if (picker.kind !== "edit-river" || !call.type) return;
-            setKifu(
-              callDiscard(kifu, seat, picker.index, {
-                caller: call.caller,
-                type: call.type,
-                chiRun: call.chiRun,
-              }),
-            );
-            setPicker(null);
-          }}
           chi={picker?.kind === "add-meld" && picker.meld === "chi" ? { index: chiIndex } : null}
           onChiIndex={setChiIndex}
           onClose={() => setPicker(null)}

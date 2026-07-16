@@ -36,7 +36,6 @@ export function TilePickerSheet({
   callers = [],
   chiRuns = [],
   onCallChange,
-  onCallCreate,
   chi = null,
   onChiIndex,
   onClose,
@@ -61,8 +60,6 @@ export function TilePickerSheet({
   /** チーの並び候補（鳴かれた牌を含む順子）。空なら並びチップを出さない。 */
   chiRuns?: Tile[][];
   onCallChange?: (next: CallState) => void;
-  /** 切った牌を選ばずに鳴きだけ作成する。 */
-  onCallCreate?: () => void;
   /** チー追加時の並び（選んだ牌を 0=左端/1=中央/2=右端 に置く）。null なら並びチップを出さない。 */
   chi?: { index: 0 | 1 | 2 } | null;
   onChiIndex?: (index: 0 | 1 | 2) => void;
@@ -166,13 +163,6 @@ export function TilePickerSheet({
                 </View>
               ) : null}
               <Text style={styles.callHint}>牌を選ぶと、鳴いた人がその後に切った牌になります</Text>
-              <View style={styles.actions}>
-                <Chip
-                  label="切った牌を選ばず作成"
-                  a11ySelected={false}
-                  onPress={() => onCallCreate?.()}
-                />
-              </View>
             </>
           ) : null}
         </>

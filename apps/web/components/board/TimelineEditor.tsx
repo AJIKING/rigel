@@ -162,8 +162,16 @@ export function TimelineEditor({
           const showTurn = i === 0 || turns[i] !== turns[i - 1];
           return (
             <div key={i}>
+              {/* 巡目見出しもドロップ先にする（前の巡の末尾＝この巡の先頭へ移動できる）。 */}
               {showTurn && (
-                <div className={s.turn}>
+                <div
+                  className={s.turn}
+                  onDragOver={(ev) => ev.preventDefault()}
+                  onDrop={() => {
+                    if (dragIdx !== null) reorder(dragIdx, i);
+                    setDragIdx(null);
+                  }}
+                >
                   <b>{turns[i]}巡目</b>
                 </div>
               )}
@@ -265,6 +273,19 @@ export function TimelineEditor({
             </div>
           );
         })}
+        {/* 末尾へのドロップ先（最後の行の下に落とせないと最後尾へ移動できない）。 */}
+        {dragIdx !== null && timeline.length > 0 && (
+          <div
+            className={s.dropEnd}
+            onDragOver={(ev) => ev.preventDefault()}
+            onDrop={() => {
+              if (dragIdx !== null) reorder(dragIdx, timeline.length - 1);
+              setDragIdx(null);
+            }}
+          >
+            ここで最後尾へ
+          </div>
+        )}
       </div>
 
       {callPick !== null &&

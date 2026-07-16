@@ -14,6 +14,7 @@ import {
   applyResultMode,
   applyTileEdit,
   callDiscard,
+  discardCallOf,
   collectReviewItems,
   deriveWinResult,
   mutateKifu,
@@ -408,9 +409,17 @@ function Editor(p: EditorProps) {
   function openEdit(e: React.MouseEvent, loc: TileLocation, code: Tile | null) {
     setSel({ kind: "edit", loc });
     setSuit((code?.[1] as Suit) ?? "m");
-    setMeldType("none");
-    // 捨て牌から鳴きを作るときの鳴き主の既定は下家（捨てた本人が既定になるのを防ぐ）。
-    if (loc.area === "river") setMeldWho(cameraSeatOf(shimochaOf(loc.seat), bottomSeat));
+    if (loc.area === "river") {
+      // 既に鳴かれている捨て牌なら選択状態（種別・鳴いた人・チーの並び）を復元する。
+      // 未鳴きの既定: 鳴き主=下家（捨てた本人が既定になるのを防ぐ）。
+      const existing = discardCallOf(kifu, loc.seat, loc.index);
+      setMeldType(existing?.type ?? "none");
+      setChiRun(existing?.chiRun ?? null);
+      setMeldWho(cameraSeatOf(existing?.caller ?? shimochaOf(loc.seat), bottomSeat));
+    } else {
+      setMeldType("none");
+      setChiRun(null);
+    }
     setPop(popAnchor((e.currentTarget as HTMLElement).getBoundingClientRect()));
   }
   function openAdd(e: React.MouseEvent, seat: Seat, area: "hand" | "river") {
@@ -418,7 +427,8 @@ function Editor(p: EditorProps) {
     setSel({ kind: "add", seat, area });
     setSuit("m");
     setMeldType("none");
-    // 追加する牌のフラグは毎回リセット。鳴きを選んだときの既定の鳴き主は追加先の席。
+    setChiRun(null);
+    // 追加する牌のフラグは毎回リセット。鳴き（配牌側のみ）の既定の鳴き主は追加先の席。
     setAddTsumogiri(false);
     setAddRiichi(false);
     setMeldWho(cameraSeatOf(seat, bottomSeat));
@@ -456,8 +466,9 @@ function Editor(p: EditorProps) {
     // 鳴き種別が選ばれていれば、追加/編集どちらのピッカーからでも鳴きを作成する。
     if (meldType !== "none" && (sel.kind === "add" || sel.loc.area !== "meld")) {
       const owner = toAbsoluteSeat(meldWho, bottomSeat);
-      // 捨て牌（河の編集）から鳴く: 鳴き牌・from・calledBy は捨て牌から自動で結線し、
-      // 選んだ牌は「鳴いた人がその後に切った牌」として鳴きの直後に入る（共有純関数）。
+      // 捨て牌を鳴く（河の牌の編集時）: 鳴き牌・from・calledBy は捨て牌から自動で
+      // 結線し、選んだ牌は「鳴いた人がその後に切った牌」として鳴きの直後に入る
+      //（共有純関数。既に鳴かれている捨て牌なら置き換え）。
       if (sel.kind === "edit" && sel.loc.area === "river") {
         setKifu(
           callDiscard(kifu, sel.loc.seat, sel.loc.index, {
@@ -470,7 +481,7 @@ function Editor(p: EditorProps) {
         closePop();
         return;
       }
-      // 追加ピッカー/配牌からの鳴き: 鳴き元は不明（from=null）。カンは種類を選べる。
+      // 配牌側（手牌）からの鳴き: 鳴き元は不明（from=null）。カンは種類を選べる。
       const kanMap = { minkan: "kan_open", ankan: "kan_closed", kakan: "kan_added" } as const;
       const type = meldType === "chi" ? "chi" : meldType === "pon" ? "pon" : kanMap[kanType];
       // チーは「並び」で選んだ順子を優先（選んだ牌を含むときだけ。それ以外は従来の自動）。
@@ -612,19 +623,6 @@ function Editor(p: EditorProps) {
       const discard = d.seats[loc.seat].river[loc.index];
       if (discard) discard.tsumogiri = tsumogiri;
     });
-  }
-
-  /** 捨て牌からの鳴きを「切った牌を選ばず」作成する（鳴きの結線だけ行い、打牌は足さない）。 */
-  function createMeldOnly() {
-    if (sel?.kind !== "edit" || sel.loc.area !== "river" || meldType === "none") return;
-    setKifu(
-      callDiscard(kifu, sel.loc.seat, sel.loc.index, {
-        caller: toAbsoluteSeat(meldWho, bottomSeat),
-        type: meldType,
-        chiRun,
-      }),
-    );
-    closePop();
   }
 
   // リーチ宣言牌（横向き）を切り替える。河への追加中は追加する牌へ適用する。
@@ -1134,7 +1132,6 @@ function Editor(p: EditorProps) {
           onApplyTile={applyTile}
           onSetDiscardKind={setDiscardKind}
           onSetDiscardRiichi={setDiscardRiichi}
-          onCreateMeldOnly={createMeldOnly}
           onDelete={deleteSelected}
           onClose={closePop}
         />

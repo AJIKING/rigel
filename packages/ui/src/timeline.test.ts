@@ -1,5 +1,6 @@
 import { KifuSchema, type Kifu, type TimelineEvent } from "@rigel/schema";
 import { describe, expect, it } from "vitest";
+import { callDiscard, discardCallOf } from "./edit";
 import {
   buildTimelineFromSeats,
   cycleEventSeat,
@@ -459,5 +460,147 @@ describe("setTimelineCall（手順タブの鳴き選択: 鳴いた人を選ぶ�
     const tl = setTimelineCall([disc("east", "5p")], 0, "west");
     expect(setTimelineCall(tl, 0, "west")).toBe(tl);
     expect(setTimelineCall(tl, 1, "north")).toBe(tl);
+  });
+});
+
+describe("reconcileTimeline（打牌の既存順序を保持する）", () => {
+  it("鳴きの後の打牌（輪番外の並び）が、盤面編集後も保たれる", () => {
+    // 東の5pを西がポン→西が9mを切る→南が1s。輪番（東南西北）ではない並び。
+    const base = syncSeatsFromTimeline(
+      kifu({
+        meta: { dealer: "east" },
+        timeline: [
+          { ...disc("east", "5p"), calledBy: "west" },
+          { kind: "meld", seat: "west", meld: pon("east") },
+          disc("west", "9m"),
+          disc("south", "1s"),
+        ],
+      }),
+    );
+    // 盤面編集で東の河に 2m を足す（addRiverTile 相当）→ reconcile。
+    const edited = KifuSchema.parse({
+      ...base,
+      seats: {
+        ...base.seats,
+        east: {
+          ...base.seats.east,
+          river: [...base.seats.east.river, river(2, "2m")],
+        },
+      },
+    });
+    const out = reconcileTimeline(edited);
+    const kinds = out.timeline.map((e) =>
+      e.kind === "discard" ? `d:${e.seat}:${e.tile}` : `m:${e.seat}`,
+    );
+    // 既存の並び（西→南）は崩れず、新しい打牌（東の2m）は末尾に入る。
+    expect(kinds).toEqual(["d:east:5p", "m:west", "d:west:9m", "d:south:1s", "d:east:2m"]);
+  });
+
+  it("手順タブで並び替えた打牌の順序は、盤面編集を挟んでも保持される", () => {
+    // ユーザーが東の2打目を南の前に並べ替えた状態（輪番なら east,south,east になる）。
+    const base = syncSeatsFromTimeline(
+      kifu({
+        meta: { dealer: "east" },
+        timeline: [disc("east", "1m"), disc("east", "3m"), disc("south", "2p")],
+      }),
+    );
+    const out = reconcileTimeline(base);
+    expect(discKinds(out)).toEqual(["east:1m", "east:3m", "south:2p"]);
+  });
+});
+
+describe("callDiscard の再実行・staleな timeline", () => {
+  const baseKifu = () =>
+    kifu({
+      meta: { dealer: "east" },
+      seats: {
+        east: { hand: [], melds: [], river: [river(1, "5p")] },
+        south: {},
+        west: {},
+        north: {},
+      },
+    });
+
+  it("既に鳴かれている捨て牌への再実行は置き換える（鳴き・切った牌を重複させない）", () => {
+    const first = callDiscard(baseKifu(), "east", 0, {
+      caller: "south",
+      type: "pon",
+      discardTile: "1m",
+    });
+    const second = callDiscard(first, "east", 0, {
+      caller: "west",
+      type: "pon",
+      discardTile: "2m",
+    });
+    expect(second.seats.east.river[0]?.calledBy).toBe("west");
+    expect(second.seats.south.melds).toHaveLength(0);
+    expect(second.seats.south.river).toHaveLength(0); // 旧・切った牌は置き換えで消える
+    expect(second.seats.west.melds[0]).toMatchObject({ type: "pon", from: "east" });
+    expect(second.seats.west.river.map((d) => d.tile)).toEqual(["2m"]);
+    expect(second.timeline).toHaveLength(3); // 打牌(東)→鳴き(西)→打牌(西)
+  });
+
+  it("timeline が古く（stale）目的の捨て牌が無い場合も、seats から再整合して鳴ける", () => {
+    // timeline は 1m の1打のみだが、盤面では 5p が追加済み（過去データ等の不整合）。
+    const k = KifuSchema.parse({
+      ...kifu({
+        meta: { dealer: "east" },
+        seats: {
+          east: { hand: [], melds: [], river: [river(1, "1m"), river(2, "5p")] },
+          south: {},
+          west: {},
+          north: {},
+        },
+      }),
+      timeline: [disc("east", "1m")],
+    });
+    const out = callDiscard(k, "east", 1, { caller: "south", type: "pon", discardTile: "9m" });
+    expect(out.seats.east.river[1]).toMatchObject({ tile: "5p", calledBy: "south" });
+    expect(out.seats.south.melds[0]).toMatchObject({ type: "pon", from: "east" });
+    expect(out.seats.south.river.map((d) => d.tile)).toEqual(["9m"]);
+  });
+
+  it("discardCallOf は捨て牌に付いた鳴き（種別・鳴いた人・チーの並び）を返す", () => {
+    expect(discardCallOf(baseKifu(), "east", 0)).toBeNull();
+    const pon1 = callDiscard(baseKifu(), "east", 0, {
+      caller: "south",
+      type: "pon",
+      discardTile: "1m",
+    });
+    expect(discardCallOf(pon1, "east", 0)).toMatchObject({ caller: "south", type: "pon" });
+    const k7 = kifu({
+      meta: { dealer: "east" },
+      seats: {
+        east: { hand: [], melds: [], river: [river(1, "7p")] },
+        south: {},
+        west: {},
+        north: {},
+      },
+    });
+    const chi1 = callDiscard(k7, "east", 0, {
+      caller: "south",
+      type: "chi",
+      chiRun: ["7p", "8p", "9p"],
+      discardTile: "1m",
+    });
+    expect(discardCallOf(chi1, "east", 0)).toMatchObject({
+      caller: "south",
+      type: "chi",
+      chiRun: ["7p", "8p", "9p"],
+    });
+  });
+
+  it("大明槓→嶺上ツモ→打牌の手順を表現できる（カン直後に同席の打牌行・ツモ牌も編集可）", () => {
+    const out = callDiscard(baseKifu(), "east", 0, { caller: "west", type: "kan" });
+    // 鳴き（大明槓）の直後に西の打牌行を足し、嶺上ツモ牌(draw)を付けられる。
+    const withRinshan = KifuSchema.parse({
+      ...out,
+      timeline: [...out.timeline, { ...disc("west", "6s"), draw: "6s", tsumogiri: true }],
+    });
+    const synced = syncSeatsFromTimeline(withRinshan);
+    expect(synced.seats.west.melds[0]?.type).toBe("kan_open");
+    expect(synced.seats.west.river[0]).toMatchObject({ tile: "6s", tsumogiri: true });
+    const last = synced.timeline[synced.timeline.length - 1];
+    expect(last?.kind === "discard" && last.draw).toBe("6s");
   });
 });

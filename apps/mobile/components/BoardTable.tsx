@@ -1,6 +1,7 @@
 import { toAbsoluteSeat, type CameraSeat, type Kifu, type Seat } from "@rigel/schema";
 import {
   chunk,
+  meldTileViews,
   seatLabel,
   seatResult,
   signedPoints,
@@ -298,10 +299,19 @@ export function BoardTable({
                   </TileFx>
                 ) : null}
               </View>
+              {/* 鳴きの向き・暗槓の背面は共有ルール（meldTileViews）。
+                  横向きの位置が鳴き元を示す（上家=左端・対面=左から2枚目・下家=右端）。 */}
               {board.melds.map((m, mi) => (
                 <View key={`m${mi}`} style={styles.meld}>
-                  {m.tiles.map((t, ti) => (
-                    <MiniTile key={ti} code={t.tile} w={htW} h={htHt} />
+                  {meldTileViews(m, seat).map((v, ti) => (
+                    <MiniTile
+                      key={ti}
+                      code={v.tile}
+                      w={htW}
+                      h={htHt}
+                      riichi={v.lay}
+                      back={v.back}
+                    />
                   ))}
                 </View>
               ))}
