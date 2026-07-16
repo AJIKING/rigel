@@ -161,6 +161,85 @@ describe("TimelineEditor（手順エディタ）", () => {
     expect(k.seats.east.river[0]?.calledBy).toBe("south");
   });
 
+  it("鳴き行に「打」スロットがあり、切った牌を同じ行で選べる（無ければ直後に挿入）", () => {
+    const spy = jest.fn();
+    const initial = KifuSchema.parse({
+      ...emptyKifu(),
+      timeline: [
+        {
+          kind: "meld",
+          seat: "west",
+          meld: {
+            type: "pon",
+            tiles: [{ tile: "5p" }, { tile: "5p" }, { tile: "5p" }],
+            from: "east",
+          },
+        },
+      ],
+    });
+    render(<Harness onKifu={spy} initial={initial} />);
+    fireEvent.press(screen.getByLabelText("切った牌を選ぶ"));
+    fireEvent.press(screen.getByText("索"));
+    fireEvent.press(screen.getByLabelText("9索"));
+    const k = last(spy);
+    expect(k.timeline).toHaveLength(2);
+    expect(k.timeline[1]).toMatchObject({ kind: "discard", seat: "west", tile: "9s" });
+    expect(k.seats.west.river.map((d) => d.tile)).toEqual(["9s"]);
+  });
+
+  it("カンの鳴き行では嶺上ツモも選べる", () => {
+    const spy = jest.fn();
+    const initial = KifuSchema.parse({
+      ...emptyKifu(),
+      timeline: [
+        {
+          kind: "meld",
+          seat: "west",
+          meld: {
+            type: "kan_open",
+            tiles: [{ tile: "5p" }, { tile: "5p" }, { tile: "5p" }, { tile: "5p" }],
+            from: "east",
+          },
+        },
+      ],
+    });
+    render(<Harness onKifu={spy} initial={initial} />);
+    fireEvent.press(screen.getByLabelText("嶺上ツモを選ぶ"));
+    fireEvent.press(screen.getByText("索"));
+    fireEvent.press(screen.getByLabelText("6索"));
+    const k = last(spy);
+    expect(k.timeline[1]).toMatchObject({ kind: "discard", seat: "west", draw: "6s" });
+  });
+
+  it("鳴きと切った牌は1行に併合され、行の削除で両方消える（鳴き印も解除）", () => {
+    const spy = jest.fn();
+    const initial = KifuSchema.parse({
+      ...emptyKifu(),
+      timeline: [
+        { kind: "discard", seat: "east", tile: "5p", calledBy: "west" },
+        {
+          kind: "meld",
+          seat: "west",
+          meld: {
+            type: "pon",
+            tiles: [{ tile: "5p" }, { tile: "5p" }, { tile: "5p" }],
+            from: "east",
+          },
+        },
+        { kind: "discard", seat: "west", tile: "9m" },
+      ],
+    });
+    render(<Harness onKifu={spy} initial={initial} />);
+    // 3イベントだが表示は2行。
+    expect(screen.getAllByLabelText("削除")).toHaveLength(2);
+    fireEvent.press(screen.getAllByLabelText("削除")[1]!);
+    const k = last(spy);
+    expect(k.timeline).toHaveLength(1);
+    expect(k.timeline[0]).toMatchObject({ kind: "discard", calledBy: null });
+    expect(k.seats.west.melds).toHaveLength(0);
+    expect(k.seats.west.river).toHaveLength(0);
+  });
+
   it("＋鳴きで鳴きを足し、種別を切り替えられる（席の鳴きに反映）", () => {
     const spy = jest.fn();
     render(<Harness onKifu={spy} />);

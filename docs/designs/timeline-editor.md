@@ -200,6 +200,12 @@ river/melds に**書き戻す**。`draw`・鳴きの厳密な割り込み順は�
      （なし/他3席・選手名優先）。鳴いた人を選ぶと**鳴き行＋鳴いた人の打牌行（切った牌は
      後で選ぶ）を直後に自動挿入**し、人の変更は連動行ごと付け替え、なしは未入力の連動行を
      取り除く（`setTimelineCall`＝@rigel/ui 共有で web/mobile 同一挙動）。
+   - **鳴き行の1行併合（2026-07-16 追記）**: 手順タブの表示は「鳴き＋直後の鳴いた人の打牌
+     （同席）」を**1行に併合**する（`timelineRows`）。鳴き行の中で「打（切った牌）」、カン系は
+     「嶺上（ツモ）」も選べる（`setMeldDiscard`＝併合対象が無ければ直後に挿入）。行の移動・
+     削除・席替えは併合した打牌ごと動く（`moveTimelineRow` / `removeTimelineRow` /
+     `cycleEventSeat`）。データは従来どおり鳴きイベント＋打牌イベントの2件（表示だけ併合。
+     ポンと打牌で手順が分かれて巡目の関係が読みにくい問題への対応）。
    - 往復整合: buildTimelineFromSeats / reconcileTimeline / timelineToSeats / playback の
      toDiscard がすべて calledBy を通す。
    - AI 取り込み（assembleKifu）は calledBy=null（写真の河に鳴かれた牌は写らない。人が手順で足す）。

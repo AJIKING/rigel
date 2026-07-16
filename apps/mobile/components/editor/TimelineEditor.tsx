@@ -13,13 +13,16 @@ import {
   cycleMeldType,
   deriveTimeline,
   makeDiscardEvent,
+  moveTimelineRow,
   nextDiscardSeat,
   nextMeldFrom,
   otherSeats,
-  removeTimelineEvent,
+  removeTimelineRow,
   seatLabel,
+  setMeldDiscard,
   setTimelineCall,
   syncSeatsFromTimeline,
+  timelineRows,
   timelineTurns,
   MELD_TYPE_LABELS,
 } from "@rigel/ui";
@@ -31,11 +34,13 @@ import { Chip } from "../Chip";
 import { MiniTile } from "../MiniTile";
 import { TilePickerSheet } from "./TilePickerSheet";
 
-/** ピッカーの対象（打牌のツモ/捨て、または鳴き牌）。 */
+/** ピッカーの対象（打牌のツモ/捨て、鳴き牌、鳴き行に併合された嶺上ツモ/切った牌）。 */
 type Pick =
   | { kind: "draw"; index: number }
   | { kind: "disc"; index: number }
   | { kind: "mtile"; index: number; ti: number }
+  | { kind: "mdraw"; index: number }
+  | { kind: "mdisc"; index: number }
   | null;
 
 /**
@@ -55,12 +60,21 @@ export function TimelineEditor({
 }) {
   const timeline = deriveTimeline(kifu);
   const turns = timelineTurns(timeline, dealer);
+  // 表示行: 鳴き行は直後の「鳴いた人の打牌」を併合して1行にする（共有ロジック。web と同一）。
+  const rows = timelineRows(timeline);
   const [pick, setPick] = useState<Pick>(null);
   // 「鳴き」メニューを開いている打牌行（鳴いた人を選ぶ。null=閉）。
   const [callPick, setCallPick] = useState<number | null>(null);
 
   /** 席の表示名（選手名を優先。無名は「南家」のような席名）。 */
   const seatName = (s: Seat) => kifu.players?.[s]?.name || `${seatLabel(s)}家`;
+
+  /** 鳴き行に併合された「鳴いた人の打牌」（直後・同席）。無ければ null。 */
+  function meldDiscardOf(meldIndex: number) {
+    const m = timeline[meldIndex];
+    const d = timeline[meldIndex + 1];
+    return m?.kind === "meld" && d?.kind === "discard" && d.seat === m.seat ? d : null;
+  }
 
   /** 新しい timeline を正典にして盤面を同期し、親へ返す。 */
   function commit(next: TimelineEvent[]) {
@@ -69,17 +83,24 @@ export function TimelineEditor({
   function update(index: number, fn: (e: TimelineEvent) => TimelineEvent) {
     commit(timeline.map((e, i) => (i === index ? fn(e) : e)));
   }
-  function move(index: number, dir: -1 | 1) {
-    const to = index + dir;
-    if (to < 0 || to >= timeline.length) return;
-    const next = timeline.slice();
-    [next[index], next[to]] = [next[to]!, next[index]!];
-    commit(next);
+  /** 行単位の移動（鳴き行は併合した打牌ごと動く）。rowIndex は表示行の位置。 */
+  function move(rowIndex: number, dir: -1 | 1) {
+    const to = rowIndex + dir;
+    if (to < 0 || to >= rows.length) return;
+    commit(moveTimelineRow(timeline, rows, rowIndex, to));
   }
 
   function onPick(code: Tile) {
     if (!pick) return;
     const t = pick;
+    // 鳴き行の「嶺上/打」は併合された打牌へ書く（無ければ直後に挿入＝共有純関数）。
+    if (t.kind === "mdraw" || t.kind === "mdisc") {
+      commit(
+        setMeldDiscard(timeline, t.index, t.kind === "mdraw" ? { draw: code } : { tile: code }),
+      );
+      setPick(null);
+      return;
+    }
     update(t.index, (e) => {
       if (e.kind === "discard") {
         if (t.kind === "draw") return { ...e, draw: code, tile: e.tsumogiri ? code : e.tile };
@@ -130,140 +151,163 @@ export function TimelineEditor({
         <Text style={styles.empty}>まだ手順がありません。「＋打牌」で追加してください。</Text>
       ) : null}
 
-      {timeline.map((e, i) => (
-        <View key={i}>
-          {/* 巡目見出しは「先頭」または「巡目が変わる位置」に出す。親の打牌位置基準だと
+      {rows.map((row, ri) => {
+        const e = row.event;
+        const i = row.index;
+        // 鳴き行に併合された「鳴いた人の打牌」（切った牌・嶺上ツモ）。
+        const md = e.kind === "meld" ? meldDiscardOf(i) : null;
+        const isKan = e.kind === "meld" && e.meld.type.startsWith("kan");
+        return (
+          <View key={ri}>
+            {/* 巡目見出しは「先頭」または「巡目が変わる位置」に出す。親の打牌位置基準だと
               並替で親の打牌より上に行が来たとき「1巡目より前」に見える領域ができるため。 */}
-          {i === 0 || turns[i] !== turns[i - 1] ? (
-            <Text style={styles.turn}>{turns[i]}巡目</Text>
-          ) : null}
-          <View style={[styles.row, e.kind === "meld" && styles.meldRow]}>
-            <Pressable
-              style={styles.seat}
-              onPress={() => commit(cycleEventSeat(timeline, i))}
-              accessibilityRole="button"
-              accessibilityLabel="席を変更"
-            >
-              <Text style={styles.seatText}>{seatLabel(e.seat)}</Text>
-            </Pressable>
+            {ri === 0 || turns[i] !== turns[rows[ri - 1]!.index] ? (
+              <Text style={styles.turn}>{turns[i]}巡目</Text>
+            ) : null}
+            <View style={[styles.row, e.kind === "meld" && styles.meldRow]}>
+              <Pressable
+                style={styles.seat}
+                onPress={() => commit(cycleEventSeat(timeline, i))}
+                accessibilityRole="button"
+                accessibilityLabel="席を変更"
+              >
+                <Text style={styles.seatText}>{seatLabel(e.seat)}</Text>
+              </Pressable>
 
-            {e.kind === "discard" ? (
-              <>
-                <TileSlot
-                  label="ツモ"
-                  code={e.draw}
-                  a11y="ツモ牌を選ぶ"
-                  onPress={() => setPick({ kind: "draw", index: i })}
-                />
-                <TileSlot
-                  label="打"
-                  code={e.tile}
-                  a11y="打牌を選ぶ"
-                  disabled={e.tsumogiri}
-                  onPress={() => setPick({ kind: "disc", index: i })}
-                />
-                <Pressable
-                  style={[styles.mode, e.tsumogiri ? styles.tsumogiri : styles.tegiri]}
-                  onPress={() =>
-                    update(i, (x) =>
-                      x.kind === "discard"
-                        ? { ...x, tsumogiri: !x.tsumogiri, tile: !x.tsumogiri ? x.draw : x.tile }
-                        : x,
-                    )
-                  }
-                  accessibilityRole="button"
-                >
-                  <Text style={styles.modeText}>{e.tsumogiri ? "ツモ切り" : "手出し"}</Text>
-                </Pressable>
-                <Pressable
-                  style={[styles.riichi, e.riichi && styles.riichiOn]}
-                  onPress={() =>
-                    update(i, (x) => (x.kind === "discard" ? { ...x, riichi: !x.riichi } : x))
-                  }
-                  accessibilityRole="button"
-                >
-                  <Text style={[styles.riichiText, e.riichi && styles.riichiTextOn]}>リーチ</Text>
-                </Pressable>
-                {/* この捨て牌を誰が鳴いたか。メニューで鳴いた人を選ぶと、鳴き行と
-                    「鳴いた人が切った牌」の行が直後に入る（河は薄表示になる）。 */}
-                <Pressable
-                  style={[styles.riichi, e.calledBy != null && styles.riichiOn]}
-                  onPress={() => setCallPick(i)}
-                  accessibilityRole="button"
-                >
-                  <Text style={[styles.riichiText, e.calledBy != null && styles.riichiTextOn]}>
-                    {calledByLabel(
-                      e.calledBy,
-                      e.calledBy ? kifu.players?.[e.calledBy]?.name : null,
-                    )}
-                  </Text>
-                </Pressable>
-              </>
-            ) : (
-              <>
-                <Pressable
-                  style={styles.kind}
-                  onPress={() => commit(cycleMeldType(timeline, i))}
-                  accessibilityRole="button"
-                >
-                  <Text style={styles.kindText}>{MELD_TYPE_LABELS[e.meld.type]}</Text>
-                </Pressable>
-                <View style={styles.mtiles}>
-                  {e.meld.tiles.map((rt, ti) => (
-                    <Pressable
-                      key={ti}
-                      onPress={() => setPick({ kind: "mtile", index: i, ti })}
-                      accessibilityRole="button"
-                      accessibilityLabel={`鳴き牌${ti + 1}を選ぶ`}
-                    >
-                      <MiniTile code={rt.tile} w={20} h={28} />
-                    </Pressable>
-                  ))}
-                </View>
-                {e.meld.type !== "kan_closed" ? (
+              {e.kind === "discard" ? (
+                <>
+                  <TileSlot
+                    label="ツモ"
+                    code={e.draw}
+                    a11y="ツモ牌を選ぶ"
+                    onPress={() => setPick({ kind: "draw", index: i })}
+                  />
+                  <TileSlot
+                    label="打"
+                    code={e.tile}
+                    a11y="打牌を選ぶ"
+                    disabled={e.tsumogiri}
+                    onPress={() => setPick({ kind: "disc", index: i })}
+                  />
                   <Pressable
-                    style={styles.from}
-                    onPress={() => commit(cycleMeldFrom(timeline, i))}
+                    style={[styles.mode, e.tsumogiri ? styles.tsumogiri : styles.tegiri]}
+                    onPress={() =>
+                      update(i, (x) =>
+                        x.kind === "discard"
+                          ? { ...x, tsumogiri: !x.tsumogiri, tile: !x.tsumogiri ? x.draw : x.tile }
+                          : x,
+                      )
+                    }
                     accessibilityRole="button"
                   >
-                    <Text style={styles.fromText}>
-                      {seatName(e.meld.from ?? nextMeldFrom(null, e.seat))}から
+                    <Text style={styles.modeText}>{e.tsumogiri ? "ツモ切り" : "手出し"}</Text>
+                  </Pressable>
+                  <Pressable
+                    style={[styles.riichi, e.riichi && styles.riichiOn]}
+                    onPress={() =>
+                      update(i, (x) => (x.kind === "discard" ? { ...x, riichi: !x.riichi } : x))
+                    }
+                    accessibilityRole="button"
+                  >
+                    <Text style={[styles.riichiText, e.riichi && styles.riichiTextOn]}>リーチ</Text>
+                  </Pressable>
+                  {/* この捨て牌を誰が鳴いたか。メニューで鳴いた人を選ぶと、鳴き行と
+                    「鳴いた人が切った牌」の行が直後に入る（河は薄表示になる）。 */}
+                  <Pressable
+                    style={[styles.riichi, e.calledBy != null && styles.riichiOn]}
+                    onPress={() => setCallPick(i)}
+                    accessibilityRole="button"
+                  >
+                    <Text style={[styles.riichiText, e.calledBy != null && styles.riichiTextOn]}>
+                      {calledByLabel(
+                        e.calledBy,
+                        e.calledBy ? kifu.players?.[e.calledBy]?.name : null,
+                      )}
                     </Text>
                   </Pressable>
-                ) : null}
-              </>
-            )}
+                </>
+              ) : (
+                <>
+                  <Pressable
+                    style={styles.kind}
+                    onPress={() => commit(cycleMeldType(timeline, i))}
+                    accessibilityRole="button"
+                  >
+                    <Text style={styles.kindText}>{MELD_TYPE_LABELS[e.meld.type]}</Text>
+                  </Pressable>
+                  <View style={styles.mtiles}>
+                    {e.meld.tiles.map((rt, ti) => (
+                      <Pressable
+                        key={ti}
+                        onPress={() => setPick({ kind: "mtile", index: i, ti })}
+                        accessibilityRole="button"
+                        accessibilityLabel={`鳴き牌${ti + 1}を選ぶ`}
+                      >
+                        <MiniTile code={rt.tile} w={20} h={28} />
+                      </Pressable>
+                    ))}
+                  </View>
+                  {e.meld.type !== "kan_closed" ? (
+                    <Pressable
+                      style={styles.from}
+                      onPress={() => commit(cycleMeldFrom(timeline, i))}
+                      accessibilityRole="button"
+                    >
+                      <Text style={styles.fromText}>
+                        {seatName(e.meld.from ?? nextMeldFrom(null, e.seat))}から
+                      </Text>
+                    </Pressable>
+                  ) : null}
+                  {/* 鳴いた人がその後に切る牌を同じ行で編集する（カンは嶺上ツモも）。
+                    併合対象が無ければ選んだ時点で直後に挿入される。 */}
+                  {isKan ? (
+                    <TileSlot
+                      label="嶺上"
+                      code={md?.draw ?? null}
+                      a11y="嶺上ツモを選ぶ"
+                      onPress={() => setPick({ kind: "mdraw", index: i })}
+                    />
+                  ) : null}
+                  <TileSlot
+                    label="打"
+                    code={md?.tile ?? null}
+                    a11y="切った牌を選ぶ"
+                    onPress={() => setPick({ kind: "mdisc", index: i })}
+                  />
+                </>
+              )}
 
-            <View style={styles.spacer} />
-            <Pressable
-              style={styles.iconBtn}
-              onPress={() => move(i, -1)}
-              disabled={i === 0}
-              accessibilityRole="button"
-              accessibilityLabel="上へ移動"
-            >
-              <Text style={[styles.icon, i === 0 && styles.iconOff]}>▲</Text>
-            </Pressable>
-            <Pressable
-              style={styles.iconBtn}
-              onPress={() => move(i, 1)}
-              disabled={i === timeline.length - 1}
-              accessibilityRole="button"
-              accessibilityLabel="下へ移動"
-            >
-              <Text style={[styles.icon, i === timeline.length - 1 && styles.iconOff]}>▼</Text>
-            </Pressable>
-            <Pressable
-              style={styles.iconBtn}
-              onPress={() => commit(removeTimelineEvent(timeline, i))}
-              accessibilityRole="button"
-              accessibilityLabel="削除"
-            >
-              <Text style={styles.del}>✕</Text>
-            </Pressable>
+              <View style={styles.spacer} />
+              <Pressable
+                style={styles.iconBtn}
+                onPress={() => move(ri, -1)}
+                disabled={ri === 0}
+                accessibilityRole="button"
+                accessibilityLabel="上へ移動"
+              >
+                <Text style={[styles.icon, ri === 0 && styles.iconOff]}>▲</Text>
+              </Pressable>
+              <Pressable
+                style={styles.iconBtn}
+                onPress={() => move(ri, 1)}
+                disabled={ri === rows.length - 1}
+                accessibilityRole="button"
+                accessibilityLabel="下へ移動"
+              >
+                <Text style={[styles.icon, ri === rows.length - 1 && styles.iconOff]}>▼</Text>
+              </Pressable>
+              <Pressable
+                style={styles.iconBtn}
+                onPress={() => commit(removeTimelineRow(timeline, row))}
+                accessibilityRole="button"
+                accessibilityLabel="削除"
+              >
+                <Text style={styles.del}>✕</Text>
+              </Pressable>
+            </View>
           </View>
-        </View>
-      ))}
+        );
+      })}
 
       {pick ? (
         <TilePickerSheet title="牌を選ぶ" onPick={onPick} onClose={() => setPick(null)} />

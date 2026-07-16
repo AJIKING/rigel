@@ -207,6 +207,74 @@ describe("TimelineEditor", () => {
     expect(next.seats.east.river[0]?.calledBy).toBeNull();
   });
 
+  it("鳴き行に「打」ボックスがあり、切った牌を同じ行で選べる（無ければ直後に挿入）", () => {
+    const onChange = vi.fn();
+    const meld = {
+      kind: "meld" as const,
+      seat: "west" as const,
+      meld: {
+        type: "pon" as const,
+        tiles: [{ tile: "5p" }, { tile: "5p" }, { tile: "5p" }],
+        from: "east" as const,
+      },
+    };
+    render(<TimelineEditor kifu={kifu([meld])} dealer="east" names={NAMES} onChange={onChange} />);
+    fireEvent.click(screen.getByText("打")); // 鳴き行の打ボックス
+    fireEvent.click(screen.getByText("索"));
+    fireEvent.click(screen.getByRole("button", { name: "9索" }));
+    const next = onChange.mock.calls[0]![0] as Kifu;
+    expect(next.timeline).toHaveLength(2);
+    expect(next.timeline[1]).toMatchObject({ kind: "discard", seat: "west", tile: "9s" });
+  });
+
+  it("カンの鳴き行では嶺上ツモも選べる", () => {
+    const onChange = vi.fn();
+    const kan = {
+      kind: "meld" as const,
+      seat: "west" as const,
+      meld: {
+        type: "kan_open" as const,
+        tiles: [{ tile: "5p" }, { tile: "5p" }, { tile: "5p" }, { tile: "5p" }],
+        from: "east" as const,
+      },
+    };
+    render(<TimelineEditor kifu={kifu([kan])} dealer="east" names={NAMES} onChange={onChange} />);
+    fireEvent.click(screen.getByText("嶺上"));
+    fireEvent.click(screen.getByText("索"));
+    fireEvent.click(screen.getByRole("button", { name: "6索" }));
+    const next = onChange.mock.calls[0]![0] as Kifu;
+    expect(next.timeline[1]).toMatchObject({ kind: "discard", seat: "west", draw: "6s" });
+  });
+
+  it("鳴きと切った牌は1行に併合され、行の削除で両方消える（鳴き印も解除）", () => {
+    const onChange = vi.fn();
+    const meld = {
+      kind: "meld" as const,
+      seat: "west" as const,
+      meld: {
+        type: "pon" as const,
+        tiles: [{ tile: "5p" }, { tile: "5p" }, { tile: "5p" }],
+        from: "east" as const,
+      },
+    };
+    render(
+      <TimelineEditor
+        kifu={kifu([{ ...disc("east", "5p"), calledBy: "west" }, meld, disc("west", "9m")])}
+        dealer="east"
+        names={NAMES}
+        onChange={onChange}
+      />,
+    );
+    // 3イベントだが表示は2行（打牌行＋鳴き行）。
+    expect(screen.getAllByLabelText("削除")).toHaveLength(2);
+    fireEvent.click(screen.getAllByLabelText("削除")[1]!);
+    const next = onChange.mock.calls[0]![0] as Kifu;
+    expect(next.timeline).toHaveLength(1);
+    expect(next.timeline[0]).toMatchObject({ kind: "discard", calledBy: null });
+    expect(next.seats.west.melds).toHaveLength(0);
+    expect(next.seats.west.river).toHaveLength(0);
+  });
+
   it("手出し/ツモ切りトグルで tsumogiri が反転する", () => {
     const onChange = vi.fn();
     render(

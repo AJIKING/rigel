@@ -284,17 +284,23 @@ export function cycleMeldType(timeline: TimelineEvent[], index: number): Timelin
   return from === oldFrom ? next : syncCalledByForMeld(next, index, e.seat, oldFrom, from);
 }
 
-/** 席の順送り。鳴き行は鳴き印の主も付け替える。 */
+/** 席の順送り。鳴き行は鳴き印の主も付け替え、併合された「鳴いた人の打牌」も一緒に動かす。 */
 export function cycleEventSeat(timeline: TimelineEvent[], index: number): TimelineEvent[] {
   const e = timeline[index];
   if (!e) return timeline;
   const newSeat = nextSeatOf(e.seat);
+  // 鳴き行に併合された打牌（直後・同席）は席替えに追随させる（切った牌の主も変わるため）。
+  const d = e.kind === "meld" ? timeline[index + 1] : undefined;
+  const hasLinked = d?.kind === "discard" && d.seat === e.seat;
+  const withSeat = (tl: TimelineEvent[]): TimelineEvent[] =>
+    tl.map((ev, k) =>
+      k === index || (hasLinked && k === index + 1) ? { ...ev, seat: newSeat } : ev,
+    );
   if (e.kind === "meld" && e.meld.from) {
-    let next = syncCalledByForMeld(timeline, index, e.seat, e.meld.from, null);
-    next = next.map((ev, k) => (k === index ? { ...ev, seat: newSeat } : ev));
-    return syncCalledByForMeld(next, index, newSeat, null, e.meld.from);
+    const cleared = syncCalledByForMeld(timeline, index, e.seat, e.meld.from, null);
+    return syncCalledByForMeld(withSeat(cleared), index, newSeat, null, e.meld.from);
   }
-  return timeline.map((ev, k) => (k === index ? { ...ev, seat: newSeat } : ev));
+  return withSeat(timeline);
 }
 
 /** 行の削除。鳴き行なら鳴き印も解除する。 */
@@ -305,6 +311,84 @@ export function removeTimelineEvent(timeline: TimelineEvent[], index: number): T
       ? syncCalledByForMeld(timeline, index, e.seat, e.meld.from, null)
       : timeline;
   return base.filter((_, k) => k !== index);
+}
+
+// ------------------------------------------------------------
+// 手順の表示行（web/mobile の手順タブで共用）。
+// 鳴き行は直後の「鳴いた人の打牌」（同席）を併合して1行にする。切った牌（カンは
+// 嶺上ツモも）を同じ行で編集させ、巡目の関係を分かりやすくするため。
+// ------------------------------------------------------------
+
+export interface TimelineRow {
+  /** 行の主イベントの timeline index。 */
+  index: number;
+  event: TimelineEvent;
+  /** 鳴き行に併合された直後の打牌（鳴いた人の切った牌）の timeline index。無ければ null。 */
+  discardIndex: number | null;
+}
+
+/** timeline を表示行に畳む（全イベントをちょうど1回ずつ含む）。 */
+export function timelineRows(timeline: TimelineEvent[]): TimelineRow[] {
+  const rows: TimelineRow[] = [];
+  for (let i = 0; i < timeline.length; i++) {
+    const e = timeline[i]!;
+    if (e.kind === "meld") {
+      const d = timeline[i + 1];
+      if (d?.kind === "discard" && d.seat === e.seat) {
+        rows.push({ index: i, event: e, discardIndex: i + 1 });
+        i++;
+        continue;
+      }
+    }
+    rows.push({ index: i, event: e, discardIndex: null });
+  }
+  return rows;
+}
+
+/** 鳴き行の「切った牌 / 嶺上ツモ(draw)」を設定する。併合対象の打牌が無ければ直後に挿入する。 */
+export function setMeldDiscard(
+  timeline: TimelineEvent[],
+  meldIndex: number,
+  changes: { tile?: Tile | null; draw?: Tile | null },
+): TimelineEvent[] {
+  const m = timeline[meldIndex];
+  if (m?.kind !== "meld") return timeline;
+  const next = timeline.slice();
+  const d = next[meldIndex + 1];
+  if (d?.kind === "discard" && d.seat === m.seat) {
+    next[meldIndex + 1] = { ...d, ...changes };
+  } else {
+    next.splice(meldIndex + 1, 0, { ...makeDiscardEvent(m.seat), ...changes });
+  }
+  return next;
+}
+
+/** 行単位の並び替え（鳴き行は併合した打牌ごと動かす）。rows は timelineRows の結果。 */
+export function moveTimelineRow(
+  timeline: TimelineEvent[],
+  rows: TimelineRow[],
+  from: number,
+  to: number,
+): TimelineEvent[] {
+  if (from === to) return timeline;
+  const spans = rows.map((r) =>
+    r.discardIndex !== null
+      ? [timeline[r.index]!, timeline[r.discardIndex]!]
+      : [timeline[r.index]!],
+  );
+  const [moved] = spans.splice(from, 1);
+  spans.splice(to, 0, moved!);
+  return spans.flat();
+}
+
+/** 行の削除（鳴き行は併合した打牌ごと消す。鳴き印も解除）。 */
+export function removeTimelineRow(timeline: TimelineEvent[], row: TimelineRow): TimelineEvent[] {
+  const e = timeline[row.index];
+  const base =
+    e?.kind === "meld" && e.meld.from
+      ? syncCalledByForMeld(timeline, row.index, e.seat, e.meld.from, null)
+      : timeline;
+  return base.filter((_, k) => k !== row.index && k !== row.discardIndex);
 }
 
 /**

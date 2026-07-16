@@ -8,11 +8,15 @@ import {
   cycleMeldType,
   deriveTimeline,
   nextDiscardSeat,
+  moveTimelineRow,
   reconcileTimeline,
   removeTimelineEvent,
+  removeTimelineRow,
+  setMeldDiscard,
   setTimelineCall,
   syncCalledByForMeld,
   syncSeatsFromTimeline,
+  timelineRows,
   timelineToSeats,
   timelineTurns,
 } from "./timeline";
@@ -602,5 +606,96 @@ describe("callDiscard の再実行・staleな timeline", () => {
     expect(synced.seats.west.river[0]).toMatchObject({ tile: "6s", tsumogiri: true });
     const last = synced.timeline[synced.timeline.length - 1];
     expect(last?.kind === "discard" && last.draw).toBe("6s");
+  });
+});
+
+describe("手順の表示行（鳴き行に鳴いた人の打牌を併合する）", () => {
+  const meldEv = (seat: string, from: string | null = "east") =>
+    ({
+      kind: "meld",
+      seat,
+      meld: {
+        type: "pon" as const,
+        tiles: [
+          { tile: "5p", confidence: 1 },
+          { tile: "5p", confidence: 1 },
+          { tile: "5p", confidence: 1 },
+        ],
+        from,
+      },
+    }) as unknown as TimelineEvent;
+
+  it("timelineRows: 鳴きの直後にある同席の打牌は同じ行に併合される", () => {
+    const tl = [
+      { ...disc("east", "5p"), calledBy: "west" as const },
+      meldEv("west"),
+      { ...disc("west", "9m") },
+      disc("south", "1s"),
+    ];
+    const rows = timelineRows(tl);
+    expect(rows.map((r) => [r.index, r.discardIndex])).toEqual([
+      [0, null],
+      [1, 2], // 鳴き行に西の打牌を併合
+      [3, null],
+    ]);
+  });
+
+  it("timelineRows: 直後の打牌が別席なら併合しない", () => {
+    const tl = [meldEv("west"), disc("south", "1s")];
+    expect(timelineRows(tl).map((r) => [r.index, r.discardIndex])).toEqual([
+      [0, null],
+      [1, null],
+    ]);
+  });
+
+  it("setMeldDiscard: 併合対象があれば更新、無ければ直後に挿入する（嶺上ツモも設定可）", () => {
+    // 併合対象なし → 挿入。
+    const inserted = setMeldDiscard([meldEv("west")], 0, { tile: "9m" as never });
+    expect(inserted).toHaveLength(2);
+    expect(inserted[1]).toMatchObject({ kind: "discard", seat: "west", tile: "9m" });
+    // 併合対象あり → 更新（draw=嶺上ツモ）。
+    const updated = setMeldDiscard(inserted, 0, { draw: "6s" as never });
+    expect(updated).toHaveLength(2);
+    expect(updated[1]).toMatchObject({ kind: "discard", seat: "west", tile: "9m", draw: "6s" });
+  });
+
+  it("moveTimelineRow: 鳴き行は併合した打牌ごと動く", () => {
+    const tl = [
+      { ...disc("east", "5p"), calledBy: "west" as const },
+      meldEv("west"),
+      { ...disc("west", "9m") },
+      disc("south", "1s"),
+    ];
+    const rows = timelineRows(tl);
+    // 鳴き行（rows[1]）を末尾へ。
+    const moved = moveTimelineRow(tl, rows, 1, 2);
+    expect(
+      moved.map((e) => (e.kind === "discard" ? `d:${e.seat}:${e.tile}` : `m:${e.seat}`)),
+    ).toEqual(["d:east:5p", "d:south:1s", "m:west", "d:west:9m"]);
+  });
+
+  it("removeTimelineRow: 鳴き行は併合した打牌ごと消え、鳴き印も解除される", () => {
+    const tl = [
+      { ...disc("east", "5p"), calledBy: "west" as const },
+      meldEv("west"),
+      { ...disc("west", "9m") },
+    ];
+    const rows = timelineRows(tl);
+    const removed = removeTimelineRow(tl, rows[1]!);
+    expect(removed).toHaveLength(1);
+    expect(removed[0]).toMatchObject({ kind: "discard", seat: "east", calledBy: null });
+  });
+
+  it("cycleEventSeat: 鳴き行の席替えは併合した打牌も一緒に動かす", () => {
+    const tl = [
+      { ...disc("east", "5p"), calledBy: "south" as const },
+      meldEv("south"),
+      { ...disc("south", "9m") },
+    ];
+    const next = cycleEventSeat(tl, 1); // 南→西
+    expect(next[1]).toMatchObject({ kind: "meld", seat: "west" });
+    expect(next[2]).toMatchObject({ kind: "discard", seat: "west", tile: "9m" });
+    // 鳴き印も新しい鳴き主に付け替わる。
+    expect(next[0]).toMatchObject({ kind: "discard", calledBy: "west" });
   });
 });

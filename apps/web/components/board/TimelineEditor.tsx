@@ -16,13 +16,16 @@ import {
   cycleMeldType,
   deriveTimeline,
   makeDiscardEvent,
+  moveTimelineRow,
   nextDiscardSeat,
   nextMeldFrom,
   otherSeats,
-  removeTimelineEvent,
+  removeTimelineRow,
   seatLabel,
+  setMeldDiscard,
   setTimelineCall,
   syncSeatsFromTimeline,
+  timelineRows,
   timelineTurns,
   MELD_TYPE_LABELS,
 } from "@rigel/ui";
@@ -31,11 +34,14 @@ import { OssTileFace } from "../OssTileFace";
 import { NUMS, SUITS, type Suit } from "../../lib/board";
 import s from "./timeline-editor.module.css";
 
-/** ピッカーの対象。draw/disc は打牌イベント、mtile は鳴き牌。 */
+/** ピッカーの対象。draw/disc は打牌イベント、mtile は鳴き牌、
+ *  mdraw/mdisc は鳴き行に併合された「鳴いた人の打牌」（嶺上ツモ/切った牌）。 */
 type PickTarget =
   | { kind: "draw"; index: number }
   | { kind: "disc"; index: number }
-  | { kind: "mtile"; index: number; ti: number };
+  | { kind: "mtile"; index: number; ti: number }
+  | { kind: "mdraw"; index: number }
+  | { kind: "mdisc"; index: number };
 
 /**
  * 手順（タイムライン）エディタ。打牌・鳴きを時系列で並べ、ドラッグで順番入替、
@@ -55,6 +61,8 @@ export function TimelineEditor({
 }) {
   const timeline = deriveTimeline(kifu);
   const turns = timelineTurns(timeline, dealer);
+  // 表示行: 鳴き行は直後の「鳴いた人の打牌」を併合して1行にする（共有ロジック）。
+  const rows = timelineRows(timeline);
   const [dragIdx, setDragIdx] = useState<number | null>(null);
   const [pick, setPick] = useState<PickTarget | null>(null);
   const [pickSuit, setPickSuit] = useState<Suit>("m");
@@ -64,8 +72,19 @@ export function TimelineEditor({
   /** 席の表示名（選手名を優先。無名は「南家」のような席名）。 */
   const seatName = (seat: Seat) => names[seat] || `${seatLabel(seat)}家`;
 
+  /** 鳴き行に併合された「鳴いた人の打牌」（直後・同席）。無ければ null。 */
+  function meldDiscardOf(meldIndex: number): DiscardEvent | null {
+    const m = timeline[meldIndex];
+    const d = timeline[meldIndex + 1];
+    return m?.kind === "meld" && d?.kind === "discard" && d.seat === m.seat ? d : null;
+  }
+
   /** ピッカーの編集対象に現在入っている牌（選択ハイライトに使う）。 */
   function currentOf(t: PickTarget): Tile | null {
+    if (t.kind === "mdraw" || t.kind === "mdisc") {
+      const d = meldDiscardOf(t.index);
+      return t.kind === "mdraw" ? (d?.draw ?? null) : (d?.tile ?? null);
+    }
     const e = timeline[t.index];
     if (!e) return null;
     if (e.kind === "discard") return t.kind === "draw" ? e.draw : e.tile;
@@ -93,17 +112,23 @@ export function TimelineEditor({
     update(index, (e) => (e.kind === "discard" ? fn(e) : e));
   }
 
+  /** 行単位の並び替え（鳴き行は併合した打牌ごと動く）。from/to は行 index。 */
   function reorder(from: number, to: number) {
     if (from === to) return;
-    const next = timeline.slice();
-    const [moved] = next.splice(from, 1);
-    next.splice(to, 0, moved!);
-    commit(next);
+    commit(moveTimelineRow(timeline, rows, from, to));
   }
 
   function onPick(code: Tile | null) {
     if (!pick) return;
     const t = pick;
+    // 鳴き行の「嶺上/打」は併合された打牌へ書く（無ければ直後に挿入＝共有純関数）。
+    if (t.kind === "mdraw" || t.kind === "mdisc") {
+      commit(
+        setMeldDiscard(timeline, t.index, t.kind === "mdraw" ? { draw: code } : { tile: code }),
+      );
+      setPick(null);
+      return;
+    }
     update(t.index, (e) => {
       if (e.kind === "discard") {
         if (t.kind === "draw") {
@@ -156,19 +181,25 @@ export function TimelineEditor({
         {timeline.length === 0 && (
           <p className={s.empty}>まだ打牌がありません。「＋打牌」で追加してください。</p>
         )}
-        {timeline.map((e, i) => {
+        {rows.map((row, ri) => {
+          const e = row.event;
+          const i = row.index;
+          // 鳴き行に併合された「鳴いた人の打牌」（切った牌・嶺上ツモ）。
+          const md =
+            e.kind === "meld" ? (row.discardIndex !== null ? meldDiscardOf(i) : null) : null;
+          const isKan = e.kind === "meld" && e.meld.type.startsWith("kan");
           // 巡目見出しは「先頭」または「巡目が変わる位置」に出す。親の打牌位置基準だと
           // 並替で親の打牌より上に行が来たとき「1巡目より前」に見える領域ができるため。
-          const showTurn = i === 0 || turns[i] !== turns[i - 1];
+          const showTurn = ri === 0 || turns[i] !== turns[rows[ri - 1]!.index];
           return (
-            <div key={i}>
+            <div key={ri}>
               {/* 巡目見出しもドロップ先にする（前の巡の末尾＝この巡の先頭へ移動できる）。 */}
               {showTurn && (
                 <div
                   className={s.turn}
                   onDragOver={(ev) => ev.preventDefault()}
                   onDrop={() => {
-                    if (dragIdx !== null) reorder(dragIdx, i);
+                    if (dragIdx !== null) reorder(dragIdx, ri);
                     setDragIdx(null);
                   }}
                 >
@@ -176,13 +207,13 @@ export function TimelineEditor({
                 </div>
               )}
               <div
-                className={`${s.ev} ${e.kind === "meld" ? s.meldEv : ""} ${dragIdx === i ? s.dragging : ""}`}
+                className={`${s.ev} ${e.kind === "meld" ? s.meldEv : ""} ${dragIdx === ri ? s.dragging : ""}`}
                 draggable
-                onDragStart={() => setDragIdx(i)}
+                onDragStart={() => setDragIdx(ri)}
                 onDragEnd={() => setDragIdx(null)}
                 onDragOver={(ev) => ev.preventDefault()}
                 onDrop={() => {
-                  if (dragIdx !== null) reorder(dragIdx, i);
+                  if (dragIdx !== null) reorder(dragIdx, ri);
                   setDragIdx(null);
                 }}
               >
@@ -258,13 +289,28 @@ export function TimelineEditor({
                         <b>から</b>
                       </button>
                     )}
+                    {/* 鳴いた人がその後に切る牌を同じ行で編集する（カンは嶺上ツモも）。
+                        併合対象が無ければ選んだ時点で直後に挿入される。 */}
+                    {isKan && (
+                      <button
+                        className={s.tp}
+                        onClick={() => openPick({ kind: "mdraw", index: i })}
+                      >
+                        <span className={s.lab}>嶺上</span>
+                        <TileBox code={md?.draw ?? null} />
+                      </button>
+                    )}
+                    <button className={s.tp} onClick={() => openPick({ kind: "mdisc", index: i })}>
+                      <span className={s.lab}>打</span>
+                      <TileBox code={md?.tile ?? null} />
+                    </button>
                   </>
                 )}
 
                 <span className={s.sp} />
                 <button
                   className={s.del}
-                  onClick={() => commit(removeTimelineEvent(timeline, i))}
+                  onClick={() => commit(removeTimelineRow(timeline, row))}
                   aria-label="削除"
                 >
                   ✕
@@ -274,12 +320,12 @@ export function TimelineEditor({
           );
         })}
         {/* 末尾へのドロップ先（最後の行の下に落とせないと最後尾へ移動できない）。 */}
-        {dragIdx !== null && timeline.length > 0 && (
+        {dragIdx !== null && rows.length > 0 && (
           <div
             className={s.dropEnd}
             onDragOver={(ev) => ev.preventDefault()}
             onDrop={() => {
-              if (dragIdx !== null) reorder(dragIdx, timeline.length - 1);
+              if (dragIdx !== null) reorder(dragIdx, rows.length - 1);
               setDragIdx(null);
             }}
           >
