@@ -17,6 +17,10 @@ name: Deploy rigel-api
 #       REVENUECAT_WEBHOOK_AUTH        … RevenueCat Webhook の Authorization 照合値
 #                                        （ダッシュボードの Webhooks 設定と同一文字列。未設定なら受け口は 501）
 #       REVENUECAT_STRIPE_PUBLIC_KEY   … RevenueCat の本番 Stripe config の Public API key（strp_...）
+#       APPLE_TEAM_ID / APPLE_KEY_ID / APPLE_PRIVATE_KEY
+#                              … Sign in with Apple の退会時トークン失効（revoke）用
+#                                （Team ID / SIWA キーの Key ID / .p8 の中身を改行込みで登録。
+#                                 3つとも未登録ならデプロイ後の投入ステップをスキップ＝revoke だけ無効）
 #   - apps/api/wrangler.toml の d1_databases[0].database_id は反映済み（`wrangler d1 create rigel`）
 #   - [vars]（GOOGLE_CLIENT_ID / STRIPE_PRICE_NEXT|PRO / GEMINI_*_MODEL）は wrangler.toml にコミット済み
 #
@@ -157,3 +161,21 @@ jobs:
           # Stripe 購読登録用の strp_ Public API key（本番 config のもの）。
           REVENUECAT_WEBHOOK_AUTH: ${{ secrets.REVENUECAT_WEBHOOK_AUTH }}
           REVENUECAT_STRIPE_PUBLIC_KEY: ${{ secrets.REVENUECAT_STRIPE_PUBLIC_KEY }}
+
+      # Sign in with Apple の退会時トークン失効（revoke）用 Secrets。GitHub Secrets 未登録の間は
+      # スキップする（上の deploy 本体を止めない。ログインは動き、revoke だけ無効のまま）。
+      # 登録後に再デプロイすれば自動投入される。wrangler-action の secrets ブロックに足さないのは
+      # 未登録時に「値なし」でデプロイ全体が失敗するため。
+      - name: Put Sign in with Apple secrets（未登録ならスキップ）
+        if: ${{ secrets.APPLE_TEAM_ID != '' && secrets.APPLE_KEY_ID != '' && secrets.APPLE_PRIVATE_KEY != '' }}
+        working-directory: apps/api
+        run: |
+          printf '%s' "$APPLE_TEAM_ID" | pnpm exec wrangler secret put APPLE_TEAM_ID
+          printf '%s' "$APPLE_KEY_ID" | pnpm exec wrangler secret put APPLE_KEY_ID
+          printf '%s' "$APPLE_PRIVATE_KEY" | pnpm exec wrangler secret put APPLE_PRIVATE_KEY
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_KEY_ID: ${{ secrets.APPLE_KEY_ID }}
+          APPLE_PRIVATE_KEY: ${{ secrets.APPLE_PRIVATE_KEY }}

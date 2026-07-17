@@ -120,9 +120,13 @@
 2. Services ID `jp.co.plaria.rigel.web` を作成し、ドメイン `rigel.plaria.co.jp` と
    Return URL `https://rigel.plaria.co.jp/login` を登録（web ポップアップの redirectURI）。
 3. Keys で Sign in with Apple 用の .p8 を発行（Key ID を控える）。
-4. Cloudflare Secrets: `APPLE_TEAM_ID` / `APPLE_KEY_ID` / `APPLE_PRIVATE_KEY`（revoke 用）。
+4. **GitHub（environment "production"）の Secrets**: `APPLE_TEAM_ID` / `APPLE_KEY_ID` /
+   `APPLE_PRIVATE_KEY`（.p8 の中身を改行込みで登録）。deploy.api.yml が Worker Secrets へ
+   自動投入する（未登録の間はスキップ＝revoke だけ無効。登録後に api を再デプロイ）。
    `APPLE_CLIENT_ID` は wrangler.toml の vars（公開値）に設定済み。
-5. web の環境変数: `NEXT_PUBLIC_APPLE_CLIENT_ID=jp.co.plaria.rigel.web`（.env.local / デプロイ環境）。
+5. **GitHub の Variables**: `NEXT_PUBLIC_APPLE_CLIENT_ID=jp.co.plaria.rigel.web`
+   （deploy.web.yml がビルド時に焼き込む。未設定なら Apple ボタン非表示）。
+   ローカル確認用に apps/web/.env.local へも同値を追記。
 6. iOS ビルド（EAS/Codemagic）で entitlement が付くこと・実機でのサインイン疎通を確認。
 
 ## 参考
