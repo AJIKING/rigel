@@ -53,14 +53,7 @@ export function LoginScreen() {
               </Link>
               <p className={s.legal}>
                 続行すると、<Link href="/terms">利用規約</Link> と{" "}
-                <a
-                  href="https://plaria.co.jp/privacypolicy"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  プライバシーポリシー
-                </a>{" "}
-                に同意したものとみなされます。
+                <Link href="/privacy">プライバシーポリシー</Link> に同意したものとみなされます。
               </p>
             </>
           )}

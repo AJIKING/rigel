@@ -18,4 +18,11 @@ describe("TermsScreen", () => {
     // 「第4条 禁止事項」の見出し直後の ol に 14 件。
     expect(screen.getByText("面識のない異性との出会いを目的とした行為")).toBeTruthy();
   });
+
+  it("目次と関連文書（プライバシーポリシー）への導線がある", () => {
+    render(<TermsScreen />);
+    expect(screen.getByRole("navigation", { name: "目次" })).toBeTruthy();
+    const link = screen.getByRole("link", { name: "プライバシーポリシー" });
+    expect(link.getAttribute("href")).toBe("/privacy");
+  });
 });

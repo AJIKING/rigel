@@ -1,16 +1,6 @@
-"use client";
+import { LegalDoc, type LegalSection } from "./LegalDoc";
 
-import { useRouter } from "next/navigation";
-import s from "./terms.module.css";
-
-/** 利用規約の各条文。lead=前書き / items=番号付き列挙 / paras=段落。 */
-type Article = {
-  n: string;
-  title: string;
-  lead?: string;
-  paras?: string[];
-  items?: string[];
-};
+// 利用規約。描画は LegalDoc（/privacy と共通の文書レイアウト・目次・関連文書ナビ）。
 
 const INTRO =
   "この利用規約（以下「本規約」といいます。）は、株式会社PLARIA（以下「当社」といいます。）が" +
@@ -18,9 +8,9 @@ const INTRO =
   "利用条件を定めるものです。各種サービスの利用に際し、ユーザ（以下「ユーザ」といいます。）は、" +
   "本規約の内容を十分にご確認いただき、同意いただいた上で、ご利用ください。";
 
-const ARTICLES: Article[] = [
+const ARTICLES: LegalSection[] = [
   {
-    n: "第1条",
+    no: "第1条",
     title: "本規約への同意、適用範囲",
     paras: [
       "本規約は、ユーザと当社との間の本サービスの利用に関わる一切の関係に適用されるものとします。",
@@ -30,14 +20,14 @@ const ARTICLES: Article[] = [
     ],
   },
   {
-    n: "第2条",
+    no: "第2条",
     title: "利用登録",
     paras: [
       "本サービスの利用は、本規約及び当社が定める各諸規定の順守に同意いただき、会員登録の手続き後、利用することができます。",
     ],
   },
   {
-    n: "第3条",
+    no: "第3条",
     title: "アカウントの管理",
     items: [
       "本サービスは、Googleアカウントによるログイン、またはゲストプレイの2種類の利用方法を提供します。",
@@ -49,7 +39,7 @@ const ARTICLES: Article[] = [
     ],
   },
   {
-    n: "第4条",
+    no: "第4条",
     title: "禁止事項",
     lead: "ユーザは、本サービスの利用にあたり、以下の行為をしてはなりません。",
     items: [
@@ -70,14 +60,14 @@ const ARTICLES: Article[] = [
     ],
   },
   {
-    n: "第5条",
+    no: "第5条",
     title: "著作権等",
     paras: [
       "当社のウェブサイトに掲載されている全てのコンテンツに関する著作権その他の知的財産権は、当社または個々の権利者が権利を有しています。ユーザは、当社または個々の権利者の書面による許可なく、または法令で許容された範囲を超えて利用してはなりません。",
     ],
   },
   {
-    n: "第6条",
+    no: "第6条",
     title: "認証情報の管理",
     paras: [
       "ユーザは、本サービスのアカウントの作成にあたって登録するメールアドレスおよび認証情報を自己の責任において適切に管理および保管するものとします。ユーザが本サービスのアカウントに登録したメールアドレスへのアクセスができなくなった場合、本サービスへのログインができなくなることがあります。",
@@ -85,7 +75,7 @@ const ARTICLES: Article[] = [
     ],
   },
   {
-    n: "第7条",
+    no: "第7条",
     title: "退会",
     items: [
       "ユーザは、当社所定の手続きにより、本サービスから退会することができます。",
@@ -94,14 +84,14 @@ const ARTICLES: Article[] = [
     ],
   },
   {
-    n: "第8条",
+    no: "第8条",
     title: "サービス内容の変更・停止",
     paras: [
       "当社は、ユーザに通知することなく、本サービスの内容の変更および一部機能の停止をすることができるものとし、これによってユーザに生じた損害または不利益について一切の責任を負いません。",
     ],
   },
   {
-    n: "第9条",
+    no: "第9条",
     title: "免責事項",
     items: [
       "当社は、本サービスに事実上または法律上の瑕疵（安全性、信頼性、正確性、完全性、有効性、特定の目的への適合性、セキュリティなどに関する欠陥、エラーやバグ、権利侵害などを含みます）がないことを明示的にも黙示的にも保証しておりません。",
@@ -109,7 +99,7 @@ const ARTICLES: Article[] = [
     ],
   },
   {
-    n: "第10条",
+    no: "第10条",
     title: "利用規約の変更",
     paras: [
       "当社は、必要と判断した場合、本規約を変更することができるものとします。",
@@ -118,7 +108,7 @@ const ARTICLES: Article[] = [
     ],
   },
   {
-    n: "第11条",
+    no: "第11条",
     title: "統計データ、属性情報等の取り扱い",
     paras: [
       "当社は、ユーザの登録・抹消の前後を問わず、本サービス上でユーザが登録したユーザの個人情報、本サービスの利用履歴を、個人を識別・特定できないように加工した後、集計および分析した統計データ、属性情報等を作成し、これらを何らの制限なく利用することができるものとし、ユーザはこれをあらかじめ承諾します。",
@@ -126,14 +116,14 @@ const ARTICLES: Article[] = [
     ],
   },
   {
-    n: "第12条",
+    no: "第12条",
     title: "損害賠償",
     paras: [
       "ユーザが、本規約に違反し、または本サービスの利用に際し、当社もしくは第三者に対して損害を与えた場合、ユーザは直接・間接を問わず、一切の損害を賠償するものとします。",
     ],
   },
   {
-    n: "第13条",
+    no: "第13条",
     title: "権利義務の譲渡の禁止",
     paras: [
       "ユーザは、当社の書面による事前の承諾なく、利用契約上の地位または本規約に基づく権利もしくは義務を第三者に譲渡し、または担保に供することはできません。",
@@ -141,14 +131,14 @@ const ARTICLES: Article[] = [
     ],
   },
   {
-    n: "第14条",
+    no: "第14条",
     title: "分離可能性",
     paras: [
       "本規約のいずれかの条項またはその一部が、消費者契約法その他の法令等により無効または執行不能と判断された場合であっても、本規約の残りの規定及び一部が無効または執行不能と判断された規定の残り部分は、継続して完全に効力を有するものとします。",
     ],
   },
   {
-    n: "第15条",
+    no: "第15条",
     title: "準拠法",
     paras: [
       "本規約の解釈にあたっては、日本法を準拠法とします。本サービスに関して紛争が生じた場合には、当社の本店所在地を管轄する裁判所を専属的合意管轄とします。",
@@ -157,56 +147,14 @@ const ARTICLES: Article[] = [
 ];
 
 export function TermsScreen() {
-  const router = useRouter();
-
-  function onBack() {
-    if (typeof window !== "undefined" && window.history.length > 1) router.back();
-    else router.push("/");
-  }
-
   return (
-    <div className={`${s.shell} themeApp`}>
-      <header className={s.bar}>
-        <button type="button" className={s.back} onClick={onBack} aria-label="戻る">
-          ‹
-        </button>
-      </header>
-
-      <main className={s.doc}>
-        <div className={s.titles}>
-          <h1 className={s.h1}>利用規約</h1>
-          <span className={s.en}>Terms of Service</span>
-        </div>
-        <p className={s.intro}>{INTRO}</p>
-
-        {ARTICLES.map((a) => (
-          <section key={a.n} className={s.art}>
-            <h2 className={s.artHead}>
-              <span className={s.artNo}>{a.n}</span>
-              {a.title}
-            </h2>
-            {a.lead && <p className={s.para}>{a.lead}</p>}
-            {a.paras?.map((p, i) => (
-              <p key={i} className={s.para}>
-                {p}
-              </p>
-            ))}
-            {a.items && (
-              <ol className={s.list}>
-                {a.items.map((it, i) => (
-                  <li key={i}>{it}</li>
-                ))}
-              </ol>
-            )}
-          </section>
-        ))}
-
-        <div className={s.meta}>
-          <p>2026年5月6日 制定</p>
-          <p>株式会社PLARIA</p>
-          <p className={s.copy}>© 2026 RIGEL</p>
-        </div>
-      </main>
-    </div>
+    <LegalDoc
+      title="利用規約"
+      en="Terms of Service"
+      intro={INTRO}
+      sections={ARTICLES}
+      enacted="2026年5月6日 制定"
+      related={{ href: "/privacy", label: "プライバシーポリシー" }}
+    />
   );
 }
