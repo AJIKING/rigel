@@ -114,6 +114,10 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: production
+    env:
+      # secrets コンテキストは step の if で参照できないため、ジョブ env に判定を写す
+      # （Sign in with Apple の revoke 用 Secrets が3つとも登録済みかどうか）。
+      HAS_APPLE_SECRETS: ${{ secrets.APPLE_TEAM_ID != '' && secrets.APPLE_KEY_ID != '' && secrets.APPLE_PRIVATE_KEY != '' }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
@@ -167,7 +171,7 @@ jobs:
       # 登録後に再デプロイすれば自動投入される。wrangler-action の secrets ブロックに足さないのは
       # 未登録時に「値なし」でデプロイ全体が失敗するため。
       - name: Put Sign in with Apple secrets（未登録ならスキップ）
-        if: ${{ secrets.APPLE_TEAM_ID != '' && secrets.APPLE_KEY_ID != '' && secrets.APPLE_PRIVATE_KEY != '' }}
+        if: ${{ env.HAS_APPLE_SECRETS == 'true' }}
         working-directory: apps/api
         run: |
           printf '%s' "$APPLE_TEAM_ID" | pnpm exec wrangler secret put APPLE_TEAM_ID
