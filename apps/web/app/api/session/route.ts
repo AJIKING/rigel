@@ -43,7 +43,8 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "authentication failed" }, { status: 401 });
   }
   await setSessionCookie(result.sessionToken);
-  return NextResponse.json({ user: result.user });
+  // created は計測（sign_up/login の出し分け）用。PII は含めない。
+  return NextResponse.json({ user: result.user, created: result.created });
 }
 
 /** DELETE: ログアウト。Cookie を破棄する。 */

@@ -1,6 +1,8 @@
 "use client";
 
+import { ANALYTICS_EVENTS, type LoginMethod } from "@rigel/ui";
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
+import { trackEvent } from "./analytics";
 import { type AuthUser } from "./api";
 
 interface AuthState {
@@ -45,25 +47,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   // BFF にトークンを渡してセッション Cookie を張る（Google/Apple 共通の芯）。
-  const postSession = useCallback(async (body: Record<string, unknown>) => {
+  // 成立したら計測（初回登録=sign_up / 既存=login。プロバイダ別。PII は送らない）。
+  const postSession = useCallback(async (method: LoginMethod, body: Record<string, unknown>) => {
     const res = await fetch("/api/session", {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify(body),
     });
     if (!res.ok) throw new Error("sign-in failed");
-    const d = (await res.json()) as { user: AuthUser };
+    const d = (await res.json()) as { user: AuthUser; created?: boolean };
     setUser(d.user);
+    trackEvent(d.created ? ANALYTICS_EVENTS.signUp : ANALYTICS_EVENTS.login, { method });
   }, []);
 
   const signInWithGoogle = useCallback(
-    (idToken: string) => postSession({ idToken }),
+    (idToken: string) => postSession("google", { idToken }),
     [postSession],
   );
 
   const signInWithApple = useCallback(
     (idToken: string, authorizationCode?: string) =>
-      postSession({ provider: "apple", idToken, authorizationCode }),
+      postSession("apple", { provider: "apple", idToken, authorizationCode }),
     [postSession],
   );
 

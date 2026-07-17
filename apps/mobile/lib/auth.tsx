@@ -1,7 +1,9 @@
+import { ANALYTICS_EVENTS, type LoginMethod } from "@rigel/ui";
 import * as SecureStore from "expo-secure-store";
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
 import { AppState } from "react-native";
-import { authWithApple, authWithGoogle, fetchMe, type AuthUser } from "./api";
+import { trackEvent } from "./analytics";
+import { authWithApple, authWithGoogle, fetchMe, type AuthResult, type AuthUser } from "./api";
 import { logInPurchases, logOutPurchases } from "./purchases";
 
 const TOKEN_KEY = "rigel.session";
@@ -49,25 +51,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   // サインイン成立後の共通処理（Google/Apple 共通の芯）: トークン保存・状態反映・
-  // RevenueCat に userId を紐づける（購入がこのアカウントに乗る）。
+  // RevenueCat に userId を紐づける（購入がこのアカウントに乗る）・計測
+  //（初回登録=sign_up / 既存=login。プロバイダ別。PII は送らない）。
   const establishSession = useCallback(
-    async ({ sessionToken, user: u }: { sessionToken: string; user: AuthUser }) => {
+    async (method: LoginMethod, { sessionToken, user: u, created }: AuthResult) => {
       await SecureStore.setItemAsync(TOKEN_KEY, sessionToken);
       setToken(sessionToken);
       setUser(u);
       void logInPurchases(u.id);
+      void trackEvent(created ? ANALYTICS_EVENTS.signUp : ANALYTICS_EVENTS.login, { method });
     },
     [],
   );
 
   const signInWithGoogle = useCallback(
-    async (idToken: string) => establishSession(await authWithGoogle(idToken)),
+    async (idToken: string) => establishSession("google", await authWithGoogle(idToken)),
     [establishSession],
   );
 
   const signInWithApple = useCallback(
     async (idToken: string, authorizationCode?: string) =>
-      establishSession(await authWithApple(idToken, authorizationCode)),
+      establishSession("apple", await authWithApple(idToken, authorizationCode)),
     [establishSession],
   );
 

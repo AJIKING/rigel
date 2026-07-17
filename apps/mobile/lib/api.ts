@@ -5,6 +5,7 @@ import { createApiClient } from "@rigel/client";
 
 export type {
   AnalyzeResult,
+  AuthResult,
   AuthUser,
   Game,
   GameDetail,

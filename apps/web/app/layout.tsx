@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { GoogleAnalytics } from "../components/GoogleAnalytics";
 import { AuthProvider } from "../lib/auth-context";
 import { DEFAULT_DESCRIPTION, DEFAULT_TITLE, siteBaseUrl } from "../lib/og-meta";
 import "./theme.css";
@@ -23,6 +24,8 @@ export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="ja">
       <body style={{ margin: 0 }}>
+        {/* GA4（NEXT_PUBLIC_GA_MEASUREMENT_ID 未設定なら何も読み込まない）。 */}
+        <GoogleAnalytics />
         <AuthProvider>{children}</AuthProvider>
       </body>
     </html>

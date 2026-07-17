@@ -70,6 +70,8 @@ export interface PublicGameDetail {
 export interface AuthResult {
   sessionToken: string;
   user: AuthUser;
+  /** 初回ログインで作成したら true（計測の sign_up/login 出し分けに使う）。 */
+  created: boolean;
 }
 
 export interface Game {

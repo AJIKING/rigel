@@ -2,6 +2,7 @@ import { KifuSchema, type Kifu } from "@rigel/schema";
 import { describe, expect, it } from "vitest";
 import {
   analysisQuotaLabel,
+  ANALYTICS_EVENTS,
   analyzeErrorMessage,
   applyTileEdit,
   filterPublicFeed,
@@ -418,5 +419,23 @@ describe("meldTileViews（鳴きの表示: 横向き位置・暗槓の背面）"
   it("from 不明（AI 取り込み等）は左端を横向きにする（従来表示の互換）", () => {
     const v = meldTileViews(meld("pon", ["5z", "5z", "5z"], null), "south");
     expect(v.map((x) => x.lay)).toEqual([true, false, false]);
+  });
+});
+
+describe("ANALYTICS_EVENTS（計測イベントの共有体系。web=GA4 / mobile=Firebase で同一）", () => {
+  it("GA4 標準の login/sign_up を含み、独自イベントは snake_case", () => {
+    expect(ANALYTICS_EVENTS.login).toBe("login");
+    expect(ANALYTICS_EVENTS.signUp).toBe("sign_up");
+    for (const name of Object.values(ANALYTICS_EVENTS)) {
+      // GA4 のイベント名規約（英小文字とアンダースコアのみ・40文字以内）。
+      expect(name).toMatch(/^[a-z][a-z0-9_]{0,39}$/);
+    }
+  });
+
+  it("解析・保存・回答のコアファネルを持つ", () => {
+    expect(ANALYTICS_EVENTS.analyzeKifu).toBe("analyze_kifu");
+    expect(ANALYTICS_EVENTS.analyzeProblem).toBe("analyze_problem");
+    expect(ANALYTICS_EVENTS.saveKifu).toBe("save_kifu");
+    expect(ANALYTICS_EVENTS.answerProblem).toBe("answer_problem");
   });
 });

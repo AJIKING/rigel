@@ -1,0 +1,46 @@
+{
+  "project_info": {
+    "project_number": "561655423126",
+    "project_id": "rigel-500806",
+    "storage_bucket": "rigel-500806.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:561655423126:android:119eb3c60136c421a522b7",
+        "android_client_info": {
+          "package_name": "jp.co.plaria.rigel"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "561655423126-1r9luc1tveq2ruhkc6a23dp7ems868cq.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD07jfDIYDAAeizrUZ4XBljqocl37Qghzk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "561655423126-1r9luc1tveq2ruhkc6a23dp7ems868cq.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "561655423126-3i5s5c5am9u4g6pijpofomiacttrv5kh.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "jp.co.plaria.rigel"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

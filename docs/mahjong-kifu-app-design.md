@@ -167,6 +167,7 @@
 | 認証 | Google + **Sign in with Apple**（web/アプリ両対応） | [決定]（2026-07-17 更新。App Store 審査要件 4.8 で Apple 併設が必須。実装済み: `/auth/google`・`/auth/apple`。退会時は Apple トークンを revoke（TN3194）。計画: [plans/sign-in-with-apple.md](plans/sign-in-with-apple.md)） |
 | AI | Gemini API + AI Gateway | [決定] |
 | 画像保存 | しない | [決定] |
+| 利用計測 | GA4 に統一（1プロパティに web/iOS/Android の3ストリーム。web=gtag、アプリ=Firebase Analytics） | [決定]（2026-07-17。web 実装済み・アプリはビルド検証後=[未確定]。PII 非送信・広告用途不使用。計画: [plans/analytics.md](plans/analytics.md)） |
 
 ### [決定] 構成方針
 - 全層 **TypeScript で一気通貫**。スキーマ(Zod)を全環境が共有。

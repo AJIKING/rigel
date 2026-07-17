@@ -45,6 +45,8 @@ export * from "./playback";
 export * from "./board";
 // 牌譜の編集操作（追加/削除/フラグ/鳴き）とピッカー素材。
 export * from "./edit";
+
+export * from "./analytics";
 // ルール設定フォームの共有定義（web RulesDialog / mobile RulesSheet 共用）。
 export * from "./rules-form";
 

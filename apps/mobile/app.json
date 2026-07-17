@@ -13,6 +13,7 @@
       "bundleIdentifier": "jp.co.plaria.rigel",
       "usesAppleSignIn": true,
       "supportsTablet": true,
+      "googleServicesFile": "./GoogleService-Info.plist",
       "config": {
         "usesNonExemptEncryption": false
       },
@@ -31,11 +32,26 @@
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#13a274"
-      }
+      },
+      "googleServicesFile": "./google-services.json"
     },
     "web": {
       "favicon": "./assets/favicon.png"
     },
-    "plugins": ["expo-secure-store", "expo-apple-authentication", "./plugins/with-openiap-pin"]
+    "plugins": [
+      "expo-secure-store",
+      "expo-apple-authentication",
+      "./plugins/with-openiap-pin",
+      "@react-native-firebase/app",
+      "@react-native-firebase/analytics",
+      [
+        "expo-build-properties",
+        {
+          "ios": {
+            "useFrameworks": "static"
+          }
+        }
+      ]
+    ]
   }
 }

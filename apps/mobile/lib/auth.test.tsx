@@ -20,10 +20,17 @@ jest.mock("expo-secure-store", () => ({
 }));
 
 const mockAuthWithGoogle = jest.fn();
+const mockAuthWithApple = jest.fn();
 const mockFetchMe = jest.fn();
 jest.mock("./api", () => ({
   authWithGoogle: (...a: unknown[]) => mockAuthWithGoogle(...a),
+  authWithApple: (...a: unknown[]) => mockAuthWithApple(...a),
   fetchMe: (...a: unknown[]) => mockFetchMe(...a),
+}));
+
+const mockTrackEvent = jest.fn((..._a: unknown[]) => Promise.resolve());
+jest.mock("./analytics", () => ({
+  trackEvent: (...a: unknown[]) => mockTrackEvent(...a),
 }));
 
 const mockLogIn = jest.fn((_userId: string) => Promise.resolve());
@@ -64,6 +71,36 @@ describe("AuthProvider と RevenueCat の紐づけ", () => {
 
     expect(await screen.findByText("u1")).toBeTruthy();
     expect(mockLogIn).toHaveBeenCalledWith("u1");
+  });
+
+  it("初回登録（created=true）は sign_up、既存は login をプロバイダ付きで計測する", async () => {
+    mockAuthWithGoogle.mockResolvedValue({
+      sessionToken: "tok",
+      user: { id: "u1" },
+      created: true,
+    });
+    render(
+      <AuthProvider>
+        <Probe />
+      </AuthProvider>,
+    );
+    await screen.findByText("none");
+
+    fireEvent.press(screen.getByLabelText("login"));
+
+    await screen.findByText("u1");
+    await waitFor(() =>
+      expect(mockTrackEvent).toHaveBeenCalledWith("sign_up", { method: "google" }),
+    );
+
+    // 既存ユーザー（created=false）のログインは login。
+    mockAuthWithGoogle.mockResolvedValue({
+      sessionToken: "tok2",
+      user: { id: "u1" },
+      created: false,
+    });
+    fireEvent.press(screen.getByLabelText("login"));
+    await waitFor(() => expect(mockTrackEvent).toHaveBeenCalledWith("login", { method: "google" }));
   });
 
   it("起動時のセッション復元でも RevenueCat に userId を紐づける", async () => {
