@@ -51,6 +51,10 @@ GEMINI_HAND_MODEL = "gemini-2.5-flash-lite"   # 手牌=素直なタスク
 # Google OAuth クライアントID（公開値。IDトークンの aud 検証に使う。client secret は不要）。
 # web/iOS/Android で別IDを使う場合はカンマ区切りで複数指定可（例: "web...,ios...,android..."）。
 GOOGLE_CLIENT_ID = "561655423126-1r9luc1tveq2ruhkc6a23dp7ems868cq.apps.googleusercontent.com,561655423126-3i5s5c5am9u4g6pijpofomiacttrv5kh.apps.googleusercontent.com"
+# Sign in with Apple の許可 aud（アプリ=Bundle ID / web=Services ID。カンマ区切り。公開値）。
+# 未設定なら /auth/apple は 501。退会時のトークン失効（revoke）は Secrets の
+# APPLE_TEAM_ID / APPLE_KEY_ID / APPLE_PRIVATE_KEY(.p8 の中身) を設定すると有効になる。
+APPLE_CLIENT_ID = "jp.co.plaria.rigel,jp.co.plaria.rigel.web"
 # CORS 許可オリジン（カンマ区切り。web の本番ドメイン。localhost は既定で許可）。
 ALLOWED_ORIGINS = "https://rigel.plaria.co.jp"
 # サブスクの価格ID（公開値・秘密ではない）。RIGEL Next=¥480 / RIGEL Pro=¥1480。

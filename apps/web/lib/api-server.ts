@@ -23,6 +23,7 @@ const serverClient = createApiClient(serverApiBaseUrl());
 // 叩くための一式。認証が要るものは Cookie 由来のトークンを Bearer に渡して使う。
 export const {
   authWithGoogle,
+  authWithApple,
   fetchMe,
   getPublicGameDetail,
   getGame,

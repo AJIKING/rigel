@@ -49,7 +49,12 @@ export function problemLimit(plan: Plan): number | null {
 
 export interface UserProps {
   id: string;
-  googleSub: string;
+  /** Google認証の sub。Apple のみのユーザーは null（googleSub/appleSub の少なくとも一方は必須）。 */
+  googleSub: string | null;
+  /** Apple認証の sub。Google のみのユーザーは null。 */
+  appleSub?: string | null;
+  /** Sign in with Apple の refresh token（退会時の失効=revoke 専用。API には出さない）。 */
+  appleRefreshToken?: string | null;
   plan: Plan;
   analysisCountThisMonth: number;
   /** この時刻を過ぎたら当月カウントをリセットする（= 次のリセット境界）。 */
@@ -78,7 +83,9 @@ export function firstOfNextMonthUtc(now: Date): Date {
 
 export class User {
   readonly id: string;
-  readonly googleSub: string;
+  readonly googleSub: string | null;
+  readonly appleSub: string | null;
+  private _appleRefreshToken: string | null;
   private _plan: Plan;
   private _count: number;
   private _countResetAt: Date;
@@ -90,6 +97,12 @@ export class User {
   constructor(props: UserProps) {
     this.id = props.id;
     this.googleSub = props.googleSub;
+    this.appleSub = props.appleSub ?? null;
+    if (this.googleSub === null && this.appleSub === null) {
+      // 認証プロバイダのIDが1つも無いユーザーはログイン不能な孤児になる（不変条件）。
+      throw new Error("User には googleSub / appleSub の少なくとも一方が必要です");
+    }
+    this._appleRefreshToken = props.appleRefreshToken ?? null;
     this._plan = props.plan;
     this._count = props.analysisCountThisMonth;
     this._countResetAt = props.countResetAt;
@@ -99,12 +112,13 @@ export class User {
     this._planStore = props.planStore ?? null;
   }
 
-  /** 新規ユーザー（Google認証の sub 紐付け）。無料プランで作成する。
-   *  表示名(displayName)/公開ID(handle)は Google 情報を使わずランダム値を入れる（設定画面で変更可）。
+  /** 新規ユーザー（Google/Apple 認証の sub 紐付け。少なくとも一方必須）。無料プランで作成する。
+   *  表示名(displayName)/公開ID(handle)はプロバイダ情報を使わずランダム値を入れる（設定画面で変更可）。
    *  email は運用のためだけに保存する（API には出さない）。 */
   static create(params: {
     id: string;
-    googleSub: string;
+    googleSub?: string | null;
+    appleSub?: string | null;
     now: Date;
     email?: string | null;
     displayName?: string;
@@ -112,7 +126,8 @@ export class User {
   }): User {
     return new User({
       id: params.id,
-      googleSub: params.googleSub,
+      googleSub: params.googleSub ?? null,
+      appleSub: params.appleSub ?? null,
       plan: "free",
       analysisCountThisMonth: 0,
       countResetAt: firstOfNextMonthUtc(params.now),
@@ -120,6 +135,16 @@ export class User {
       displayName: params.displayName,
       handle: params.handle ?? null,
     });
+  }
+
+  /** Sign in with Apple の refresh token（退会時の失効専用。API には出さない）。 */
+  get appleRefreshToken(): string | null {
+    return this._appleRefreshToken;
+  }
+
+  /** Apple の refresh token を保存/更新する（サインイン時の code 交換後に呼ぶ）。 */
+  setAppleRefreshToken(token: string | null): void {
+    this._appleRefreshToken = token;
   }
 
   get plan(): Plan {
@@ -201,6 +226,8 @@ export class User {
     return {
       id: this.id,
       googleSub: this.googleSub,
+      appleSub: this.appleSub,
+      appleRefreshToken: this._appleRefreshToken,
       plan: this._plan,
       analysisCountThisMonth: this._count,
       countResetAt: this._countResetAt,

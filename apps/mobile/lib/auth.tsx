@@ -1,7 +1,7 @@
 import * as SecureStore from "expo-secure-store";
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
 import { AppState } from "react-native";
-import { authWithGoogle, fetchMe, type AuthUser } from "./api";
+import { authWithApple, authWithGoogle, fetchMe, type AuthUser } from "./api";
 import { logInPurchases, logOutPurchases } from "./purchases";
 
 const TOKEN_KEY = "rigel.session";
@@ -12,6 +12,9 @@ interface AuthState {
   token: string | null;
   loading: boolean;
   signInWithGoogle: (idToken: string) => Promise<void>;
+  /** Apple の identityToken でログイン（iOS。App Store 審査要件 4.8）。
+   *  authorizationCode は退会時のトークン失効用（任意）。 */
+  signInWithApple: (idToken: string, authorizationCode?: string) => Promise<void>;
   signOut: () => void;
   /** /me を再取得して user を最新化する（プロフィール保存後など）。 */
   refresh: () => Promise<void>;
@@ -45,14 +48,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     })();
   }, []);
 
-  const signInWithGoogle = useCallback(async (idToken: string) => {
-    const { sessionToken, user: u } = await authWithGoogle(idToken);
-    await SecureStore.setItemAsync(TOKEN_KEY, sessionToken);
-    setToken(sessionToken);
-    setUser(u);
-    // RevenueCat に userId を紐づける（購入がこのアカウントに乗る）。
-    void logInPurchases(u.id);
-  }, []);
+  // サインイン成立後の共通処理（Google/Apple 共通の芯）: トークン保存・状態反映・
+  // RevenueCat に userId を紐づける（購入がこのアカウントに乗る）。
+  const establishSession = useCallback(
+    async ({ sessionToken, user: u }: { sessionToken: string; user: AuthUser }) => {
+      await SecureStore.setItemAsync(TOKEN_KEY, sessionToken);
+      setToken(sessionToken);
+      setUser(u);
+      void logInPurchases(u.id);
+    },
+    [],
+  );
+
+  const signInWithGoogle = useCallback(
+    async (idToken: string) => establishSession(await authWithGoogle(idToken)),
+    [establishSession],
+  );
+
+  const signInWithApple = useCallback(
+    async (idToken: string, authorizationCode?: string) =>
+      establishSession(await authWithApple(idToken, authorizationCode)),
+    [establishSession],
+  );
 
   const signOut = useCallback(() => {
     void SecureStore.deleteItemAsync(TOKEN_KEY);
@@ -77,7 +94,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [refresh]);
 
   return (
-    <AuthContext.Provider value={{ user, token, loading, signInWithGoogle, signOut, refresh }}>
+    <AuthContext.Provider
+      value={{ user, token, loading, signInWithGoogle, signInWithApple, signOut, refresh }}
+    >
       {children}
     </AuthContext.Provider>
   );

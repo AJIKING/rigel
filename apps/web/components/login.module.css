@@ -136,6 +136,33 @@
   min-height: 44px;
 }
 
+/* Sign in with Apple ボタン（HIG 準拠: 黒地・白文字・Apple ロゴ）。GIS ボタン(320px)と幅を揃える。 */
+.abtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 320px;
+  max-width: 100%;
+  min-height: 40px;
+  margin-top: 10px;
+  background: #000;
+  color: #fff;
+  border: 1px solid #000;
+  border-radius: 4px;
+  font-size: 14.5px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+.abtn:hover:not(:disabled) {
+  opacity: 0.88;
+}
+.abtn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
 /* ログインせず公開牌譜を見る導線（Google ボタンの下） */
 .browse {
   margin-top: 12px;

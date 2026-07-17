@@ -1,9 +1,26 @@
 // interfaces/http/routes — 認証・アカウント・プロフィールのルート。
-// /auth/google、/me 系、公開プロフィール。
+// /auth/google・/auth/apple、/me 系、公開プロフィール。
 
-import type { Hono } from "hono";
+import type { Context, Hono } from "hono";
+import type { User } from "../../../domain/user/user";
 import { monthlyCallQuota } from "../../../domain/user/user";
 import { requireAuth, userProfileJson, type AppEnv } from "../shared";
+
+/** /auth/xxx 共通のレスポンス整形。成功=200/201（/me と同じプロフィール項目を同梱し、
+ *  ログイン直後の設定画面が /me 再取得なしで handle/表示名を出せるように）。
+ *  検証失敗は 401（プロバイダ名以外の詳細は返さない）。 */
+async function respondAuth(
+  c: Context<AppEnv>,
+  provider: string,
+  run: () => Promise<{ sessionToken: string; user: User; created: boolean }>,
+) {
+  try {
+    const { sessionToken, user, created } = await run();
+    return c.json({ sessionToken, created, user: userProfileJson(user) }, created ? 201 : 200);
+  } catch {
+    return c.json({ error: `invalid ${provider} token` }, 401);
+  }
+}
 
 export function registerAccountRoutes(app: Hono<AppEnv>): void {
   // Google ID トークンでログイン → 自前セッショントークンを発行。
@@ -12,16 +29,31 @@ export function registerAccountRoutes(app: Hono<AppEnv>): void {
     if (typeof body?.idToken !== "string") {
       return c.json({ error: "idToken required" }, 400);
     }
-    try {
-      const { sessionToken, user, created } = await c
-        .get("container")
-        .authenticateWithGoogle.execute({ idToken: body.idToken });
-      // /me と同じプロフィール項目を同梱する。ログイン直後の設定画面が
-      // 自動設定済みの handle/表示名を（/me 再取得なしで）すぐ表示できるように。
-      return c.json({ sessionToken, created, user: userProfileJson(user) }, created ? 201 : 200);
-    } catch {
-      return c.json({ error: "invalid Google token" }, 401);
+    const idToken = body.idToken;
+    return respondAuth(c, "Google", () =>
+      c.get("container").authenticateWithGoogle.execute({ idToken }),
+    );
+  });
+
+  // Apple ID トークンでログイン（App Store 審査要件 4.8。/auth/google と対称）。
+  // authorizationCode は退会時のトークン失効（revoke）用の refresh token 交換に使う（任意）。
+  app.post("/auth/apple", async (c) => {
+    if (!c.get("container").appleAuthEnabled) {
+      return c.json({ error: "apple auth not configured" }, 501);
     }
+    const body = (await c.req.json().catch(() => null)) as {
+      idToken?: unknown;
+      authorizationCode?: unknown;
+    } | null;
+    if (typeof body?.idToken !== "string") {
+      return c.json({ error: "idToken required" }, 400);
+    }
+    const idToken = body.idToken;
+    const authorizationCode =
+      typeof body.authorizationCode === "string" ? body.authorizationCode : undefined;
+    return respondAuth(c, "Apple", () =>
+      c.get("container").authenticateWithApple.execute({ idToken, authorizationCode }),
+    );
   });
 
   // 認証済みユーザー自身（プランと当月の利用量・上限）。

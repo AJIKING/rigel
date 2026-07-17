@@ -164,7 +164,7 @@
 | バックエンド | Cloudflare Workers (TypeScript) + **Hono**（HTTP） | [決定] |
 | API 構成 | **DDD レイヤード**（domain/application/infrastructure/interfaces）| [決定]（[開発ガイド/05](開発ガイド/05_APIアーキテクチャ.md)） |
 | DB | Cloudflare D1 (SQLite) + **Drizzle ORM** | [決定] |
-| 認証 | Google認証のみ | [決定]（実装は後回し） |
+| 認証 | Google + **Sign in with Apple**（web/アプリ両対応） | [決定]（2026-07-17 更新。App Store 審査要件 4.8 で Apple 併設が必須。実装済み: `/auth/google`・`/auth/apple`。退会時は Apple トークンを revoke（TN3194）。計画: [plans/sign-in-with-apple.md](plans/sign-in-with-apple.md)） |
 | AI | Gemini API + AI Gateway | [決定] |
 | 画像保存 | しない | [決定] |
 

@@ -11,6 +11,8 @@ function toDomain(row: UserRow): User {
   return new User({
     id: row.id,
     googleSub: row.googleSub,
+    appleSub: row.appleSub,
+    appleRefreshToken: row.appleRefreshToken,
     plan: row.plan,
     analysisCountThisMonth: row.analysisCountThisMonth,
     countResetAt: row.countResetAt,
@@ -34,6 +36,11 @@ export class DrizzleUserRepository implements UserRepository {
     return row ? toDomain(row) : null;
   }
 
+  async findByAppleSub(appleSub: string): Promise<User | null> {
+    const row = await this.db.select().from(users).where(eq(users.appleSub, appleSub)).get();
+    return row ? toDomain(row) : null;
+  }
+
   async findByHandle(handle: string): Promise<User | null> {
     const row = await this.db.select().from(users).where(eq(users.handle, handle)).get();
     return row ? toDomain(row) : null;
@@ -44,6 +51,8 @@ export class DrizzleUserRepository implements UserRepository {
     const values = {
       id: p.id,
       googleSub: p.googleSub,
+      appleSub: p.appleSub,
+      appleRefreshToken: p.appleRefreshToken,
       email: p.email,
       plan: p.plan,
       planStore: p.planStore,
@@ -58,6 +67,8 @@ export class DrizzleUserRepository implements UserRepository {
       .onConflictDoUpdate({
         target: users.id,
         set: {
+          // 再サインインで refresh token が更新される（sub は不変なので set に含めない）。
+          appleRefreshToken: p.appleRefreshToken,
           email: p.email,
           plan: p.plan,
           planStore: p.planStore,

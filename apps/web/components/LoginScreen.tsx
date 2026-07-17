@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { useAuth } from "../lib/auth-context";
+import { AppleSignInButton } from "./AppleSignInButton";
 import { GoogleSignInButton } from "./GoogleSignInButton";
 import { BrandMark } from "./BrandMark";
 import s from "./login.module.css";
@@ -39,11 +40,14 @@ export function LoginScreen() {
           ) : (
             <>
               <p className={s.tagline}>
-                牌譜の保存・共有には Google ログインが必要です。
+                牌譜の保存・共有にはログインが必要です。
                 <br />
                 公開牌譜の閲覧はどなたでも可能です。
               </p>
               <GoogleSignInButton />
+              {/* App Store 審査要件 4.8: Apple ログインを併設（iOS アプリと同じアカウントで
+                  web からも入れる）。NEXT_PUBLIC_APPLE_CLIENT_ID 未設定なら出ない。 */}
+              <AppleSignInButton />
               <Link href="/kifu" className={s.browse}>
                 牌譜をみてみる
               </Link>

@@ -3,24 +3,14 @@
 // ------------------------------------------------------------
 // Google ID トークンを検証し、ユーザーを find-or-create して、
 // 自前のセッショントークンを発行する。ポートだけに依存する。
+// find-or-create（ランダムプロフィール付与）は provision-user に集約（Apple と共用）。
 // ============================================================
 
 import type { GoogleTokenVerifier } from "../domain/auth/google-token-verifier";
 import type { SessionService } from "../domain/auth/session";
 import { User } from "../domain/user/user";
 import type { UserRepository } from "../domain/user/user.repository";
-
-/** base をもとに未使用の handle を作る（重複なら連番を足す。20文字上限を守る）。 */
-async function uniqueHandle(users: UserRepository, base: string): Promise<string> {
-  if (!(await users.findByHandle(base))) return base;
-  for (let i = 2; i < 10000; i++) {
-    const suffix = String(i);
-    const candidate = `${base.slice(0, 20 - suffix.length)}${suffix}`;
-    if (!(await users.findByHandle(candidate))) return candidate;
-  }
-  // 事実上到達しない。念のため id ベースで返す（呼び出し側で id は一意）。
-  return base.slice(0, 12);
-}
+import { findOrCreateUser } from "./provision-user";
 
 export interface AuthenticateDeps {
   users: UserRepository;
@@ -43,27 +33,16 @@ export class AuthenticateWithGoogle {
   constructor(private readonly deps: AuthenticateDeps) {}
 
   async execute(params: { idToken: string }): Promise<AuthenticateResult> {
-    const { users, verifier, session, now, newId, randomHandle } = this.deps;
+    const { users, verifier, session } = this.deps;
 
     const identity = await verifier.verify(params.idToken);
 
-    let user = await users.findByGoogleSub(identity.sub);
-    let created = false;
-    if (!user) {
-      // 表示名・公開IDは Google 情報を使わずランダム値を割り当てる（設定画面で変更可）。
-      // email は運用（緊急時・不正アカウント調査）のためだけに保存する（API には出さない）。
-      const handle = await uniqueHandle(users, randomHandle());
-      user = User.create({
-        id: newId(),
-        googleSub: identity.sub,
-        now: now(),
-        email: identity.email,
-        displayName: handle,
-        handle,
-      });
-      await users.save(user);
-      created = true;
-    }
+    const { user, created } = await findOrCreateUser(
+      this.deps,
+      () => users.findByGoogleSub(identity.sub),
+      { googleSub: identity.sub, email: identity.email },
+    );
+    if (created) await users.save(user);
 
     const sessionToken = await session.issue(user.id);
     return { user, sessionToken, created };

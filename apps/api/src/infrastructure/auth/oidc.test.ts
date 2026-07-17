@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { parseAudiences } from "./jose-google-token-verifier";
+import { parseAudiences } from "./oidc";
 
-// verify() 本体は JWKS 取得(ネットワーク)が要るため Unit 対象外。
+// createIdTokenVerifier 本体は JWKS 取得(ネットワーク)が要るため Unit 対象外。
 // aud に許可する client_id 群のパース（純粋関数）だけ検証する。
 describe("parseAudiences（複数 client_id の許可）", () => {
   it("単一IDは1要素の配列にする", () => {

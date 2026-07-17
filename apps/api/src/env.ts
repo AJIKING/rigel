@@ -21,6 +21,15 @@ export interface Env {
   /** Google OAuth クライアントID（ID トークンの aud 検証に使う）。
    *  web/iOS/Android で別クライアントIDを使うため、カンマ区切りで複数指定可。 */
   GOOGLE_CLIENT_ID: string;
+  /** Sign in with Apple の許可 aud（アプリ=Bundle ID / web=Services ID。カンマ区切りで複数可）。
+   *  未設定なら /auth/apple は 501（App Store 提出前に設定必須＝審査要件 4.8）。 */
+  APPLE_CLIENT_ID?: string;
+  /** Apple Developer の Team ID（退会時のトークン失効=revoke 用。未設定なら失効をスキップ）。 */
+  APPLE_TEAM_ID?: string;
+  /** Sign in with Apple キーの Key ID（revoke 用）。 */
+  APPLE_KEY_ID?: string;
+  /** Sign in with Apple キー .p8 の中身（Secret。revoke 用）。 */
+  APPLE_PRIVATE_KEY?: string;
   /** CORS 許可オリジン（カンマ区切り。例: "https://rigel.plaria.co.jp"）。
    *  localhost 開発オリジンは既定で常に許可するので本番ドメインだけ列挙すればよい。 */
   ALLOWED_ORIGINS?: string;

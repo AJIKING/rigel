@@ -4,6 +4,7 @@
 //   DeleteAccount: 自分の牌譜・半荘・ユーザーを削除（カスケード）。
 
 import { KIFU_LIMITS } from "@rigel/schema";
+import type { AppleAuthGateway } from "../domain/auth/apple-auth-gateway";
 import type { GameRepository } from "../domain/game/game.repository";
 import type { GameLogRepository } from "../domain/kifu/game-log.repository";
 import type { AccountStore } from "../domain/user/account-store";
@@ -102,6 +103,8 @@ export class DeleteAccount {
   constructor(
     private readonly users: UserRepository,
     private readonly store: AccountStore,
+    /** Sign in with Apple のトークン失効（App Store 審査要件）。鍵未設定の環境は null。 */
+    private readonly appleAuth: AppleAuthGateway | null = null,
   ) {}
 
   async execute(userId: string): Promise<DeleteAccountResult> {
@@ -110,6 +113,11 @@ export class DeleteAccount {
     // 有料プラン契約中は削除させない（サブスクを止めないまま消えると請求が残るため）。
     // 解約して free に戻してから削除する導線にする。
     if (user.plan !== "free") return { ok: false, reason: "paid_plan" };
+    // Sign in with Apple のトークン失効（TN3194）。失効の失敗で退会を止めない
+    // （ユーザーの削除権を優先。ベストエフォート）。
+    if (user.appleRefreshToken && this.appleAuth) {
+      await this.appleAuth.revokeToken(user.appleRefreshToken).catch(() => undefined);
+    }
     // 削除は1トランザクション（回答→問題→局→半荘→ユーザー）。個別に順次消すと
     // 途中失敗で中途半端に消えた孤児が残る。
     await this.store.deleteAll(userId);

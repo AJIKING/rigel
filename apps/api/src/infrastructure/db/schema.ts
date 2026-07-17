@@ -15,9 +15,14 @@ import { index, integer, primaryKey, sqliteTable, text } from "drizzle-orm/sqlit
 export const users = sqliteTable("users", {
   /** UUID。 */
   id: text("id").primaryKey(),
-  /** Google認証の sub（一意）。 */
-  googleSub: text("google_sub").notNull().unique(),
-  /** Google アカウントのメール。緊急時・不正アカウント調査の運用のためだけに保存する。
+  /** Google認証の sub（一意）。Apple のみのユーザーは null（少なくとも一方は必須＝ドメイン層で保証）。 */
+  googleSub: text("google_sub").unique(),
+  /** Apple認証の sub（一意）。Google のみのユーザーは null。 */
+  appleSub: text("apple_sub").unique(),
+  /** Sign in with Apple の refresh token。退会時の失効（revoke。App Store 審査要件）専用。
+   *  API では絶対にレスポンスしない。 */
+  appleRefreshToken: text("apple_refresh_token"),
+  /** アカウントのメール。緊急時・不正アカウント調査の運用のためだけに保存する。
    *  API では絶対にレスポンスしない（アプリ層の JSON 整形に含めない）。 */
   email: text("email"),
   /** 課金プラン（free / next=RIGEL Next / pro=RIGEL Pro）。 */

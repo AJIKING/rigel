@@ -167,6 +167,43 @@ describe("DeleteAccount", () => {
     expect(await answers.countsByProblem("p2")).toEqual({});
   });
 
+  it("Apple の refresh token があれば退会時に失効させる（失効失敗でも削除は続行）", async () => {
+    const appleUser = new User({
+      id: "u1",
+      googleSub: null,
+      appleSub: "apple-1",
+      appleRefreshToken: "rt-1",
+      plan: "free",
+      analysisCountThisMonth: 0,
+      countResetAt: firstOfNextMonthUtc(NOW),
+    });
+    const revoked: string[] = [];
+    const appleAuth = {
+      exchangeCode: () => Promise.resolve(null),
+      revokeToken: (t: string) => {
+        revoked.push(t);
+        return Promise.reject(new Error("apple down")); // 失敗しても削除は止めない
+      },
+    };
+    const users = new InMemoryUserRepository([appleUser]);
+    const { problems, answers } = problemDeps();
+    const r = await new DeleteAccount(
+      users,
+      new InMemoryAccountStore(
+        users,
+        new InMemoryGameRepository(),
+        new InMemoryGameLogRepository(),
+        problems,
+        answers,
+      ),
+      appleAuth,
+    ).execute("u1");
+
+    expect(r).toEqual({ ok: true });
+    expect(revoked).toEqual(["rt-1"]);
+    expect(await users.findById("u1")).toBeNull();
+  });
+
   it("有料プラン契約中は削除できない（解約が先。データは消さない）", async () => {
     const users = new InMemoryUserRepository([mkUser("u1", "x", "pro")]);
     const games = new InMemoryGameRepository([game("g1", "u1")]);

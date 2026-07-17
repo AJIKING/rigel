@@ -122,7 +122,7 @@ rigel/
 | UI共有手段 | **[未確定]** | Tamagui / RN Web / 自前SVG。牌は SVG 描画想定 |
 | バックエンド | **Cloudflare Workers (TS) + Hono** | HTTP は Hono。api は DDD レイヤード（[開発ガイド/05](docs/開発ガイド/05_APIアーキテクチャ.md)） |
 | DB / ORM | **Cloudflare D1 (SQLite) + Drizzle** | 撮影画像は保存しない。`Kifu` JSON のみ。スキーマ=`apps/api/src/infrastructure/db/schema.ts` |
-| 認証 | **Google認証のみ** | 実装は後回し（M8） |
+| 認証 | **Google + Sign in with Apple** | App Store 審査要件 4.8 で Apple 併設必須（2026-07-17 決定・実装済み）。退会時は Apple トークンを revoke |
 | 課金 | **Web=Stripe / アプリ=IAP（RevenueCat SDK）** | **真実源=RevenueCat**（Webhook だけが plan を書く）。`users.plan` は D1 射影。設計7章・[docs/plans/billing-revenuecat.md](docs/plans/billing-revenuecat.md) |
 | AI | **Gemini API + Cloudflare AI Gateway** | モデル名はハードコードしない。河=Gemini 3 Flash、手牌=Flash-Lite 系 |
 | 画像保存 | **しない** | 解析後 JSON のみ |

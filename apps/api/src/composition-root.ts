@@ -8,6 +8,7 @@
 
 import { AnalyzeAndSaveKifu } from "./application/analyze-and-save-kifu.usecase";
 import { AnalyzeProblemDraft } from "./application/analyze-problem-draft.usecase";
+import { AuthenticateWithApple } from "./application/authenticate-with-apple.usecase";
 import { AuthenticateWithGoogle } from "./application/authenticate-with-google.usecase";
 import { CreateEmptyKifu } from "./application/create-empty-kifu.usecase";
 import { DeleteGame } from "./application/delete-game.usecase";
@@ -41,8 +42,11 @@ import { StartCheckout } from "./application/start-checkout.usecase";
 import { UpdateKifu } from "./application/update-kifu.usecase";
 import type { SessionService } from "./domain/auth/session";
 import type { Env } from "./env";
+import { HttpAppleAuthGateway } from "./infrastructure/auth/http-apple-auth-gateway";
+import { JoseAppleTokenVerifier } from "./infrastructure/auth/jose-apple-token-verifier";
 import { JoseGoogleTokenVerifier } from "./infrastructure/auth/jose-google-token-verifier";
 import { JwtSessionService } from "./infrastructure/auth/jwt-session-service";
+import { parseAudiences } from "./infrastructure/auth/oidc";
 import { DrizzleRevenueCatEventRepository } from "./infrastructure/billing/drizzle-revenuecat-event.repository";
 import { HttpRevenueCatGateway } from "./infrastructure/billing/http-revenuecat-gateway";
 import { StripeBillingGateway } from "./infrastructure/billing/stripe-billing-gateway";
@@ -81,6 +85,9 @@ export interface AppContainer {
   getGameWithLogs: GetGameWithLogs;
   getPublicGameDetail: GetPublicGameDetail;
   authenticateWithGoogle: AuthenticateWithGoogle;
+  authenticateWithApple: AuthenticateWithApple;
+  /** Sign in with Apple の設定（APPLE_CLIENT_ID）が揃っているか。未設定なら /auth/apple は 501。 */
+  appleAuthEnabled: boolean;
   getUser: GetUser;
   updateProfile: UpdateProfile;
   getPublicProfile: GetPublicProfile;
@@ -164,6 +171,20 @@ export function buildContainer(env: Env): AppContainer {
 
   const analysisStore = new DrizzleAnalysisStore(db);
 
+  // Sign in with Apple（App Store 審査要件 4.8）。APPLE_CLIENT_ID 未設定なら受け口は 501。
+  // 退会時のトークン失効（revoke）は .p8 鍵一式が揃っているときだけ有効（ベストエフォート）。
+  const appleClientId = env.APPLE_CLIENT_ID ?? "";
+  const appleAuthEnabled = Boolean(appleClientId);
+  const appleAuth =
+    appleAuthEnabled && env.APPLE_TEAM_ID && env.APPLE_KEY_ID && env.APPLE_PRIVATE_KEY
+      ? new HttpAppleAuthGateway({
+          teamId: env.APPLE_TEAM_ID,
+          keyId: env.APPLE_KEY_ID,
+          privateKey: env.APPLE_PRIVATE_KEY,
+          clientIds: parseAudiences(appleClientId),
+        })
+      : null;
+
   return {
     analyzeAndSaveKifu: new AnalyzeAndSaveKifu({
       users,
@@ -200,10 +221,20 @@ export function buildContainer(env: Env): AppContainer {
       newId,
       randomHandle,
     }),
+    authenticateWithApple: new AuthenticateWithApple({
+      users,
+      verifier: new JoseAppleTokenVerifier(appleClientId),
+      appleAuth,
+      session,
+      now,
+      newId,
+      randomHandle,
+    }),
+    appleAuthEnabled,
     getUser: new GetUser(users),
     updateProfile: new UpdateProfile(users),
     getPublicProfile: new GetPublicProfile(users, gamesRepo, gameLogs),
-    deleteAccount: new DeleteAccount(users, new DrizzleAccountStore(db)),
+    deleteAccount: new DeleteAccount(users, new DrizzleAccountStore(db), appleAuth),
     createProblem: new CreateProblem({ problems, users, now, newId }),
     updateProblem: new UpdateProblem(problems),
     deleteProblem: new DeleteProblem(problems, problemAnswers),

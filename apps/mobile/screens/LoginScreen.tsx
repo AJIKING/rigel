@@ -1,7 +1,8 @@
+import * as AppleAuthentication from "expo-apple-authentication";
 import * as Google from "expo-auth-session/providers/google";
 import * as WebBrowser from "expo-web-browser";
 import { useEffect } from "react";
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Svg, { Path } from "react-native-svg";
 import { BrandMark } from "../components/BrandMark";
@@ -43,7 +44,7 @@ function GoogleLogo() {
 }
 
 export function LoginScreen() {
-  const { signInWithGoogle } = useAuth();
+  const { signInWithGoogle, signInWithApple } = useAuth();
   const [request, response, promptAsync] = Google.useIdTokenAuthRequest(GOOGLE_CONFIG ?? {});
 
   // Google から id_token が返ったらサーバ認証へ。
@@ -53,6 +54,22 @@ export function LoginScreen() {
       if (idToken) void signInWithGoogle(idToken).catch(() => undefined);
     }
   }, [response, signInWithGoogle]);
+
+  // Sign in with Apple（iOS のみ。App Store 審査要件 4.8）。identityToken でサーバ認証し、
+  // authorizationCode は退会時のトークン失効（revoke）用に api 側で refresh token に交換する。
+  async function onApplePress() {
+    try {
+      const cred = await AppleAuthentication.signInAsync({
+        requestedScopes: [AppleAuthentication.AppleAuthenticationScope.EMAIL],
+      });
+      if (cred.identityToken) {
+        await signInWithApple(cred.identityToken, cred.authorizationCode ?? undefined);
+      }
+    } catch {
+      // キャンセル（ERR_REQUEST_CANCELED）を含め黙って戻る（ボタンの再押下でやり直せる。
+      // Google 側の .catch(() => undefined) と同じ流儀）。
+    }
+  }
 
   return (
     <SafeAreaView style={styles.root}>
@@ -78,6 +95,17 @@ export function LoginScreen() {
             Google ログインは未設定です（EXPO_PUBLIC_GOOGLE_CLIENT_ID を設定すると有効化）。
           </Text>
         )}
+        {/* Sign in with Apple（iOS のみ・純正ボタン必須=HIG）。Android には出さない
+            （Play に同種の要件は無い）。 */}
+        {Platform.OS === "ios" ? (
+          <AppleAuthentication.AppleAuthenticationButton
+            buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN}
+            buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.WHITE}
+            cornerRadius={radius.base}
+            style={styles.abtn}
+            onPress={() => void onApplePress()}
+          />
+        ) : null}
         {!request && GOOGLE_CONFIG ? (
           <ActivityIndicator color={colors.accent} style={{ marginTop: 12 }} />
         ) : null}
@@ -105,6 +133,8 @@ const styles = StyleSheet.create({
   },
   gbtnPressed: { opacity: 0.85 },
   gbtnText: { color: "#1f1f1f", fontWeight: "700", fontSize: 15 },
+  // Apple 純正ボタン（高さは HIG の最小 44pt 以上・Google ボタンと幅を揃える）。
+  abtn: { height: 48, marginTop: 10 },
   note: { color: colors.w45, fontSize: 12, textAlign: "center" },
   legal: { color: colors.w45, fontSize: 11, lineHeight: 19, textAlign: "center", marginTop: 16 },
 });

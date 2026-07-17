@@ -8,6 +8,9 @@ interface AuthState {
   loading: boolean;
   /** Google の idToken を BFF に渡してセッション Cookie を張る。 */
   signInWithGoogle: (idToken: string) => Promise<void>;
+  /** Apple の idToken を BFF に渡してセッション Cookie を張る（App Store 審査要件 4.8）。
+   *  authorizationCode は退会時のトークン失効用（任意）。 */
+  signInWithApple: (idToken: string, authorizationCode?: string) => Promise<void>;
   /** セッション Cookie を破棄する。 */
   signOut: () => Promise<void>;
 }
@@ -41,16 +44,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  const signInWithGoogle = useCallback(async (idToken: string) => {
+  // BFF にトークンを渡してセッション Cookie を張る（Google/Apple 共通の芯）。
+  const postSession = useCallback(async (body: Record<string, unknown>) => {
     const res = await fetch("/api/session", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ idToken }),
+      body: JSON.stringify(body),
     });
     if (!res.ok) throw new Error("sign-in failed");
     const d = (await res.json()) as { user: AuthUser };
     setUser(d.user);
   }, []);
+
+  const signInWithGoogle = useCallback(
+    (idToken: string) => postSession({ idToken }),
+    [postSession],
+  );
+
+  const signInWithApple = useCallback(
+    (idToken: string, authorizationCode?: string) =>
+      postSession({ provider: "apple", idToken, authorizationCode }),
+    [postSession],
+  );
 
   const signOut = useCallback(async () => {
     await fetch("/api/session", { method: "DELETE" }).catch(() => {});
@@ -58,7 +73,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, loading, signInWithGoogle, signOut }}>
+    <AuthContext.Provider value={{ user, loading, signInWithGoogle, signInWithApple, signOut }}>
       {children}
     </AuthContext.Provider>
   );

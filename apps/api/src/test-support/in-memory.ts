@@ -38,6 +38,13 @@ export class InMemoryUserRepository implements UserRepository {
     return Promise.resolve(null);
   }
 
+  findByAppleSub(appleSub: string): Promise<User | null> {
+    for (const u of this.byId.values()) {
+      if (u.appleSub === appleSub) return Promise.resolve(u);
+    }
+    return Promise.resolve(null);
+  }
+
   findByHandle(handle: string): Promise<User | null> {
     for (const u of this.byId.values()) {
       if (u.handle === handle) return Promise.resolve(u);

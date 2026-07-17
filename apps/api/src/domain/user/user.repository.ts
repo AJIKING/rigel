@@ -6,6 +6,7 @@ import type { User } from "./user";
 export interface UserRepository {
   findById(id: string): Promise<User | null>;
   findByGoogleSub(googleSub: string): Promise<User | null>;
+  findByAppleSub(appleSub: string): Promise<User | null>;
   /** 公開ハンドルで検索（別ユーザーページ用）。 */
   findByHandle(handle: string): Promise<User | null>;
   /** 新規作成・更新の両方（upsert）。 */

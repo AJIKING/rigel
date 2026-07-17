@@ -11,6 +11,7 @@
     "icon": "./assets/icon.png",
     "ios": {
       "bundleIdentifier": "jp.co.plaria.rigel",
+      "usesAppleSignIn": true,
       "supportsTablet": true,
       "config": {
         "usesNonExemptEncryption": false
@@ -35,6 +36,6 @@
     "web": {
       "favicon": "./assets/favicon.png"
     },
-    "plugins": ["expo-secure-store", "./plugins/with-openiap-pin"]
+    "plugins": ["expo-secure-store", "expo-apple-authentication", "./plugins/with-openiap-pin"]
   }
 }

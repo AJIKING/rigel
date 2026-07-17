@@ -235,6 +235,17 @@ describe("HTTP app (Hono)", () => {
     expect(res.status).toBe(401);
   });
 
+  it("POST /auth/apple は APPLE_CLIENT_ID 未設定なら 501", async () => {
+    const res = await app.request("/auth/apple", jsonInit({ idToken: "x" }), fakeEnv);
+    expect(res.status).toBe(501);
+  });
+
+  it("POST /auth/apple は idToken が無ければ 400", async () => {
+    const env = { ...fakeEnv, APPLE_CLIENT_ID: "jp.rigel.app" } satisfies Env;
+    const res = await app.request("/auth/apple", jsonInit({}), env);
+    expect(res.status).toBe(400);
+  });
+
   it("POST /auth/google は idToken が無ければ 400", async () => {
     const res = await app.request("/auth/google", jsonInit({}), fakeEnv);
     expect(res.status).toBe(400);

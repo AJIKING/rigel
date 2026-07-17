@@ -125,6 +125,30 @@ describe("createApiClient", () => {
     await expect(client.authWithGoogle("idtok")).rejects.toThrow(/500/);
   });
 
+  it("authWithApple は idToken と authorizationCode を /auth/apple に送る", async () => {
+    const client = createApiClient(
+      "https://api.test",
+      fakeFetch2((url, init) => {
+        expect(url).toBe("https://api.test/auth/apple");
+        expect(JSON.parse(String(init?.body))).toEqual({
+          idToken: "idtok",
+          authorizationCode: "code-1",
+        });
+        return json({ sessionToken: "s1", created: true, user: { id: "u1" } });
+      }),
+    );
+    const result = await client.authWithApple("idtok", "code-1");
+    expect(result.sessionToken).toBe("s1");
+  });
+
+  it("authWithApple は失敗時に例外", async () => {
+    const client = createApiClient(
+      "https://api.test",
+      fakeFetch(() => new Response("err", { status: 401 })),
+    );
+    await expect(client.authWithApple("idtok")).rejects.toThrow(/401/);
+  });
+
   it("analyze は 201 で gameId/logId を返す", async () => {
     const client = createApiClient(
       "https://api.test",
