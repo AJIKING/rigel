@@ -700,6 +700,32 @@ export function problemTargetTile(problem: Problem): Tile | null {
   return river[river.length - 1]?.tile ?? null;
 }
 
+// ============================================================
+// 特訓クイズ（60秒タイムアタック）の結果
+// ------------------------------------------------------------
+// AI 非関与・クライアント採点。サーバは QuizResultSchema を通った結果だけを
+// 記録する（Plan: docs/plans/quiz-training.md）。上限は「量」の防御
+//（乱用でグラフ・D1 を荒らさせない）。
+// ============================================================
+
+/** クイズ種別。chinitsu=清一色多面待ち / efficiency=牌効率。 */
+export const QuizKindSchema = z.enum(["chinitsu", "efficiency"]);
+export type QuizKind = z.infer<typeof QuizKindSchema>;
+
+/** 60秒セッション1回の結果（クライアント採点をサーバに記録する形）。 */
+export const QuizResultSchema = z
+  .object({
+    kind: QuizKindSchema,
+    /** 出題数（回答した数）。 */
+    total: z.number().int().min(0).max(100),
+    /** 正解数（total 以下）。 */
+    correct: z.number().int().min(0),
+    /** 所要ミリ秒（60秒+余裕。上限 120000）。 */
+    durationMs: z.number().int().min(0).max(120_000),
+  })
+  .refine((r) => r.correct <= r.total, { message: "correct は total 以下" });
+export type QuizResult = z.infer<typeof QuizResultSchema>;
+
 /**
  * 回答者のアクションがこの問題の答えとして成立するか。
  * 出題形式との一致と、切る牌が手牌（何切るはツモ牌も）にあることを確かめる。
