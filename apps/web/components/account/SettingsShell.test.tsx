@@ -104,6 +104,16 @@ describe("SettingsShell: プラン購入（free → 有料）", () => {
   );
 });
 
+describe("SettingsShell: 料金プランカードの提供内容", () => {
+  it("特訓クイズの行が出る（free=1日3回・next/pro=無制限。PLAN_FEATURES 経由の自動反映）", async () => {
+    await renderSettings("free");
+
+    fireEvent.click(screen.getByRole("button", { name: "プラン変更" }));
+    expect(screen.getByText("特訓クイズ 1日3回")).toBeTruthy();
+    expect(screen.getAllByText("特訓クイズ 無制限")).toHaveLength(2); // Next / Pro
+  });
+});
+
 describe("SettingsShell: 加入中ユーザー", () => {
   it("現在のプラン名と解析枠が表示され、モーダルでは現在プランが「利用中」で無効になる", async () => {
     await renderSettings("next", { remainingCalls: 92, monthlyCallQuota: 100 });

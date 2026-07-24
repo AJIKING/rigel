@@ -29,11 +29,13 @@ jest.mock("../lib/use-kifu-data", () => ({
 }));
 
 const mockGetMyProblems = jest.fn();
+const mockListQuizSessions = jest.fn();
 jest.mock("../lib/api", () => ({
   deleteGame: jest.fn(),
   getMyProblems: (...args: unknown[]) => mockGetMyProblems(...args),
   updateProblem: jest.fn(),
   deleteProblem: jest.fn(),
+  listQuizSessions: (...args: unknown[]) => mockListQuizSessions(...args),
 }));
 
 /** MyPageScreen は制御コンポーネント（状態は HomeTabs 持ち）。テストでは薄い state で包む。 */
@@ -46,6 +48,7 @@ describe("MyPageScreen（マイページ：牌譜/何切るの切替）", () => 
   beforeEach(() => {
     jest.clearAllMocks();
     mockGetMyProblems.mockResolvedValue([makePost({ id: "p1", title: "公開中の問題" })]);
+    mockListQuizSessions.mockResolvedValue([]);
   });
 
   it("初期表示は牌譜タブ（自分の半荘一覧が出て、何切るの内容は出ない）", () => {
@@ -69,6 +72,17 @@ describe("MyPageScreen（マイページ：牌譜/何切るの切替）", () => 
 
     fireEvent.press(screen.getByText("牌譜"));
     expect(screen.getByText("東風戦")).toBeTruthy();
+    expect(screen.queryByText("公開中の問題")).toBeNull();
+  });
+
+  it("セグメントを特訓に切り替えると特訓の履歴（サマリ・空状態）が出る", async () => {
+    render(<Harness />);
+
+    fireEvent.press(screen.getByText("特訓"));
+    expect(await screen.findByText("回数 0")).toBeTruthy();
+    expect(screen.getByText("まだ記録がありません")).toBeTruthy();
+    expect(mockListQuizSessions).toHaveBeenCalledWith("t");
+    expect(screen.queryByText("東風戦")).toBeNull();
     expect(screen.queryByText("公開中の問題")).toBeNull();
   });
 });

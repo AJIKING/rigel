@@ -32,12 +32,24 @@ jest.mock("./SettingsScreen", () => {
   const { Text } = jest.requireActual("react-native");
   return { SettingsScreen: () => React.createElement(Text, null, "設定画面") };
 });
+jest.mock("./TrainingScreen", () => {
+  const React = jest.requireActual("react");
+  const { Pressable, Text } = jest.requireActual("react-native");
+  return {
+    TrainingScreen: ({ onOpenSettings }: { onOpenSettings?: () => void }) =>
+      React.createElement(
+        Pressable,
+        { onPress: onOpenSettings },
+        React.createElement(Text, null, "特訓画面"),
+      ),
+  };
+});
 
 describe("HomeTabs（ボトムタブ）", () => {
-  it("タブは牌譜/何切る/マイページ/設定の4つで、作成タブは無い。初期表示は牌譜（公開一覧）", () => {
+  it("タブは牌譜/何切る/特訓/マイページ/設定の5つで、作成タブは無い。初期表示は牌譜（公開一覧）", () => {
     render(<HomeTabs />);
 
-    for (const label of ["牌譜", "何切る", "マイページ", "設定"]) {
+    for (const label of ["牌譜", "何切る", "特訓", "マイページ", "設定"]) {
       expect(screen.getByText(label)).toBeTruthy();
     }
     expect(screen.queryByText("作成")).toBeNull();
@@ -47,6 +59,7 @@ describe("HomeTabs（ボトムタブ）", () => {
 
   it.each([
     ["何切る", "マイ何切るへ"],
+    ["特訓", "特訓画面"],
     ["マイページ", "マイページ画面:kifu"],
     ["設定", "設定画面"],
   ])("「%s」タブを押すとその画面に切り替わる", (tabLabel, content) => {
@@ -55,6 +68,14 @@ describe("HomeTabs（ボトムタブ）", () => {
     fireEvent.press(screen.getByText(tabLabel));
     expect(screen.getByText(content)).toBeTruthy();
     expect(screen.queryByText("公開一覧画面")).toBeNull();
+  });
+
+  it("特訓のアップグレード導線（onOpenSettings）は設定タブ（プラン変更 UI）を開く", () => {
+    render(<HomeTabs />);
+
+    fireEvent.press(screen.getByText("特訓"));
+    fireEvent.press(screen.getByText("特訓画面"));
+    expect(screen.getByText("設定画面")).toBeTruthy();
   });
 
   it("何切る一覧の「マイ何切る」導線はマイページタブを何切るセグメントで開く", () => {

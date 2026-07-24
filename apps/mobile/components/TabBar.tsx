@@ -3,7 +3,7 @@ import Svg, { Circle, Path } from "react-native-svg";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { colors } from "../lib/theme";
 
-export type MainTab = "pub" | "problems" | "my" | "set";
+export type MainTab = "pub" | "problems" | "training" | "my" | "set";
 
 function Icon({ name, color }: { name: MainTab; color: string }) {
   const p = {
@@ -26,6 +26,13 @@ function Icon({ name, color }: { name: MainTab; color: string }) {
           {/* 牌（縦長の角丸タイル＋中央の目）。何切る＝牌の選択のメタファ。 */}
           <Path d="M8 3.5h8a2 2 0 012 2v13a2 2 0 01-2 2H8a2 2 0 01-2-2v-13a2 2 0 012-2z" {...p} />
           <Circle cx={12} cy={12} r={2.4} {...p} />
+        </>
+      )}
+      {name === "training" && (
+        <>
+          {/* ストップウォッチ（60秒タイムアタックのメタファ）。 */}
+          <Circle cx={12} cy={13.5} r={7} {...p} />
+          <Path d="M10 2.5h4M12 2.5v2M12 13.5V9.5M16.8 8.2l1.4-1.4" {...p} />
         </>
       )}
       {name === "my" && (
@@ -51,11 +58,13 @@ function Icon({ name, color }: { name: MainTab; color: string }) {
 const TABS: { key: MainTab; label: string }[] = [
   { key: "pub", label: "牌譜" },
   { key: "problems", label: "何切る" },
+  { key: "training", label: "特訓" },
   { key: "my", label: "マイページ" },
   { key: "set", label: "設定" },
 ];
 
-/** 自前のボトムタブ（牌譜 / 何切る / マイページ / 設定）。作成導線はマイページ内の「＋ 新規」。 */
+/** 自前のボトムタブ（牌譜 / 何切る / 特訓 / マイページ / 設定）。作成導線はマイページ内の「＋ 新規」。
+ *  並びは web ヘッダ（牌譜・何切る・特訓・マイページ）と揃える。 */
 export function TabBar({
   active,
   onSelect,

@@ -18,6 +18,7 @@ export type {
   ProblemPost,
   ProblemStats,
   ProblemStatus,
+  QuizSessionDto,
 } from "@rigel/client";
 
 const client = createApiClient(process.env.EXPO_PUBLIC_API_URL ?? "");
@@ -53,4 +54,7 @@ export const {
   deleteProblem,
   answerProblem,
   getProblemStats,
+  startQuizSession,
+  finishQuizSession,
+  listQuizSessions,
 } = client;

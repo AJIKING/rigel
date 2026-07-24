@@ -7,6 +7,8 @@ import {
   type Players,
   type Problem,
   type ProblemAction,
+  type QuizKind,
+  type QuizResult,
   type Rules,
   type Seat,
 } from "@rigel/schema";
@@ -15,6 +17,8 @@ import {
   analyzeProblem,
   answerProblem,
   createCheckout,
+  finishQuizSession,
+  startQuizSession,
   createPortal,
   createEmptyKifu,
   createGame,
@@ -176,4 +180,18 @@ export async function answerProblemAction(problemId: string, action: ProblemActi
 /** 回答分布＋自分の回答（要ログイン）。 */
 export async function getProblemStatsAction(problemId: string) {
   return getProblemStats(await requireToken(), problemId);
+}
+
+// ------------------------------------------------------------
+// 特訓クイズ（60秒タイムアタック）。要ログイン。
+// ------------------------------------------------------------
+
+/** 特訓クイズを開始する（無料は1日3回・開始時に1回消費をサーバ強制。超過は status 402）。 */
+export async function startQuizSessionAction(kind: QuizKind) {
+  return startQuizSession(await requireToken(), kind);
+}
+
+/** 60秒セッションの結果（クライアント採点）を記録する。 */
+export async function finishQuizSessionAction(sessionId: string, result: QuizResult) {
+  return finishQuizSession(await requireToken(), sessionId, result);
 }

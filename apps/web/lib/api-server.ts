@@ -54,4 +54,7 @@ export const {
   deleteProblem,
   answerProblem,
   getProblemStats,
+  startQuizSession,
+  finishQuizSession,
+  listQuizSessions,
 } = serverClient;

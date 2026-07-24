@@ -4,17 +4,20 @@ import { Segment } from "../components/Segment";
 import { colors } from "../lib/theme";
 import { MyListScreen } from "./MyListScreen";
 import { MyProblemsScreen } from "./MyProblemsScreen";
+import { MyTrainingScreen } from "./MyTrainingScreen";
 
-/** マイページの表示対象（牌譜=自分の半荘 / 何切る=自分の問題）。 */
-export type MyPageSegment = "kifu" | "problems";
+/** マイページの表示対象（牌譜=自分の半荘 / 何切る=自分の問題 / 特訓=クイズ履歴）。 */
+export type MyPageSegment = "kifu" | "problems" | "training";
 
 const SEGMENTS = [
   ["kifu", "牌譜"],
   ["problems", "何切る"],
+  ["training", "特訓"],
 ] as const;
 
 /**
- * マイページ。上部の Segment で「牌譜（マイ半荘一覧）/ 何切る（マイ問題管理）」を切り替える。
+ * マイページ。上部の Segment で「牌譜（マイ半荘一覧）/ 何切る（マイ問題管理）/
+ * 特訓（クイズ履歴+グラフ。本人のみ）」を切り替える。
  * 選択状態は親（HomeTabs）が持つ制御コンポーネント（何切る公開一覧の「マイ何切る」導線から
  * 何切るセグメントを直接開けるようにするため）。
  */
@@ -31,7 +34,13 @@ export function MyPageScreen({
       <View style={styles.segRow}>
         <Segment options={SEGMENTS} value={segment} onChange={onChangeSegment} />
       </View>
-      {segment === "kifu" ? <MyListScreen /> : <MyProblemsScreen />}
+      {segment === "kifu" ? (
+        <MyListScreen />
+      ) : segment === "problems" ? (
+        <MyProblemsScreen />
+      ) : (
+        <MyTrainingScreen />
+      )}
     </View>
   );
 }

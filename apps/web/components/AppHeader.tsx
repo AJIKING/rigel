@@ -7,12 +7,16 @@ import { BrandMark } from "./BrandMark";
 import s from "./app-header.module.css";
 
 /**
- * アプリ共通ヘッダー。ナビは「牌譜（公開一覧）・何切る（公開一覧）・マイページ」。
- *  - 未ログイン: 牌譜・何切るのみ。右肩は「ログイン」ボタン（マイページ・アバターは出さない）。
+ * アプリ共通ヘッダー。ナビは「牌譜（公開一覧）・何切る（公開一覧）・特訓・マイページ」。
+ *  - 未ログイン: 牌譜・何切る・特訓のみ。右肩は「ログイン」ボタン（マイページ・アバターは出さない）。
  *  - ログイン中: マイページが加わり、右肩は設定へ飛ぶアバター。
  * `active` で現在地のタブをハイライトする。
  */
-export function AppHeader({ active }: { active?: "kifu" | "problems" | "mypage" | "settings" }) {
+export function AppHeader({
+  active,
+}: {
+  active?: "kifu" | "problems" | "training" | "mypage" | "settings";
+}) {
   const { user, loading } = useAuth();
   const router = useRouter();
 
@@ -30,6 +34,9 @@ export function AppHeader({ active }: { active?: "kifu" | "problems" | "mypage" 
         </Link>
         <Link href="/problems" className={`${s.navItem} ${active === "problems" ? s.on : ""}`}>
           何切る
+        </Link>
+        <Link href="/training" className={`${s.navItem} ${active === "training" ? s.on : ""}`}>
+          特訓
         </Link>
         {user && (
           <Link href="/mypage" className={`${s.navItem} ${active === "mypage" ? s.on : ""}`}>
