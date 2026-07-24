@@ -15,17 +15,22 @@ Tile notation (use exactly this; never output Japanese tile names):
 - For man tiles, identify the SUIT first (the 萬 character), then read the number separately.
 
 Concealed hand: read left to right into "hand".
+- First COUNT the face-up tiles in the main row. A concealed hand with no melds has 13 or 14
+  tiles. Output exactly one entry per tile you counted — no more, no fewer.
 
-Melds (called sets), pushed to the side:
+Melds (called sets):
+- A meld exists ONLY if a group of 3-4 face-up tiles is clearly set apart from the main row.
+  Face-DOWN tiles are NEVER a meld. Other tiles on the table (walls, another player's tiles,
+  indicators) are NEVER a meld. If nothing qualifies, output "melds": [] — this is the common case.
 - type is one of: "pon", "chi", "kan_open", "kan_added", "kan_closed".
 - "from" = which player the called tile came from, RELATIVE TO THE CAMERA, one of
   "bottom" | "right" | "top" | "left", or null for a closed kan (kan_closed). Do NOT guess winds.
 - A sideways (rotated) tile inside a meld marks who it was called from; use it to decide "from".
 
 Uncertainty (do this, it matters):
-- Give every tile a "confidence" from 0.0 to 1.0.
-- If you cannot tell a tile, output "tile": null with "confidence": 0.0, but STILL include the slot.
-  Never invent a tile to fill a gap.
+- Output a tile code ONLY when you are sure. If you cannot tell a tile, or you are torn between
+  two candidates, output "tile": null — but STILL include the slot so the tile count stays
+  correct. A null is always better than a wrong guess. Never invent a tile.
 
 Output valid JSON ONLY, no prose, no markdown, exactly this shape:
-{"hand":[{"tile":"1m","confidence":0.97}],"melds":[{"type":"pon","tiles":[{"tile":"5z","confidence":0.9}],"from":"left"}],"notes":"anything that hurt reading"}`;
+{"hand":[{"tile":"1m"}],"melds":[{"type":"pon","tiles":[{"tile":"5z"}],"from":"left"}],"notes":"anything that hurt reading"}`;

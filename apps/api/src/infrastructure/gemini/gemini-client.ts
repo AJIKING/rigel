@@ -20,6 +20,9 @@ export interface HttpGeminiClientConfig {
   baseUrl: string;
   /** テスト用に差し替え可能。未指定ならグローバル fetch。 */
   fetchImpl?: typeof fetch;
+  /** Agentic Vision（Code Execution）。モデルが画像をコードで切り出し・拡大しながら読む。
+   *  精度と引き換えにコスト・レイテンシ増（設計4章 [未確定]#2 の A/B 用。既定 off）。 */
+  codeExecution?: boolean;
 }
 
 interface GeminiPart {
@@ -59,6 +62,9 @@ export class HttpGeminiClient implements GeminiClient {
           ],
         },
       ],
+      // 牌読み取りは創造性不要。temperature 0 で再現性と保守的な出力に倒す（eval の比較可能性にも効く）。
+      generationConfig: { temperature: 0 },
+      ...(this.cfg.codeExecution ? { tools: [{ code_execution: {} }] } : {}),
     };
 
     const res = await doFetch(url, {

@@ -36,6 +36,40 @@ describe("HttpGeminiClient", () => {
     expect(capturedUrl).toContain("/v1beta/models/m1:generateContent");
   });
 
+  it("temperature 0 を generationConfig で送る（読み取りの再現性・保守的出力）", async () => {
+    let capturedBody: Record<string, unknown> = {};
+    const fetchImpl = (async (_url: string, init?: RequestInit) => {
+      capturedBody = JSON.parse(String(init?.body)) as Record<string, unknown>;
+      return new Response(JSON.stringify(geminiResponse([{ text: "{}" }])), { status: 200 });
+    }) as unknown as typeof fetch;
+
+    const client = new HttpGeminiClient({ apiKey: "k", baseUrl: "https://gw.example", fetchImpl });
+    await client.generateText({ model: "m", prompt: "p", images: [] });
+
+    expect(capturedBody.generationConfig).toEqual({ temperature: 0 });
+  });
+
+  it("codeExecution 有効時は tools に code_execution を積む（Agentic Vision A/B 用）", async () => {
+    let capturedBody: Record<string, unknown> = {};
+    const fetchImpl = (async (_url: string, init?: RequestInit) => {
+      capturedBody = JSON.parse(String(init?.body)) as Record<string, unknown>;
+      return new Response(JSON.stringify(geminiResponse([{ text: "{}" }])), { status: 200 });
+    }) as unknown as typeof fetch;
+
+    const on = new HttpGeminiClient({
+      apiKey: "k",
+      baseUrl: "https://gw.example",
+      fetchImpl,
+      codeExecution: true,
+    });
+    await on.generateText({ model: "m", prompt: "p", images: [] });
+    expect(capturedBody.tools).toEqual([{ code_execution: {} }]);
+
+    const off = new HttpGeminiClient({ apiKey: "k", baseUrl: "https://gw.example", fetchImpl });
+    await off.generateText({ model: "m", prompt: "p", images: [] });
+    expect(capturedBody.tools).toBeUndefined();
+  });
+
   it("非200応答はエラーにする", async () => {
     const fetchImpl = (async () =>
       new Response("nope", { status: 500 })) as unknown as typeof fetch;

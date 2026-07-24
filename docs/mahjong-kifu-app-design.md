@@ -101,7 +101,7 @@
                                          ↓
               1つの Kifu オブジェクトに組み立て → KifuSchema で最終検証
                                          ↓
-                   ドラフトとしてUIへ（confidence低=要確認ハイライト）
+                   ドラフトとしてUIへ（全牌目検前提。null=必ず直すハイライト）
 ```
 
 ### [決定] 河の4分割
@@ -111,9 +111,16 @@
 - 実装: 切り出し/回転の決定は `apps/api/src/infrastructure/gemini/river-layout.ts`（純粋・テスト済み）、ピクセル操作は `@cf-wasm/photon`（WASM）。**[要実機検証]** 切り出し精度と left/right の回転角は実画像で調整（[開発ガイド/05](開発ガイド/05_APIアーキテクチャ.md)）。
 
 ### [決定] モデル選定
-- **手牌**: 素直なタスク（正立・横一列）。`Gemini Flash-Lite` 系で十分（入力 約$0.25 / 出力 約$1.50 per 1M tokens）。
-- **河**: 難所。`Gemini 3 Flash`。必要に応じて **Agentic Vision（Code Execution）** を併用（入力 約$0.50 / 出力 約$3.00 per 1M tokens）。
-- **[未確定] Agentic Vision の要否**: 河を4分割＋正立した後なら、素のFlashで読める可能性が高い（コスト削減）。**同じ画像で「素のFlash」と「Code Execution有り」をA/B比較して決める**。分割で条件が良くなったぶん、Agentic Vision無しで足りるかもしれない。
+- **手牌**: 当初は Flash-Lite 系の想定だったが、**[決定] 2026-07-24: Flash 系へ変更**。
+  eval 実測（RTD 中継の斜め手牌2枚）で flash-lite 42.9%/28.6% → flash 85.7%/71.4% と決定的な差。
+  斜めアングルの手牌に Lite は力不足（精度がサービスの成否を握るため精度優先）。
+- **河**: 難所。`Gemini 3 Flash` 系。必要に応じて **Agentic Vision（Code Execution）** を併用（入力 約$0.50 / 出力 約$3.00 per 1M tokens）。
+- **[決定] 2026-07-24: Agentic Vision は既定 off**（A/B 実測済み）。eval データセット（スクショ10ターゲット）で
+  素の Flash 84.0% vs Code Execution 併用 87.1%（9ターゲット・1件はタイムアウト）。クリーンな河は 100% に
+  上がる一方、**1呼び出しが分単位に伸び・タイムアウト率も上がる**ため、既定 off とする。
+  実装は `HttpGeminiClient` の `codeExecution` フラグ（eval では `GEMINI_CODE_EXECUTION=1`）で残してあり、
+  低画質入力（映像書き起こし）向けオプションとして将来再検討できる。
+  なお 2倍アップスケール前処理は効果なし（同 eval でネット悪化）を確認済み。
 - モデル名は AI Studio で**現行の対応モデルを確認**して使う（ハードコードしない）。
 
 ### [決定] 牌の記法
@@ -122,14 +129,14 @@
 
 ### [決定] プロンプト方針
 - 河は**1方向ごとの単方向プロンプト**。実装は `apps/api/src/infrastructure/gemini/river-prompt.ts`（`river_reader_prompt.md` の1方向版）。出力は `AiRiverResponse` 形式。
-- 全牌に **confidence(0.0–1.0)** を出させる。読めない牌は `tile: null`＋スロット保持（枚数・順序を壊さない）。推測で埋めさせない。
+- **[決定] 2026-07-24: 数値 confidence は廃止。** Gemini に自己申告させた数値は較正が保証できない（API の機能ではなくプロンプトで書かせた数字）ため採用しない。不確実性は **`tile: null`＋スロット保持**（枚数・順序を壊さない）の二値のみ。「確信がなければ牌コードを出さず null」とプロンプトで強制し、**AI 出力は常に目検必須のドラフト**として扱う。
 - 萬子は「まず萬子と判定 → 数字を別途読む」と手順を分けさせる（誤読の定番対策）。
 - **[決定] JSON強制とtool併用の挙動**: 応答の混在パーツ（テキスト＋生成コード＋実行結果）は **gemini-client が種類で仕分けてテキストのみ連結**し、**extract-json** でフェンス/前置きに頑健に JSON を抽出する（実装・テスト済み）。
 
 ### [決定/レビュー観点] 精度の測り方
 確実な精度数値は未知（先行事例ゼロ）。**自前で正解ラベル付きテスト画像20–30枚**を作り、以下を測る:
 1. 牌単位の正解率
-2. **「confidence高いのに誤読」率**（最重要。自信満々の誤りは人が見逃す）
+2. **「白旗（null）を揚げずに誤読」率**（misreadRate。最重要。牌コードを出した＝自信ありとみなす。自信満々の誤りは人が見逃す）
 3. 順序・リーチ牌の正解率
 
 ---
@@ -139,7 +146,7 @@
 ### [決定] 牌譜スキーマ（背骨）
 - **Zod** で1つ定義し、RN / Next.js / Workers / AI出力検証 すべてが共有する。
 - 実装ファイル: `packages/schema/src/index.ts`（背骨の単一真実源。全層がここを import）。
-- 主要型: `Kifu`（保存単位＝課金単位＝共有URL単位）、`SeatBoard`、`Meld`、`Discard`、`ReadTile`（牌＋confidence）。
+- 主要型: `Kifu`（保存単位＝課金単位＝共有URL単位）、`SeatBoard`、`Meld`、`Discard`、`ReadTile`（牌1枚。null=読めず）。
 - AI出力検証用: `AiRiverResponse` / `AiHandResponse`（カメラ相対）。
 - 変換関数: `toAbsoluteSeat(camera, bottomSeat)`。
 - **[未確定／要実機検証] 相対→絶対の回転方向**: `toAbsoluteSeat` の `CAMERA_ORDER` は撮影の向きに依存。東家を手前に置いた写真を1枚撮り、right/top/left が南/西/北で合うか目視確認。合わなければ反転。**ここを誤ると全席が90°ズレる。**
@@ -172,7 +179,7 @@
 ### [決定] 構成方針
 - 全層 **TypeScript で一気通貫**。スキーマ(Zod)を全環境が共有。
 - モノレポ想定（turborepo / pnpm workspace）。`packages/schema`, `packages/ui`, `apps/mobile`, `apps/web`, `apps/api`。
-- 牌は **SVG 描画**（react-native-svg はRN/Web両対応。拡大に強くconfidenceハイライト等の動的装飾も柔軟）。
+- 牌は **SVG 描画**（react-native-svg はRN/Web両対応。拡大に強く要確認ハイライト等の動的装飾も柔軟）。
 - AI呼び出しの手前に **Cloudflare AI Gateway** を噛ませる（キャッシュ・流量制御・コスト監視・レート制限対策）。
 
 ---
@@ -249,13 +256,18 @@ apps/api  POST /billing/revenuecat/webhook ─▶ User.changePlan ─▶ D1 user
 
 ## 8. コスト試算（[決定] 概算・実測で更新）
 
-- 1局（盤面5枚撮影）の解析 ≒ **1〜3円**。
-  - 手牌4枚（Flash-Lite, 素のVision）: 合計 約0.4円
-  - 河（Gemini 3 Flash, Agentic Vision併用時）: 約2〜3円
-  - **河を4分割＋正立 → Agentic Vision不要なら 1局1円前後まで下がる見込み**
-- 最大コスト要因は**出力トークン**（Agentic Visionの思考プロセス分含む）。河の指示を欲張りすぎないこと。
+- 1局（盤面5枚撮影）の解析 ≒ **1.5円前後**（2026-07-24 更新。単価は設計時の想定レート
+  Flash 入力$0.50/出力$3.00 per 1M tok・実測前提。現行料金は AI Studio で要確認）。
+  - 構成（[決定] 2026-07-24）: 河4呼び出し＋手牌4呼び出し＝全て Flash 系・Agentic Vision なし。
+    1呼び出し ≒ 0.2円（入力≒プロンプト+画像 ~1,200tok、出力 ~200-300tok）→ 8呼び出し ≒ 1.6円。
+  - 当初計画との差分: 手牌 Lite→Flash（+0.4円/局・精度実測 43%→86% の対価）、
+    Agentic Vision 既定 off が確定（−1〜2円/局の回避）、confidence 廃止で出力トークン3〜4割減。
+    当初レンジ 1〜3円の中に収まる。
+- 最大コスト要因は**出力トークン**。河の指示を欲張りすぎないこと（confidence 廃止はここにも効いた）。
 - Cloudflare側（Workers/D1）は無料枠〜数ドル規模。
-- コスト削減策: ①送信前に画像リサイズ（生写真をそのまま送らない／ただし河は読める解像度は確保）②河だけ高い武器、手牌は安いモデル ③出力を「指定JSONのみ」に縛る。
+- コスト削減策: ①送信前に画像リサイズ（生写真をそのまま送らない／ただし河は読める解像度は確保）
+  ②出力を「指定JSONのみ」に縛る ③Agentic Vision を使う場合は課金の重み付けかプラン限定を検討。
+- 本番投入後は **AI Gateway のコスト計測で実測に置き換える**こと。
 
 ---
 
@@ -265,7 +277,7 @@ apps/api  POST /billing/revenuecat/webhook ─▶ User.changePlan ─▶ D1 user
 |---|---|---|---|
 | 1 | `toAbsoluteSeat` の回転方向 | 要実機検証 | 東家手前の写真で目視確認。誤ると全席90°ズレ |
 | 2 | Agentic Vision の要否 | A/B検証 | 4分割後、素のFlashで足りるか |
-| 3 | AI読み取り精度の実測 | 指標は実装済 / 実測は要画像 | 3指標の比較ロジックは `apps/api/src/eval/accuracy.ts`（evaluateKifu/aggregate）。実測はラベル付き画像20–30枚＋実 Gemini が必要 |
+| 3 | AI読み取り精度の実測 | **初回実測済み（2026-07-24）/ 実写での再計測は要** | eval runner 実装済み（`pnpm --filter api eval`・`apps/api/eval-fixtures/`）。スクショ10ターゲットで 牌84.0%・白旗なし誤読16.0%・リーチ100%（河=正立なら61〜100%、手牌=斜めが弱点→撮影ガイドで正立を強制する方針）。スマホ実写の case 追加が残タスク |
 | 4 | UIコンポーネント共有手段 | 実装時決定 | Tamagui / RN Web / 自前SVG |
 | 5 | ~~ORM選定~~ | **[決定] Drizzle** | スキーマ実装済み（`apps/api`）。[開発ガイド/05](開発ガイド/05_APIアーキテクチャ.md) |
 | 6 | ~~カウンタ整合性の実装~~ | **[決定] 実装済み** | AnalysisStore=D1 batch で半荘/局/カウントを原子化 |
@@ -283,7 +295,7 @@ apps/api  POST /billing/revenuecat/webhook ─▶ User.changePlan ─▶ D1 user
 2. **河の単方向プロンプトを `AiRiverResponse` 形式に合わせて修正**。
 3. **AI精度の実地テスト**（AI Studio で 河4分割＋正立 → 素Flash と Code Execution をA/B。TODO#1〜3を潰す）。← サービスの成否を握るのでここを最優先で固める。
 4. 解析パイプライン（4分割 → 8画像 → Gemini → Zod検証 → 相対絶対変換 → Kifu組み立て）を Workers に実装。
-5. 牌譜描画UI（SVG、confidenceハイライト、修正操作）を `packages/ui` に。
+5. 牌譜描画UI（SVG、null=要修正ハイライト、修正操作）を `packages/ui` に。
 6. D1テーブル + 保存/閲覧。
 7. Google認証 + 回数カウント + 月額（最後に外側として被せる）。
 

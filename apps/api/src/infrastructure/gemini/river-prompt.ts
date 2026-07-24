@@ -17,11 +17,14 @@ Reading order:
   This reading order IS the chronological discard order. Number discards starting at 1.
 - A tile turned sideways (rotated 90 degrees) is the RIICHI declaration tile -> "riichi": true.
   Every other tile is "riichi": false.
+- COUNT each row before reading it. Two identical neighboring tiles are easy to merge into
+  one — check the seams. Output exactly one entry per physical tile: never skip one, never
+  add one that is not on the table.
 
 Uncertainty (do this, it matters):
-- Give every tile a "confidence" from 0.0 to 1.0.
-- If you cannot tell a tile, output "tile": null with "confidence": 0.0, but STILL include the slot
-  so the discard count and order stay correct. Never invent a tile to fill a gap.
+- Output a tile code ONLY when you are sure. If you cannot tell a tile, or you are torn between
+  two candidates, output "tile": null — but STILL include the slot so the discard count and
+  order stay correct. A null is always better than a wrong guess. Never invent a tile.
 
 Output valid JSON ONLY, no prose, no markdown, exactly this shape:
-{"discards":[{"order":1,"tile":"9p","riichi":false,"confidence":0.98}],"notes":"anything that hurt reading: glare, blur, occlusion"}`;
+{"discards":[{"order":1,"tile":"9p","riichi":false}],"notes":"anything that hurt reading: glare, blur, occlusion"}`;

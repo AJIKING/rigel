@@ -46,8 +46,10 @@ simple = { limit = 6, period = 60 }
 
 [vars]
 # 読み取りモデル。⚠️ AI Studio で現行の対応モデルを確認して差し替える（ハードコードしない）。
-GEMINI_RIVER_MODEL = "gemini-2.5-flash"       # 河=難所
-GEMINI_HAND_MODEL = "gemini-2.5-flash-lite"   # 手牌=素直なタスク
+# 2026-07-24: gemini-2.5 系は新規APIキーで提供終了（404）のため 3.5 系へ更新（ListModels で確認済み）
+# 手牌も flash（eval 実測: flash-lite 43%/29% → flash 86%/71%。斜めアングルに lite は力不足）
+GEMINI_RIVER_MODEL = "gemini-3.5-flash"       # 河=難所
+GEMINI_HAND_MODEL = "gemini-3.5-flash"        # 手牌も flash（精度優先。eval 根拠 2026-07-24）
 # Google OAuth クライアントID（公開値。IDトークンの aud 検証に使う。client secret は不要）。
 # web/iOS/Android で別IDを使う場合はカンマ区切りで複数指定可（例: "web...,ios...,android..."）。
 GOOGLE_CLIENT_ID = "561655423126-1r9luc1tveq2ruhkc6a23dp7ems868cq.apps.googleusercontent.com,561655423126-3i5s5c5am9u4g6pijpofomiacttrv5kh.apps.googleusercontent.com"

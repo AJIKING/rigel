@@ -55,6 +55,7 @@ import { createDb } from "./infrastructure/db/client";
 import { DrizzleGameRepository } from "./infrastructure/game/drizzle-game.repository";
 import { GeminiAnalyzer } from "./infrastructure/gemini/gemini-analyzer";
 import { HttpGeminiClient } from "./infrastructure/gemini/gemini-client";
+import { DEFAULT_HAND_MODEL, DEFAULT_RIVER_MODEL } from "./infrastructure/gemini/models";
 import { HAND_PROMPT_SINGLE } from "./infrastructure/gemini/hand-prompt";
 import { ImageRiverPreprocessor } from "./infrastructure/gemini/image-river-preprocessor";
 import { PhotonImageProcessor } from "./infrastructure/gemini/photon-image-processor";
@@ -113,10 +114,6 @@ export interface AppContainer {
   /** 認証ミドルウェアが Bearer トークン検証に使う。 */
   session: SessionService;
 }
-
-/** 既定モデル。⚠️ AI Studio で現行の対応モデルを確認して env で上書きする。 */
-const DEFAULT_RIVER_MODEL = "gemini-2.5-flash"; // 河=難所
-const DEFAULT_HAND_MODEL = "gemini-2.5-flash-lite"; // 手牌=素直なタスク
 
 export function buildContainer(env: Env): AppContainer {
   const db = createDb(env.DB);
