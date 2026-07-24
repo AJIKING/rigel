@@ -34,6 +34,10 @@ playwright-report/
 .env.*
 !.env.example
 
+# eval（実 Gemini の生成物。人手確認済みの truth.json だけを管理する）
+apps/api/eval-fixtures/cases/*/truth.draft.json
+apps/api/eval-fixtures/last-report.txt
+
 # misc
 .DS_Store
 *.log

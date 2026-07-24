@@ -7,6 +7,7 @@
   "scripts": {
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test": "vitest run",
+    "eval": "vitest run --config vitest.eval.config.ts",
     "lint": "eslint src",
     "dev": "wrangler d1 migrations apply rigel --local && wrangler dev --port 8787",
     "db:generate": "drizzle-kit generate",
