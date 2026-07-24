@@ -17,6 +17,8 @@ import type {
   ProblemAnswerRepository,
 } from "../domain/problem/problem-answer.repository";
 import type { ProblemRepository } from "../domain/problem/problem.repository";
+import type { CompletedQuizSession, QuizSession } from "../domain/quiz/quiz-session";
+import type { QuizSessionRepository } from "../domain/quiz/quiz-session.repository";
 import type { User } from "../domain/user/user";
 import type { UserRepository } from "../domain/user/user.repository";
 
@@ -302,6 +304,51 @@ export class InMemoryProblemAnswerRepository implements ProblemAnswerRepository 
   }
 }
 
+export class InMemoryQuizSessionRepository implements QuizSessionRepository {
+  readonly rows: QuizSession[] = [];
+
+  insert(session: QuizSession): Promise<void> {
+    this.rows.push(session);
+    return Promise.resolve();
+  }
+
+  findById(id: string): Promise<QuizSession | null> {
+    return Promise.resolve(this.rows.find((s) => s.id === id) ?? null);
+  }
+
+  countByUserAndDay(userId: string, day: string): Promise<number> {
+    return Promise.resolve(
+      this.rows.filter((s) => s.userId === userId && s.startedDay === day).length,
+    );
+  }
+
+  update(session: QuizSession): Promise<void> {
+    const i = this.rows.findIndex((s) => s.id === session.id);
+    if (i >= 0) this.rows[i] = session;
+    return Promise.resolve();
+  }
+
+  listCompletedByUser(
+    userId: string,
+    since: Date | null,
+    limit: number,
+  ): Promise<CompletedQuizSession[]> {
+    return Promise.resolve(
+      this.rows
+        .filter(
+          (s): s is CompletedQuizSession =>
+            s.userId === userId &&
+            s.total !== null &&
+            s.correct !== null &&
+            s.durationMs !== null &&
+            (since === null || s.createdAt.getTime() >= since.getTime()),
+        )
+        .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+        .slice(0, limit),
+    );
+  }
+}
+
 /** 原子コミットのフェイク（テスト用）。実 D1 batch の代わりに各 in-memory リポジトリへ書く。 */
 /** AccountStore のフェイク（本物は D1 batch で1トランザクション）。削除の順序と網羅性を再現する。 */
 export class InMemoryAccountStore implements AccountStore {
@@ -311,6 +358,7 @@ export class InMemoryAccountStore implements AccountStore {
     private readonly gameLogs: InMemoryGameLogRepository,
     private readonly problems: InMemoryProblemRepository,
     private readonly problemAnswers: InMemoryProblemAnswerRepository,
+    private readonly quizSessions?: InMemoryQuizSessionRepository,
   ) {}
 
   async deleteAll(userId: string): Promise<void> {
@@ -319,6 +367,12 @@ export class InMemoryAccountStore implements AccountStore {
     await this.problems.deleteByUser(userId);
     await this.gameLogs.deleteByUser(userId);
     await this.games.deleteByUser(userId);
+    if (this.quizSessions) {
+      // 特訓成績も退会で消す（本物は D1 batch。quiz_sessions は users への FK を持つ）。
+      for (let i = this.quizSessions.rows.length - 1; i >= 0; i--) {
+        if (this.quizSessions.rows[i]!.userId === userId) this.quizSessions.rows.splice(i, 1);
+      }
+    }
     await this.users.deleteById(userId);
   }
 }

@@ -38,6 +38,7 @@ import {
   ListPublishedProblems,
   UpdateProblem,
 } from "./application/problem.usecase";
+import { FinishQuizSession, ListQuizSessions, StartQuizSession } from "./application/quiz.usecase";
 import { StartCheckout } from "./application/start-checkout.usecase";
 import { UpdateKifu } from "./application/update-kifu.usecase";
 import type { SessionService } from "./domain/auth/session";
@@ -63,6 +64,7 @@ import { RIVER_PROMPT_SINGLE } from "./infrastructure/gemini/river-prompt";
 import { DrizzleGameLogRepository } from "./infrastructure/kifu/drizzle-game-log.repository";
 import { DrizzleProblemAnswerRepository } from "./infrastructure/problem/drizzle-problem-answer.repository";
 import { DrizzleProblemRepository } from "./infrastructure/problem/drizzle-problem.repository";
+import { DrizzleQuizSessionRepository } from "./infrastructure/quiz/drizzle-quiz-session.repository";
 import { DrizzleAccountStore } from "./infrastructure/user/drizzle-account-store";
 import { DrizzleUserRepository } from "./infrastructure/user/drizzle-user.repository";
 
@@ -101,6 +103,9 @@ export interface AppContainer {
   listPublishedProblems: ListPublishedProblems;
   answerProblem: AnswerProblem;
   getProblemStats: GetProblemStats;
+  startQuizSession: StartQuizSession;
+  finishQuizSession: FinishQuizSession;
+  listQuizSessions: ListQuizSessions;
   startCheckout: StartCheckout;
   openBillingPortal: OpenBillingPortal;
   handleBillingWebhook: HandleBillingWebhook;
@@ -122,6 +127,7 @@ export function buildContainer(env: Env): AppContainer {
   const gamesRepo = new DrizzleGameRepository(db);
   const problems = new DrizzleProblemRepository(db);
   const problemAnswers = new DrizzleProblemAnswerRepository(db);
+  const quizSessions = new DrizzleQuizSessionRepository(db);
 
   // 副作用（時刻・ID生成）の供給は1か所に集約してユースケースへ注入する。
   const now = () => new Date();
@@ -240,6 +246,9 @@ export function buildContainer(env: Env): AppContainer {
     listPublishedProblems: new ListPublishedProblems(problems),
     answerProblem: new AnswerProblem({ problems, answers: problemAnswers, now }),
     getProblemStats: new GetProblemStats({ problems, answers: problemAnswers }),
+    startQuizSession: new StartQuizSession({ users, sessions: quizSessions, now, newId }),
+    finishQuizSession: new FinishQuizSession({ sessions: quizSessions }),
+    listQuizSessions: new ListQuizSessions({ sessions: quizSessions }),
     startCheckout: new StartCheckout(billing, users),
     openBillingPortal: new OpenBillingPortal(billing),
     handleBillingWebhook: new HandleBillingWebhook(billing, users, revenueCatGateway),

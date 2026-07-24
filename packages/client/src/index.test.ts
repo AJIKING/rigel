@@ -494,4 +494,98 @@ describe("problems（何切る問題）", () => {
     );
     expect(await nf.getProblemStats("tok", "p1")).toBeNull();
   });
+
+  it("startQuizSession は POST /quiz/sessions に kind を送り id と remainingToday を返す", async () => {
+    const client = createApiClient(
+      "https://api.test",
+      fakeFetch2((url, init) => {
+        expect(url).toBe("https://api.test/quiz/sessions");
+        expect(init?.method).toBe("POST");
+        expect(JSON.parse(String(init?.body))).toEqual({ kind: "chinitsu" });
+        return json({ ok: true, id: "q1", remainingToday: 2 }, 201);
+      }),
+    );
+    expect(await client.startQuizSession("tok", "chinitsu")).toEqual({
+      ok: true,
+      id: "q1",
+      remainingToday: 2,
+    });
+  });
+
+  it("startQuizSession は無料枠超過(402)を理由付きで返す（analyze 系と同じ流儀）", async () => {
+    const client = createApiClient(
+      "https://api.test",
+      fakeFetch(() => json({ ok: false, reason: "quota_exceeded" }, 402)),
+    );
+    expect(await client.startQuizSession("tok", "chinitsu")).toEqual({
+      ok: false,
+      status: 402,
+      reason: "quota_exceeded",
+    });
+  });
+
+  it("finishQuizSession は PATCH /quiz/sessions/:id に結果を送り成否を返す", async () => {
+    const result = { kind: "chinitsu", total: 10, correct: 7, durationMs: 61_000 } as const;
+    const client = createApiClient(
+      "https://api.test",
+      fakeFetch2((url, init) => {
+        expect(url).toBe("https://api.test/quiz/sessions/q1");
+        expect(init?.method).toBe("PATCH");
+        expect(JSON.parse(String(init?.body))).toEqual(result);
+        return json({ ok: true });
+      }),
+    );
+    expect(await client.finishQuizSession("tok", "q1", result)).toEqual({ ok: true, status: 200 });
+  });
+
+  it("finishQuizSession は他人の行(404)を成否で返す（例外にしない）", async () => {
+    const client = createApiClient(
+      "https://api.test",
+      fakeFetch(() => new Response("nf", { status: 404 })),
+    );
+    expect(
+      await client.finishQuizSession("tok", "q1", {
+        kind: "chinitsu",
+        total: 1,
+        correct: 0,
+        durationMs: 60_000,
+      }),
+    ).toEqual({ ok: false, status: 404 });
+  });
+
+  it("listQuizSessions は自分の完了済み履歴を返す（since は ?since= に載せる）", async () => {
+    const row = {
+      id: "q1",
+      kind: "chinitsu",
+      total: 10,
+      correct: 7,
+      durationMs: 61_000,
+      createdAt: "2026-07-24T03:00:00.000Z",
+    };
+    const noSince = createApiClient(
+      "https://api.test",
+      fakeFetch((url) => {
+        expect(url).toBe("https://api.test/quiz/sessions");
+        return json([row]);
+      }),
+    );
+    expect(await noSince.listQuizSessions("tok")).toEqual([row]);
+
+    const withSince = createApiClient(
+      "https://api.test",
+      fakeFetch((url) => {
+        expect(url).toBe("https://api.test/quiz/sessions?since=2026-07-01T00%3A00%3A00.000Z");
+        return json([]);
+      }),
+    );
+    expect(await withSince.listQuizSessions("tok", "2026-07-01T00:00:00.000Z")).toEqual([]);
+  });
+
+  it("listQuizSessions は失敗時に例外", async () => {
+    const client = createApiClient(
+      "https://api.test",
+      fakeFetch(() => new Response("err", { status: 500 })),
+    );
+    await expect(client.listQuizSessions("tok")).rejects.toThrow(/500/);
+  });
 });

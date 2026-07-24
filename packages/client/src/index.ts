@@ -5,7 +5,16 @@
 // fetch は注入可能（テスト用）。型(DTO)もここに集約して両アプリの drift を防ぐ。
 // ============================================================
 
-import type { Kifu, Players, Problem, ProblemAction, Rules, Seat } from "@rigel/schema";
+import type {
+  Kifu,
+  Players,
+  Problem,
+  ProblemAction,
+  QuizKind,
+  QuizResult,
+  Rules,
+  Seat,
+} from "@rigel/schema";
 
 /** 作成時に渡せる局メタ（本場/供託/ドラ/最終巡目）。記録のみ・点数計算はしない。 */
 export type KifuMetaInput = Partial<Pick<Kifu["meta"], "honba" | "kyotaku" | "dora" | "junme">>;
@@ -35,6 +44,21 @@ export interface ProblemStats {
   myChoiceKey: string | null;
   myAction: ProblemAction | null;
 }
+
+/** 特訓クイズの完了済みセッション1件（本人の履歴のみ。API は createdAt を ISO 文字列で返す）。 */
+export interface QuizSessionDto {
+  id: string;
+  kind: QuizKind;
+  total: number;
+  correct: number;
+  durationMs: number;
+  createdAt: string;
+}
+
+/** 特訓クイズ開始の結果。remainingToday は本日の残り回数（有料は null=無制限）。 */
+export type StartQuizSessionResult =
+  | { ok: true; id: string; remainingToday: number | null }
+  | { ok: false; status: number; reason?: string };
 
 export interface AuthUser {
   id: string;
@@ -272,6 +296,16 @@ export interface ApiClient {
   ): Promise<{ ok: boolean; status: number }>;
   /** 回答分布＋自分の回答（認証必須）。見つからなければ null。 */
   getProblemStats(token: string, problemId: string): Promise<ProblemStats | null>;
+  /** 特訓クイズを開始する（無料は1日3回・開始時に1回消費。超過は status 402）。 */
+  startQuizSession(token: string, kind: QuizKind): Promise<StartQuizSessionResult>;
+  /** 60秒セッションの結果（クライアント採点）を記録する。他人の行・不存在は status 404。 */
+  finishQuizSession(
+    token: string,
+    sessionId: string,
+    result: QuizResult,
+  ): Promise<{ ok: boolean; status: number }>;
+  /** 自分の完了済みセッション履歴（新しい順・since=ISO8601 で期間指定）。 */
+  listQuizSessions(token: string, since?: string): Promise<QuizSessionDto[]>;
 }
 
 /**
@@ -586,6 +620,36 @@ export function createApiClient(baseUrl: string, fetchImpl?: typeof fetch): ApiC
       if (res.status === 404) return null;
       if (!res.ok) throw new Error(`problem stats failed: ${res.status}`);
       return res.json() as Promise<ProblemStats>;
+    },
+
+    async startQuizSession(token, kind) {
+      const res = await doFetch(`${baseUrl}/quiz/sessions`, {
+        method: "POST",
+        headers: { ...bearer(token), "content-type": "application/json" },
+        body: JSON.stringify({ kind }),
+      });
+      if (res.ok) {
+        const d = (await res.json()) as { id: string; remainingToday: number | null };
+        return { ok: true, id: d.id, remainingToday: d.remainingToday };
+      }
+      const body = (await res.json().catch(() => ({}))) as { reason?: string; error?: string };
+      return { ok: false, status: res.status, reason: body.reason ?? body.error };
+    },
+
+    async finishQuizSession(token, sessionId, result) {
+      const res = await doFetch(`${baseUrl}/quiz/sessions/${sessionId}`, {
+        method: "PATCH",
+        headers: { ...bearer(token), "content-type": "application/json" },
+        body: JSON.stringify(result),
+      });
+      return { ok: res.ok, status: res.status };
+    },
+
+    async listQuizSessions(token, since) {
+      const query = since === undefined ? "" : `?since=${encodeURIComponent(since)}`;
+      const res = await doFetch(`${baseUrl}/quiz/sessions${query}`, { headers: bearer(token) });
+      if (!res.ok) throw new Error(`quiz sessions failed: ${res.status}`);
+      return res.json() as Promise<QuizSessionDto[]>;
     },
   };
 }

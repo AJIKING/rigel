@@ -99,6 +99,13 @@
       "when": 1784238030645,
       "tag": "0013_motionless_switch",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "6",
+      "when": 1784917615774,
+      "tag": "0014_slim_korg",
+      "breakpoints": true
     }
   ]
 }

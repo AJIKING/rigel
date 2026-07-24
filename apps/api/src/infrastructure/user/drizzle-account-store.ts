@@ -4,7 +4,7 @@
 import { eq, inArray } from "drizzle-orm";
 import type { AccountStore } from "../../domain/user/account-store";
 import type { Db } from "../db/client";
-import { gameLogs, games, problemAnswers, problems, users } from "../db/schema";
+import { gameLogs, games, problemAnswers, problems, quizSessions, users } from "../db/schema";
 
 export class DrizzleAccountStore implements AccountStore {
   constructor(private readonly db: Db) {}
@@ -18,7 +18,7 @@ export class DrizzleAccountStore implements AccountStore {
       .all();
     const ownedIds = owned.map((p) => p.id);
 
-    // FK の向きに沿った順序で1トランザクション（回答 → 問題 → 局 → 半荘 → ユーザー）。
+    // FK の向きに沿った順序で1トランザクション（回答 → 問題 → 局 → 半荘 → 特訓成績 → ユーザー）。
     const statements = [
       this.db.delete(problemAnswers).where(eq(problemAnswers.userId, userId)),
       ...(ownedIds.length > 0
@@ -27,6 +27,7 @@ export class DrizzleAccountStore implements AccountStore {
       this.db.delete(problems).where(eq(problems.userId, userId)),
       this.db.delete(gameLogs).where(eq(gameLogs.userId, userId)),
       this.db.delete(games).where(eq(games.userId, userId)),
+      this.db.delete(quizSessions).where(eq(quizSessions.userId, userId)),
       this.db.delete(users).where(eq(users.id, userId)),
     ] as const;
 

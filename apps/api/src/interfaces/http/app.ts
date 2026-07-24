@@ -19,6 +19,7 @@ import { registerBillingRoutes } from "./routes/billing.routes";
 import { registerGameRoutes } from "./routes/games.routes";
 import { registerKifuRoutes } from "./routes/kifu.routes";
 import { registerProblemRoutes } from "./routes/problems.routes";
+import { registerQuizRoutes } from "./routes/quiz.routes";
 import type { AppEnv } from "./shared";
 
 /** localhost 開発オリジンは常に許可する（本番ドメインは ALLOWED_ORIGINS で渡す）。 */
@@ -99,6 +100,7 @@ export function createApp(options: CreateAppOptions = {}): Hono<AppEnv> {
   registerGameRoutes(app);
   registerKifuRoutes(app);
   registerProblemRoutes(app);
+  registerQuizRoutes(app);
   registerBillingRoutes(app);
 
   return app;
