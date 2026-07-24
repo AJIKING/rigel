@@ -28,12 +28,21 @@ import {
   type Tile,
 } from "@rigel/schema";
 import { chiVariants, meldTiles, sortHandTiles, SUITS, type MeldPick } from "./edit";
+import { FREE_QUIZ_PER_DAY } from "./quiz";
 
 // 打点計算（han/fu + ルール → 支払い）。
 export * from "./score";
 // 役カタログ（点数計算の入力補助）。
 export * from "./yaku";
 export * from "./tenpai";
+// 向聴数計算（特訓クイズの出題フィルタ・受け入れ計算の基盤）。
+export * from "./shanten";
+// 受け入れ計算（打牌ごとの受け入れ種類×枚数と正解集合。特訓クイズ「牌効率」の採点基盤）。
+export * from "./ukeire";
+// 特訓クイズの出題生成（シード付き決定的乱数＋品質フィルタ）。
+export * from "./quiz";
+// 特訓クイズの履歴グラフ整形（マイページ「特訓」の日毎集計・サマリ・系列）。
+export * from "./quiz-stats";
 // 局跨ぎの点棒集計（持ち点・成績）。
 export * from "./standings";
 // 手順（タイムライン）の導出・巡目・盤面同期。
@@ -202,6 +211,9 @@ export function planKifuLimits(plan: Plan): { private: number | null; draft: num
   return { private: PRIVATE_KIFU_LIMIT[plan], draft: DRAFT_KIFU_LIMIT[plan] };
 }
 
+// FREE_QUIZ_PER_DAY（無料の特訓クイズ1日3回）は quiz.ts に移動（クイズ関連の定数を1箇所に集約）。
+// `export * from "./quiz"` 経由で従来どおり @rigel/ui から import できる。
+
 /** 1半荘あたりの局数上限。api 側 MAX_LOGS_PER_GAME と一致させる。 */
 export const MAX_LOGS_PER_GAME = 30;
 
@@ -231,10 +243,17 @@ export const PLAN_FEATURES: Record<Plan, readonly string[]> = {
     "公開牌譜の保存 無制限",
     "非公開の半荘 5つまで",
     "下書きの半荘 5つまで",
+    `特訓クイズ 1日${FREE_QUIZ_PER_DAY}回`,
     "写真からのAI再現 なし",
   ],
-  next: ["Free の全機能", "非公開・下書きの保存 無制限", "写真からのAI再現 月100回相当"],
-  pro: ["Next の全機能", "写真からのAI再現 月320回相当"],
+  next: [
+    "Free の全機能",
+    "非公開・下書きの保存 無制限",
+    "特訓クイズ 無制限",
+    "写真からのAI再現 月100回相当",
+  ],
+  // 特訓は Next と同じ無制限だが、Pro 単体のカードでも売りが伝わるよう明示する。
+  pro: ["Next の全機能", "特訓クイズ 無制限", "写真からのAI再現 月320回相当"],
 };
 
 /** プランの月額（円）。 */

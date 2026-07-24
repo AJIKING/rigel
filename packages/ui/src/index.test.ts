@@ -14,6 +14,7 @@ import {
   checkoutErrorMessage,
   collectReviewItems,
   describeTile,
+  FREE_QUIZ_PER_DAY,
   meldTileViews,
   needsReview,
   planCanAnalyze,
@@ -265,6 +266,14 @@ describe("プラン表示", () => {
     expect(PLAN_FEATURES.next.length).toBeGreaterThan(0);
     expect(PLAN_FEATURES.pro.length).toBeGreaterThan(0);
   });
+  it("PLAN_FEATURES: 特訓クイズは free=1日3回（FREE_QUIZ_PER_DAY 連動）・有料（next/pro）=無制限", () => {
+    expect(PLAN_FEATURES.free).toContain(`特訓クイズ 1日${FREE_QUIZ_PER_DAY}回`);
+    expect(PLAN_FEATURES.next).toContain("特訓クイズ 無制限");
+    expect(PLAN_FEATURES.pro).toContain("特訓クイズ 無制限");
+  });
+  it("FREE_QUIZ_PER_DAY は無料プランの特訓クイズ1日3回（api のサーバ強制と web/mobile 文言の共有値）", () => {
+    expect(FREE_QUIZ_PER_DAY).toBe(3);
+  });
   it("planKifuLimits は free=各5・有料=無制限(null)", () => {
     expect(planKifuLimits("free")).toEqual({ private: 5, draft: 5 });
     expect(planKifuLimits("next")).toEqual({ private: null, draft: null });
@@ -427,5 +436,10 @@ describe("ANALYTICS_EVENTS（計測イベントの共有体系。web=GA4 / mobil
     expect(ANALYTICS_EVENTS.analyzeProblem).toBe("analyze_problem");
     expect(ANALYTICS_EVENTS.saveKifu).toBe("save_kifu");
     expect(ANALYTICS_EVENTS.answerProblem).toBe("answer_problem");
+  });
+
+  it("特訓クイズの開始・完了イベントを持つ（params は kind のみ＝成績・PII は載らない）", () => {
+    expect(ANALYTICS_EVENTS.quizStart).toBe("quiz_start");
+    expect(ANALYTICS_EVENTS.quizComplete).toBe("quiz_complete");
   });
 });

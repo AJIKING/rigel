@@ -3,7 +3,7 @@
 // 将来 API 側の回答検証（schema の isValidAnswer）にも riichi 妥当性を載せる場合は、
 // 形判定のコア（isWinningShape/isTenpaiShape）を @rigel/schema へ移して共有する。
 
-import type { Problem, Tile } from "@rigel/schema";
+import { TILE_VALUES, type Problem, type Tile } from "@rigel/schema";
 
 // 牌種インデックス: 0-8=萬 9-17=筒 18-26=索 27-33=字。赤5（0m/0p/0s）は通常の5に正規化。
 const SUIT_BASE: Record<string, number> = { m: 0, p: 9, s: 18, z: 27 };
@@ -13,7 +13,8 @@ function tileIndex(tile: Tile): number {
   return SUIT_BASE[tile[1]] + n - 1;
 }
 
-function toCounts(tiles: readonly Tile[]): number[] {
+/** 手牌を34種の枚数配列へ（赤5は5に正規化）。shanten.ts と共有する counts 基盤。 */
+export function toCounts(tiles: readonly Tile[]): number[] {
   const c = new Array<number>(34).fill(0);
   for (const t of tiles) c[tileIndex(t)]++;
   return c;
@@ -43,8 +44,8 @@ function decomposeSets(c: number[], i: number): boolean {
   return false;
 }
 
-/** 幺九牌（国士の構成牌）のインデックス。 */
-const KOKUSHI = [0, 8, 9, 17, 18, 26, 27, 28, 29, 30, 31, 32, 33];
+/** 幺九牌（国士の構成牌）のインデックス。shanten.ts の国士向聴でも使う。 */
+export const KOKUSHI = [0, 8, 9, 17, 18, 26, 27, 28, 29, 30, 31, 32, 33];
 
 /** counts（34種の枚数・総枚数 total）が和了形か。isTenpaiShape が counts を
  *  増減しながら34種を試すため、counts ベースを中核にする（判定中は破壊しない）。 */
@@ -73,21 +74,32 @@ export function isWinningShape(tiles: readonly Tile[]): boolean {
   return isWinningCounts(toCounts(tiles), tiles.length);
 }
 
-/** 門前部分（3n+1枚）がテンパイか（いずれか1種を足すと和了形になる）。
- *  読めない牌（null）を含む手は判定しない（false）。 */
-export function isTenpaiShape(tiles: readonly (Tile | null)[]): boolean {
-  if (tiles.some((t) => t === null)) return false;
+/** 待ち牌の候補34種（TILE_VALUES 順）。赤5は 5m/5p/5s で代表し 0x は候補に含めない。
+ *  並びは tileIndex（0-8=萬 9-17=筒 18-26=索 27-33=字）と一致する。 */
+const CANDIDATE_TILES: readonly Tile[] = TILE_VALUES.filter((t) => t[0] !== "0");
+
+/** 3n+1 枚の手の待ち牌（加えると和了形になる牌種）を TILE_VALUES 順で列挙する。
+ *  読めない牌（null）を含む手・枚数不整合の手は判定しない（空配列）。 */
+export function winningTiles(tiles: readonly (Tile | null)[]): Tile[] {
+  if (tiles.some((t) => t === null)) return [];
   const real = tiles as readonly Tile[];
-  if (real.length % 3 !== 1) return false;
+  if (real.length % 3 !== 1) return [];
   const counts = toCounts(real);
+  const waits: Tile[] = [];
   for (let i = 0; i < 34; i++) {
     if (counts[i] >= 4) continue; // 5枚目は存在しない
     counts[i]++;
     const ok = isWinningCounts(counts, real.length + 1);
     counts[i]--;
-    if (ok) return true;
+    if (ok) waits.push(CANDIDATE_TILES[i]);
   }
-  return false;
+  return waits;
+}
+
+/** 門前部分（3n+1枚）がテンパイか（いずれか1種を足すと和了形になる）。
+ *  読めない牌（null）を含む手は判定しない（false）。 */
+export function isTenpaiShape(tiles: readonly (Tile | null)[]): boolean {
+  return winningTiles(tiles).length > 0;
 }
 
 /**

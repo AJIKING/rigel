@@ -11,6 +11,8 @@
 // 設計: docs/plans/analytics.md
 // ============================================================
 
+import type { QuizKind } from "@rigel/schema";
+
 export const ANALYTICS_EVENTS = {
   /** ログイン成立（GA4 標準イベント）。params: { method: LoginMethod } */
   login: "login",
@@ -24,6 +26,10 @@ export const ANALYTICS_EVENTS = {
   saveKifu: "save_kifu",
   /** 何切る回答。 */
   answerProblem: "answer_problem",
+  /** 特訓クイズの開始。params: { kind: QuizKind }（成績は載せない）。 */
+  quizStart: "quiz_start",
+  /** 特訓クイズの完了（60秒経過で結果表示）。params: { kind: QuizKind }（成績は載せない）。 */
+  quizComplete: "quiz_complete",
 } as const;
 
 export type AnalyticsEvent = (typeof ANALYTICS_EVENTS)[keyof typeof ANALYTICS_EVENTS];
@@ -38,4 +44,6 @@ export type AnalyzeResultParam = "success" | "error";
 export type AnalyticsParams = Partial<{
   method: LoginMethod;
   result: AnalyzeResultParam;
+  /** quiz_start / quiz_complete の種目（固定語彙。成績の数値は型で締め出す）。 */
+  kind: QuizKind;
 }>;

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { ProblemSchema, PROBLEM_SCHEMA_VERSION, type Problem, type Tile } from "@rigel/schema";
-import { canRiichiAfterDiscard, isTenpaiShape, isWinningShape } from "./tenpai";
+import { canRiichiAfterDiscard, isTenpaiShape, isWinningShape, winningTiles } from "./tenpai";
 
 /** "123m45p7z" 形式を Tile 配列に展開する（テスト記述用）。 */
 function tiles(spec: string): Tile[] {
@@ -89,6 +89,77 @@ describe("isTenpaiShape（3n+1枚がテンパイか）", () => {
 
   it("読めない牌（null）を含む場合は false", () => {
     expect(isTenpaiShape([...tiles("123m456m789m123p"), null] as unknown as Tile[])).toBe(false);
+  });
+});
+
+describe("winningTiles（3n+1枚の待ち牌列挙）", () => {
+  it.each<{ name: string; hand: string; expected: Tile[] }>([
+    {
+      name: "純正九蓮宝燈は 1m〜9m の9面待ち",
+      hand: "1112345678999m",
+      expected: ["1m", "2m", "3m", "4m", "5m", "6m", "7m", "8m", "9m"],
+    },
+    {
+      name: "4面子完成の単騎待ちは残った1枚だけが待ち",
+      hand: "234m567m789p111s5z",
+      expected: ["5z"],
+    },
+    {
+      name: "シャンポン待ちは対子2種の両方が待ち",
+      hand: "223344m567p8899s",
+      expected: ["8s", "9s"],
+    },
+    {
+      name: "ノベタン 1234m は両端の 1m/4m 待ち",
+      hand: "1234m567p789s111z",
+      expected: ["1m", "4m"],
+    },
+    {
+      name: "2223456m + 完成形2組は 1m/3m/4m/6m/7m の5面待ち",
+      hand: "2223456m789p123s",
+      expected: ["1m", "3m", "4m", "6m", "7m"],
+    },
+    {
+      name: "2345678m + 完成形2組は 2m/5m/8m の三面待ち",
+      hand: "2345678m111p234s",
+      expected: ["2m", "5m", "8m"],
+    },
+    {
+      name: "七対子テンパイは6対子の残り1枚が待ち",
+      hand: "1122m3344p5566s7z",
+      expected: ["7z"],
+    },
+    {
+      name: "国士無双13面は幺九牌13種すべてが待ち",
+      hand: "19m19p19s1234567z",
+      expected: ["1m", "9m", "1p", "9p", "1s", "9s", "1z", "2z", "3z", "4z", "5z", "6z", "7z"],
+    },
+    {
+      name: "ノーテン手は待ちなし（空配列）",
+      hand: "23m456m789m124p5p9s",
+      expected: [],
+    },
+    {
+      name: "枚数が 3n+1 でない手（14枚の和了形）は判定しない（空配列）",
+      hand: "123m456m789m123p55p",
+      expected: [],
+    },
+    {
+      name: "赤5（0m）の単騎待ちは 5m として列挙する（0m は候補に含めない）",
+      hand: "1230m456p789s111z",
+      expected: ["5m"],
+    },
+    {
+      name: "赤5（0m）を含む両面 0m6m は 4m/7m 待ち",
+      hand: "06m111p222s333z44p",
+      expected: ["4m", "7m"],
+    },
+  ])("$name", ({ hand, expected }) => {
+    expect(winningTiles(tiles(hand))).toEqual(expected);
+  });
+
+  it("読めない牌（null）を含む手は判定しない（空配列）", () => {
+    expect(winningTiles([...tiles("123m456m789m123p"), null])).toEqual([]);
   });
 });
 
