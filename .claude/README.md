@@ -17,7 +17,7 @@ Claude Code がこのプロジェクトで使うコマンド・エージェン�
 | エージェント | 用途 |
 |---|---|
 | `tdd-implementer` | 厳格な TDD で1つの振る舞いを実装（委譲先） |
-| `trust-auditor` | Zod検証 / 推測しない / confidence / 課金整合 / 画像非保存 を読み取り専用で監査 |
+| `trust-auditor` | Zod検証 / 推測しない(null 白旗) / 課金整合 / 画像非保存 を読み取り専用で監査 |
 | `harness-reviewer` | ハーネスエンジニアリング原則に照らして設計レビュー |
 
 呼び出し例: 「trust-auditor で解析パイプラインを監査して」のように依頼するか、Claude が自動委譲する。

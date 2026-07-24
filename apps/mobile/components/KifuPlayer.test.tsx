@@ -21,7 +21,7 @@ const emptyKifu = (): Kifu => makeKifu();
 /** 東家(親)の河に1枚 + 立直ロン和了。再生末尾で和了演出が出る検証用。 */
 const kifuWithAgari = (): Kifu =>
   makeKifu(
-    { east: { river: [{ order: 1, tile: "1m", riichi: false, confidence: 1 }] } },
+    { east: { river: [{ order: 1, tile: "1m", riichi: false }] } },
     {
       result: "ron",
       agari: [
@@ -35,14 +35,14 @@ const kifuTwoDiscards = (): Kifu =>
   makeKifu({
     east: {
       river: [
-        { order: 1, tile: "6z", riichi: false, confidence: 1 },
-        { order: 2, tile: "7z", riichi: false, confidence: 1 },
+        { order: 1, tile: "6z", riichi: false },
+        { order: 2, tile: "7z", riichi: false },
       ],
     },
   });
 
 /** 南家(相手)の手牌に發(6z)。手牌トグルで相手手牌の表示/裏返しを検証する。 */
-const kifuOppHand = (): Kifu => makeKifu({ south: { hand: [{ tile: "6z", confidence: 1 }] } });
+const kifuOppHand = (): Kifu => makeKifu({ south: { hand: [{ tile: "6z" }] } });
 
 function log(seq: number, kifu: Kifu): GameLog {
   return {
@@ -120,7 +120,7 @@ describe("KifuPlayer", () => {
   it("局送りで移動した局は最終巡目ではなく開始位置（打牌前）で表示される", () => {
     // 移動先に河1枚を持たせる（全表示なら1手進んだ状態＝「1手戻る」が有効になってしまう）。
     const second = makeKifu({
-      east: { river: [{ order: 1, tile: "2m", riichi: false, confidence: 1 }] },
+      east: { river: [{ order: 1, tile: "2m", riichi: false }] },
     });
     render(<KifuPlayer logs={[log(1, emptyKifu()), log(2, second)]} />);
     fireEvent.press(screen.getByLabelText("次の局"));
@@ -131,7 +131,7 @@ describe("KifuPlayer", () => {
   it("和了シート: 「前へ」でシート前の盤面へ、「次の局へ」で次局の開始へ移動できる", () => {
     // 2局目にも河1枚を持たせる（全表示と開始位置を「1手戻る」の活性で区別するため）。
     const second = makeKifu({
-      east: { river: [{ order: 1, tile: "2m", riichi: false, confidence: 1 }] },
+      east: { river: [{ order: 1, tile: "2m", riichi: false }] },
     });
     render(<KifuPlayer logs={[log(1, kifuWithAgari()), log(2, second)]} />);
     fireEvent.press(screen.getByLabelText("1手進む")); // 末尾（全表示）→ 和了演出
@@ -161,10 +161,7 @@ describe("KifuPlayer", () => {
     const k = makeKifu(
       {
         east: {
-          hand: [
-            { tile: "1m", confidence: 1 },
-            { tile: "9p", confidence: 1 },
-          ],
+          hand: [{ tile: "1m" }, { tile: "9p" }],
         },
       },
       {
@@ -176,7 +173,6 @@ describe("KifuPlayer", () => {
             tile: "1m",
             tsumogiri: false,
             riichi: false,
-            confidence: 1,
           },
         ],
       },
@@ -207,12 +203,8 @@ describe("KifuPlayer", () => {
     const k = makeKifu(
       {
         east: {
-          hand: [
-            { tile: "1m", confidence: 1 },
-            { tile: "7z", confidence: 1 },
-            { tile: "2m", confidence: 1 },
-          ],
-          river: [{ order: 1, tile: "9m", confidence: 1 }],
+          hand: [{ tile: "1m" }, { tile: "7z" }, { tile: "2m" }],
+          river: [{ order: 1, tile: "9m" }],
         },
       },
       { result: "tsumo", agari: [{ winner: "east", winTile: "7z" }] },
@@ -280,10 +272,7 @@ describe("KifuPlayer", () => {
     // 手前(東)の手牌を 中(7z) → 1萬 の順で保存したデータ。表示は理牌される。
     const k = makeKifu({
       east: {
-        hand: [
-          { tile: "7z", confidence: 1 },
-          { tile: "1m", confidence: 1 },
-        ],
+        hand: [{ tile: "7z" }, { tile: "1m" }],
       },
     });
     render(<KifuPlayer logs={[log(1, k)]} />);
@@ -295,10 +284,7 @@ describe("KifuPlayer", () => {
     const k = makeKifu(
       {
         east: {
-          hand: [
-            { tile: "1m", confidence: 1 },
-            { tile: "2m", confidence: 1 },
-          ],
+          hand: [{ tile: "1m" }, { tile: "2m" }],
         },
       },
       {
@@ -310,7 +296,6 @@ describe("KifuPlayer", () => {
             tile: "1m",
             tsumogiri: false,
             riichi: false,
-            confidence: 1,
           },
         ],
       },
@@ -325,7 +310,7 @@ describe("KifuPlayer", () => {
 
   it("リーチ宣言牌まで再生すると供託が増える", () => {
     const k = makeKifu(
-      { east: { hand: [{ tile: "1m", confidence: 1 }] } },
+      { east: { hand: [{ tile: "1m" }] } },
       {
         meta: { dealer: "east", kyotaku: 0 },
         timeline: [
@@ -336,7 +321,6 @@ describe("KifuPlayer", () => {
             tile: "1m",
             tsumogiri: false,
             riichi: true,
-            confidence: 1,
           },
         ],
       },
@@ -351,11 +335,11 @@ describe("KifuPlayer", () => {
     const k = makeKifu({
       east: {
         river: [
-          { order: 1, tile: "6z", riichi: false, confidence: 1 },
-          { order: 2, tile: "7z", riichi: false, confidence: 1 },
+          { order: 1, tile: "6z", riichi: false },
+          { order: 2, tile: "7z", riichi: false },
         ],
       },
-      south: { river: [{ order: 1, tile: "5z", riichi: false, confidence: 1 }] },
+      south: { river: [{ order: 1, tile: "5z", riichi: false }] },
     });
     render(<KifuPlayer logs={[log(1, k)]} />);
 
@@ -381,10 +365,7 @@ describe("KifuPlayer", () => {
     const k = makeKifu(
       {
         east: {
-          hand: [
-            { tile: "1m", confidence: 1 },
-            { tile: "9p", confidence: 1 },
-          ],
+          hand: [{ tile: "1m" }, { tile: "9p" }],
         },
       },
       {
@@ -397,7 +378,6 @@ describe("KifuPlayer", () => {
             tile: "1m",
             tsumogiri: false,
             riichi: false,
-            confidence: 1,
           },
           {
             kind: "discard",
@@ -406,7 +386,6 @@ describe("KifuPlayer", () => {
             tile: "4m",
             tsumogiri: true,
             riichi: false,
-            confidence: 1,
           },
         ],
       },
@@ -434,7 +413,7 @@ describe("KifuPlayer", () => {
 
   it("和了シートにドラ表示牌と裏ドラ表示牌（リーチ和了時）を出す", () => {
     const k = makeKifu(
-      { east: { river: [{ order: 1, tile: "1m", riichi: true, confidence: 1 }] } },
+      { east: { river: [{ order: 1, tile: "1m", riichi: true }] } },
       {
         meta: { dealer: "east", dora: ["5z"], uraDora: ["6z"] },
         result: "ron",

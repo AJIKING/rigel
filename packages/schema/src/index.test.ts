@@ -14,13 +14,17 @@ import {
   type Seat,
 } from "./index";
 
-describe("ReadTileSchema（牌＋確信度）", () => {
-  it("confidence を省略すると 1.0 になる", () => {
-    expect(ReadTileSchema.parse({ tile: "1m" })).toEqual({ tile: "1m", confidence: 1 });
+describe("ReadTileSchema（牌1枚）", () => {
+  it("牌コードだけを持つ（confidence は廃止済み）", () => {
+    expect(ReadTileSchema.parse({ tile: "1m" })).toEqual({ tile: "1m" });
   });
 
   it("読めなかった牌は null を許容する", () => {
-    expect(ReadTileSchema.parse({ tile: null, confidence: 0 }).tile).toBeNull();
+    expect(ReadTileSchema.parse({ tile: null }).tile).toBeNull();
+  });
+
+  it("旧データの confidence キーは無視して剥がす（保存済み牌譜の互換）", () => {
+    expect(ReadTileSchema.parse({ tile: "1m", confidence: 0.5 })).toEqual({ tile: "1m" });
   });
 });
 
@@ -32,40 +36,28 @@ describe("AiRiverResponseSchema（河1方向のAI出力検証）", () => {
     expect(result.success).toBe(false);
   });
 
-  it("confidence の無い牌は拒否する（欠落を 1.0＝自信満々に化けさせない）", () => {
-    // 保存用スキーマ（人手入力）は confidence 既定 1 だが、AI 出力でそれを許すと
-    // 「モデルが自信を書かなかった牌」が要確認ハイライトから漏れる。最優先指標
-    //（自信満々の誤読を出さない）に逆行するため、AI 応答では必須にする。
-    expect(AiRiverResponseSchema.safeParse({ discards: [{ order: 1, tile: "9p" }] }).success).toBe(
-      false,
-    );
-    expect(
-      AiRiverResponseSchema.safeParse({ discards: [{ order: 1, tile: "9p", confidence: 0.9 }] })
-        .success,
-    ).toBe(true);
+  it("モデルが confidence を出しても無視して剥がす（旧プロンプト互換）", () => {
+    const result = AiRiverResponseSchema.parse({
+      discards: [{ order: 1, tile: "9p", confidence: 0.9 }],
+    });
+    expect(result.discards[0]).toEqual({ order: 1, tile: "9p", riichi: false, tsumogiri: false });
   });
 
   it("null スロットを保持しても枚数・順序が壊れない（推測で埋めない）", () => {
     const result = AiRiverResponseSchema.parse({
       discards: [
-        { order: 1, tile: null, confidence: 0 },
-        { order: 2, tile: "9p", confidence: 0.95 },
+        { order: 1, tile: null },
+        { order: 2, tile: "9p" },
       ],
     });
     expect(result.discards).toHaveLength(2);
     expect(result.discards[0]).toMatchObject({ order: 1, tile: null });
-    // riichi の既定は効く（confidence はモデルが必ず出す）。
-    expect(result.discards[1]).toMatchObject({
-      order: 2,
-      tile: "9p",
-      riichi: false,
-      confidence: 0.95,
-    });
+    expect(result.discards[1]).toMatchObject({ order: 2, tile: "9p", riichi: false });
   });
 
   it("横向き牌は riichi:true で表せる", () => {
     const result = AiRiverResponseSchema.parse({
-      discards: [{ order: 1, tile: "3z", riichi: true, confidence: 1 }],
+      discards: [{ order: 1, tile: "3z", riichi: true }],
     });
     expect(result.discards[0]?.riichi).toBe(true);
   });
@@ -73,8 +65,8 @@ describe("AiRiverResponseSchema（河1方向のAI出力検証）", () => {
   it("捨て方は tsumogiri で表す（既定は手出し=false）", () => {
     const result = AiRiverResponseSchema.parse({
       discards: [
-        { order: 1, tile: "1m", confidence: 1 },
-        { order: 2, tile: "2p", tsumogiri: true, confidence: 1 },
+        { order: 1, tile: "1m" },
+        { order: 2, tile: "2p", tsumogiri: true },
       ],
     });
     expect(result.discards[0]?.tsumogiri).toBe(false); // 既定=手出し
@@ -83,11 +75,15 @@ describe("AiRiverResponseSchema（河1方向のAI出力検証）", () => {
 });
 
 describe("AiHandResponseSchema（手牌1人ぶんのAI出力検証）", () => {
-  it("confidence の無い牌は拒否する（河と同じ規律）", () => {
-    expect(AiHandResponseSchema.safeParse({ hand: [{ tile: "1m" }] }).success).toBe(false);
-    expect(
-      AiHandResponseSchema.safeParse({ hand: [{ tile: "1m", confidence: 0.8 }] }).success,
-    ).toBe(true);
+  it("牌は tile のみ（confidence は出されても無視して剥がす）", () => {
+    const result = AiHandResponseSchema.parse({ hand: [{ tile: "1m", confidence: 0.8 }] });
+    expect(result.hand[0]).toEqual({ tile: "1m" });
+  });
+
+  it('notes: null を返すモデルでも応答全体を落とさない（"" に倒す）', () => {
+    // 実例: gemini-3.6-flash が notes: null を返し、河1方向まるごと検証落ちした（2026-07-24 eval）。
+    expect(AiHandResponseSchema.parse({ hand: [], notes: null }).notes).toBe("");
+    expect(AiRiverResponseSchema.parse({ discards: [], notes: null }).notes).toBe("");
   });
 });
 
@@ -116,9 +112,9 @@ describe("KifuSchema（牌譜1件の最終検証）", () => {
       ...minimalKifu,
       seats: { east: board, south: {}, west: {}, north: {} },
     });
-    const tiles = (n: number) => Array.from({ length: n }, () => ({ tile: "1m", confidence: 1 }));
+    const tiles = (n: number) => Array.from({ length: n }, () => ({ tile: "1m" }));
     const discards = (n: number) =>
-      Array.from({ length: n }, (_, i) => ({ order: i + 1, tile: "1m", confidence: 1 }));
+      Array.from({ length: n }, (_, i) => ({ order: i + 1, tile: "1m" }));
 
     it("手牌は14枚まで（13＋ツモ牌）", () => {
       expect(KifuSchema.safeParse(seat({ hand: tiles(KIFU_LIMITS.hand) })).success).toBe(true);
@@ -209,6 +205,15 @@ describe("KifuSchema（牌譜1件の最終検証）", () => {
     expect(KifuSchema.safeParse(withPlayers({ points: Infinity })).success).toBe(false);
   });
 
+  it("旧データの timeline（confidence 付き打牌イベント）も剥がして受理する（後方互換）", () => {
+    const kifu = KifuSchema.parse({
+      ...minimalKifu,
+      timeline: [{ kind: "discard", seat: "east", tile: "1m", confidence: 0.7 }],
+    });
+    expect(kifu.timeline[0]).not.toHaveProperty("confidence");
+    expect(kifu.timeline[0]).toMatchObject({ kind: "discard", tile: "1m" });
+  });
+
   it("timeline は省略時に空配列になる（後方互換）", () => {
     const kifu = KifuSchema.parse(minimalKifu);
     expect(kifu.timeline).toEqual([]);
@@ -227,7 +232,6 @@ describe("KifuSchema（牌譜1件の最終検証）", () => {
       tsumogiri: false,
       riichi: false,
       calledBy: null,
-      confidence: 1,
     });
   });
 

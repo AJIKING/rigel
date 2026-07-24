@@ -122,7 +122,7 @@ describe("ProblemAnswerScreen（何切る回答画面）", () => {
         east: {
           ...post.problem.seats.east,
           hand: ["1m", "2m", "3m", "4m", "4m", "6m", "7m", "8m", "9m", "1p", "2p", "3p", "1s"].map(
-            (tile) => ({ tile: tile as never, confidence: 1 }),
+            (tile) => ({ tile: tile as never }),
           ),
         },
       },
@@ -340,9 +340,9 @@ describe("ProblemAnswerScreen（何切る回答画面）", () => {
                 "4p",
                 "6p",
                 "7p",
-              ].map((tile) => ({ tile, confidence: 1 })),
+              ].map((tile) => ({ tile })),
             },
-            south: { river: [{ order: 1, tile: "5p", confidence: 1 }] },
+            south: { river: [{ order: 1, tile: "5p" }] },
             west: {},
             north: {},
           },

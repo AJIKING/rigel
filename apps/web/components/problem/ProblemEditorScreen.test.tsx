@@ -73,12 +73,12 @@ describe("ProblemEditorScreen: 写真から作成（AI再現）", () => {
       seats: {
         east: {
           hand: [
-            { tile: "1m", confidence: 0.9 },
-            { tile: "2m", confidence: 0.6 },
-            { tile: null, confidence: 0 }, // 読めなかった牌は持ち込まれない
+            { tile: "1m" },
+            { tile: "2m" },
+            { tile: null }, // 読めなかった牌は持ち込まれない
           ],
         },
-        south: { river: [{ order: 1, tile: "9s", confidence: 0.8 }] },
+        south: { river: [{ order: 1, tile: "9s" }] },
         west: {},
         north: {},
       },
@@ -107,9 +107,9 @@ describe("ProblemEditorScreen: 写真から作成（AI再現）", () => {
     expect(screen.getByRole("button", { name: "2萬 を外す" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "南家の河1（9索）を変更" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "ドラ表示牌 西 を外す" })).toBeTruthy();
-    // 読み取りメモと要確認（低confidence=2萬 0.6）を表示して人の確認を促す。
+    // 読み取りメモと「全牌目検してから保存」の促しを表示する（confidence 廃止・[決定] 2026-07-24）。
     expect(screen.getByText(/グレアで1枚読めず/)).toBeTruthy();
-    expect(screen.getByText(/要確認: .*2萬\(0\.6\)/)).toBeTruthy();
+    expect(screen.getByText(/目で確認してから保存/)).toBeTruthy();
   });
 
   it("free プランには「写真から作成」を出さない（解析枠0＝kifu と同方針）", async () => {

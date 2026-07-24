@@ -51,7 +51,6 @@ function toDiscard(event: Extract<TimelineEvent, { kind: "discard" }>, order: nu
     riichi: event.riichi,
     tsumogiri: event.tsumogiri,
     calledBy: event.calledBy,
-    confidence: event.confidence,
   };
 }
 
@@ -66,8 +65,8 @@ function removeOne(hand: ReadTile[], tile: Tile | null): void {
   if (i >= 0) hand.splice(i, 1);
 }
 
-function pushDraw(hand: ReadTile[], tile: Tile | null, confidence: number): void {
-  if (tile !== null) hand.push({ tile, confidence });
+function pushDraw(hand: ReadTile[], tile: Tile | null): void {
+  if (tile !== null) hand.push({ tile });
 }
 
 /** 鳴きで手牌から消費する枚数（残りは鳴き元の打牌など手牌外から来る牌）。 */
@@ -103,7 +102,7 @@ function applyDiscard(
   if (event.tsumogiri) {
     // ツモ切りはツモ牌を手牌へ残さず、打牌だけ河へ置く。
   } else {
-    pushDraw(board.hand, event.draw, event.confidence);
+    pushDraw(board.hand, event.draw);
     removeOne(board.hand, event.tile);
   }
 

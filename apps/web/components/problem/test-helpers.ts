@@ -35,7 +35,7 @@ export function makeDiscardPost(overrides: Partial<ProblemPost> = {}): ProblemPo
       pov: "east",
       drawn: "5p",
       seats: {
-        east: { hand: HAND_13.map((t) => ({ tile: t, confidence: 1 })) },
+        east: { hand: HAND_13.map((t) => ({ tile: t })) },
         south: {},
         west: {},
         north: {},
@@ -56,8 +56,8 @@ export function makeCallPost(overrides: Partial<ProblemPost> = {}): ProblemPost 
       pov: "east",
       targetSeat: "south",
       seats: {
-        east: { hand: HAND_13.map((t) => ({ tile: t, confidence: 1 })) },
-        south: { river: [{ order: 1, tile: "5p", confidence: 1 }] },
+        east: { hand: HAND_13.map((t) => ({ tile: t })) },
+        south: { river: [{ order: 1, tile: "5p" }] },
         west: {},
         north: {},
       },

@@ -27,7 +27,7 @@ export function makeProblem(overrides: Record<string, unknown> = {}): Problem {
     pov: "east",
     drawn: "5p",
     seats: {
-      east: { hand: HAND_13.map((tile) => ({ tile, confidence: 1 })) },
+      east: { hand: HAND_13.map((tile) => ({ tile })) },
       south: {},
       west: {},
       north: {},
@@ -45,8 +45,8 @@ export function makeCallProblem(overrides: Record<string, unknown> = {}): Proble
     drawn: null,
     targetSeat: "south",
     seats: {
-      east: { hand: HAND_13.map((tile) => ({ tile, confidence: 1 })) },
-      south: { river: [{ order: 1, tile: "6z", riichi: false, confidence: 1 }] },
+      east: { hand: HAND_13.map((tile) => ({ tile })) },
+      south: { river: [{ order: 1, tile: "6z", riichi: false }] },
       west: {},
       north: {},
     },

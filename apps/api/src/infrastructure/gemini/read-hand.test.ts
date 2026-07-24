@@ -12,7 +12,7 @@ function clientReturning(text: string): GeminiClient {
 describe("readHand", () => {
   it("手牌と鳴き(カメラ相対のfrom)を検証して返す", async () => {
     const client = clientReturning(
-      '{"hand":[{"tile":"1m","confidence":0.9},{"tile":null,"confidence":0}],"melds":[{"type":"pon","tiles":[{"tile":"5z","confidence":0.9}],"from":"left"}],"notes":""}',
+      '{"hand":[{"tile":"1m"},{"tile":null}],"melds":[{"type":"pon","tiles":[{"tile":"5z"}],"from":"left"}],"notes":""}',
     );
     const result = await readHand({ client, prompt: "p", model: "m" }, image);
     expect(result.hand).toHaveLength(2);

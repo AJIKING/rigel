@@ -19,7 +19,7 @@ const draftKifu = KifuSchema.parse({
   capturedAt: NOW.toISOString(),
   cameraBottomSeat: "east",
   seats: {
-    east: { hand: [{ tile: "5p", confidence: 0.9 }] },
+    east: { hand: [{ tile: "5p" }] },
     south: {},
     west: {},
     north: {},

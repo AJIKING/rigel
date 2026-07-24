@@ -30,13 +30,13 @@ jest.mock("../lib/api", () => ({
   updateGameRules: jest.fn(),
 }));
 
-function makeKifu(honba = 0): Kifu {
+function makeKifu(honba = 0, east: Record<string, unknown> = {}): Kifu {
   return KifuSchema.parse({
     schemaVersion: "1.0.0",
     capturedAt: "2026-07-04T00:00:00.000Z",
     cameraBottomSeat: "east",
     meta: { dealer: "east", honba },
-    seats: { east: {}, south: {}, west: {}, north: {} },
+    seats: { east, south: {}, west: {}, north: {} },
   });
 }
 
@@ -71,5 +71,13 @@ describe("GameDetailScreen（半荘詳細の局一覧）", () => {
     render(<GameDetailScreen />);
     expect(screen.getByText(/東一局 0本場/)).toBeTruthy();
     expect(screen.getByText(/東一局 1本場/)).toBeTruthy();
+  });
+
+  it("読めなかった牌（null）を含む局には「要確認」バッジを出す（人手修正の入口）", () => {
+    const detail = makeDetail([{ id: "l1", seq: 1 }]);
+    detail.logs[0]!.kifu = makeKifu(0, { hand: [{ tile: null }, { tile: "1m" }] });
+    mockUseGame.mockReturnValue({ loading: false, detail, refetch: jest.fn() });
+    render(<GameDetailScreen />);
+    expect(screen.getByText("要確認 1")).toBeTruthy();
   });
 });

@@ -43,10 +43,11 @@ Handle them one at a time:
    is easy to miss. Re-crop and zoom if unsure.
 
 ### Uncertainty handling (do this, it matters)
-- Give every tile a `confidence` from 0.0 to 1.0.
-- If you genuinely cannot tell what a tile is, output `"tile": null` with `confidence: 0.0`,
-  but STILL include the slot so the discard count and order stay correct.
+- Output a tile code ONLY when you are sure. If you cannot tell a tile, or you are torn
+  between two candidates, output `"tile": null` — but STILL include the slot so the
+  discard count and order stay correct.
 - Never invent a tile to fill a gap. A flagged `null` is more useful than a wrong guess.
+- (数値 confidence は廃止・[決定] 2026-07-24。自己申告数値は較正が保証できないため、null の二値のみ)
 
 ### Output — JSON only
 Output valid JSON and nothing else. No prose, no markdown, no code fences.
@@ -55,8 +56,8 @@ Output valid JSON and nothing else. No prose, no markdown, no code fences.
 {
   "rivers": {
     "bottom": [
-      { "order": 1, "tile": "9p", "riichi": false, "confidence": 0.98 },
-      { "order": 2, "tile": "1z", "riichi": false, "confidence": 0.95 }
+      { "order": 1, "tile": "9p", "riichi": false },
+      { "order": 2, "tile": "1z", "riichi": false }
     ],
     "right": [],
     "top": [],

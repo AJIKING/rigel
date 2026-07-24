@@ -14,8 +14,8 @@ function makeKifu(): Kifu {
     seats: {
       east: {
         river: [
-          { order: 1, tile: "6z", riichi: false, confidence: 1 },
-          { order: 2, tile: "7z", riichi: false, confidence: 1 },
+          { order: 1, tile: "6z", riichi: false },
+          { order: 2, tile: "7z", riichi: false },
         ],
       },
       south: {},

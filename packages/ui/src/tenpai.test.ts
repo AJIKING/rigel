@@ -28,11 +28,11 @@ function problem(
     drawn,
     seats: {
       east: {
-        hand: hand.map((t) => ({ tile: t, confidence: 1 })),
+        hand: hand.map((t) => ({ tile: t })),
         melds: melds.map((m) => ({
           type: m.type,
           from: m.type === "kan_closed" ? null : "south",
-          tiles: m.tiles.map((t) => ({ tile: t, confidence: 1 })),
+          tiles: m.tiles.map((t) => ({ tile: t })),
         })),
       },
       south: {},

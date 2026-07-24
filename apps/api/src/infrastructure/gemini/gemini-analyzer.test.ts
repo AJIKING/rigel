@@ -8,8 +8,8 @@ import type { RiverPreprocessor } from "./river-preprocessor";
 
 const RIVER_PROMPT = "RIVER";
 const HAND_PROMPT = "HAND";
-const RIVER_JSON = '{"discards":[{"order":1,"tile":"1m","confidence":0.95}],"notes":""}';
-const HAND_JSON = '{"hand":[{"tile":"2p","confidence":0.9}],"melds":[],"notes":""}';
+const RIVER_JSON = '{"discards":[{"order":1,"tile":"1m"}],"notes":""}';
+const HAND_JSON = '{"hand":[{"tile":"2p"}],"melds":[],"notes":""}';
 
 class FakePreprocessor implements RiverPreprocessor {
   split(_river: ImageRef): Promise<Record<CameraSeat, ImageRef>> {

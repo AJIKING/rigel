@@ -12,7 +12,7 @@ function clientReturning(text: string): GeminiClient {
 describe("readRiverDirection", () => {
   it("Gemini のテキストを JSON 抽出し AiRiverResponse に検証する", async () => {
     const client = clientReturning(
-      '```json\n{"discards":[{"order":1,"tile":"9p","riichi":false,"confidence":0.9},{"order":2,"tile":null,"confidence":0}],"notes":"glare"}\n```',
+      '```json\n{"discards":[{"order":1,"tile":"9p","riichi":false},{"order":2,"tile":null}],"notes":"glare"}\n```',
     );
     const result = await readRiverDirection({ client, prompt: "p", model: "m" }, image);
     expect(result.discards).toHaveLength(2);

@@ -41,7 +41,7 @@ Gemini が正しく読むための**前処理（4分割＋正立）・出力ス�
 1. **テストファースト。** 失敗するテスト（Red）を先に書き、それを通す最小実装（Green）だけを書く。テストの無い本番コードをコミットしない。
 2. **小さく進む。** 1タスク＝1つの振る舞い。縦切り（撮影→解析→ドラフト→修正→保存の「動く一筋」）。複数の関心事を1コミットに混ぜない。
 3. **スキーマが背骨。** 牌譜スキーマ（Zod）を全層が共有する。**AI 出力は使う前に必ず `*.parse()` で検証**し、検証を通っていない生レスポンスを下流に流さない。
-4. **AI に推測させない。** 読めない牌は推測で埋めず `tile: null` + `confidence: 0` でスロットを残す（枚数・`order` 連番を壊さない）。全牌に confidence を持たせ、低い牌は人手修正に回す。
+4. **AI に推測させない。** 読めない・迷う牌は推測で埋めず `tile: null` でスロットを残す（枚数・`order` 連番を壊さない）。**数値 confidence は廃止（[決定] 2026-07-24。モデルの自己申告数値は較正が保証できない）**。AI 出力は常に**目検必須のドラフト**として扱い、null 牌は必ず人が埋める。精度の最重要指標は「null で白旗を揚げずに誤読した率（misreadRate）」。
 5. **`[決定]` と `[未確定]` を取り違えない。** 設計ドキュメントの `[未確定]`（例: `toAbsoluteSeat` の回転方向、Agentic Vision の要否）を勝手に確定して実装を進めない。要実機検証は検証してから本実装し、結論を設計ドキュメントに反映する。
 6. **課金は成功時のみ。** 枠は **Gemini 呼び出し回数**で数え、解析が**成功したときだけ実呼び出し数ぶん加算**（`recordGeminiCalls`）。失敗時は消費させない。プラン別枠（free0/next100/pro320）と保存上限（**半荘単位**: 非公開 free5・下書き free5・有料無制限、1半荘30局まで）を壊さない。
 7. **画像を保存しない。** 撮影画像は永続化しない（保存するのは解析後の `Kifu` JSON のみ）。プライバシー・ストレージ両面の前提。**公開範囲（public/private・既定 private）・ルール・選手情報（players）は半荘単位**（局ごとに持たず、変更は配下の全局へ一括反映・新局は引き継ぎ・局単位の PUT では書き換え不可）。private は所有者のみ閲覧可。
@@ -124,7 +124,7 @@ rigel/
 | DB / ORM | **Cloudflare D1 (SQLite) + Drizzle** | 撮影画像は保存しない。`Kifu` JSON のみ。スキーマ=`apps/api/src/infrastructure/db/schema.ts` |
 | 認証 | **Google + Sign in with Apple** | App Store 審査要件 4.8 で Apple 併設必須（2026-07-17 決定・実装済み）。退会時は Apple トークンを revoke |
 | 課金 | **Web=Stripe / アプリ=IAP（RevenueCat SDK）** | **真実源=RevenueCat**（Webhook だけが plan を書く）。`users.plan` は D1 射影。設計7章・[docs/plans/billing-revenuecat.md](docs/plans/billing-revenuecat.md) |
-| AI | **Gemini API + Cloudflare AI Gateway** | モデル名はハードコードしない。河=Gemini 3 Flash、手牌=Flash-Lite 系 |
+| AI | **Gemini API + Cloudflare AI Gateway** | モデル名はハードコードしない。河・手牌とも Flash 系（手牌の Lite は eval 実測で力不足 → Flash に変更・2026-07-24） |
 | 計測 | **GA4 に統一**（web=gtag 実装済み / アプリ=Firebase Analytics はビルド検証後） | 1プロパティ3ストリーム。イベント名は @rigel/ui の ANALYTICS_EVENTS が真実源。**PII は送らない・広告用途に使わない**。[docs/plans/analytics.md](docs/plans/analytics.md) |
 | 画像保存 | **しない** | 解析後 JSON のみ |
 | モノレポ | turborepo / pnpm workspace | `packages/schema`,`packages/ui`,`apps/{mobile,web,api}` |

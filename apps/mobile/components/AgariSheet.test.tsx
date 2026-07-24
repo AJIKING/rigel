@@ -24,18 +24,11 @@ describe("AgariSheet（和了演出シート）", () => {
       seats: {
         east: {
           // 乱順の手牌（viewKifu 相当＝和了牌は除去済みの13枚型）。
-          hand: [
-            { tile: "9s", confidence: 1 },
-            { tile: "1m", confidence: 1 },
-          ],
+          hand: [{ tile: "9s" }, { tile: "1m" }],
           melds: [
             {
               type: "pon",
-              tiles: [
-                { tile: "5z", confidence: 1 },
-                { tile: "5z", confidence: 1 },
-                { tile: "5z", confidence: 1 },
-              ],
+              tiles: [{ tile: "5z" }, { tile: "5z" }, { tile: "5z" }],
               from: "south",
             },
           ],

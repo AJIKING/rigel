@@ -220,10 +220,10 @@ describe("setDoraTile / removeDoraTile（ドラは複数枚・最大5）", () =>
 });
 
 describe("addHandTile / removeHandTile", () => {
-  it("手牌に確定(confidence=1)で追加し、元は不変", () => {
+  it("手牌に1枚追加し、元は不変", () => {
     const k = kifu();
     const next = addHandTile(k, "east", "1m");
-    expect(next.seats.east.hand).toEqual([{ tile: "1m", confidence: 1 }]);
+    expect(next.seats.east.hand).toEqual([{ tile: "1m" }]);
     expect(k.seats.east.hand).toHaveLength(0);
   });
   it("追加のたびに理牌される（選んだ順ではなく牌種順に並ぶ）", () => {
@@ -250,34 +250,23 @@ describe("理牌（compareTiles / sortHandTiles / sortKifuHands）", () => {
     expect(compareTiles("7z", null)).toBeLessThan(0);
     expect(compareTiles(null, null)).toBe(0);
   });
-  it("sortHandTiles: confidence を牌ごと保ったまま並べ替えた新しい配列を返す（元は不変）", () => {
-    const hand = [
-      { tile: "1z" as const, confidence: 0.4 },
-      { tile: null, confidence: 0 },
-      { tile: "3m" as const, confidence: 1 },
-    ];
+  it("sortHandTiles: 並べ替えた新しい配列を返す（元は不変）", () => {
+    const hand = [{ tile: "1z" as const }, { tile: null }, { tile: "3m" as const }];
     const sorted = sortHandTiles(hand);
     expect(sorted.map((t) => t.tile)).toEqual(["3m", "1z", null]);
-    expect(sorted.map((t) => t.confidence)).toEqual([1, 0.4, 0]);
     expect(hand.map((t) => t.tile)).toEqual(["1z", null, "3m"]); // 元は不変
   });
   it("sortKifuHands: 全席の手牌を理牌し、河（order 時系列）と鳴きは変えない", () => {
     const k = kifu({
       east: {
-        hand: [
-          { tile: "1z", confidence: 1 },
-          { tile: "1m", confidence: 1 },
-        ],
+        hand: [{ tile: "1z" }, { tile: "1m" }],
         river: [
-          { order: 1, tile: "9s", confidence: 1 },
-          { order: 2, tile: "1s", confidence: 1 },
+          { order: 1, tile: "9s" },
+          { order: 2, tile: "1s" },
         ],
       },
       south: {
-        hand: [
-          { tile: "0p", confidence: 1 },
-          { tile: "5p", confidence: 1 },
-        ],
+        hand: [{ tile: "0p" }, { tile: "5p" }],
       },
     });
     const next = sortKifuHands(k);
@@ -296,7 +285,6 @@ describe("addRiverTile / removeRiverTile", () => {
       tile: "2z",
       riichi: false,
       tsumogiri: false,
-      confidence: 1,
     });
   });
   it("取り除いたら order を 1..n に振り直す（連番を壊さない）", () => {
@@ -342,7 +330,7 @@ describe("addMeld / removeMeld", () => {
   });
   it("鳴くと手牌を末尾から減らす（ポン/チー=2・大明槓=3・暗槓=4・加槓=1）", () => {
     const hand = ["1m", "2m", "3m", "4m", "5m"];
-    const withHand = () => kifu({ south: { hand: hand.map((t) => ({ tile: t, confidence: 1 })) } });
+    const withHand = () => kifu({ south: { hand: hand.map((t) => ({ tile: t })) } });
     expect(addMeld(withHand(), "south", "pon", "9p").seats.south.hand.map((t) => t.tile)).toEqual([
       "1m",
       "2m",
@@ -354,7 +342,7 @@ describe("addMeld / removeMeld", () => {
     expect(addMeld(withHand(), "south", "kan_added", "9p").seats.south.hand).toHaveLength(4); // -1
   });
   it("手牌が足りなくても0未満にはしない", () => {
-    const one = kifu({ south: { hand: [{ tile: "1m", confidence: 1 }] } });
+    const one = kifu({ south: { hand: [{ tile: "1m" }] } });
     expect(addMeld(one, "south", "pon", "9p").seats.south.hand).toHaveLength(0);
   });
   it("鳴きを丸ごと取り除く", () => {
@@ -376,7 +364,7 @@ describe("timeline 非空のとき、盤面の河/鳴き編集が手順(timeline
         east: {
           hand: [],
           melds: [],
-          river: [{ order: 1, tile: "1m", riichi: false, tsumogiri: false, confidence: 1 }],
+          river: [{ order: 1, tile: "1m", riichi: false, tsumogiri: false }],
         },
         south: {},
         west: {},
@@ -390,7 +378,6 @@ describe("timeline 非空のとき、盤面の河/鳴き編集が手順(timeline
           tile: "1m",
           tsumogiri: false,
           riichi: false,
-          confidence: 1,
         },
       ],
     });

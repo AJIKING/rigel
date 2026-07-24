@@ -21,7 +21,6 @@ import {
   problemHandMax,
   removeDraftRiverTile,
   replaceDraftRiverTile,
-  reviewSummaryLabel,
   problemRiverTiles,
   seatLabel,
   tileLabel,
@@ -205,14 +204,14 @@ export function ProblemEditorScreen({ initial }: { initial?: ProblemPost }) {
   const [suit, setSuit] = useState<PickerSuit>("m");
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  // 写真からのAI再現。流し込み後は readingNotes と要確認（低confidence）を出して人の確認を促す。
+  // 写真からのAI再現。流し込み後は readingNotes を出し、全体の目検確認を促す。
   const [photoOpen, setPhotoOpen] = useState(false);
   const [readingNotes, setReadingNotes] = useState("");
   const [aiReview, setAiReview] = useState("");
 
   /** AIドラフト（Kifu 形）をエディタの各状態へ流し込む（変換は @rigel/ui の共有純関数）。 */
   function applyAiDraft(kifu: Kifu) {
-    const { draft, readingNotes: notes, review } = kifuToProblemDraft(kifu, pov);
+    const { draft, readingNotes: notes } = kifuToProblemDraft(kifu, pov);
     setHand(draft.hand);
     setMelds(draft.melds);
     setDrawn(draft.drawn);
@@ -224,8 +223,8 @@ export function ProblemEditorScreen({ initial }: { initial?: ProblemPost }) {
     if (draft.meta.dealer) setDealer(draft.meta.dealer);
     if (draft.meta.roundWind) setRoundWind(draft.meta.roundWind);
     setReadingNotes(notes);
-    // 低confidenceの牌は「要確認」として明示する（黙って確定牌に昇格させない＝信頼ゲート）。
-    setAiReview(reviewSummaryLabel(review));
+    // AI ドラフトは全牌目検が前提（[決定] 2026-07-24: confidence 廃止）。
+    setAiReview("AIの読み取り結果です。牌を目で確認してから保存してください。");
     setPhotoOpen(false);
     setErr(null);
   }
@@ -463,7 +462,7 @@ export function ProblemEditorScreen({ initial }: { initial?: ProblemPost }) {
             </button>
           )}
         </div>
-        {/* AIの読み取りメモ（グレア・見切れ等）と要確認（低confidence）。人の確認を促す。 */}
+        {/* AIの読み取りメモ（グレア・見切れ等）と目検確認の促し。 */}
         {readingNotes && <p className={s.hint}>読み取りメモ: {readingNotes}</p>}
         {aiReview && <p className={s.hint}>{aiReview}</p>}
         <Stepper label="巡目" unit="巡目" value={junme} min={1} max={30} set={setJunme} />

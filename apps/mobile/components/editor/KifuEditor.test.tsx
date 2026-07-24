@@ -15,7 +15,7 @@ function makeKifu(seats: Record<string, unknown> = {}): Kifu {
 const riverKifu = (tiles: string[]): Kifu =>
   makeKifu({
     east: {
-      river: tiles.map((t, i) => ({ order: i + 1, tile: t, riichi: false, confidence: 1 })),
+      river: tiles.map((t, i) => ({ order: i + 1, tile: t, riichi: false })),
     },
   });
 
@@ -33,7 +33,7 @@ describe("KifuEditor（モバイル編集画面）", () => {
     fireEvent.press(screen.getByText("保存"));
     expect(onSave).toHaveBeenCalledTimes(1);
     const saved = onSave.mock.calls[0]![0] as Kifu;
-    expect(saved.seats.east.hand).toEqual([{ tile: "1m", confidence: 1 }]);
+    expect(saved.seats.east.hand).toEqual([{ tile: "1m" }]);
   });
 
   it("配牌は牌を選ぶたびに理牌される（東→1萬の順に選んでも 1萬,東 で保存）", () => {
@@ -56,10 +56,7 @@ describe("KifuEditor（モバイル編集画面）", () => {
     const onSave = jest.fn();
     const k = makeKifu({
       east: {
-        hand: [
-          { tile: "1z", confidence: 1 },
-          { tile: "1m", confidence: 1 },
-        ],
+        hand: [{ tile: "1z" }, { tile: "1m" }],
       },
     });
     render(<KifuEditor initialKifu={k} initialSeq={1} onSave={onSave} />);
@@ -266,7 +263,6 @@ describe("KifuEditor（モバイル編集画面）", () => {
           tile: "1m",
           tsumogiri: false,
           riichi: false,
-          confidence: 1,
         },
       ],
     });

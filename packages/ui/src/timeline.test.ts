@@ -31,15 +31,10 @@ const river = (
   tile: tile as never,
   riichi: extra.riichi ?? false,
   tsumogiri: extra.tsumogiri ?? false,
-  confidence: 1,
 });
 const pon = (from: string) => ({
   type: "pon" as const,
-  tiles: [
-    { tile: "5z" as never, confidence: 1 },
-    { tile: "5z" as never, confidence: 1 },
-    { tile: "5z" as never, confidence: 1 },
-  ],
+  tiles: [{ tile: "5z" as never }, { tile: "5z" as never }, { tile: "5z" as never }],
   from: from as never,
 });
 const discKinds = (k: { timeline: unknown[] }) =>
@@ -66,7 +61,6 @@ const disc = (
   tsumogiri: false,
   riichi: false,
   calledBy: null,
-  confidence: 1,
 });
 
 describe("buildTimelineFromSeats（席ごと→輪番タイムライン移行）", () => {
@@ -77,12 +71,12 @@ describe("buildTimelineFromSeats（席ごと→輪番タイムライン移行）
         east: {
           hand: [],
           melds: [],
-          river: [{ order: 1, tile: "1m", riichi: false, tsumogiri: false, confidence: 1 }],
+          river: [{ order: 1, tile: "1m", riichi: false, tsumogiri: false }],
         },
         south: {
           hand: [],
           melds: [],
-          river: [{ order: 1, tile: "2p", riichi: false, tsumogiri: false, confidence: 1 }],
+          river: [{ order: 1, tile: "2p", riichi: false, tsumogiri: false }],
         },
         west: { hand: [], melds: [], river: [] },
         north: { hand: [], melds: [], river: [] },
@@ -107,7 +101,7 @@ describe("deriveTimeline", () => {
         east: {
           hand: [],
           melds: [],
-          river: [{ order: 1, tile: "1m", riichi: false, tsumogiri: false, confidence: 1 }],
+          river: [{ order: 1, tile: "1m", riichi: false, tsumogiri: false }],
         },
         south: {},
         west: {},
@@ -134,7 +128,7 @@ describe("timelineToSeats / syncSeatsFromTimeline", () => {
   it("hand は保持したまま river/melds を同期する", () => {
     const k = kifu({
       seats: {
-        east: { hand: [{ tile: "5z", confidence: 1 }], melds: [], river: [] },
+        east: { hand: [{ tile: "5z" }], melds: [], river: [] },
         south: {},
         west: {},
         north: {},
@@ -156,7 +150,6 @@ describe("timelineToSeats / syncSeatsFromTimeline", () => {
           tile: "1z",
           tsumogiri: false,
           riichi: true,
-          confidence: 1,
         },
         {
           kind: "meld",
@@ -221,11 +214,7 @@ describe("鳴かれた捨て牌（calledBy）の往復", () => {
 describe("syncCalledByForMeld（鳴きの from 変更/削除に鳴き印を追随させる）", () => {
   const pon5p = (from: string) => ({
     type: "pon" as const,
-    tiles: [
-      { tile: "5p" as never, confidence: 1 },
-      { tile: "5p" as never, confidence: 1 },
-      { tile: "5p" as never, confidence: 1 },
-    ],
+    tiles: [{ tile: "5p" as never }, { tile: "5p" as never }, { tile: "5p" as never }],
     from: from as never,
   });
 
@@ -262,11 +251,7 @@ describe("syncCalledByForMeld（鳴きの from 変更/削除に鳴き印を追�
 describe("手順イベントの共通操作（cycle*/removeTimelineEvent。web/mobile の手順タブで共用）", () => {
   const pon = (from: string) => ({
     type: "pon" as const,
-    tiles: [
-      { tile: "5p" as never, confidence: 1 },
-      { tile: "5p" as never, confidence: 1 },
-      { tile: "5p" as never, confidence: 1 },
-    ],
+    tiles: [{ tile: "5p" as never }, { tile: "5p" as never }, { tile: "5p" as never }],
     from: from as never,
   });
 
@@ -376,7 +361,6 @@ describe("reconcileTimeline（盤面編集→timeline を巡目正規化で同�
           tile: "1m",
           tsumogiri: false,
           riichi: false,
-          confidence: 1,
         },
       ],
     });
@@ -616,11 +600,7 @@ describe("手順の表示行（鳴き行に鳴いた人の打牌を併合する�
       seat,
       meld: {
         type: "pon" as const,
-        tiles: [
-          { tile: "5p", confidence: 1 },
-          { tile: "5p", confidence: 1 },
-          { tile: "5p", confidence: 1 },
-        ],
+        tiles: [{ tile: "5p" }, { tile: "5p" }, { tile: "5p" }],
         from,
       },
     }) as unknown as TimelineEvent;

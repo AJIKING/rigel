@@ -12,7 +12,7 @@
 ```
 packages/
   schema/   @rigel/schema  牌譜スキーマ(Zod)。全層共有の背骨。AI出力検証もこれ
-  ui/       @rigel/ui      牌SVG・confidenceハイライト・修正UI（RN/Web共有）※M6
+  ui/       @rigel/ui      牌SVG・null=要修正ハイライト・修正UI（RN/Web共有）※M6
 apps/
   api/      api            Cloudflare Workers（Hono + Drizzle + D1）。DDD レイヤード
   web/      web            Next.js（App Router）。背骨スキーマ・UIを共有

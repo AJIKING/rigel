@@ -53,7 +53,6 @@ const discard = (
   tsumogiri: false,
   riichi: false,
   calledBy: null,
-  confidence: 1,
   ...over,
 });
 
@@ -64,8 +63,8 @@ function playbackKifu(): Kifu {
     cameraBottomSeat: "east",
     meta: { dealer: "east", kyotaku: 0 },
     seats: {
-      east: { hand: EAST_HAND.map((tile) => ({ tile, confidence: 1 })) },
-      south: { hand: SOUTH_HAND.map((tile) => ({ tile, confidence: 1 })) },
+      east: { hand: EAST_HAND.map((tile) => ({ tile })) },
+      south: { hand: SOUTH_HAND.map((tile) => ({ tile })) },
       west: {},
       north: {},
     },

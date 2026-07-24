@@ -82,11 +82,11 @@ describe("ProblemEditScreen（何切る問題の作成/編集）", () => {
         seats: {
           east: {
             hand: [
-              { tile: "1m", confidence: 0.5 }, // 低confidence → 要確認として明示
-              { tile: null, confidence: 0 }, // 読めない牌は落ちる
+              { tile: "1m" },
+              { tile: null }, // 読めない牌は落ちる（readingNotes で告げる）
             ],
           },
-          south: { river: [{ order: 1, tile: "9s", confidence: 0.8 }] },
+          south: { river: [{ order: 1, tile: "9s" }] },
           west: {},
           north: {},
         },
@@ -101,9 +101,9 @@ describe("ProblemEditScreen（何切る問題の作成/編集）", () => {
     await waitFor(() => expect(mockPickImage).toHaveBeenCalled());
     fireEvent.press(screen.getByText("AI再現"));
 
-    // 読み取りメモ・要確認（低confidence=1萬 0.5）が出て、手牌・河が流し込まれる。
+    // 読み取りメモと「全牌目検してから保存」の促しが出て、手牌・河が流し込まれる。
     expect(await screen.findByText(/グレアで1枚読めず/)).toBeTruthy();
-    expect(screen.getByText(/要確認: .*1萬\(0\.5\)/)).toBeTruthy();
+    expect(screen.getByText(/目で確認してから保存/)).toBeTruthy();
     expect(mockAnalyzeProblem).toHaveBeenCalled();
     // 手牌チップ・南家の河チップ（盤面プレビューにも同じ牌が出るため複数一致を許容）。
     expect(screen.getAllByLabelText("1萬").length).toBeGreaterThan(0);

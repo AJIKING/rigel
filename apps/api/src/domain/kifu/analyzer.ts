@@ -35,7 +35,7 @@ export interface Analyzer {
   /**
    * 画像から牌譜ドラフトを生成する。
    * 返す Kifu は KifuSchema で検証済みであることを契約とする（信頼ゲート）。
-   * 読めない牌は推測で埋めず null + confidence:0 のままにする。
+   * 読めない牌は推測で埋めず tile: null のままにする（スロットは残す）。
    * geminiCalls には実際の呼び出し回数を載せる（成功時のみ課金メータへ加算するため）。
    */
   analyze(input: AnalysisInput): Promise<AnalysisResult>;

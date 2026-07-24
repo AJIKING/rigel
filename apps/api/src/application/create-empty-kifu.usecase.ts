@@ -76,7 +76,7 @@ export function emptyKifu(
 ): Kifu {
   const junme = meta?.junme ?? 1;
   const seatBoard = () => ({
-    hand: Array.from({ length: HAND_SIZE }, (_, i) => ({ tile: seqTile(i), confidence: 1 })),
+    hand: Array.from({ length: HAND_SIZE }, (_, i) => ({ tile: seqTile(i) })),
     melds: [],
     river: Array.from({ length: junme }, (_, i) => ({ order: i + 1, tile: seqTile(i) })),
   });

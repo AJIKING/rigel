@@ -28,11 +28,10 @@ const discard = (over: Partial<Extract<TimelineEvent, { kind: "discard" }>>): Ti
   tsumogiri: false,
   riichi: false,
   calledBy: null,
-  confidence: 1,
   ...over,
 });
 
-const hand = (tiles: string[]) => tiles.map((tile) => ({ tile, confidence: 1 }));
+const hand = (tiles: string[]) => tiles.map((tile) => ({ tile }));
 
 describe("再生と鳴かれた捨て牌（鳴きが開く瞬間に薄表示へ）", () => {
   const ponFromEast = {
@@ -40,11 +39,7 @@ describe("再生と鳴かれた捨て牌（鳴きが開く瞬間に薄表示へ�
     seat: "south" as const,
     meld: {
       type: "pon" as const,
-      tiles: [
-        { tile: "5p" as const, confidence: 1 },
-        { tile: "5p" as const, confidence: 1 },
-        { tile: "5p" as const, confidence: 1 },
-      ],
+      tiles: [{ tile: "5p" as const }, { tile: "5p" as const }, { tile: "5p" as const }],
       from: "east" as const,
     },
   };
@@ -157,8 +152,8 @@ describe("buildPlaybackState（再生ステップの局面導出）", () => {
         east: {
           hand: hand(["1m", "2m", "3m"]),
           river: [
-            { order: 1, tile: "9m", riichi: false, tsumogiri: false, confidence: 1 },
-            { order: 2, tile: "8m", riichi: false, tsumogiri: false, confidence: 1 },
+            { order: 1, tile: "9m", riichi: false, tsumogiri: false },
+            { order: 2, tile: "8m", riichi: false, tsumogiri: false },
           ],
         },
         south: {},
@@ -201,8 +196,8 @@ describe("buildPlaybackState（再生ステップの局面導出）", () => {
       seats: {
         east: {
           river: [
-            { order: 1, tile: "9m", riichi: false, tsumogiri: false, confidence: 1 },
-            { order: 2, tile: "8m", riichi: false, tsumogiri: false, confidence: 1 },
+            { order: 1, tile: "9m", riichi: false, tsumogiri: false },
+            { order: 2, tile: "8m", riichi: false, tsumogiri: false },
           ],
         },
         south: {},
@@ -333,7 +328,7 @@ describe("tsumoWinDisplay / splitDrawnTile（ツモ和了牌を手牌の横に�
     const k = kifu({
       agari: [tsumoAgari],
       seats: {
-        east: { hand: hand(["1m"]), river: [{ order: 1, tile: "9m", confidence: 1 }] },
+        east: { hand: hand(["1m"]), river: [{ order: 1, tile: "9m" }] },
         south: {},
         west: {},
         north: {},
@@ -405,7 +400,7 @@ describe("activeDrawnTile / stepDisplay（二段階ステップ演出の表示�
     const k = kifu({
       agari: [{ winner: "east", from: null, winTile: "5p" }],
       seats: {
-        east: { hand: hand(["1m"]), river: [{ order: 1, tile: "9m", confidence: 1 }] },
+        east: { hand: hand(["1m"]), river: [{ order: 1, tile: "9m" }] },
         south: {},
         west: {},
         north: {},
@@ -441,7 +436,7 @@ describe("stepHasDraw（その手にツモ半歩があるか）", () => {
   it("未編集（timeline 空）はスナップショット手牌のため常に false", () => {
     const k = kifu({
       seats: {
-        east: { hand: hand(["1m"]), river: [{ order: 1, tile: "9m", confidence: 1 }] },
+        east: { hand: hand(["1m"]), river: [{ order: 1, tile: "9m" }] },
         south: {},
         west: {},
         north: {},
@@ -460,7 +455,7 @@ describe("ツモ和了牌は手牌本体に混ぜない（frame.viewKifu の時�
       seats: {
         east: {
           hand: hand(["1m", "5p", "2m"]),
-          river: [{ order: 1, tile: "9m", confidence: 1 }],
+          river: [{ order: 1, tile: "9m" }],
         },
         south: {},
         west: {},
@@ -485,7 +480,7 @@ describe("ツモ和了牌は手牌本体に混ぜない（frame.viewKifu の時�
     const k = kifu({
       agari: [{ winner: "east", from: null, winTile: "5p" }],
       seats: {
-        east: { hand: hand(["5p", "5p", "1m"]), river: [{ order: 1, tile: "9m", confidence: 1 }] },
+        east: { hand: hand(["5p", "5p", "1m"]), river: [{ order: 1, tile: "9m" }] },
         south: {},
         west: {},
         north: {},
@@ -500,7 +495,7 @@ describe("ツモ和了牌は手牌本体に混ぜない（frame.viewKifu の時�
     const edited = kifu({
       agari: [{ winner: "east", from: null, winTile: "5p" }],
       seats: {
-        east: { hand: hand(["1m", "2m"]), river: [{ order: 1, tile: "9m", confidence: 1 }] },
+        east: { hand: hand(["1m", "2m"]), river: [{ order: 1, tile: "9m" }] },
         south: {},
         west: {},
         north: {},
@@ -512,7 +507,7 @@ describe("ツモ和了牌は手牌本体に混ぜない（frame.viewKifu の時�
     const ron = kifu({
       agari: [{ winner: "east", from: "south", winTile: "5p" }],
       seats: {
-        east: { hand: hand(["1m", "5p"]), river: [{ order: 1, tile: "9m", confidence: 1 }] },
+        east: { hand: hand(["1m", "5p"]), river: [{ order: 1, tile: "9m" }] },
         south: {},
         west: {},
         north: {},

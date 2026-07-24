@@ -3,7 +3,7 @@
 // ------------------------------------------------------------
 // web の盤面エディタ / mobile の編集画面が共有する不変更新ヘルパ。
 // すべて「複製 → 変更 → KifuSchema.parse で再検証」して返す（信頼ゲート:
-// 検証を通っていない牌譜を下流に流さない）。人手入力は confidence=1（確定）。
+// 検証を通っていない牌譜を下流に流さない）。
 // 河の order 連番を壊さないこと（削除時は 1..n に振り直す）。
 // ============================================================
 
@@ -124,7 +124,7 @@ export function compareTiles(a: Tile | null, b: Tile | null): number {
   return rank(a) - rank(b);
 }
 
-/** 手牌を理牌した新しい配列を返す（安定ソート＝confidence 等は牌ごとに保持、元は不変）。 */
+/** 手牌を理牌した新しい配列を返す（安定ソート・元は不変）。 */
 export function sortHandTiles<T extends { tile: Tile | null }>(hand: readonly T[]): T[] {
   return [...hand].sort((x, y) => compareTiles(x.tile, y.tile));
 }
@@ -142,7 +142,7 @@ export function sortKifuHands(kifu: Kifu): Kifu {
 /** 手牌に1枚追加する（確定扱い）。追加のたびに理牌する。 */
 export function addHandTile(kifu: Kifu, seat: Seat, tile: Tile): Kifu {
   const d = clone(kifu);
-  d.seats[seat].hand.push({ tile, confidence: 1 });
+  d.seats[seat].hand.push({ tile });
   d.seats[seat].hand = sortHandTiles(d.seats[seat].hand);
   return KifuSchema.parse(d);
 }
@@ -169,7 +169,6 @@ export function addRiverTile(
     riichi: flags.riichi ?? false,
     tsumogiri: flags.tsumogiri ?? false,
     calledBy: null,
-    confidence: 1,
   });
   return syncBoardEdit(KifuSchema.parse(d));
 }
@@ -308,7 +307,7 @@ export function addMeld(
     meldTiles(tileShape(type), tile);
   d.seats[seat].melds.push({
     type: storedMeldType(type),
-    tiles: tiles.map((t) => ({ tile: t, confidence: 1 })),
+    tiles: tiles.map((t) => ({ tile: t })),
     from: null,
   });
   const hand = d.seats[seat].hand;
@@ -381,7 +380,7 @@ export function callDiscard(
     : Array.from({ length: opts.type === "kan" ? 4 : 3 }, () => null);
   const meld: Meld = {
     type: opts.type === "kan" ? "kan_open" : opts.type,
-    tiles: shape.map((t) => ({ tile: t, confidence: 1 })),
+    tiles: shape.map((t) => ({ tile: t })),
     from: discarder,
   };
 

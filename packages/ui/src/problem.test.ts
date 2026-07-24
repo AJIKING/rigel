@@ -20,7 +20,6 @@ import {
   kifuToProblemDraft,
   problemChiVariants,
   problemHandMax,
-  reviewSummaryLabel,
   problemRiverTiles,
   problemRoundLabel,
   problemToKifu,
@@ -63,8 +62,8 @@ function makeProblem(): Problem {
     targetSeat: "west",
     seats: {
       east: {},
-      south: { hand: HAND_13.map((t) => ({ tile: t, confidence: 1 })) },
-      west: { river: [{ order: 1, tile: "5p", confidence: 1 }] },
+      south: { hand: HAND_13.map((t) => ({ tile: t })) },
+      west: { river: [{ order: 1, tile: "5p" }] },
       north: {},
     },
     meta: { dealer: "east", honba: 2, kyotaku: 1, junme: 6, dora: ["3z"] },
@@ -73,7 +72,7 @@ function makeProblem(): Problem {
 }
 
 describe("kifuToProblemDraft（写真AI再現: AIドラフト→何切る編集ドラフト）", () => {
-  /** AI解析結果の Kifu ドラフト（confidence・null 混在）を最小指定で組む。 */
+  /** AI解析結果の Kifu ドラフト（null 混在）を最小指定で組む。 */
   function aiKifu(over: Record<string, unknown> = {}): Kifu {
     return KifuSchema.parse({
       schemaVersion: "1.0.0",
@@ -88,11 +87,7 @@ describe("kifuToProblemDraft（写真AI再現: AIドラフト→何切る編集�
     const k = aiKifu({
       seats: {
         east: {
-          hand: [
-            { tile: "3p", confidence: 0.9 },
-            { tile: null, confidence: 0 },
-            { tile: "1m", confidence: 0.4 },
-          ],
+          hand: [{ tile: "3p" }, { tile: null }, { tile: "1m" }],
         },
         south: {},
         west: {},
@@ -105,37 +100,36 @@ describe("kifuToProblemDraft（写真AI再現: AIドラフト→何切る編集�
     expect(draft.pov).toBe("east");
     expect(draft.hand).toEqual(["1m", "3p"]); // null は持ち込まない・理牌
     expect(draft.drawn).toBeNull(); // 上限以下ならツモ欄は空のまま
-    expect(readingNotes).toBe("グレアで1枚読めず");
+    expect(readingNotes).toBe("グレアで1枚読めず 読めなかった牌を省きました（手牌1枚）。");
   });
 
-  it("低 confidence の牌は要確認として返す（黙って確定牌に昇格させない）", () => {
+  it("読めなかった牌を省いたときは readingNotes で知らせる（黙って捨てない）", () => {
     const k = aiKifu({
       seats: {
         east: {
-          hand: [
-            { tile: "1m", confidence: 0.4 }, // 低確信 → 要確認
-            { tile: "3p", confidence: 0.95 },
+          hand: [{ tile: "1m" }, { tile: null }], // 読めない手牌1枚 → 省く
+          melds: [
+            {
+              type: "pon",
+              tiles: [{ tile: "5z" }, { tile: null }, { tile: "5z" }], // null 入り副露 → 丸ごと省く
+              from: null,
+            },
           ],
         },
-        south: { river: [{ order: 1, tile: "9s", confidence: 0.5 }] }, // 低確信 → 要確認
+        south: { river: [{ order: 1, tile: null }] }, // 読めない河1枚 → 省く
         west: {},
         north: {},
       },
     });
-    const { review } = kifuToProblemDraft(k, "east");
-    expect(review).toEqual([
-      { tile: "1m", confidence: 0.4 },
-      { tile: "9s", confidence: 0.5 },
-    ]);
-    // 表示用の共通表記（web/mobile で同じ文言）。
-    expect(reviewSummaryLabel(review)).toBe("要確認: 1萬(0.4)、9索(0.5)");
-    expect(reviewSummaryLabel([])).toBe("");
+    const { draft, readingNotes } = kifuToProblemDraft(k, "east");
+    expect(draft.hand).toEqual(["1m"]);
+    expect(draft.melds).toEqual([]);
+    expect(readingNotes).toBe("読めなかった牌を省きました（手牌1枚・副露1組・河1枚）。");
   });
 
   it("上限を超えて読めた牌を省いたときは readingNotes で知らせる（黙って捨てない）", () => {
     const fifteen = Array.from({ length: 12 }, (_, i) => ({
       tile: `${(i % 9) + 1}m`,
-      confidence: 1,
     }));
     const k = aiKifu({
       seats: {
@@ -144,11 +138,7 @@ describe("kifuToProblemDraft（写真AI再現: AIドラフト→何切る編集�
           melds: [
             {
               type: "pon",
-              tiles: [
-                { tile: "5z", confidence: 1 },
-                { tile: "5z", confidence: 1 },
-                { tile: "5z", confidence: 1 },
-              ],
+              tiles: [{ tile: "5z" }, { tile: "5z" }, { tile: "5z" }],
               from: null,
             },
           ],
@@ -184,7 +174,7 @@ describe("kifuToProblemDraft（写真AI再現: AIドラフト→何切る編集�
     ];
     const k = aiKifu({
       seats: {
-        east: { hand: fourteen.map((tile) => ({ tile, confidence: 1 })) },
+        east: { hand: fourteen.map((tile) => ({ tile })) },
         south: {},
         west: {},
         north: {},
@@ -201,25 +191,16 @@ describe("kifuToProblemDraft（写真AI再現: AIドラフト→何切る編集�
         east: {
           hand: Array.from({ length: 11 }, (_, i) => ({
             tile: `${(i % 9) + 1}m`,
-            confidence: 1,
           })),
           melds: [
             {
               type: "pon",
-              tiles: [
-                { tile: "5z", confidence: 1 },
-                { tile: "5z", confidence: 1 },
-                { tile: "5z", confidence: 1 },
-              ],
+              tiles: [{ tile: "5z" }, { tile: "5z" }, { tile: "5z" }],
               from: null,
             },
             {
               type: "chi",
-              tiles: [
-                { tile: "1s", confidence: 1 },
-                { tile: null, confidence: 0 },
-                { tile: "3s", confidence: 1 },
-              ],
+              tiles: [{ tile: "1s" }, { tile: null }, { tile: "3s" }],
               from: null,
             },
           ],
@@ -239,11 +220,11 @@ describe("kifuToProblemDraft（写真AI再現: AIドラフト→何切る編集�
   it("4席の河（ツモ切り込み・null はスキップ）とドラ・巡目・本場/供託・親/場風・ルールを引き継ぐ", () => {
     const k = aiKifu({
       seats: {
-        east: { hand: [{ tile: "1m", confidence: 1 }] },
+        east: { hand: [{ tile: "1m" }] },
         south: {
           river: [
-            { order: 1, tile: "9s", tsumogiri: true, confidence: 0.8 },
-            { order: 2, tile: null, confidence: 0 },
+            { order: 1, tile: "9s", tsumogiri: true },
+            { order: 2, tile: null },
           ],
         },
         west: {},
@@ -283,10 +264,10 @@ describe("チーの構成（鳴き判断の回答）", () => {
         east: {},
         south: {
           hand: ["1m", "2m", "3m", "4m", "5m", "6m", "7m", "8m", "9m", "1s", "2s", "0p", "4p"].map(
-            (t) => ({ tile: t, confidence: 1 }),
+            (t) => ({ tile: t }),
           ),
         },
-        west: { river: [{ order: 1, tile: "6p", confidence: 1 }] },
+        west: { river: [{ order: 1, tile: "6p" }] },
         north: {},
       },
     });
@@ -523,10 +504,10 @@ describe("problemHandTiles（視点席の理牌済み手牌の牌コード。サ
         south: {
           // わざと理牌前の順で置く（カードでは理牌済みで出ることを確認する）。
           hand: ["9m", "1m", "5m", "2m", "3m", "4m", "6m", "7m", "8m", "1p", "2p", "3p", "1z"].map(
-            (t) => ({ tile: t, confidence: 1 }),
+            (t) => ({ tile: t }),
           ),
         },
-        west: { river: [{ order: 1, tile: "5p", confidence: 1 }] },
+        west: { river: [{ order: 1, tile: "5p" }] },
         north: {},
       },
     });

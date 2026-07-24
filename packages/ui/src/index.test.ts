@@ -25,7 +25,6 @@ import {
   planMonthlyPrice,
   planMonthlyPriceAppStore,
   RED_TILE_COLOR,
-  REVIEW_CONFIDENCE_THRESHOLD,
   seatLabel,
   playersFromInput,
   playersToInput,
@@ -42,11 +41,8 @@ const kifuWithReviews: Kifu = KifuSchema.parse({
   capturedAt: "2026-06-28T00:00:00.000Z",
   seats: {
     east: {
-      hand: [
-        { tile: "1m", confidence: 0.99 },
-        { tile: "2m", confidence: 0.3 }, // 要確認
-      ],
-      river: [{ order: 1, tile: null, confidence: 0 }], // 要確認
+      hand: [{ tile: "9s" }, { tile: null }], // null = 必ず直す
+      river: [{ order: 1, tile: null }], // null = 必ず直す
     },
     south: {},
     west: {},
@@ -54,17 +50,13 @@ const kifuWithReviews: Kifu = KifuSchema.parse({
   },
 });
 
-describe("needsReview（confidence → 人手確認の入口）", () => {
-  it("読めなかった牌(null)は必ず要確認", () => {
-    expect(needsReview({ tile: null, confidence: 0 })).toBe(true);
+describe("needsReview（必ず直す牌の入口）", () => {
+  it("読めなかった牌(null)は必ず修正対象", () => {
+    expect(needsReview({ tile: null })).toBe(true);
   });
 
-  it("確信度が閾値未満なら要確認", () => {
-    expect(needsReview({ tile: "1m", confidence: REVIEW_CONFIDENCE_THRESHOLD - 0.01 })).toBe(true);
-  });
-
-  it("確信度が十分高ければ確認不要", () => {
-    expect(needsReview({ tile: "1m", confidence: 0.99 })).toBe(false);
+  it("読めた牌は対象外（AI ドラフト全体の目検は別途前提とする）", () => {
+    expect(needsReview({ tile: "1m" })).toBe(false);
   });
 });
 
@@ -338,7 +330,7 @@ describe("tileAssetName（OSS牌画像のファイル名）", () => {
 });
 
 describe("collectReviewItems", () => {
-  it("確信度の低い牌と読めない牌だけを席順に集める", () => {
+  it("読めなかった牌(null)だけを席順に集める", () => {
     const items = collectReviewItems(kifuWithReviews);
     expect(items).toHaveLength(2);
     expect(items[0]?.location).toMatchObject({ seat: "east", area: "hand", index: 1 });
@@ -347,12 +339,12 @@ describe("collectReviewItems", () => {
 });
 
 describe("applyTileEdit", () => {
-  it("対象牌を修正し confidence を 1 にする（元は不変）", () => {
+  it("対象牌を修正する（元は不変）", () => {
     const items = collectReviewItems(kifuWithReviews);
     const loc = items[1]!.location; // east river[0] = null
     const next = applyTileEdit(kifuWithReviews, loc, "5p");
 
-    expect(next.seats.east.river[0]).toMatchObject({ tile: "5p", confidence: 1 });
+    expect(next.seats.east.river[0]).toMatchObject({ tile: "5p" });
     // 元の牌譜は変わらない
     expect(kifuWithReviews.seats.east.river[0]?.tile).toBeNull();
   });
@@ -364,11 +356,9 @@ describe("applyTileEdit", () => {
   });
 
   it("手牌の修正後は理牌される（河はそのまま）", () => {
-    // east.hand = [1m, 2m] の index 1 を 7z に → [1m, 7z] のまま…では並びが検証できないので
-    // index 0 を 7z にして末尾へ動くことを確認する。
-    const next = applyTileEdit(kifuWithReviews, { seat: "east", area: "hand", index: 0 }, "7z");
-    expect(next.seats.east.hand.map((t) => t.tile)).toEqual(["2m", "7z"]);
-    expect(next.seats.east.hand[1]).toMatchObject({ tile: "7z", confidence: 1 });
+    // east.hand = [9s, null] の null(index 1) を 1m に → 理牌で先頭へ動く。
+    const next = applyTileEdit(kifuWithReviews, { seat: "east", area: "hand", index: 1 }, "1m");
+    expect(next.seats.east.hand.map((t) => t.tile)).toEqual(["1m", "9s"]);
     expect(next.seats.east.river.map((d) => d.tile)).toEqual([null]); // 河は不変
   });
 });
@@ -390,7 +380,7 @@ describe("meldTileViews（鳴きの表示: 横向き位置・暗槓の背面）"
   const meld = (type: string, tiles: string[], from: string | null) =>
     ({
       type,
-      tiles: tiles.map((t) => ({ tile: t, confidence: 1 })),
+      tiles: tiles.map((t) => ({ tile: t })),
       from,
     }) as never;
 

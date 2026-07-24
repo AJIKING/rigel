@@ -153,11 +153,7 @@ export function TimelineEditor({
   function addMeld() {
     const meld: Meld = {
       type: "pon",
-      tiles: [
-        { tile: null, confidence: 1 },
-        { tile: null, confidence: 1 },
-        { tile: null, confidence: 1 },
-      ],
+      tiles: [{ tile: null }, { tile: null }, { tile: null }],
       from: nextMeldFrom(null, dealer),
     };
     commit([...timeline, { kind: "meld", seat: dealer, meld }]);

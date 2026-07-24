@@ -114,7 +114,7 @@ GeminiAnalyzer.analyze(input):
 | 信頼ゲート | どの層で守るか |
 |---|---|
 | AI出力を使う前に Zod 検証 | `read-river` が `AiRiverResponseSchema.parse`、`assemble` が `KifuSchema.parse` / `interfaces/http/validate.ts` |
-| 推測で埋めない（null+confidence） | `@rigel/schema`（`ReadTile`/`Discard`）+ 河プロンプトの指示 |
+| 推測で埋めない（null 白旗） | `@rigel/schema`（`ReadTile`/`Discard`）+ 河プロンプトの指示 |
 | 課金は成功時のみ加算 | `domain/user`（`recordSuccessfulAnalysis`）+ `AnalyzeAndSaveKifu` の手順 |
 | 画像を保存しない | `GameLog`/`game_logs` に画像列を持たない（`kifu` JSON のみ）。`ImageRef` は解析中のみ |
 

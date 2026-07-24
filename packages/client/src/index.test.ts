@@ -358,7 +358,7 @@ describe("problems（何切る問題）", () => {
     seats: {
       east: {
         hand: ["1m", "2m", "3m", "4m", "5m", "6m", "7m", "8m", "9m", "1p", "2p", "3p", "4p"].map(
-          (t) => ({ tile: t, confidence: 1 }),
+          (t) => ({ tile: t }),
         ),
       },
       south: {},

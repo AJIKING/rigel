@@ -12,7 +12,6 @@ const disc = (seat: Seat, tile: string, tsumogiri = false) => ({
   tile,
   tsumogiri,
   riichi: false,
-  confidence: 1,
 });
 
 const kifu = (timeline: unknown[]): Kifu =>

@@ -34,7 +34,7 @@ const EMPTY_SEATS = { east: {}, south: {}, west: {}, north: {} };
 function seatsWithHand(hand: Tile[], extra: Record<string, unknown> = {}) {
   return {
     ...EMPTY_SEATS,
-    east: { hand: hand.map((t) => ({ tile: t, confidence: 1 })) },
+    east: { hand: hand.map((t) => ({ tile: t })) },
     ...extra,
   };
 }
@@ -59,7 +59,7 @@ function callProblem(overrides: Record<string, unknown> = {}) {
     pov: "east",
     targetSeat: "south",
     seats: seatsWithHand(HAND_13, {
-      south: { river: [{ order: 1, tile: "5p", confidence: 1 }] },
+      south: { river: [{ order: 1, tile: "5p" }] },
     }),
     ...overrides,
   };
@@ -203,15 +203,11 @@ describe("ProblemSchema: 何切る（discard）", () => {
     const seats = {
       ...EMPTY_SEATS,
       east: {
-        hand: HAND_13.slice(0, 10).map((t) => ({ tile: t, confidence: 1 })),
+        hand: HAND_13.slice(0, 10).map((t) => ({ tile: t })),
         melds: [
           {
             type: "pon",
-            tiles: [
-              { tile: "9s", confidence: 1 },
-              { tile: "9s", confidence: 1 },
-              { tile: "9s", confidence: 1 },
-            ],
+            tiles: [{ tile: "9s" }, { tile: "9s" }, { tile: "9s" }],
             from: null,
           },
         ],
@@ -260,7 +256,7 @@ describe("ProblemSchema: 鳴き判断（call）", () => {
       ProblemSchema.parse(
         callProblem({
           seats: seatsWithHand(HAND_13, {
-            south: { river: [{ order: 1, tile: null, confidence: 0 }] },
+            south: { river: [{ order: 1, tile: null }] },
           }),
         }),
       ),

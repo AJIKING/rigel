@@ -103,7 +103,7 @@ describe("problemOgCard", () => {
     pov: "east",
     drawn: "5s",
     seats: {
-      east: { hand: HAND.map((t) => ({ tile: t, confidence: 1 })) },
+      east: { hand: HAND.map((t) => ({ tile: t })) },
       south: {},
       west: {},
       north: {},
@@ -141,7 +141,7 @@ describe("problemOgCard", () => {
       targetSeat: "south",
       seats: {
         ...discardProblem.seats,
-        south: { river: [{ order: 1, tile: "5s", confidence: 1 }] },
+        south: { river: [{ order: 1, tile: "5s" }] },
       },
     };
     const card = problemOgCard({ ...problem, problem: callProblem });

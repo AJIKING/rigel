@@ -54,7 +54,6 @@ const DiscardEventSchema = z.object({
   tile: MaybeTileSchema,          // 捨て牌
   tsumogiri: z.boolean().default(false),
   riichi: z.boolean().default(false),
-  confidence: ConfidenceSchema.default(1),
 });
 const MeldEventSchema = z.object({
   kind: z.literal("meld"),
@@ -110,7 +109,7 @@ river/melds に**書き戻す**。`draw`・鳴きの厳密な割り込み順は�
 | ＋打牌 / ＋鳴き | 末尾（or 選択位置）にイベント追加 |
 | 削除 | 当該イベント除去 |
 
-- **AI に推測させない原則は維持**: 読めない牌は `tile:null`+`confidence:0`。ツモ牌 `draw` も不明は null。
+- **AI に推測させない原則は維持**: 読めない牌は `tile: null`（confidence は廃止・[決定] 2026-07-24）。ツモ牌 `draw` も不明は null。
 - 反映後は必ず `KifuSchema.parse` で再検証してから保存（信頼ゲート）。
 
 ---

@@ -26,7 +26,7 @@ export function minimalProblemInput(): Record<string, unknown> {
     pov: "east",
     drawn: "5p",
     seats: {
-      east: { hand: HAND_13.map((t) => ({ tile: t, confidence: 1 })) },
+      east: { hand: HAND_13.map((t) => ({ tile: t })) },
       south: {},
       west: {},
       north: {},

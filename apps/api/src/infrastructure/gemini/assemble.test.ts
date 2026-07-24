@@ -4,7 +4,7 @@ import { assembleKifu } from "./assemble";
 
 function river(tile: Tile): AiRiverResponse {
   return {
-    discards: [{ order: 1, tile, riichi: false, tsumogiri: false, confidence: 1 }],
+    discards: [{ order: 1, tile, riichi: false, tsumogiri: false }],
     notes: "",
   };
 }
@@ -53,7 +53,7 @@ describe("assembleKifu", () => {
         top: { ...river("3s"), notes: "blurred" },
       },
       hands: {
-        bottom: { hand: [{ tile: "1m", confidence: 0.9 }], melds: [], notes: "occluded" },
+        bottom: { hand: [{ tile: "1m" }], melds: [], notes: "occluded" },
       },
       cameraBottomSeat: "east",
       capturedAt: "2026-06-28T00:00:00.000Z",

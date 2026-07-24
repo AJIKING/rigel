@@ -16,7 +16,7 @@ import {
 function kifuWith(rivers: Partial<Record<"east" | "south" | "west" | "north", string[]>>) {
   const seat = (tiles: string[] = []) => ({
     hand: [],
-    river: tiles.map((t, i) => ({ order: i + 1, tile: t, riichi: false, confidence: 1 })),
+    river: tiles.map((t, i) => ({ order: i + 1, tile: t, riichi: false })),
     melds: [],
   });
   return KifuSchema.parse({

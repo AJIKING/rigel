@@ -400,10 +400,7 @@ describe("BoardEditor 編集操作", () => {
       ...makeKifu(),
       seats: {
         east: {
-          hand: [
-            { tile: "1z", confidence: 1 },
-            { tile: "1m", confidence: 1 },
-          ],
+          hand: [{ tile: "1z" }, { tile: "1m" }],
         },
         south: {},
         west: {},
@@ -450,7 +447,7 @@ describe("BoardEditor 編集操作", () => {
         east: {
           hand: [],
           melds: [],
-          river: [{ order: 1, tile: "1m", riichi: false, tsumogiri: false, confidence: 1 }],
+          river: [{ order: 1, tile: "1m", riichi: false, tsumogiri: false }],
         },
         south: {},
         west: {},
@@ -464,7 +461,6 @@ describe("BoardEditor 編集操作", () => {
           tile: "1m",
           tsumogiri: false,
           riichi: false,
-          confidence: 1,
         },
       ],
     });
@@ -551,7 +547,7 @@ describe("BoardEditor 編集操作", () => {
 
   it("配牌の牌をピッカーから削除できる", async () => {
     const d = makeDetail([{ id: "l1" }]);
-    d.logs[0]!.kifu = makeKifu({ east: { hand: [{ tile: "1m", confidence: 1 }] } });
+    d.logs[0]!.kifu = makeKifu({ east: { hand: [{ tile: "1m" }] } });
     render(<BoardEditor initialDetail={d} gameId="g1" logId="l1" />);
 
     fireEvent.click(await screen.findByRole("button", { name: "東家の配牌 を編集" }));
@@ -568,8 +564,8 @@ describe("BoardEditor 編集操作", () => {
     d.logs[0]!.kifu = makeKifu({
       east: {
         river: [
-          { order: 1, tile: "1z", confidence: 1 },
-          { order: 2, tile: "2z", confidence: 1 },
+          { order: 1, tile: "1z" },
+          { order: 2, tile: "2z" },
         ],
       },
     });
@@ -592,11 +588,7 @@ describe("BoardEditor 編集操作", () => {
         melds: [
           {
             type: "pon",
-            tiles: [
-              { tile: "5p", confidence: 1 },
-              { tile: "5p", confidence: 1 },
-              { tile: "5p", confidence: 1 },
-            ],
+            tiles: [{ tile: "5p" }, { tile: "5p" }, { tile: "5p" }],
             from: null,
           },
         ],
@@ -613,9 +605,9 @@ describe("BoardEditor 編集操作", () => {
     expect(kifu.seats.east.melds).toHaveLength(0);
   });
 
-  it("局メニューに要確認の牌数バッジを出す（読めない牌・低confidence）", async () => {
+  it("局メニューに要確認の牌数バッジを出す（読めなかった null 牌）", async () => {
     const d = makeDetail([{ id: "l1" }, { id: "l2" }]);
-    d.logs[0]!.kifu = makeKifu({ east: { hand: [{ tile: null, confidence: 0 }] } });
+    d.logs[0]!.kifu = makeKifu({ east: { hand: [{ tile: null }] } });
     render(<BoardEditor initialDetail={d} gameId="g1" logId="l1" />);
 
     fireEvent.click(await screen.findByRole("button", { name: /東一局/ }));

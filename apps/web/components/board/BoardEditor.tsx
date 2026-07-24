@@ -493,7 +493,7 @@ function Editor(p: EditorProps) {
           mutateKifu(kifu, (d) => {
             d.seats[owner].melds.push({
               type,
-              tiles: tiles.map((t) => ({ tile: t, confidence: 1 })),
+              tiles: tiles.map((t) => ({ tile: t })),
               from: null,
             });
           }),
@@ -786,7 +786,7 @@ function Editor(p: EditorProps) {
                     {roundMenu && (
                       <div className={s.roundMenu}>
                         {detail.logs.map((l, i) => {
-                          // 要確認（読めなかった/低confidence）の残数。人手修正の入口（mobile の半荘詳細と同等）。
+                          // 要確認（読めなかった null 牌）の残数。人手修正の入口（mobile の半荘詳細と同等）。
                           const review = collectReviewItems(l.kifu).length;
                           return (
                             <button

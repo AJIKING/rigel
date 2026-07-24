@@ -613,7 +613,7 @@
   color: var(--w45);
   font-weight: 400;
 }
-/* 局メニューの要確認バッジ（読めなかった/低confidenceの牌数。人手修正の入口）。 */
+/* 局メニューの要確認バッジ（読めなかった null 牌の数。人手修正の入口）。 */
 .roundItem small.reviewCnt {
   color: var(--vermilion);
   font-weight: 700;

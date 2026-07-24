@@ -65,13 +65,12 @@ export type Tile = z.infer<typeof TileSchema>;
 /** 読み取れなかった牌は null。スロット自体は残して枚数と順序を壊さない。 */
 export const MaybeTileSchema = TileSchema.nullable();
 
-/** 確信度 0.0–1.0。低い牌をUIでハイライト → 人が直すワークフローの起点。 */
-export const ConfidenceSchema = z.number().min(0).max(1);
-
-/** 牌1枚＋その確信度。手牌・鳴き・河の最小単位。 */
+/** 牌1枚。手牌・鳴き・河の最小単位。
+ *  読めなかった牌は tile: null（これが唯一の不確実性シグナル。
+ *  数値 confidence は[決定] 2026-07-24 で廃止 — モデルの自己申告数値は較正が保証できず、
+ *  AI 出力は常に「目検必須のドラフト」として扱う）。 */
 export const ReadTileSchema = z.object({
   tile: MaybeTileSchema,
-  confidence: ConfidenceSchema.default(1),
 });
 export type ReadTile = z.infer<typeof ReadTileSchema>;
 
@@ -118,7 +117,6 @@ export const DiscardSchema = z.object({
   /** この捨て牌を鳴いた席（ポン/チー/カンで持っていかれた）。null=鳴かれていない。
    *  牌は河に残して印を付ける表現（[決定] 2026-07-13。巡目・打牌順を保つ。表示は薄く）。 */
   calledBy: SeatSchema.nullable().default(null),
-  confidence: ConfidenceSchema.default(1),
 });
 export type Discard = z.infer<typeof DiscardSchema>;
 
@@ -181,7 +179,6 @@ export const DiscardEventSchema = z.object({
   riichi: z.boolean().default(false),
   /** この捨て牌を鳴いた席（Discard.calledBy と同義。河と手順の往復で保つ）。 */
   calledBy: SeatSchema.nullable().default(null),
-  confidence: ConfidenceSchema.default(1),
 });
 export type DiscardEvent = z.infer<typeof DiscardEventSchema>;
 
@@ -408,15 +405,12 @@ export const CameraSeatSchema = z.enum(["bottom", "right", "top", "left"]);
 export type CameraSeat = z.infer<typeof CameraSeatSchema>;
 
 /**
- * AI 出力の牌（confidence 必須）。
- * 保存用（ReadTileSchema/DiscardSchema）は人手入力向けに confidence 既定 1 を許すが、
- * **AI 応答でそれを許すと「モデルが自信を書かなかった牌」が 1.0＝自信満々に化け、
- * 要確認ハイライトから漏れる**（最優先指標「自信満々の誤読を出さない」に逆行）。
- * よって AI 応答では必須にし、欠落は検証で落とす。
+ * AI 出力の牌。読めない・迷う牌は tile: null（推測で埋めさせない）。
+ * 数値 confidence は廃止（[決定] 2026-07-24）: Gemini に自己申告させた数値であり
+ * 較正が保証できないため、UI は「AI ドラフトは全牌目検必須」を前提にする。
  */
 export const AiReadTileSchema = z.object({
   tile: MaybeTileSchema,
-  confidence: ConfidenceSchema,
 });
 
 export const AiDiscardSchema = z.object({
@@ -424,14 +418,19 @@ export const AiDiscardSchema = z.object({
   tile: MaybeTileSchema,
   riichi: z.boolean().default(false),
   tsumogiri: z.boolean().default(false),
-  confidence: ConfidenceSchema,
 });
 
 /** 河1方向ぶんのAI出力（river_reader_prompt.md の1方向版に対応）。
  *  モデルが暴走・汚染されても Kifu と同じ「量」の上限で弾く。 */
 export const AiRiverResponseSchema = z.object({
   discards: z.array(AiDiscardSchema).max(KIFU_LIMITS.river),
-  notes: z.string().max(KIFU_LIMITS.readingNotes).default(""),
+  // notes: null を返すモデルが実在する（gemini-3.6-flash・2026-07-24 eval）。1フィールドで
+  // 応答全体を落とさず "" に倒す。
+  notes: z
+    .string()
+    .max(KIFU_LIMITS.readingNotes)
+    .nullish()
+    .transform((v) => v ?? ""),
 });
 export type AiRiverResponse = z.infer<typeof AiRiverResponseSchema>;
 
@@ -448,7 +447,11 @@ export const AiHandResponseSchema = z.object({
     )
     .max(KIFU_LIMITS.melds)
     .default([]),
-  notes: z.string().max(KIFU_LIMITS.readingNotes).default(""),
+  notes: z
+    .string()
+    .max(KIFU_LIMITS.readingNotes)
+    .nullish()
+    .transform((v) => v ?? ""),
 });
 export type AiHandResponse = z.infer<typeof AiHandResponseSchema>;
 

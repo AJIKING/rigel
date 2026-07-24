@@ -12,7 +12,7 @@ const kifu = (over: Record<string, unknown> = {}): Kifu =>
   });
 
 /** 席の河にリーチ宣言牌を1枚置く。 */
-const riichiRiver = { river: [{ order: 1, tile: "1m", riichi: true, confidence: 1 }] };
+const riichiRiver = { river: [{ order: 1, tile: "1m", riichi: true }] };
 
 describe("notenDeltas（流局の不聴罰符）", () => {
   it("1人聴牌: +3000 / 不聴3人 -1000", () => {

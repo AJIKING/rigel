@@ -46,7 +46,6 @@ export function buildTimelineFromSeats(kifu: Kifu): TimelineEvent[] {
         tsumogiri: d.tsumogiri,
         riichi: d.riichi,
         calledBy: d.calledBy,
-        confidence: d.confidence,
       });
     }
   }
@@ -71,7 +70,6 @@ export function makeDiscardEvent(seat: Seat, tile: Tile | null = null): DiscardE
     tsumogiri: false,
     riichi: false,
     calledBy: null,
-    confidence: 1,
   };
 }
 
@@ -192,7 +190,6 @@ export function reconcileTimeline(kifu: Kifu): Kifu {
       riichi: d.riichi,
       // 鳴かれた印は盤面（seats.river）が編集面なのでそのまま採用する。
       calledBy: d.calledBy,
-      confidence: d.confidence,
     });
     for (const m of afterKey.get(keyOf(k)) ?? []) result.push(m);
   }
@@ -274,7 +271,7 @@ export function cycleMeldType(timeline: TimelineEvent[], index: number): Timelin
   const n = isKanType(type) ? 4 : 3;
   const tiles = Array.from(
     { length: n },
-    (_, k) => e.meld.tiles[k] ?? e.meld.tiles[0] ?? { tile: null, confidence: 1 },
+    (_, k) => e.meld.tiles[k] ?? e.meld.tiles[0] ?? { tile: null },
   );
   const oldFrom = e.meld.from;
   const from = type === "kan_closed" ? null : (e.meld.from ?? nextMeldFrom(null, e.seat));
@@ -445,7 +442,7 @@ export function setTimelineCall(
       {
         kind: "meld",
         seat: caller,
-        meld: { type: "pon", tiles: shape.map((t) => ({ tile: t, confidence: 1 })), from: e.seat },
+        meld: { type: "pon", tiles: shape.map((t) => ({ tile: t })), from: e.seat },
       },
       makeDiscardEvent(caller),
     );
@@ -484,7 +481,6 @@ export function timelineToSeats(timeline: TimelineEvent[]): SeatRivers {
         riichi: e.riichi,
         tsumogiri: e.tsumogiri,
         calledBy: e.calledBy,
-        confidence: e.confidence,
       });
     } else {
       out[e.seat].melds.push(e.meld);

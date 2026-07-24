@@ -24,7 +24,6 @@ import {
   problemRoundLabel,
   removeDraftRiverTile,
   replaceDraftRiverTile,
-  reviewSummaryLabel,
   seatLabel,
   tileLabel,
   toggleDraftRiverTsumogiri,
@@ -179,7 +178,7 @@ function EditorBody({ initial, token }: { initial?: ProblemPost; token: string |
 
   /** AIドラフト（Kifu 形）をエディタの各状態へ流し込む（変換は @rigel/ui＝web と同一挙動）。 */
   function applyAiDraft(kifu: Kifu) {
-    const { draft, readingNotes: notes, review } = kifuToProblemDraft(kifu, pov);
+    const { draft, readingNotes: notes } = kifuToProblemDraft(kifu, pov);
     setHand(draft.hand);
     setMelds(draft.melds);
     setDrawn(draft.drawn);
@@ -191,8 +190,8 @@ function EditorBody({ initial, token }: { initial?: ProblemPost; token: string |
     if (draft.meta.dealer) setDealer(draft.meta.dealer);
     if (draft.meta.roundWind) setRoundWind(draft.meta.roundWind);
     setReadingNotes(notes);
-    // 低confidenceの牌は「要確認」として明示する（黙って確定牌に昇格させない＝信頼ゲート）。
-    setAiReview(reviewSummaryLabel(review));
+    // AI ドラフトは全牌目検が前提（[決定] 2026-07-24: confidence 廃止）。
+    setAiReview("AIの読み取り結果です。牌を目で確認してから保存してください。");
     setErr(null);
   }
 
@@ -436,7 +435,7 @@ function EditorBody({ initial, token }: { initial?: ProblemPost; token: string |
             ) : null}
           </View>
         ) : null}
-        {/* AIの読み取りメモ（グレア・見切れ等）と要確認（低confidence）。人の確認を促す。 */}
+        {/* AIの読み取りメモ（グレア・見切れ等）と目検確認の促し。 */}
         {readingNotes ? <Text style={styles.hint}>読み取りメモ: {readingNotes}</Text> : null}
         {aiReview ? <Text style={styles.hint}>{aiReview}</Text> : null}
 

@@ -22,7 +22,7 @@ const kifu = (): Kifu => makeKifu();
 /** 東家(親)の河に1枚 + 立直ロン和了を持つ局。再生末尾で和了演出が出る検証用。 */
 const kifuWithAgari = (): Kifu =>
   makeKifu(
-    { east: { river: [{ order: 1, tile: "1m", riichi: false, confidence: 1 }] } },
+    { east: { river: [{ order: 1, tile: "1m", riichi: false }] } },
     {
       result: "ron",
       agari: [
@@ -81,7 +81,7 @@ describe("KifuViewer", () => {
   it("局送りで移動した局は最終巡目ではなく開始位置（打牌前）で表示される", () => {
     // 移動先に河1枚を持たせる（全表示なら1手進んだ状態＝「1手戻る」が有効になってしまう）。
     const second = makeKifu({
-      east: { river: [{ order: 1, tile: "2m", riichi: false, confidence: 1 }] },
+      east: { river: [{ order: 1, tile: "2m", riichi: false }] },
     });
     renderViewer(detail([kifu(), second]));
     fireEvent.click(screen.getAllByLabelText("次の局")[0]!);
@@ -117,7 +117,7 @@ describe("KifuViewer", () => {
   it("和了ダイアログ: 「前へ」でダイアログ前の盤面へ、「次の局へ」で次局の開始へ移動できる", () => {
     // 2局目にも河1枚を持たせる（全表示と開始位置を「1手戻る」の活性で区別するため）。
     const second = makeKifu({
-      east: { river: [{ order: 1, tile: "2m", riichi: false, confidence: 1 }] },
+      east: { river: [{ order: 1, tile: "2m", riichi: false }] },
     });
     renderViewer(detail([kifuWithAgari(), second]));
     // 末尾（初期全表示）から次ボタンで和了ダイアログを開く。
@@ -205,11 +205,7 @@ describe("KifuViewer", () => {
     const d = detail([
       makeKifu({
         east: {
-          hand: [
-            { tile: "1z", confidence: 1 },
-            { tile: "9s", confidence: 1 },
-            { tile: "1m", confidence: 1 },
-          ],
+          hand: [{ tile: "1z" }, { tile: "9s" }, { tile: "1m" }],
         },
       }),
     ]);
@@ -225,10 +221,7 @@ describe("KifuViewer", () => {
       makeKifu(
         {
           east: {
-            hand: [
-              { tile: "1m", confidence: 1 },
-              { tile: "2m", confidence: 1 },
-            ],
+            hand: [{ tile: "1m" }, { tile: "2m" }],
           },
         },
         {
@@ -240,7 +233,6 @@ describe("KifuViewer", () => {
               tile: "1m",
               tsumogiri: false,
               riichi: false,
-              confidence: 1,
             },
           ],
         },
@@ -257,7 +249,7 @@ describe("KifuViewer", () => {
     renderViewer(
       detail([
         makeKifu(
-          { east: { hand: [{ tile: "1m", confidence: 1 }] } },
+          { east: { hand: [{ tile: "1m" }] } },
           {
             meta: { dealer: "east", kyotaku: 0 },
             timeline: [
@@ -268,7 +260,6 @@ describe("KifuViewer", () => {
                 tile: "1m",
                 tsumogiri: false,
                 riichi: true,
-                confidence: 1,
               },
             ],
           },
@@ -293,7 +284,7 @@ describe("KifuViewer", () => {
 
   it("1手進めたときだけ直近の打牌に drop-in 演出が付く（初期全表示・巡目ジャンプでは付かない）", () => {
     // 東2打・南1打（親=東）。打牌順は 東→南→東、巡目区切りは [1, 3]。
-    const riverTile = (order: number, tile: string) => ({ order, tile, confidence: 1 });
+    const riverTile = (order: number, tile: string) => ({ order, tile });
     const d = detail([
       makeKifu({
         east: { river: [riverTile(1, "1m"), riverTile(2, "2m")] },
@@ -325,10 +316,7 @@ describe("KifuViewer", () => {
       makeKifu(
         {
           east: {
-            hand: [
-              { tile: "1m", confidence: 1 },
-              { tile: "9p", confidence: 1 },
-            ],
+            hand: [{ tile: "1m" }, { tile: "9p" }],
           },
         },
         {
@@ -341,7 +329,6 @@ describe("KifuViewer", () => {
               tile: "1m",
               tsumogiri: false,
               riichi: false,
-              confidence: 1,
             },
             // 2手目: 4m をツモ切り → 手牌は変わらない。
             {
@@ -351,7 +338,6 @@ describe("KifuViewer", () => {
               tile: "4m",
               tsumogiri: true,
               riichi: false,
-              confidence: 1,
             },
           ],
         },
@@ -403,7 +389,7 @@ describe("KifuViewer", () => {
   });
 
   it("ツモ不明の手（未編集）は半歩なしで1押し=1打牌（従来どおり）", () => {
-    const riverTile = (order: number, tile: string) => ({ order, tile, confidence: 1 });
+    const riverTile = (order: number, tile: string) => ({ order, tile });
     const d = detail([makeKifu({ east: { river: [riverTile(1, "1m"), riverTile(2, "2m")] } })]);
     const { container } = renderViewer(d);
 
@@ -421,12 +407,8 @@ describe("KifuViewer", () => {
         {
           east: {
             // 撮影スナップショット手牌（和了牌 5p を含む）。理牌後 [1m,2m,5p]。
-            hand: [
-              { tile: "1m", confidence: 1 },
-              { tile: "5p", confidence: 1 },
-              { tile: "2m", confidence: 1 },
-            ],
-            river: [{ order: 1, tile: "9m", confidence: 1 }],
+            hand: [{ tile: "1m" }, { tile: "5p" }, { tile: "2m" }],
+            river: [{ order: 1, tile: "9m" }],
           },
         },
         {
@@ -477,7 +459,7 @@ describe("KifuViewer", () => {
   it("卓中央にはドラを表示し、ツモ表示は出さない（ツモはフライイン演出で分かる）", () => {
     const d = detail([
       makeKifu(
-        { east: { hand: [{ tile: "1m", confidence: 1 }] } },
+        { east: { hand: [{ tile: "1m" }] } },
         {
           meta: { dealer: "east", dora: ["5z"] },
           timeline: [
@@ -488,7 +470,6 @@ describe("KifuViewer", () => {
               tile: "1m",
               tsumogiri: false,
               riichi: false,
-              confidence: 1,
             },
           ],
         },
@@ -512,7 +493,7 @@ describe("KifuViewer", () => {
   it("和了ダイアログにドラ表示牌と裏ドラ表示牌（リーチ和了時）を出す", () => {
     const d = detail([
       makeKifu(
-        { east: { river: [{ order: 1, tile: "1m", riichi: true, confidence: 1 }] } },
+        { east: { river: [{ order: 1, tile: "1m", riichi: true }] } },
         {
           meta: { dealer: "east", dora: ["5z"], uraDora: ["6z"] },
           result: "ron",

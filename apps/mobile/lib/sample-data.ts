@@ -10,19 +10,15 @@ const sampleKifu: Kifu = KifuSchema.parse({
   cameraBottomSeat: "east",
   seats: {
     east: {
-      hand: [
-        { tile: "1m", confidence: 0.98 },
-        { tile: "2m", confidence: 0.95 },
-        { tile: "3m", confidence: 0.4 },
-      ],
+      hand: [{ tile: "1m" }, { tile: "2m" }, { tile: "3m" }],
       river: [
-        { order: 1, tile: "9p", riichi: false, confidence: 0.97 },
-        { order: 2, tile: "1z", riichi: true, confidence: 0.9 },
-        { order: 3, tile: null, riichi: false, confidence: 0 },
+        { order: 1, tile: "9p", riichi: false },
+        { order: 2, tile: "1z", riichi: true },
+        { order: 3, tile: null, riichi: false },
       ],
     },
-    south: { river: [{ order: 1, tile: "3s", riichi: false, confidence: 0.92 }] },
-    west: { river: [{ order: 1, tile: "0p", riichi: false, confidence: 0.88 }] },
+    south: { river: [{ order: 1, tile: "3s", riichi: false }] },
+    west: { river: [{ order: 1, tile: "0p", riichi: false }] },
     north: { river: [] },
   },
 });

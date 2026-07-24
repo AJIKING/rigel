@@ -39,22 +39,17 @@ const HAND: Tile[] = ["1m", "2m", "3m", "4m", "5m", "6m", "7m", "8m", "9m", "1p"
 
 function seatBoard() {
   return {
-    hand: HAND.map((tile) => ({ tile, confidence: 1 })),
+    hand: HAND.map((tile) => ({ tile })),
     river: RIVER.map((tile, i) => ({
       order: i + 1,
       tile,
       riichi: i === 5,
       tsumogiri: i % 3 === 0,
-      confidence: 1,
     })),
     melds: [
       {
         type: "pon" as const,
-        tiles: [
-          { tile: "5z" as Tile, confidence: 1 },
-          { tile: "5z" as Tile, confidence: 1 },
-          { tile: "5z" as Tile, confidence: 1 },
-        ],
+        tiles: [{ tile: "5z" as Tile }, { tile: "5z" as Tile }, { tile: "5z" as Tile }],
         from: null,
       },
     ],

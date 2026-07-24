@@ -52,16 +52,13 @@ export * from "./rules-form";
 
 const SEAT_ORDER: Seat[] = ["east", "south", "west", "north"];
 
-/** confidence がこの値未満なら UI で「要確認」ハイライトにする閾値（暫定。eval で調整する）。 */
-export const REVIEW_CONFIDENCE_THRESHOLD = 0.8;
-
 /**
- * 牌が人手確認を要するか。
- * 読めなかった牌(null) か、確信度が閾値未満なら true。
- * 「自信満々の誤読」を人に拾わせる入口なので、迷ったら確認側に倒す。
+ * 牌が人手修正を必須とするか（= 読めなかった牌 tile: null）。
+ * 数値 confidence は廃止（[決定] 2026-07-24）: AI ドラフトは常に全牌目検が前提で、
+ * ここで拾うのは「モデル自身が白旗を揚げたので必ず直す」スロットだけ。
  */
-export function needsReview(tile: ReadTile, threshold = REVIEW_CONFIDENCE_THRESHOLD): boolean {
-  return tile.tile === null || tile.confidence < threshold;
+export function needsReview(tile: ReadTile): boolean {
+  return tile.tile === null;
 }
 
 export type Suit = "m" | "p" | "s" | "z";
@@ -367,7 +364,7 @@ export const SUIT_COLOR: Record<Suit, string> = {
   z: "#222222", // 字牌=黒
 };
 export const RED_TILE_COLOR = "#e60026";
-/** 要確認（confidence 低 / 読み取り失敗）の強調色。 */
+/** 要確認（読めなかった null 牌）の強調色。 */
 export const REVIEW_COLOR = "#d10f3a";
 
 export type TileKind = "number" | "honor" | "unknown";
@@ -449,7 +446,7 @@ export interface ReviewItem {
   read: ReadTile;
 }
 
-/** 牌譜の中で「要確認」な牌（confidence 低 / 読めなかった）を席順に集める。 */
+/** 牌譜の中で「必ず直す」牌（読めなかった null スロット）を席順に集める。 */
 export function collectReviewItems(kifu: Kifu): ReviewItem[] {
   const items: ReviewItem[] = [];
   for (const seat of SEAT_ORDER) {
@@ -684,7 +681,7 @@ export function addDraftMeld(
 ): { hand: Tile[]; melds: Meld[] } {
   const meld: Meld = {
     type: type === "kan" ? "kan_open" : type,
-    tiles: meldTiles(type, tile).map((t) => ({ tile: t, confidence: 1 })),
+    tiles: meldTiles(type, tile).map((t) => ({ tile: t })),
     from: null,
   };
   return { hand: hand.slice(0, problemHandMax(melds.length + 1)), melds: [...melds, meld] };
@@ -729,17 +726,13 @@ export function draftToKifu(draft: ProblemBoardDraft): Kifu {
     SEAT_ORDER.map((seat) => [
       seat,
       {
-        hand:
-          seat === draft.pov
-            ? sortHandTiles(draft.hand.map((tile) => ({ tile, confidence: 1 })))
-            : [],
+        hand: seat === draft.pov ? sortHandTiles(draft.hand.map((tile) => ({ tile }))) : [],
         melds: seat === draft.pov ? draft.melds : [],
         river: draft.rivers[seat].map((d, i) => ({
           order: i + 1,
           tile: d.tile,
           riichi: false,
           tsumogiri: d.tsumogiri,
-          confidence: 1,
         })),
       },
     ]),
@@ -764,14 +757,13 @@ export function assembleProblem(draft: ProblemDraft): { problem?: Problem; error
     SEAT_ORDER.map((seat) => [
       seat,
       {
-        hand: seat === draft.pov ? draft.hand.map((t) => ({ tile: t, confidence: 1 })) : [],
+        hand: seat === draft.pov ? draft.hand.map((t) => ({ tile: t })) : [],
         melds: seat === draft.pov ? draft.melds : [],
         river: draft.rivers[seat].map((d, i) => ({
           order: i + 1,
           tile: d.tile,
           riichi: false,
           tsumogiri: d.tsumogiri,
-          confidence: 1,
         })),
       },
     ]),
@@ -801,39 +793,28 @@ export function assembleProblem(draft: ProblemDraft): { problem?: Problem; error
   return { problem: parsed.data };
 }
 
-/** kifuToProblemDraft が返す要確認牌（低 confidence で読まれた牌）。 */
-export interface DraftReviewTile {
-  tile: Tile;
-  confidence: number;
-}
-
-/** 要確認牌の共通表記（例「要確認: 1萬(0.4)、9索(0.5)」。空なら空文字）。web/mobile で共用。 */
-export function reviewSummaryLabel(review: DraftReviewTile[]): string {
-  if (review.length === 0) return "";
-  return `要確認: ${review.map((r) => `${tileLabel(r.tile)}(${r.confidence.toFixed(1)})`).join("、")}`;
-}
-
 /**
  * AIドラフト（写真解析結果の Kifu 形）を何切る編集ドラフト（ProblemDraft）へ写す。
  * Problem は確定牌のみの世界なので、null 牌（読めなかった牌）は落とす＝推測して埋めない。
  * null を含む副露も丸ごと落とし、残った副露で手牌上限（13 - 3×副露）を数える。
  * 手牌が上限を超えて読めたら、読み順の末尾をツモ欄に置く（[決定] 2026-07-14。作者が直せる）。
- * それでも入り切らない牌は省き、readingNotes で告げる（黙って捨てない）。
- * Problem は confidence を持てないため、低確信の牌は review として返し UI で明示する
- * （「自信満々の誤読を出さない」＝確定牌への無言の昇格を防ぐ信頼ゲート）。
+ * 入り切らない牌・読めず省いた牌は readingNotes で告げる（黙って捨てない）。
+ * AI ドラフトは全牌目検必須の前提（数値 confidence は廃止・[決定] 2026-07-24）。
  */
 export function kifuToProblemDraft(
   kifu: Kifu,
   pov: Seat,
-): { draft: ProblemDraft; readingNotes: string; review: DraftReviewTile[] } {
+): { draft: ProblemDraft; readingNotes: string } {
   const board = kifu.seats[pov];
   const melds = board.melds.filter((m) => m.tiles.every((t) => t.tile !== null));
+  const droppedMelds = board.melds.length - melds.length;
   const tiles = board.hand.flatMap((t) => (t.tile ? [t.tile] : []));
+  const nullHand = board.hand.length - tiles.length;
   const max = problemHandMax(melds.length);
   const overflow = tiles.length > max;
   const drawn = overflow ? tiles[tiles.length - 1]! : null;
   const hand = sortHandTiles(
-    (overflow ? tiles.slice(0, -1) : tiles).slice(0, max).map((tile) => ({ tile, confidence: 1 })),
+    (overflow ? tiles.slice(0, -1) : tiles).slice(0, max).map((tile) => ({ tile })),
   ).flatMap((t) => (t.tile ? [t.tile] : []));
   const rivers = Object.fromEntries(
     SEAT_ORDER.map((seat) => [
@@ -844,26 +825,26 @@ export function kifuToProblemDraft(
     ]),
   ) as Record<Seat, DraftRiverTile[]>;
 
-  // 低 confidence で読まれた牌（手牌・副露・全席の河）。UI が「要確認」として人に見せる。
-  const review: DraftReviewTile[] = [];
-  const collect = (t: ReadTile) => {
-    if (t.tile !== null && needsReview(t)) review.push({ tile: t.tile, confidence: t.confidence });
-  };
-  board.hand.forEach(collect);
-  melds.forEach((m) => m.tiles.forEach(collect));
-  SEAT_ORDER.forEach((seat) => kifu.seats[seat].river.forEach(collect));
-
-  // 上限＋ツモ1枚に入り切らず省いた枚数（黙って捨てない）。
+  // 上限＋ツモ1枚に入り切らず省いた枚数と、読めずに省いた牌（黙って捨てない）。
   const dropped = overflow ? Math.max(0, tiles.length - 1 - max) : 0;
+  const nullRiver = SEAT_ORDER.reduce(
+    (n, seat) => n + kifu.seats[seat].river.filter((d) => d.tile === null).length,
+    0,
+  );
+  const unreadNotes = [
+    nullHand > 0 ? `手牌${nullHand}枚` : "",
+    droppedMelds > 0 ? `副露${droppedMelds}組` : "",
+    nullRiver > 0 ? `河${nullRiver}枚` : "",
+  ].filter(Boolean);
   const readingNotes = [
     kifu.readingNotes,
     dropped > 0 ? `読み取った手牌が多すぎたため${dropped}枚を省きました。` : "",
+    unreadNotes.length > 0 ? `読めなかった牌を省きました（${unreadNotes.join("・")}）。` : "",
   ]
     .filter(Boolean)
     .join(" ");
 
   return {
-    review,
     readingNotes,
     draft: {
       kind: "discard",
@@ -999,8 +980,7 @@ export function statsRatios(counts: Record<string, number>): ChoiceRatio[] {
 }
 
 /**
- * 1牌を修正した新しい牌譜を返す（不変）。
- * 人が直したので confidence は 1（確定）にする。結果は KifuSchema で再検証する。
+ * 1牌を修正した新しい牌譜を返す（不変）。結果は KifuSchema で再検証する。
  * 手牌の修正後は理牌する（河は order 時系列なので並べ替えない）。
  */
 export function applyTileEdit(kifu: Kifu, loc: TileLocation, tile: Tile | null): Kifu {
@@ -1014,7 +994,6 @@ export function applyTileEdit(kifu: Kifu, loc: TileLocation, tile: Tile | null):
         : board.melds[loc.meldIndex ?? 0]?.tiles[loc.index];
   if (target) {
     target.tile = tile;
-    target.confidence = 1;
     if (loc.area === "hand") board.hand = sortHandTiles(board.hand);
   }
   const next = KifuSchema.parse(draft);

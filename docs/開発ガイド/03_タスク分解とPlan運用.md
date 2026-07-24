@@ -75,7 +75,7 @@ Plan（設計図） ──分解──▶ Task（実行単位） ──TDD──
 4. **M3 河プロンプトの単方向化** — `river_reader_prompt.md` を1方向版に直し、`AiRiverResponse` 形式に合わせる。
 5. **M4 AI精度の実地テスト / eval** — ラベル付きテスト画像20–30枚で3指標を測定。河4分割＋正立後、素Flash と Code Execution を A/B（TODO#2・#3）。← **最優先で固める**。
 6. **M5 解析パイプライン（Workers）** — 4分割＋正立 → 8画像 → Gemini → Zod検証 → 相対絶対変換 → Kifu組み立て → `KifuSchema` 最終検証。混在パーツの JSON 抽出を含む。
-7. **M6 牌譜描画UI** — `packages/ui` に SVG 描画・confidence ハイライト・修正操作。
+7. **M6 牌譜描画UI** — `packages/ui` に SVG 描画・null=要修正ハイライト・修正操作。
 8. **M7 保存/閲覧（D1）** — `users` / `game_logs`、画像非保存、保存済み牌譜の閲覧。
 9. **M8 認証＋回数カウント＋課金** — Google認証、解析成功時のみ加算、カウント整合性、月額。
 
