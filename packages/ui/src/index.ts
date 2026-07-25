@@ -7,7 +7,13 @@
 // ============================================================
 
 import {
+  DRAFT_KIFU_LIMIT,
+  FREE_QUIZ_PER_DAY,
   KifuSchema,
+  MAX_LOGS_PER_GAME,
+  MONTHLY_CALL_QUOTA,
+  PRIVATE_KIFU_LIMIT,
+  PROBLEM_LIMIT,
   ProblemSchema,
   SCHEMA_VERSION,
   TileSchema,
@@ -18,6 +24,8 @@ import {
   type CameraSeat,
   type Kifu,
   type Meld,
+  type PaidPlan,
+  type Plan,
   type Problem,
   type ProblemAction,
   type ProblemKind,
@@ -28,7 +36,6 @@ import {
   type Tile,
 } from "@rigel/schema";
 import { chiVariants, meldTiles, sortHandTiles, SUITS, type MeldPick } from "./edit";
-import { FREE_QUIZ_PER_DAY } from "./quiz";
 
 // 打点計算（han/fu + ルール → 支払い）。
 export * from "./score";
@@ -193,32 +200,24 @@ export function checkoutErrorMessage(status: number): string {
 // ------------------------------------------------------------
 // プラン表示（free / RIGEL Next / RIGEL Pro）
 // ------------------------------------------------------------
-export type Plan = "free" | "next" | "pro";
-export type PaidPlan = "next" | "pro";
+// プラン型と上限ポリシー定数は背骨（@rigel/schema の plan.ts）が単一真実源。
+// web/mobile の既存 import を壊さないよう、従来の名前のまま re-export する。
+export type { PaidPlan, Plan } from "@rigel/schema";
+export { PROBLEM_LIMIT } from "@rigel/schema";
 
 const PLAN_LABELS: Record<Plan, string> = { free: "Free", next: "Next", pro: "Pro" };
 const PLAN_MONTHLY_PRICE: Record<Plan, number> = { free: 0, next: 480, pro: 1480 };
-
-// 牌譜の保存上限（半荘単位）。api 側 PRIVATE_KIFU_LIMIT / DRAFT_LIMIT と一致させる（null=無制限）。
-const PRIVATE_KIFU_LIMIT: Record<Plan, number | null> = { free: 5, next: null, pro: null };
-const DRAFT_KIFU_LIMIT: Record<Plan, number | null> = { free: 5, next: null, pro: null };
-
-/** 何切る問題の保存上限（draft+published 合算）。api 側 PROBLEM_LIMIT と一致させる（null=無制限）。 */
-export const PROBLEM_LIMIT: Record<Plan, number | null> = { free: 20, next: null, pro: null };
 
 /** プランごとの保存上限（半荘数）。非公開(complete)と下書きは別枠。null=無制限。 */
 export function planKifuLimits(plan: Plan): { private: number | null; draft: number | null } {
   return { private: PRIVATE_KIFU_LIMIT[plan], draft: DRAFT_KIFU_LIMIT[plan] };
 }
 
-// FREE_QUIZ_PER_DAY（無料の特訓クイズ1日3回）は quiz.ts に移動（クイズ関連の定数を1箇所に集約）。
-// `export * from "./quiz"` 経由で従来どおり @rigel/ui から import できる。
+// FREE_QUIZ_PER_DAY（無料の特訓クイズ1日3回）は @rigel/schema に一元化し、
+// quiz.ts の re-export（`export * from "./quiz"`）経由で従来どおり @rigel/ui から import できる。
 
-/** 1半荘あたりの局数上限。api 側 MAX_LOGS_PER_GAME と一致させる。 */
-export const MAX_LOGS_PER_GAME = 30;
-
-/** 局順(seq)の上限（東一局=1〜北四局=16）。api 側 MAX_SEQ と一致させる。 */
-export const MAX_SEQ = 16;
+// 1半荘の局数上限(30)・局順 seq の上限(16)も背骨に一元化（api のサーバ強制と共有）。
+export { MAX_LOGS_PER_GAME, MAX_SEQ } from "@rigel/schema";
 
 /** 保存上限エラーの共通文言（半荘単位）。web/mobile で同じ文言を出す（表記ゆれ防止）。 */
 export const LIMIT_MESSAGES = {
@@ -243,17 +242,17 @@ export const PLAN_FEATURES: Record<Plan, readonly string[]> = {
     "公開牌譜の保存 無制限",
     "非公開の半荘 5つまで",
     "下書きの半荘 5つまで",
-    `特訓クイズ 1日${FREE_QUIZ_PER_DAY}回`,
+    `特訓 1日${FREE_QUIZ_PER_DAY}回`,
     "写真からのAI再現 なし",
   ],
   next: [
     "Free の全機能",
     "非公開・下書きの保存 無制限",
-    "特訓クイズ 無制限",
+    "特訓 無制限",
     "写真からのAI再現 月100回相当",
   ],
   // 特訓は Next と同じ無制限だが、Pro 単体のカードでも売りが伝わるよう明示する。
-  pro: ["Next の全機能", "特訓クイズ 無制限", "写真からのAI再現 月320回相当"],
+  pro: ["Next の全機能", "特訓 無制限", "写真からのAI再現 月320回相当"],
 };
 
 /** プランの月額（円）。 */
@@ -261,17 +260,15 @@ export function planMonthlyPrice(plan: Plan): number {
   return PLAN_MONTHLY_PRICE[plan];
 }
 
-// 月間の AI 解析（Gemini 呼び出し）枠。api 側 MONTHLY_CALL_QUOTA と一致させる。
-const PLAN_MONTHLY_AI_QUOTA: Record<Plan, number> = { free: 0, next: 100, pro: 320 };
-
-/** プランの月間 AI 解析枠（呼び出し回数）。free は 0 = 写真からの再現は使えない。 */
+/** プランの月間 AI 解析枠（呼び出し回数）。free は 0 = 写真からの再現は使えない。
+ *  値は背骨（@rigel/schema の MONTHLY_CALL_QUOTA）が単一真実源。 */
 export function planMonthlyAiQuota(plan: Plan): number {
-  return PLAN_MONTHLY_AI_QUOTA[plan];
+  return MONTHLY_CALL_QUOTA[plan];
 }
 
 /** 写真からのAI再現を使えるプランか（解析枠が1以上）。撮影UIの出し分けに使う。 */
 export function planCanAnalyze(plan: Plan): boolean {
-  return PLAN_MONTHLY_AI_QUOTA[plan] > 0;
+  return MONTHLY_CALL_QUOTA[plan] > 0;
 }
 
 /** 当月の解析枠の表示（設定のプランカード・撮影画面で共用）。

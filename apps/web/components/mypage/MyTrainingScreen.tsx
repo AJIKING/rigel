@@ -3,7 +3,13 @@
 import type { QuizSessionDto } from "@rigel/client";
 import type { QuizKind } from "@rigel/schema";
 import {
+  QUIZ_EMPTY_HISTORY_MESSAGE,
+  QUIZ_HISTORY_LIMIT,
+  QUIZ_KIND_FILTERS,
   QUIZ_KIND_LABELS,
+  QUIZ_STATS_PERIODS,
+  accuracyLabel,
+  jstDateTime,
   quizDailyStats,
   quizStatsSummary,
   type QuizStatsPeriod,
@@ -15,33 +21,11 @@ import { QuizLineChart } from "./QuizLineChart";
 import s from "../list/kifu-list.module.css";
 import t from "./training-stats.module.css";
 
-const PERIODS: readonly { key: QuizStatsPeriod; label: string }[] = [
-  { key: "7d", label: "7日" },
-  { key: "30d", label: "30日" },
-  { key: "all", label: "全期間" },
-];
-
-/** 履歴リストの表示上限（直近）。 */
-const HISTORY_LIMIT = 20;
-
-/** ISO日時 → JST の 'YYYY/MM/DD HH:MM'（履歴行の日時。集計と同じ UTC+9 固定）。 */
-function jstDateTime(iso: string): string {
-  const d = new Date(Date.parse(iso) + 9 * 3_600_000);
-  const p = (n: number) => String(n).padStart(2, "0");
-  return `${d.getUTCFullYear()}/${p(d.getUTCMonth() + 1)}/${p(d.getUTCDate())} ${p(
-    d.getUTCHours(),
-  )}:${p(d.getUTCMinutes())}`;
-}
-
-/** 正答率 0-1 → '70%'（null は '—' = 出題0問を0%と区別）。 */
-function accuracyLabel(accuracy: number | null): string {
-  return accuracy === null ? "—" : `${Math.round(accuracy * 100)}%`;
-}
-
 /**
- * マイページ「特訓」タブ（本人のみ）。サマリ・1分あたり正解数の推移（自前 SVG 折れ線）・
- * 直近の履歴リスト。データはサーバ側（page.tsx）が listQuizSessions で取得して渡す。
- * now はテストの決定性のため注入可能（既定は現在時刻）。
+ * マイページ「特訓」タブ（本人のみ）。サマリ（stat カード）・1分あたり正解数の推移
+ * （白地カードの自前 SVG 折れ線）・直近の履歴リスト（カード行）。トーンは特訓画面
+ * （training.module.css）に合わせる。データはサーバ側（page.tsx）が listQuizSessions で
+ * 取得して渡す。now はテストの決定性のため注入可能（既定は現在時刻）。
  */
 export function MyTrainingScreen({
   initialSessions,
@@ -68,7 +52,7 @@ export function MyTrainingScreen({
       initialSessions
         .filter((x) => kindFilter === undefined || x.kind === kindFilter)
         .sort((a, b) => -a.createdAt.localeCompare(b.createdAt))
-        .slice(0, HISTORY_LIMIT),
+        .slice(0, QUIZ_HISTORY_LIMIT),
     [initialSessions, kindFilter],
   );
 
@@ -78,26 +62,27 @@ export function MyTrainingScreen({
       <main className={s.main}>
         <section>
           <MyPageTabs active="training" />
-          <div className={s.profile}>
-            <div className={s.stats}>
-              <div className={s.stat}>
-                <b>{summary.sessions}</b>
-                <span>回数</span>
-              </div>
-              <div className={s.stat}>
-                <b>{summary.bestCorrect}</b>
-                <span>ベストスコア</span>
-              </div>
-              <div className={s.stat}>
-                <b>{accuracyLabel(summary.avgAccuracy)}</b>
-                <span>平均正答率</span>
-              </div>
+
+          {/* サマリ3枠（特訓の結果画面と同じ stat カード風: 数値大きく・ラベル小さくグレー） */}
+          <div className={t.stats}>
+            <div className={t.stat}>
+              <b>{summary.sessions}</b>
+              <span>挑戦回数</span>
+            </div>
+            <div className={t.stat}>
+              <b>{summary.bestCorrect}</b>
+              <span>自己ベスト</span>
+            </div>
+            <div className={t.stat}>
+              <b>{accuracyLabel(summary.avgAccuracy)}</b>
+              <span>平均正答率</span>
             </div>
           </div>
 
-          <div className={s.toolbar}>
+          {/* 期間・種目の切替チップ（特訓画面のチップと同じピル形） */}
+          <div className={t.toolbar}>
             <div className={t.seg} role="group" aria-label="期間切替">
-              {PERIODS.map((p) => (
+              {QUIZ_STATS_PERIODS.map((p) => (
                 <button
                   key={p.key}
                   type="button"
@@ -108,31 +93,29 @@ export function MyTrainingScreen({
                 </button>
               ))}
             </div>
-            <div className={s.sortwrap}>
-              <select
-                aria-label="種目で絞り込み"
-                value={kind}
-                onChange={(e) => setKind(e.target.value as typeof kind)}
-              >
-                <option value="all">全種目</option>
-                {(Object.keys(QUIZ_KIND_LABELS) as QuizKind[]).map((k) => (
-                  <option key={k} value={k}>
-                    {QUIZ_KIND_LABELS[k]}
-                  </option>
-                ))}
-              </select>
+            <div className={t.seg} role="group" aria-label="種目で絞り込み">
+              {QUIZ_KIND_FILTERS.map((k) => (
+                <button
+                  key={k.key}
+                  type="button"
+                  aria-pressed={kind === k.key}
+                  onClick={() => setKind(k.key)}
+                >
+                  {k.label}
+                </button>
+              ))}
             </div>
           </div>
 
           {points.length > 0 && (
             <div className={t.chartCard}>
-              <p className={t.chartTitle}>1分あたり正解数の推移</p>
+              <p className={t.chartTitle}>1分あたり正解数</p>
               <QuizLineChart points={points} />
             </div>
           )}
 
           {history.length === 0 ? (
-            <div className={t.row}>まだ記録がありません</div>
+            <p className={t.empty}>{QUIZ_EMPTY_HISTORY_MESSAGE}</p>
           ) : (
             <ul className={t.hist}>
               {history.map((x) => (

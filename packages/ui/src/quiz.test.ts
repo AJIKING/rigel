@@ -9,9 +9,10 @@ import {
   generateChinitsuQuestion,
   generateEfficiencyQuestion,
   FREE_QUIZ_PER_DAY,
-  QUIZ_FREE_NOTE,
+  QUIZ_EMPTY_HISTORY_MESSAGE,
   QUIZ_KIND_DESCRIPTIONS,
   QUIZ_KIND_LABELS,
+  QUIZ_KIND_PROMPTS,
   QUIZ_LIMIT_MESSAGE,
   QUIZ_MAX_GENERATION_ATTEMPTS,
   QUIZ_SESSION_SECONDS,
@@ -163,28 +164,46 @@ describe("牌効率問題の品質（シード20260725で20問）", () => {
   });
 });
 
-describe("特訓クイズの共有定数・文言（web/mobile の画面と api のサーバ強制で共有）", () => {
-  it("セッションは60秒・無料は1日3回", () => {
+describe("特訓の共有定数・文言（web/mobile の画面と api のサーバ強制で共有）", () => {
+  it("1回の挑戦は60秒・無料は1日3回", () => {
     expect(QUIZ_SESSION_SECONDS).toBe(60);
     expect(FREE_QUIZ_PER_DAY).toBe(3);
   });
 
+  // 文言方針（[決定] 2026-07-25 オーナーレビュー）: 短く。機能名は「特訓」・1回のプレイは「挑戦」。
+  // ルールの補足（完全一致/同率）は種目選択カードの説明に寄せ、出題指示文は最短にする。
   it.each([
-    { kind: "chinitsu" as const, label: "清一色 多面待ち" },
-    { kind: "efficiency" as const, label: "牌効率（受け入れ最大）" },
-  ])("$kind の種目ラベルは「$label」で説明文がある", ({ kind, label }) => {
-    expect(QUIZ_KIND_LABELS[kind]).toBe(label);
-    expect(QUIZ_KIND_DESCRIPTIONS[kind].length).toBeGreaterThan(0);
-  });
+    {
+      kind: "chinitsu" as const,
+      label: "清一色 多面待ち",
+      desc: "単色13枚のテンパイから待ち牌を全部見抜く（完全一致で正解）。多面待ちを読む速さを鍛える。",
+      prompt: "待ち牌を全部選ぶ",
+    },
+    {
+      kind: "efficiency" as const,
+      label: "牌効率（受け入れ最大）",
+      desc: "14枚から受け入れが最大になる1枚を切る（同率はどれでも正解）。手広く構える感覚を鍛える。",
+      prompt: "受け入れ最大の牌を切る",
+    },
+  ])(
+    "$kind: ラベル「$label」・説明にルール補足を寄せ・出題指示文は最短「$prompt」",
+    ({ kind, label, desc, prompt }) => {
+      expect(QUIZ_KIND_LABELS[kind]).toBe(label);
+      expect(QUIZ_KIND_DESCRIPTIONS[kind]).toBe(desc);
+      expect(QUIZ_KIND_PROMPTS[kind]).toBe(prompt);
+    },
+  );
 
-  it("上限メッセージは無料回数（3回）と有料で無制限になることを伝える", () => {
+  it("上限メッセージは短く、無料枠（3回）と有料無制限だけを伝える", () => {
+    expect(QUIZ_LIMIT_MESSAGE).toBe(
+      "本日の無料枠（3回）を使い切りました。有料プランなら無制限です。",
+    );
     expect(QUIZ_LIMIT_MESSAGE).toContain(`${FREE_QUIZ_PER_DAY}回`);
     expect(QUIZ_LIMIT_MESSAGE).toContain("無制限");
   });
 
-  it("無料枠の注記は「1日3回」を FREE_QUIZ_PER_DAY から組み立てる", () => {
-    expect(QUIZ_FREE_NOTE).toContain(`1日${FREE_QUIZ_PER_DAY}回`);
-    expect(QUIZ_FREE_NOTE).toContain("無制限");
+  it("マイページ特訓タブの空状態文言は短い1文（web/mobile で共有）", () => {
+    expect(QUIZ_EMPTY_HISTORY_MESSAGE).toBe("まだ特訓の記録がありません");
   });
 });
 

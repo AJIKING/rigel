@@ -76,24 +76,26 @@ describe("MyTrainingScreen: タブとサマリ", () => {
     expect(links[2]!.getAttribute("href")).toBe("/mypage/training");
   });
 
-  it("サマリに回数・ベストスコア・平均正答率（正解合計/出題合計）が出る", () => {
+  it("サマリに挑戦回数・自己ベスト・平均正答率（正解合計/出題合計）が stat カードで出る", () => {
     renderScreen();
-    expect(statText("回数")).toBe("3回数");
-    expect(statText("ベストスコア")).toBe("9ベストスコア");
+    expect(statText("挑戦回数")).toBe("3挑戦回数");
+    expect(statText("自己ベスト")).toBe("9自己ベスト");
     expect(statText("平均正答率")).toBe("70%平均正答率");
   });
 
-  it("記録が無ければサマリは 0 /—、空状態の文言が出る", () => {
+  it("記録が無ければサマリは 0 /—、空状態は短い1文（共有文言）が出る", () => {
     renderScreen([]);
-    expect(statText("回数")).toBe("0回数");
+    expect(statText("挑戦回数")).toBe("0挑戦回数");
     expect(statText("平均正答率")).toBe("—平均正答率");
-    expect(screen.getByText("まだ記録がありません")).toBeTruthy();
+    expect(screen.getByText("まだ特訓の記録がありません")).toBeTruthy();
   });
 });
 
 describe("MyTrainingScreen: 期間・種目の切替", () => {
   it("グラフは既定で直近7日（7点）。30日 → 30点、全期間 → 最古(7/14)〜now の11点", () => {
     renderScreen();
+    // グラフカードには小ラベル「1分あたり正解数」を出す。
+    expect(screen.getByText("1分あたり正解数")).toBeTruthy();
     expect(chartPointCount()).toBe(7);
 
     fireEvent.click(screen.getByRole("button", { name: "30日" }));
@@ -106,17 +108,22 @@ describe("MyTrainingScreen: 期間・種目の切替", () => {
     expect(chartPointCount()).toBe(7);
   });
 
-  it("種目を清一色に絞るとサマリと履歴から牌効率の分が消える", () => {
+  it("種目チップ（全種目/清一色/牌効率）で清一色に絞るとサマリと履歴から牌効率の分が消える", () => {
     renderScreen();
-    // 絞る前: 牌効率の行（正答率 90%）がある。
+    // 絞る前: 牌効率の行（正答率 90%）があり、チップの既定は「全種目」。
     const before = screen.getAllByRole("listitem").map((r) => r.textContent ?? "");
     expect(before.some((r) => r.includes("牌効率（受け入れ最大）"))).toBe(true);
+    const kinds = screen.getByRole("group", { name: "種目で絞り込み" });
+    expect(within(kinds).getByRole("button", { name: "全種目" }).getAttribute("aria-pressed")).toBe(
+      "true",
+    );
 
-    fireEvent.change(screen.getByLabelText("種目で絞り込み"), {
-      target: { value: "chinitsu" },
-    });
-    expect(statText("回数")).toBe("2回数");
-    expect(statText("ベストスコア")).toBe("7ベストスコア");
+    fireEvent.click(within(kinds).getByRole("button", { name: "清一色" }));
+    expect(within(kinds).getByRole("button", { name: "清一色" }).getAttribute("aria-pressed")).toBe(
+      "true",
+    );
+    expect(statText("挑戦回数")).toBe("2挑戦回数");
+    expect(statText("自己ベスト")).toBe("7自己ベスト");
     expect(statText("平均正答率")).toBe("60%平均正答率");
     const rows = screen.getAllByRole("listitem").map((r) => r.textContent ?? "");
     expect(rows).toHaveLength(2);

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { TILE_VALUES, type Tile } from "@rigel/schema";
-import { bestDiscards, discardUkeires } from "./ukeire";
+import { bestDiscards, bestUkeires, discardUkeires } from "./ukeire";
 import { createQuizRng } from "./quiz";
 import { toCounts, winningTiles } from "./tenpai";
 import { shanten } from "./shanten";
@@ -174,6 +174,42 @@ describe("bestDiscards（最小向聴を保つ打牌のうち受け入れ最大�
     const keep = entryOf(hand, "2z");
     expect(back.count).toBeGreaterThan(keep.count); // 前提: 枚数だけなら向聴戻しが勝つ手
     expect(bestDiscards(hand)).toEqual(["2z"]);
+  });
+});
+
+describe("bestUkeires（見直し用: discardUkeires の結果から正解集合のエントリを返す）", () => {
+  // 結果画面（web/mobile の UkeireDetail）が「最小向聴かつ受け入れ最大」の判定を
+  // 再実装しないための共有ヘルパ。集合は bestDiscards と常に一致する。
+  it.each<{ name: string; hand: string; meldCount?: number }>([
+    { name: "A: 一意（テンパイ維持の 2z のみ）", hand: HAND_A },
+    { name: "B: テンパイ維持の中で受け入れ最大の 3z のみ", hand: HAND_B },
+    { name: "C: 一意（2p のみ）", hand: HAND_C },
+    { name: "D: 同率最大が複数（9m/9p/9s）", hand: HAND_D },
+    { name: "E: 赤5と通常5が同率で両方正解", hand: HAND_E },
+    { name: "F: 副露1でも 9s のみ", hand: HAND_F, meldCount: 1 },
+  ])(
+    "$name: 打牌集合が bestDiscards と一致し、エントリは discardUkeires のものそのまま",
+    ({ hand, meldCount }) => {
+      const all = discardUkeires(tiles(hand), meldCount ?? 0);
+      const best = bestUkeires(all);
+      expect(best.map((u) => u.discard)).toEqual(bestDiscards(tiles(hand), meldCount ?? 0));
+      // エントリ再計算はしない（discardUkeires の同一オブジェクトを返す）。
+      for (const entry of best) expect(all).toContain(entry);
+    },
+  );
+
+  it("A: 向聴戻し（1z）は受け入れ枚数が多くても正解集合に入らない", () => {
+    const all = discardUkeires(tiles(HAND_A));
+    expect(bestUkeires(all).map((u) => u.discard)).toEqual(["2z"]);
+  });
+
+  it("入力が未ソートでも同じ集合を入力順で返す（D を逆順で渡す）", () => {
+    const reversed = [...discardUkeires(tiles(HAND_D))].reverse();
+    expect(bestUkeires(reversed).map((u) => u.discard)).toEqual(["9s", "9p", "9m"]);
+  });
+
+  it("空配列（不正枚数の手）は空配列", () => {
+    expect(bestUkeires([])).toEqual([]);
   });
 });
 

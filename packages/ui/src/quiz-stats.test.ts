@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
+import { QUIZ_KIND_LABELS } from "./quiz";
 import {
+  QUIZ_HISTORY_LIMIT,
+  QUIZ_KIND_FILTERS,
+  QUIZ_STATS_PERIOD_LABELS,
+  QUIZ_STATS_PERIODS,
+  accuracyLabel,
+  jstDateTime,
   quizChartSeries,
   quizDailyStats,
   quizStatsSummary,
@@ -239,5 +246,65 @@ describe("quizChartSeries（折れ線/バー描画用の系列。web SVG と mob
     const one = quizChartSeries(quizDailyStats([mk("2026-07-24T01:00:00.000Z")], "all", NOW));
     expect(one.labels).toEqual([{ index: 0, text: "7/24" }]);
     expect(quizChartSeries([])).toEqual({ values: [], max: 1, labels: [] });
+  });
+});
+
+describe("jstDateTime（履歴行の日時表示。集計と同じ UTC+9 固定）", () => {
+  it.each<{ name: string; iso: string; expected: string }>([
+    {
+      name: "UTC 01:00 は JST 10:00",
+      iso: "2026-07-22T01:00:00.000Z",
+      expected: "2026/07/22 10:00",
+    },
+    {
+      name: "UTC 15:00 は JST の翌日 0:00（日跨ぎ）",
+      iso: "2026-07-23T15:00:00.000Z",
+      expected: "2026/07/24 00:00",
+    },
+    {
+      name: "月日・時分は 2 桁 0 埋め",
+      iso: "2026-01-02T18:04:00.000Z",
+      expected: "2026/01/03 03:04",
+    },
+  ])("$name（$iso → $expected）", ({ iso, expected }) => {
+    expect(jstDateTime(iso)).toBe(expected);
+  });
+});
+
+describe("accuracyLabel（正答率 0-1 の % 表示）", () => {
+  it.each<{ name: string; accuracy: number | null; expected: string }>([
+    { name: "0.7 は '70%'", accuracy: 0.7, expected: "70%" },
+    { name: "0.005 は '1%'（整数に四捨五入）", accuracy: 0.005, expected: "1%" },
+    { name: "0 は '0%'", accuracy: 0, expected: "0%" },
+    { name: "null は '—'（出題0問を 0% と区別）", accuracy: null, expected: "—" },
+  ])("$name", ({ accuracy, expected }) => {
+    expect(accuracyLabel(accuracy)).toBe(expected);
+  });
+});
+
+describe("マイページ「特訓」の共有定義（履歴上限・期間・種目チップ）", () => {
+  it("履歴リストの表示上限は直近20件", () => {
+    expect(QUIZ_HISTORY_LIMIT).toBe(20);
+  });
+
+  it("期間チップは 7日/30日/全期間 の順で、ラベル表（QUIZ_STATS_PERIOD_LABELS）と一致する", () => {
+    expect(QUIZ_STATS_PERIODS).toEqual([
+      { key: "7d", label: "7日" },
+      { key: "30d", label: "30日" },
+      { key: "all", label: "全期間" },
+    ]);
+    for (const p of QUIZ_STATS_PERIODS) {
+      expect(QUIZ_STATS_PERIOD_LABELS[p.key]).toBe(p.label);
+    }
+  });
+
+  it("種目チップは「全種目」+ 短縮名で、QUIZ_KIND_LABELS の全種目を網羅する", () => {
+    expect(QUIZ_KIND_FILTERS).toEqual([
+      { key: "all", label: "全種目" },
+      { key: "chinitsu", label: "清一色" },
+      { key: "efficiency", label: "牌効率" },
+    ]);
+    // 種目が増えたらチップも増やす（正式名 QUIZ_KIND_LABELS との網羅整合）。
+    expect(QUIZ_KIND_FILTERS.map((k) => k.key)).toEqual(["all", ...Object.keys(QUIZ_KIND_LABELS)]);
   });
 });

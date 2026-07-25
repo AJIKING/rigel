@@ -14,9 +14,9 @@ describe("PlanSheet（プラン選択ボトムシート）", () => {
     expect(screen.getByText(/App Store/)).toBeTruthy();
   });
 
-  it("提供内容に特訓クイズの行が出る（有料=無制限。PLAN_FEATURES 経由の自動反映）", () => {
+  it("提供内容に特訓の行が出る（有料=無制限。PLAN_FEATURES 経由の自動反映）", () => {
     render(<PlanSheet targets={["next", "pro"]} onSelect={jest.fn()} onClose={jest.fn()} />);
-    expect(screen.getAllByText("特訓クイズ 無制限")).toHaveLength(2); // Next / Pro
+    expect(screen.getAllByText("特訓 無制限")).toHaveLength(2); // Next / Pro
   });
 
   it("プランを押すと onSelect にそのプランが渡る", () => {

@@ -79,8 +79,8 @@ describe("MyPageScreen（マイページ：牌譜/何切るの切替）", () => 
     render(<Harness />);
 
     fireEvent.press(screen.getByText("特訓"));
-    expect(await screen.findByText("回数 0")).toBeTruthy();
-    expect(screen.getByText("まだ記録がありません")).toBeTruthy();
+    expect(await screen.findByText("挑戦回数")).toBeTruthy();
+    expect(screen.getByText("まだ特訓の記録がありません")).toBeTruthy();
     expect(mockListQuizSessions).toHaveBeenCalledWith("t");
     expect(screen.queryByText("東風戦")).toBeNull();
     expect(screen.queryByText("公開中の問題")).toBeNull();

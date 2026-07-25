@@ -1,5 +1,10 @@
 /* ============================================================
    特訓（/training）— 60秒タイムアタック（清一色多面待ち / 牌効率）
+   トークンは app/theme.css の .themeApp（chrome/line/accent/em-light/round/r/ease）。
+   角丸は共通トークンに統一（カード=var(--r)・ボタン=var(--r-sm)。独自値を持たない。
+   [決定] 2026-07-25 オーナーレビュー）。主ボタンは既存画面（kifu-list .newbtn /
+   problem .submit）と同じ白ベタ。出題エリアは中央揃え・牌は暗背景に直接置く。
+   ○×・向聴戻しの赤は要確認カラー #d10f3a 系（REVIEW_COLOR）と整合させる。
    ============================================================ */
 
 .shell {
@@ -32,12 +37,7 @@
   font-family: var(--round);
   font-weight: 800;
   font-size: 23px;
-  margin: 0 0 3px;
-}
-.head p {
   margin: 0;
-  font-size: 12.5px;
-  color: var(--w45);
 }
 
 .loginNote {
@@ -50,50 +50,84 @@
   text-decoration: underline;
 }
 
-/* 種目選択カード */
+/* ------------------------------------------------------------
+   種目選択カード（牌モチーフ3枚のファン＋タイトル/説明の階層）
+   ------------------------------------------------------------ */
 .cards {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-  gap: 12px;
+  gap: 14px;
 }
 .card {
+  position: relative;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
   text-align: left;
-  padding: 18px 16px;
+  padding: 20px 18px 18px;
   border: 1px solid var(--line);
-  border-radius: 10px;
-  background: var(--chrome-2);
+  border-radius: var(--r);
+  background: linear-gradient(165deg, var(--chrome-2), var(--chrome));
   color: var(--white);
   font-family: inherit;
   cursor: pointer;
-  transition: 0.15s;
+  transition:
+    transform 0.16s var(--ease),
+    border-color 0.16s var(--ease),
+    box-shadow 0.16s var(--ease);
 }
-.card:hover {
-  border-color: var(--accent, #4dd2a0);
+.card:hover:not(:disabled) {
+  transform: translateY(-2px);
+  border-color: rgba(255, 158, 69, 0.55);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.35);
+}
+.card:active:not(:disabled) {
+  transform: translateY(0) scale(0.985);
+  box-shadow: none;
 }
 .card:disabled {
   opacity: 0.6;
   cursor: default;
 }
+/* 種目アイコン的な牌モチーフ（装飾。aria-hidden） */
+.cardFan {
+  display: inline-flex;
+  gap: 2px;
+  padding: 2px 0 4px 6px;
+}
+.fanTile {
+  position: relative;
+  width: 32px;
+  aspect-ratio: 1 / 1.35;
+  border-radius: 4px;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.4);
+  transform-origin: 50% 90%;
+}
+.fanTile:nth-child(1) {
+  transform: rotate(-12deg) translateY(2px);
+}
+.fanTile:nth-child(3) {
+  transform: rotate(12deg) translateY(2px);
+}
+.fanTile img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
 .cardTitle {
   font-family: var(--round);
   font-weight: 800;
-  font-size: 16px;
+  font-size: 18px;
+  letter-spacing: 0.02em;
 }
 .cardDesc {
   font-size: 12.5px;
   color: var(--w70);
-  line-height: 1.6;
+  line-height: 1.7;
 }
 
-.note {
-  margin: 12px 4px 0;
-  color: var(--w45);
-  font-size: 12px;
-  font-weight: 700;
-}
 .error {
   margin: 12px 4px 0;
   color: #ffb4a8;
@@ -114,60 +148,87 @@
   text-decoration: none;
 }
 
-/* セッション中のヘッダ（スコア・残り秒） */
+/* ------------------------------------------------------------
+   セッション中 HUD（残り秒が主役。スコアはチップ・上部に固定バー感）
+   ------------------------------------------------------------ */
 .hud {
+  position: sticky;
+  top: 8px;
+  z-index: 5;
   display: flex;
-  align-items: baseline;
-  gap: 14px;
+  align-items: center;
+  gap: 10px;
   flex-wrap: wrap;
-  padding: 4px 4px 14px;
+  padding: 10px 14px;
+  margin-bottom: 14px;
+  background: rgba(15, 17, 21, 0.92);
+  backdrop-filter: blur(6px);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
 }
 .hudKind {
   font-family: var(--round);
   font-weight: 800;
-  font-size: 14px;
+  font-size: 12.5px;
+  color: var(--w70);
 }
 .hudScore {
   font-family: var(--round);
   font-weight: 800;
-  font-size: 15px;
+  font-size: 12.5px;
+  font-variant-numeric: tabular-nums;
+  background: var(--chrome-2);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 4px 12px;
 }
 .hudTime {
+  margin-left: auto;
   font-family: var(--round);
   font-weight: 800;
-  font-size: 15px;
-  color: var(--em-light, #4dd2a0);
+  font-size: 24px;
+  font-variant-numeric: tabular-nums;
+  color: var(--em-light, #3ec487);
+  transition: color 0.2s var(--ease);
 }
-.hudRemain {
-  font-size: 11.5px;
-  color: var(--w45);
+/* 残り10秒未満: 要確認カラー #d10f3a 系の赤で焦りを可視化 */
+.hudTimeLow {
+  color: #ff5f75;
 }
 
-/* 出題エリア */
+/* ------------------------------------------------------------
+   出題エリア（中央揃え。牌は白地カードに載せず暗い背景へ直接置く）
+   ------------------------------------------------------------ */
 .panel {
-  padding: 16px;
+  padding: 18px;
   border: 1px solid var(--line);
-  border-radius: 10px;
+  border-radius: var(--r);
   background: var(--chrome-2);
 }
 .question {
-  margin: 0 0 12px;
+  margin: 0 0 14px;
   font-size: 13px;
   color: var(--w70);
+  text-align: center;
 }
 .hand {
-  display: inline-flex;
-  gap: 3px;
-  flex-wrap: wrap;
+  display: flex;
+  gap: 4px;
+  justify-content: center;
+  /* 14枚（牌効率）でも1段に収める。幅が足りないときは牌を均等に縮める（折返し禁止）。 */
+  flex-wrap: nowrap;
 }
 .tile {
   position: relative;
-  width: 38px;
+  width: 44px;
+  min-width: 0;
+  flex: 0 1 44px;
   aspect-ratio: 1 / 1.35;
   padding: 0;
   border: 0;
   background: none;
-  border-radius: 4px;
+  border-radius: 5px;
+  filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.25));
 }
 .tile img {
   position: absolute;
@@ -177,30 +238,52 @@
 }
 button.tile {
   cursor: pointer;
-  transition: transform 0.1s;
+  transition: transform 0.1s var(--ease);
+}
+button.tile:hover:not(:disabled) {
+  transform: translateY(-3px);
+}
+button.tile:active:not(:disabled) {
+  transform: translateY(-1px) scale(0.96);
 }
 button.tile:disabled {
   cursor: default;
 }
+/* 選択中の待ち牌: 枠＋浮き */
 .tile.sel {
-  outline: 2px solid var(--accent, #4dd2a0);
+  outline: 2px solid var(--accent, #ff9e45);
   outline-offset: 1px;
   transform: translateY(-6px);
+  box-shadow: 0 8px 14px rgba(0, 0, 0, 0.4);
+}
+/* モバイル幅: 均等縮小だと14枚（牌効率＝牌が回答ボタン）が約16pxまで潰れて押せなくなるため、
+   mobile アプリと同じく折り返して牌幅を固定する（縮ませない）。 */
+@media (max-width: 560px) {
+  .hand {
+    flex-wrap: wrap;
+  }
+  .tile {
+    flex: 0 0 34px;
+  }
 }
 
-/* 清一色: 待ち牌の候補ボタン（1〜9） */
+/* 清一色: 待ち牌の候補ボタン（1〜9・牌画像ボタン）。牌姿との間に明確な余白を置く */
 .candidates {
-  display: inline-flex;
-  gap: 6px;
+  display: flex;
+  gap: 8px;
   flex-wrap: wrap;
-  margin-top: 14px;
+  justify-content: center;
+  margin-top: 26px;
 }
 .submitRow {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 12px;
-  margin-top: 14px;
+  margin-top: 20px;
+  min-height: 44px;
 }
+/* 主ボタンは既存画面（kifu-list .newbtn / problem .submit）と同じ白ベタ＋var(--r-sm) */
 .submit {
   background: var(--white);
   color: #0c0e12;
@@ -208,31 +291,65 @@ button.tile:disabled {
   font-family: var(--round);
   font-weight: 800;
   font-size: 13px;
-  padding: 9px 22px;
+  padding: 11px 36px;
   border-radius: var(--r-sm);
   cursor: pointer;
+  transition:
+    background 0.15s var(--ease),
+    transform 0.1s var(--ease);
+}
+.submit:hover:not(:disabled) {
+  background: #e6e7e9;
+}
+.submit:active:not(:disabled) {
+  transform: scale(0.97);
 }
 .submit:disabled {
-  opacity: 0.5;
+  opacity: 0.45;
   cursor: default;
 }
-.feedback {
+
+/* フィードバック帯: 出題パネル直下の固定高さスロット（Duolingo 型。中央オーバーレイ廃止
+   [決定] 2026-07-25 オーナーレビュー）。回答受付中は透明のまま高さを確保し（レイアウト
+   シフトなし・牌やボタンに被せない）、回答直後だけ 正解=緑系（--em-light 系）/
+   不正解=赤系（#d10f3a 系）に塗る。アニメは軽いフェードのみ。 */
+.feedbackBand {
+  display: grid;
+  place-items: center;
+  height: 46px;
+  margin-top: 12px;
+  border-radius: var(--r);
   font-family: var(--round);
   font-weight: 800;
-  font-size: 14px;
+  font-size: 15px;
+  letter-spacing: 0.06em;
 }
-.feedback.ok {
-  color: var(--em-light, #4dd2a0);
+.bandOk {
+  background: rgba(62, 196, 135, 0.16);
+  color: var(--em-light, #3ec487);
+  animation: bandFade 0.18s var(--ease) both;
 }
-.feedback.ng {
-  color: #ffb4a8;
+.bandNg {
+  background: rgba(209, 15, 58, 0.16);
+  color: #ff8fa8;
+  animation: bandFade 0.18s var(--ease) both;
+}
+@keyframes bandFade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
-/* 結果画面 */
+/* ------------------------------------------------------------
+   結果画面（stat カード横並び＋見直しリストのカード化）
+   ------------------------------------------------------------ */
 .result {
   padding: 20px 16px;
   border: 1px solid var(--line);
-  border-radius: 10px;
+  border-radius: var(--r);
   background: var(--chrome-2);
 }
 .result h2 {
@@ -243,19 +360,40 @@ button.tile:disabled {
 }
 .resultLine {
   margin: 4px 0;
-  font-size: 14px;
+  font-size: 12.5px;
+  color: var(--w70);
+  font-weight: 700;
 }
-/* 見直しリスト（結果画面のみ。セッション中は正答を見せない） */
-.review {
-  margin-top: 16px;
-  padding-top: 12px;
-  border-top: 1px solid var(--line);
+/* スコアの stat カード（正解数・出題数・正答率） */
+.stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin: 12px 0 4px;
 }
-.reviewHead {
+/* スリム表示（[決定] 2026-07-25 オーナーレビュー: 数値フォントは維持し縦幅を従来の6〜7割に） */
+.stat {
+  background: var(--chrome-3);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  padding: 8px;
+  text-align: center;
   font-family: var(--round);
   font-weight: 800;
-  font-size: 14px;
-  margin: 0 0 10px;
+  font-size: 14.5px;
+  font-variant-numeric: tabular-nums;
+}
+@media (max-width: 480px) {
+  .stats {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* 見直しリスト（結果画面のみ。セッション中は正答を見せない） */
+.review {
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
 }
 .reviewList {
   list-style: none;
@@ -263,15 +401,33 @@ button.tile:disabled {
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 10px;
 }
+/* 行はカード化し、左端に○×の色帯（緑/赤）を敷く */
 .reviewRow {
+  position: relative;
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px 14px;
-  padding-bottom: 10px;
-  border-bottom: 1px dashed var(--line);
+  flex-direction: column;
+  gap: 8px;
+  background: var(--chrome);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  padding: 10px 12px 10px 16px;
+}
+.reviewRow::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  border-radius: 3px 0 0 3px;
+}
+.rowOk::before {
+  background: var(--em-light, #3ec487);
+}
+.rowNg::before {
+  background: #d10f3a;
 }
 .reviewNo {
   display: inline-flex;
@@ -288,10 +444,10 @@ button.tile:disabled {
   font-size: 15px;
 }
 .reviewMark.ok {
-  color: var(--em-light, #4dd2a0);
+  color: var(--em-light, #3ec487);
 }
 .reviewMark.ng {
-  color: #ffb4a8;
+  color: #ff8fa8;
 }
 .reviewTiles {
   display: inline-flex;
@@ -313,11 +469,54 @@ button.tile:disabled {
 .reviewAnswer {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
 }
 .reviewLabel {
   font-size: 11px;
   color: var(--w45);
+  white-space: nowrap;
+}
+
+/* 受け入れ詳細（牌効率のみ。あなたの回答の受け入れ＋正解各打牌の受け入れ） */
+.ukeireDetail {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin-top: 2px;
+  padding-top: 8px;
+  border-top: 1px dashed var(--line);
+}
+.ukeireLine {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  flex-wrap: wrap;
+}
+.ukeireBody {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  flex-wrap: wrap;
+}
+.ukeireArrow {
+  color: var(--w45);
+  font-size: 11px;
+}
+.ukeireCount {
+  color: var(--w70);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+/* 向聴戻しバッジ（要確認カラー #d10f3a 系の赤） */
+.regress {
+  color: #ff8fa8;
+  background: rgba(209, 15, 58, 0.16);
+  border: 1px solid rgba(209, 15, 58, 0.5);
+  border-radius: 999px;
+  padding: 1px 9px;
+  font-size: 10.5px;
+  font-weight: 800;
   white-space: nowrap;
 }
 
@@ -326,15 +525,64 @@ button.tile:disabled {
   color: #ffb4a8;
   font-size: 12px;
 }
-.retry {
+/* 結果画面の操作: 主=もう一度挑戦（白ベタ）／副=問題選択にもどる（線ボタン）。
+   中央寄せ（[決定] 2026-07-25 オーナーレビュー） */
+.resultActions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  flex-wrap: wrap;
   margin-top: 16px;
+}
+.retry {
   background: var(--white);
   color: #0c0e12;
   border: 0;
   font-family: var(--round);
   font-weight: 800;
   font-size: 12.5px;
-  padding: 8px 16px;
+  padding: 9px 18px;
   border-radius: var(--r-sm);
   cursor: pointer;
+  transition: transform 0.1s var(--ease);
+}
+.retry:active {
+  transform: scale(0.97);
+}
+.retry:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+.back {
+  background: transparent;
+  color: var(--w70);
+  border: 1px solid var(--line);
+  font-family: var(--round);
+  font-weight: 700;
+  font-size: 12.5px;
+  padding: 9px 18px;
+  border-radius: var(--r-sm);
+  cursor: pointer;
+}
+.back:hover {
+  color: #fff;
+}
+
+/* アニメーションは控えめに。reduce 指定時は動きを消す。 */
+@media (prefers-reduced-motion: reduce) {
+  .card,
+  .submit,
+  .retry,
+  button.tile,
+  .hudTime {
+    transition: none;
+  }
+  .card:hover:not(:disabled) {
+    transform: none;
+  }
+  .bandOk,
+  .bandNg {
+    animation: none;
+  }
 }

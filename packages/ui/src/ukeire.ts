@@ -64,14 +64,24 @@ export function discardUkeires(tiles: readonly Tile[], meldCount = 0): DiscardUk
 }
 
 /**
+ * 見直し用: discardUkeires の結果から正解集合（「まず最小向聴を保つ」打牌のうち
+ * 受け入れ枚数が最大のもの。同率は全部）のエントリを返す。
+ * 「最小向聴かつ受け入れ最大」の判定はここに一元化し、bestDiscards /
+ * generateEfficiencyQuestion の answer / 結果画面の受け入れ詳細（web/mobile）が共有する。
+ * エントリは入力のオブジェクトをそのまま返し（再計算しない）、並びは入力順を保つ。
+ */
+export function bestUkeires(ukeires: readonly DiscardUkeire[]): DiscardUkeire[] {
+  if (ukeires.length === 0) return [];
+  const minShanten = Math.min(...ukeires.map((u) => u.shanten));
+  const keep = ukeires.filter((u) => u.shanten === minShanten);
+  const maxCount = Math.max(...keep.map((u) => u.count));
+  return keep.filter((u) => u.count === maxCount);
+}
+
+/**
  * 正解集合 = 「まず最小向聴を保つ」打牌のうち受け入れ枚数が最大のもの（同率は全部）。
  * 向聴戻しの打牌は受け入れが多くても正解に入らない。並びは discardUkeires と同じ（牌コード順）。
  */
 export function bestDiscards(tiles: readonly Tile[], meldCount = 0): Tile[] {
-  const all = discardUkeires(tiles, meldCount);
-  const best = all[0];
-  if (!best) return [];
-  return all
-    .filter((u) => u.shanten === best.shanten && u.count === best.count)
-    .map((u) => u.discard);
+  return bestUkeires(discardUkeires(tiles, meldCount)).map((u) => u.discard);
 }

@@ -105,12 +105,12 @@ describe("SettingsShell: プラン購入（free → 有料）", () => {
 });
 
 describe("SettingsShell: 料金プランカードの提供内容", () => {
-  it("特訓クイズの行が出る（free=1日3回・next/pro=無制限。PLAN_FEATURES 経由の自動反映）", async () => {
+  it("特訓の行が出る（free=1日3回・next/pro=無制限。PLAN_FEATURES 経由の自動反映）", async () => {
     await renderSettings("free");
 
     fireEvent.click(screen.getByRole("button", { name: "プラン変更" }));
-    expect(screen.getByText("特訓クイズ 1日3回")).toBeTruthy();
-    expect(screen.getAllByText("特訓クイズ 無制限")).toHaveLength(2); // Next / Pro
+    expect(screen.getByText("特訓 1日3回")).toBeTruthy();
+    expect(screen.getAllByText("特訓 無制限")).toHaveLength(2); // Next / Pro
   });
 });
 

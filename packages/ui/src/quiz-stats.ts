@@ -7,6 +7,43 @@ import type { QuizKind } from "@rigel/schema";
 /** グラフの期間（7日/30日は now から遡る。all は最古のセッション〜now）。 */
 export type QuizStatsPeriod = "7d" | "30d" | "all";
 
+/** 期間の表示ラベル（mobile のグラフ説明文などで単独参照する用）。 */
+export const QUIZ_STATS_PERIOD_LABELS: Record<QuizStatsPeriod, string> = {
+  "7d": "7日",
+  "30d": "30日",
+  all: "全期間",
+};
+
+/** 期間切替チップの選択肢（表示順つき。web/mobile のマイページ「特訓」で共用）。 */
+export const QUIZ_STATS_PERIODS: readonly { key: QuizStatsPeriod; label: string }[] = (
+  ["7d", "30d", "all"] as const
+).map((key) => ({ key, label: QUIZ_STATS_PERIOD_LABELS[key] }));
+
+/** 種目絞り込みチップ（「全種目」+ 各種目の短縮名。web/mobile のマイページ「特訓」で共用。
+ *  チップは短縮名。履歴行の種目名は QUIZ_KIND_LABELS（quiz.ts）の正式名を使う。 */
+export const QUIZ_KIND_FILTERS: readonly { key: "all" | QuizKind; label: string }[] = [
+  { key: "all", label: "全種目" },
+  { key: "chinitsu", label: "清一色" },
+  { key: "efficiency", label: "牌効率" },
+];
+
+/** 履歴リストの表示上限（直近。web/mobile のマイページ「特訓」で共用）。 */
+export const QUIZ_HISTORY_LIMIT = 20;
+
+/** ISO日時 → JST の 'YYYY/MM/DD HH:MM'（履歴行の日時。集計と同じ UTC+9 固定）。 */
+export function jstDateTime(iso: string): string {
+  const d = new Date(Date.parse(iso) + JST_OFFSET_MS);
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${d.getUTCFullYear()}/${p(d.getUTCMonth() + 1)}/${p(d.getUTCDate())} ${p(
+    d.getUTCHours(),
+  )}:${p(d.getUTCMinutes())}`;
+}
+
+/** 正答率 0-1 → '70%'（null は '—' = 出題0問を0%と区別）。 */
+export function accuracyLabel(accuracy: number | null): string {
+  return accuracy === null ? "—" : `${Math.round(accuracy * 100)}%`;
+}
+
 /** 集計に必要な最小のセッション形（client の QuizSessionDto がそのまま入る）。 */
 export interface QuizSessionLike {
   kind: QuizKind;

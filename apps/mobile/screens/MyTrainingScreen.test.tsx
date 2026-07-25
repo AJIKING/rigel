@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react-native";
+import { fireEvent, render, screen, within } from "@testing-library/react-native";
 import type { QuizSessionDto } from "@rigel/client";
 import { MyTrainingScreen } from "./MyTrainingScreen";
 
@@ -52,14 +52,23 @@ beforeEach(() => {
   mockListQuizSessions.mockResolvedValue(SESSIONS);
 });
 
+/** サマリ stat カード（testID）内のスコープ。 */
+function stat(testID: "stat-sessions" | "stat-best" | "stat-accuracy") {
+  return within(screen.getByTestId(testID));
+}
+
 describe("MyTrainingScreen（マイページ 特訓: サマリ・履歴・グラフ）", () => {
-  it("履歴を listQuizSessions(token) で取得し、サマリと履歴行（日時JST・種目・スコア・正答率）を新しい順に出す", async () => {
+  it("履歴を listQuizSessions(token) で取得し、サマリ（stat カード）と履歴行（日時JST・種目・スコア・正答率）を新しい順に出す", async () => {
     render(<MyTrainingScreen now={NOW} />);
 
-    expect(await screen.findByText("回数 3")).toBeTruthy();
+    // サマリは stat カード3枚（数値大きく・ラベル小さく: 挑戦回数/自己ベスト/平均正答率）。
+    expect(await screen.findByText("挑戦回数")).toBeTruthy();
     expect(mockListQuizSessions).toHaveBeenCalledWith("t");
-    expect(screen.getByText("ベストスコア 9")).toBeTruthy();
-    expect(screen.getByText("平均正答率 70%")).toBeTruthy();
+    expect(stat("stat-sessions").getByText("3")).toBeTruthy();
+    expect(stat("stat-best").getByText("9")).toBeTruthy();
+    expect(screen.getByText("自己ベスト")).toBeTruthy();
+    expect(stat("stat-accuracy").getByText("70%")).toBeTruthy();
+    expect(screen.getByText("平均正答率")).toBeTruthy();
 
     // 先頭 = 一番新しい s2（JST 7/23 10:00・清一色・5/10）。
     const dates = screen.getAllByText(/^2026\/07\//);
@@ -71,10 +80,11 @@ describe("MyTrainingScreen（マイページ 特訓: サマリ・履歴・グラ
     expect(screen.getByText("正答率 90%")).toBeTruthy();
   });
 
-  it("期間チップ（7日/30日/全期間）でグラフの期間が切り替わる", async () => {
+  it("期間チップ（7日/30日/全期間）でグラフの期間が切り替わる（グラフカードに小ラベル）", async () => {
     render(<MyTrainingScreen now={NOW} />);
-    await screen.findByText("回数 3");
+    await screen.findByText("挑戦回数");
 
+    expect(screen.getByText("1分あたり正解数")).toBeTruthy();
     expect(screen.getByLabelText("1分あたり正解数の推移（7日）")).toBeTruthy();
     fireEvent.press(screen.getByText("30日"));
     expect(screen.getByLabelText("1分あたり正解数の推移（30日）")).toBeTruthy();
@@ -82,25 +92,26 @@ describe("MyTrainingScreen（マイページ 特訓: サマリ・履歴・グラ
     expect(screen.getByLabelText("1分あたり正解数の推移（全期間）")).toBeTruthy();
   });
 
-  it("種目チップで清一色に絞るとサマリと履歴から牌効率の分が消える", async () => {
+  it("種目チップ（全種目/清一色/牌効率）で清一色に絞るとサマリと履歴から牌効率の分が消える", async () => {
     render(<MyTrainingScreen now={NOW} />);
-    await screen.findByText("回数 3");
+    await screen.findByText("挑戦回数");
 
+    expect(screen.getByText("全種目")).toBeTruthy();
     fireEvent.press(screen.getByText("清一色"));
-    expect(screen.getByText("回数 2")).toBeTruthy();
-    expect(screen.getByText("ベストスコア 7")).toBeTruthy();
-    expect(screen.getByText("平均正答率 60%")).toBeTruthy();
+    expect(stat("stat-sessions").getByText("2")).toBeTruthy();
+    expect(stat("stat-best").getByText("7")).toBeTruthy();
+    expect(stat("stat-accuracy").getByText("60%")).toBeTruthy();
     expect(screen.queryByText("牌効率（受け入れ最大）")).toBeNull();
     expect(screen.getAllByText("清一色 多面待ち")).toHaveLength(2);
   });
 
-  it("記録が無ければ空状態の文言を出す（平均正答率は —）", async () => {
+  it("記録が無ければ空状態は短い1文（共有文言）を出す（平均正答率は —）", async () => {
     mockListQuizSessions.mockResolvedValue([]);
     render(<MyTrainingScreen now={NOW} />);
 
-    expect(await screen.findByText("まだ記録がありません")).toBeTruthy();
-    expect(screen.getByText("回数 0")).toBeTruthy();
-    expect(screen.getByText("平均正答率 —")).toBeTruthy();
+    expect(await screen.findByText("まだ特訓の記録がありません")).toBeTruthy();
+    expect(stat("stat-sessions").getByText("0")).toBeTruthy();
+    expect(stat("stat-accuracy").getByText("—")).toBeTruthy();
   });
 
   it("未ログインはログイン案内を出し、API を呼ばない", () => {

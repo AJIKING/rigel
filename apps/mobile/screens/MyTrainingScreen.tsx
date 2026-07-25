@@ -1,6 +1,13 @@
 import type { QuizKind } from "@rigel/schema";
 import {
+  QUIZ_EMPTY_HISTORY_MESSAGE,
+  QUIZ_HISTORY_LIMIT,
+  QUIZ_KIND_FILTERS,
   QUIZ_KIND_LABELS,
+  QUIZ_STATS_PERIOD_LABELS,
+  QUIZ_STATS_PERIODS,
+  accuracyLabel,
+  jstDateTime,
   quizDailyStats,
   quizStatsSummary,
   type QuizStatsPeriod,
@@ -14,39 +21,9 @@ import { listQuizSessions, type QuizSessionDto } from "../lib/api";
 import { useAuth } from "../lib/auth";
 import { colors, radius } from "../lib/theme";
 
-const PERIODS = [
-  ["7d", "7日"],
-  ["30d", "30日"],
-  ["all", "全期間"],
-] as const;
-const PERIOD_LABELS: Record<QuizStatsPeriod, string> = {
-  "7d": "7日",
-  "30d": "30日",
-  all: "全期間",
-};
-
-const KINDS = [
-  ["all", "全部"],
-  ["chinitsu", "清一色"],
-  ["efficiency", "牌効率"],
-] as const;
-
-/** 履歴リストの表示上限（直近）。web と同じ。 */
-const HISTORY_LIMIT = 20;
-
-/** ISO日時 → JST の 'YYYY/MM/DD HH:MM'（履歴行の日時。集計と同じ UTC+9 固定）。 */
-function jstDateTime(iso: string): string {
-  const d = new Date(Date.parse(iso) + 9 * 3_600_000);
-  const p = (n: number) => String(n).padStart(2, "0");
-  return `${d.getUTCFullYear()}/${p(d.getUTCMonth() + 1)}/${p(d.getUTCDate())} ${p(
-    d.getUTCHours(),
-  )}:${p(d.getUTCMinutes())}`;
-}
-
-/** 正答率 0-1 → '70%'（null は '—' = 出題0問を0%と区別）。 */
-function accuracyLabel(accuracy: number | null): string {
-  return accuracy === null ? "—" : `${Math.round(accuracy * 100)}%`;
-}
+// 共有定義（@rigel/ui。web と同じ選択肢・並び）を Segment の [値, ラベル] 形式へ写す。
+const PERIODS = QUIZ_STATS_PERIODS.map((p) => [p.key, p.label] as const);
+const KINDS = QUIZ_KIND_FILTERS.map((k) => [k.key, k.label] as const);
 
 /**
  * マイページ「特訓」セグメント（本人のみ）。サマリ・1分あたり正解数の推移（SVG 折れ線）・
@@ -88,7 +65,7 @@ export function MyTrainingScreen({ now }: { now?: Date }) {
       sessions
         .filter((x) => kindFilter === undefined || x.kind === kindFilter)
         .sort((a, b) => -a.createdAt.localeCompare(b.createdAt))
-        .slice(0, HISTORY_LIMIT),
+        .slice(0, QUIZ_HISTORY_LIMIT),
     [sessions, kindFilter],
   );
 
@@ -107,10 +84,20 @@ export function MyTrainingScreen({ now }: { now?: Date }) {
         contentContainerStyle={styles.feed}
         ListHeaderComponent={
           <View style={styles.header}>
+            {/* サマリ3枠（特訓の結果画面と同じ stat カード風: 数値大きく・ラベル小さくグレー） */}
             <View style={styles.statsRow}>
-              <Text style={styles.stat}>回数 {summary.sessions}</Text>
-              <Text style={styles.stat}>ベストスコア {summary.bestCorrect}</Text>
-              <Text style={styles.stat}>平均正答率 {accuracyLabel(summary.avgAccuracy)}</Text>
+              <View style={styles.statCard} testID="stat-sessions">
+                <Text style={styles.statValue}>{summary.sessions}</Text>
+                <Text style={styles.statLabel}>挑戦回数</Text>
+              </View>
+              <View style={styles.statCard} testID="stat-best">
+                <Text style={styles.statValue}>{summary.bestCorrect}</Text>
+                <Text style={styles.statLabel}>自己ベスト</Text>
+              </View>
+              <View style={styles.statCard} testID="stat-accuracy">
+                <Text style={styles.statValue}>{accuracyLabel(summary.avgAccuracy)}</Text>
+                <Text style={styles.statLabel}>平均正答率</Text>
+              </View>
             </View>
             <View style={styles.segRow}>
               <Segment options={PERIODS} value={period} onChange={setPeriod} />
@@ -121,12 +108,13 @@ export function MyTrainingScreen({ now }: { now?: Date }) {
             {points.length > 0 ? (
               <QuizLineChart
                 points={points}
-                accessibilityLabel={`1分あたり正解数の推移（${PERIOD_LABELS[period]}）`}
+                title="1分あたり正解数"
+                accessibilityLabel={`1分あたり正解数の推移（${QUIZ_STATS_PERIOD_LABELS[period]}）`}
               />
             ) : null}
           </View>
         }
-        ListEmptyComponent={<CenterState message="まだ記録がありません" />}
+        ListEmptyComponent={<CenterState message={QUIZ_EMPTY_HISTORY_MESSAGE} />}
         renderItem={({ item }) => (
           <View style={styles.row}>
             <View style={styles.rowLeft}>
@@ -150,10 +138,28 @@ export function MyTrainingScreen({ now }: { now?: Date }) {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.bg },
-  feed: { paddingHorizontal: 16, paddingTop: 10, paddingBottom: 20, gap: 8, flexGrow: 1 },
+  feed: { paddingHorizontal: 16, paddingTop: 10, paddingBottom: 20, gap: 10, flexGrow: 1 },
   header: { gap: 10, marginBottom: 10 },
-  statsRow: { flexDirection: "row", gap: 14, flexWrap: "wrap" },
-  stat: { color: colors.w70, fontSize: 12.5, fontWeight: "700" },
+  // サマリの stat カード（特訓の結果画面と同じトーン）
+  statsRow: { flexDirection: "row", gap: 8 },
+  statCard: {
+    flex: 1,
+    alignItems: "center",
+    gap: 3,
+    backgroundColor: colors.chrome2,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.line,
+    borderRadius: radius.card,
+    paddingVertical: 14,
+    paddingHorizontal: 4,
+  },
+  statValue: {
+    color: colors.white,
+    fontSize: 20,
+    fontWeight: "800",
+    fontVariant: ["tabular-nums"],
+  },
+  statLabel: { color: colors.w45, fontSize: 10.5, fontWeight: "700" },
   segRow: { flexDirection: "row" },
   row: {
     flexDirection: "row",
@@ -167,10 +173,26 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     paddingHorizontal: 14,
   },
-  rowLeft: { gap: 3, flexShrink: 1 },
+  rowLeft: { gap: 5, flexShrink: 1, alignItems: "flex-start" },
   rowRight: { alignItems: "flex-end", gap: 3 },
   rowDate: { color: colors.w45, fontSize: 11.5, fontVariant: ["tabular-nums"] },
-  rowKind: { color: colors.accent, fontSize: 11.5, fontWeight: "700" },
-  rowScore: { color: colors.white, fontSize: 13.5, fontWeight: "800" },
-  rowAcc: { color: colors.w70, fontSize: 11.5 },
+  // 種目はチップ（web の履歴行と同じピル形）
+  rowKind: {
+    color: colors.accent,
+    fontSize: 10.5,
+    fontWeight: "800",
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: "rgba(255,158,69,0.45)",
+    borderRadius: 999,
+    paddingHorizontal: 9,
+    paddingVertical: 2,
+    overflow: "hidden",
+  },
+  rowScore: {
+    color: colors.white,
+    fontSize: 13.5,
+    fontWeight: "800",
+    fontVariant: ["tabular-nums"],
+  },
+  rowAcc: { color: colors.w70, fontSize: 11.5, fontVariant: ["tabular-nums"] },
 });

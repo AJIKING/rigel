@@ -7,18 +7,19 @@ import { TILE_VALUES, type QuizKind, type Tile } from "@rigel/schema";
 import { compareTiles } from "./edit";
 import { shanten } from "./shanten";
 import { winningTiles } from "./tenpai";
-import { discardUkeires } from "./ukeire";
+import { bestUkeires, discardUkeires } from "./ukeire";
 
 // クイズ種別は背骨（@rigel/schema の QuizKindSchema）に一本化する（重複定義しない）。
 export type { QuizKind } from "@rigel/schema";
 
 // ------------------------------------------------------------
-// 共有定数・文言（web/mobile の特訓画面と api のサーバ強制で共有。表記ゆれ防止）
+// 共有定数・文言（web/mobile の特訓画面で共有。表記ゆれ防止）
 // ------------------------------------------------------------
 
-/** 無料プランの特訓クイズ回数上限（1日・JST 0時回復・開始時に1回消費）。有料は無制限。
- *  api がサーバ強制に、web/mobile が文言表示に使う共有値（Plan: docs/plans/quiz-training.md）。 */
-export const FREE_QUIZ_PER_DAY = 3;
+// 無料の特訓クイズ1日3回は課金ポリシーなので背骨（@rigel/schema の plan.ts）に一元化。
+// 従来どおり @rigel/ui からも import できるよう re-export を残す（web/mobile の文言用）。
+import { FREE_QUIZ_PER_DAY } from "@rigel/schema";
+export { FREE_QUIZ_PER_DAY };
 
 /** 1セッションの制限秒数（60秒タイムアタック）。 */
 export const QUIZ_SESSION_SECONDS = 60;
@@ -29,17 +30,26 @@ export const QUIZ_KIND_LABELS: Record<QuizKind, string> = {
   efficiency: "牌効率（受け入れ最大）",
 };
 
-/** 種目の説明文（種目選択カードで共用）。 */
+/** 種目の説明文（種目選択カードで共用）。「何をするか（＋ルール補足）＋何が鍛えられるか」を1行で伝える。
+ *  ルール補足（完全一致/同率）はここに寄せ、出題中の指示文（QUIZ_KIND_PROMPTS）は最短にする。 */
 export const QUIZ_KIND_DESCRIPTIONS: Record<QuizKind, string> = {
-  chinitsu: "単色テンパイ13枚の待ち牌を全部選ぶ。完全一致で正解。",
-  efficiency: "14枚から受け入れ枚数が最大になる牌を切る。同率最大はどれでも正解。",
+  chinitsu:
+    "単色13枚のテンパイから待ち牌を全部見抜く（完全一致で正解）。多面待ちを読む速さを鍛える。",
+  efficiency:
+    "14枚から受け入れが最大になる1枚を切る（同率はどれでも正解）。手広く構える感覚を鍛える。",
 };
 
-/** 無料枠を使い切ったとき（開始 API が 402）の文言。 */
-export const QUIZ_LIMIT_MESSAGE = `本日の無料回数（${FREE_QUIZ_PER_DAY}回）を使い切りました。有料プランで無制限に特訓できます。`;
+/** 出題中の指示文（web/mobile の出題エリアで共用）。最短で（補足は QUIZ_KIND_DESCRIPTIONS に寄せる）。 */
+export const QUIZ_KIND_PROMPTS: Record<QuizKind, string> = {
+  chinitsu: "待ち牌を全部選ぶ",
+  efficiency: "受け入れ最大の牌を切る",
+};
 
-/** 種目選択画面に出す無料枠の注記（残り回数はセッション開始後にしか分からないため静的文言）。 */
-export const QUIZ_FREE_NOTE = `無料プランは1日${FREE_QUIZ_PER_DAY}回まで（有料プランは無制限）`;
+/** 無料枠を使い切ったとき（開始 API が 402）の文言。短く（枠と有料無制限のみ）。 */
+export const QUIZ_LIMIT_MESSAGE = `本日の無料枠（${FREE_QUIZ_PER_DAY}回）を使い切りました。有料プランなら無制限です。`;
+
+/** マイページ「特訓」タブの空状態文言（web/mobile で共有）。 */
+export const QUIZ_EMPTY_HISTORY_MESSAGE = "まだ特訓の記録がありません";
 
 /** シード付き決定的乱数（mulberry32・0以上1未満）。同じ seed から同じ問題列が再現される。 */
 export function createQuizRng(seed: number): () => number {
@@ -153,7 +163,8 @@ export function generateEfficiencyQuestion(
     const all = discardUkeires(tiles);
     const keep = all.filter((u) => u.shanten === all[0]!.shanten);
     if (keep.length < 2) return null;
-    const answer = keep.filter((u) => u.count === keep[0]!.count).map((u) => u.discard);
+    // 正解集合の判定は bestUkeires（ukeire.ts）に一元化（結果画面の受け入れ詳細と同一ルール）。
+    const answer = bestUkeires(all).map((u) => u.discard);
     if (answer.length >= keep.length) return null; // 全打牌が正解では選ぶ意味がない
     return { kind: "efficiency" as const, tiles: tiles.sort(compareTiles), shanten: s, answer };
   }, maxAttempts);
