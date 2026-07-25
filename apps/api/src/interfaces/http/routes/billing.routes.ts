@@ -41,7 +41,9 @@ export function registerBillingRoutes(app: Hono<AppEnv>): void {
       // 加入中の作り直しは二重サブスク＝二重課金になるため 409（ポータルで変更する）。
       if (!result.ok) return c.json({ error: "already subscribed" }, 409);
       return c.json({ url: result.url });
-    } catch {
+    } catch (e) {
+      // Workers Logs（observability 有効）へ残す。無ログだと課金導線の障害を追えない。
+      console.error("POST /billing/checkout failed", e);
       return c.json({ error: "checkout の作成に失敗しました" }, 502);
     }
   });
@@ -64,7 +66,8 @@ export function registerBillingRoutes(app: Hono<AppEnv>): void {
       });
       if (!result.ok) return c.json({ error: "not subscribed" }, 404);
       return c.json({ url: result.url });
-    } catch {
+    } catch (e) {
+      console.error("POST /billing/portal failed", e);
       return c.json({ error: "portal の作成に失敗しました" }, 502);
     }
   });
@@ -82,7 +85,9 @@ export function registerBillingRoutes(app: Hono<AppEnv>): void {
     try {
       const result = await container.handleRevenueCatWebhook.execute({ body });
       return c.json({ received: true, handled: result.handled });
-    } catch {
+    } catch (e) {
+      // plan を書く唯一の経路。原因（署名不正か DB 障害か）を追えるよう必ずログする。
+      console.error("POST /billing/revenuecat/webhook failed", e);
       return c.json({ error: "invalid webhook" }, 400);
     }
   });
@@ -97,7 +102,9 @@ export function registerBillingRoutes(app: Hono<AppEnv>): void {
     try {
       const result = await container.handleBillingWebhook.execute({ payload, signature });
       return c.json({ received: true, handled: result.handled });
-    } catch {
+    } catch (e) {
+      // plan を書く唯一の経路。原因（署名不正か DB 障害か）を追えるよう必ずログする。
+      console.error("POST /billing/webhook failed", e);
       return c.json({ error: "invalid webhook" }, 400);
     }
   });

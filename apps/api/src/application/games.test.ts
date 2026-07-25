@@ -35,7 +35,7 @@ describe("GetGameWithLogs", () => {
     await logs.save(log("l1", "g1", 1));
     await logs.save(log("other", "g2", 1));
 
-    const detail = await new GetGameWithLogs(games, logs).execute("g1");
+    const detail = await new GetGameWithLogs(games, logs).execute("g1", "u1");
     expect(detail?.game.id).toBe("g1");
     expect(detail?.logs.map((l) => l.id)).toEqual(["l1", "l2"]);
   });
@@ -44,7 +44,22 @@ describe("GetGameWithLogs", () => {
     const detail = await new GetGameWithLogs(
       new InMemoryGameRepository(),
       new InMemoryGameLogRepository(),
-    ).execute("nope");
+    ).execute("nope", "u1");
     expect(detail).toBeNull();
+  });
+
+  // 半荘詳細は所有者のみ。他人・未ログインには不存在と同じ null（存在を漏らさない）。
+  it.each<{ name: string; viewerId: string | null; visible: boolean }>([
+    { name: "所有者本人は詳細を取得できる", viewerId: "u1", visible: true },
+    { name: "他人には null（存在を漏らさない）", viewerId: "other", visible: false },
+    { name: "未ログインには null（存在を漏らさない）", viewerId: null, visible: false },
+  ])("$name", async ({ viewerId, visible }) => {
+    const games = new InMemoryGameRepository([game("g1", "u1")]);
+    const detail = await new GetGameWithLogs(games, new InMemoryGameLogRepository()).execute(
+      "g1",
+      viewerId,
+    );
+    if (visible) expect(detail?.game.id).toBe("g1");
+    else expect(detail).toBeNull();
   });
 });

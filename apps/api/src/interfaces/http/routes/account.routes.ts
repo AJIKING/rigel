@@ -17,7 +17,9 @@ async function respondAuth(
   try {
     const { sessionToken, user, created } = await run();
     return c.json({ sessionToken, created, user: userProfileJson(user) }, created ? 201 : 200);
-  } catch {
+  } catch (e) {
+    // 無効トークンは日常的に起きるため warn（トークン本体は含めない）。
+    console.warn(`auth ${provider} token verification failed`, e);
     return c.json({ error: `invalid ${provider} token` }, 401);
   }
 }

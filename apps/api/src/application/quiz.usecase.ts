@@ -4,8 +4,7 @@
 // 結果はクライアント採点だが、使う前に必ず QuizResultSchema.parse を通す（背骨ゲート）。
 // 成績は本人のみ（履歴は自分の行しか返さず、他人向けレスポンスに含めない）。
 
-import { QuizKindSchema, QuizResultSchema } from "@rigel/schema";
-import { FREE_QUIZ_PER_DAY } from "@rigel/ui";
+import { FREE_QUIZ_PER_DAY, QuizKindSchema, QuizResultSchema } from "@rigel/schema";
 import { jstDayOf, withResult, type CompletedQuizSession } from "../domain/quiz/quiz-session";
 import type { QuizSessionRepository } from "../domain/quiz/quiz-session.repository";
 import type { UserRepository } from "../domain/user/user.repository";

@@ -146,11 +146,13 @@ export function registerGameRoutes(app: Hono<AppEnv>): void {
     return c.json({ ok: true });
   });
 
-  // 半荘詳細（半荘 + 局一覧）。所有者のみ。
+  // 半荘詳細（半荘 + 局一覧）。所有者のみ（所有者判定は application 層。
+  // 他人には不存在と同じ 404 で存在を漏らさない）。
   app.get("/games/:id", requireAuth, async (c) => {
-    const detail = await c.get("container").getGameWithLogs.execute(c.req.param("id"));
-    if (!detail || detail.game.userId !== c.get("userId"))
-      return c.json({ error: "not found" }, 404);
+    const detail = await c
+      .get("container")
+      .getGameWithLogs.execute(c.req.param("id"), c.get("userId")!);
+    if (!detail) return c.json({ error: "not found" }, 404);
     return c.json(detail);
   });
 

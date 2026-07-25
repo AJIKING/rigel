@@ -27,6 +27,15 @@ export interface GameLog {
   createdAt: Date;
 }
 
+/** 局が viewer に見えるか（public は誰でも、private は所有者のみ）。
+ *  未ログインは viewerId=null。判定はここに集約し、HTTP ルートで再実装しない。 */
+export function isVisibleTo(
+  log: Pick<GameLog, "userId" | "visibility">,
+  viewerId: string | null,
+): boolean {
+  return log.visibility === "public" || log.userId === viewerId;
+}
+
 /** 公開フィード用の局の要約（Kifu 本体を含まない読み取りモデル）。
  *  一覧のコストを「保存された牌譜のサイズ」から切り離すために使う。 */
 export interface GameLogSummary {

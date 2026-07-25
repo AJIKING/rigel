@@ -5,13 +5,14 @@
 // 保存済みの値を引き継ぐ（書き換え経路を PATCH /games/:id/{rules,players} に一本化。
 // 旧クライアントが未知フィールドを strip した kifu を送り返しても局間で乖離しない）。
 
-import type { Kifu } from "@rigel/schema";
+import { MAX_SEQ, type Kifu } from "@rigel/schema";
 import type { GameLogRepository } from "../domain/kifu/game-log.repository";
 
 export type UpdateKifuResult = { ok: true } | { ok: false; reason: "not_found" | "invalid_seq" };
 
-/** 局順(seq)の上限。roundNameForSeq が表せる範囲（東一〜北四）に合わせる。 */
-export const MAX_SEQ = 16;
+// 局順(seq)の上限（東一〜北四=16）は背骨（@rigel/schema の plan.ts）が単一真実源。
+// api 内の既存 import（games.routes 等）を保つため re-export する。
+export { MAX_SEQ };
 
 /** seq 省略時の自動採番（既存局数+1）。連荘で局数が16を超えても保存可能な範囲に頭打ちする。 */
 export function autoSeq(existingCount: number): number {

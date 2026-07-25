@@ -7,6 +7,8 @@
 
 import type {
   Kifu,
+  PaidPlan,
+  Plan,
   Players,
   Problem,
   ProblemAction,
@@ -19,8 +21,8 @@ import type {
 /** 作成時に渡せる局メタ（本場/供託/ドラ/最終巡目）。記録のみ・点数計算はしない。 */
 export type KifuMetaInput = Partial<Pick<Kifu["meta"], "honba" | "kyotaku" | "dora" | "junme">>;
 
-export type Plan = "free" | "next" | "pro";
-export type PaidPlan = "next" | "pro";
+// プラン型は背骨（@rigel/schema の plan.ts）が単一真実源。従来の名前のまま re-export する。
+export type { PaidPlan, Plan } from "@rigel/schema";
 export type Visibility = "public" | "private";
 /** 編集状態。draft=下書き / complete=編集済（公開フィードに出る）。 */
 export type KifuStatus = "draft" | "complete";

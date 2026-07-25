@@ -6,26 +6,19 @@
 // 外部依存（DB/HTTP）を持たない純粋なドメインロジック。
 // ============================================================
 
-export type Plan = "free" | "next" | "pro";
+import {
+  DRAFT_KIFU_LIMIT,
+  MONTHLY_CALL_QUOTA,
+  PRIVATE_KIFU_LIMIT,
+  PROBLEM_LIMIT,
+  type Plan,
+} from "@rigel/schema";
 
-/**
- * プランごとの月あたり Gemini 呼び出し上限。
- * 1局の解析は河(4方向)＋撮影した手牌の枚数ぶん呼び出すので、枠は「局数」ではなく
- * 実呼び出し回数で数える（free 20 ≒ 2局）。
- */
-// Free は AI再現なし（枠0）。AI再現は Next 以上。
-export const MONTHLY_CALL_QUOTA: Record<Plan, number> = { free: 0, next: 100, pro: 320 };
-
-/** プランごとの private(非公開)かつ complete(編集済) の保存上限（半荘数で数える）。
- *  null は無制限。下書き(draft)はこの上限に数えない（別枠 = DRAFT_LIMIT）。 */
-export const PRIVATE_KIFU_LIMIT: Record<Plan, number | null> = { free: 5, next: null, pro: null };
-
-/** プランごとの下書き(draft)保存上限（半荘数で数える）。null は無制限（有料）。非公開上限とは別枠。 */
-export const DRAFT_LIMIT: Record<Plan, number | null> = { free: 5, next: null, pro: null };
-
-/** プランごとの何切る問題の保存上限（draft+published 合算）。null は無制限（有料）。
- *  @rigel/ui の PROBLEM_LIMIT と一致させる（表示用）。 */
-export const PROBLEM_LIMIT: Record<Plan, number | null> = { free: 20, next: null, pro: null };
+// プラン型と上限ポリシー定数は背骨（@rigel/schema の plan.ts）が単一真実源。
+// api 内の既存 import（user.test.ts / analyze-and-save-kifu 等）を保つため従来名で re-export する
+//（DRAFT_LIMIT は schema 側では DRAFT_KIFU_LIMIT）。
+export type { Plan };
+export { MONTHLY_CALL_QUOTA, PRIVATE_KIFU_LIMIT, DRAFT_KIFU_LIMIT as DRAFT_LIMIT, PROBLEM_LIMIT };
 
 /** プランの月間呼び出し上限。 */
 export function monthlyCallQuota(plan: Plan): number {
@@ -39,7 +32,7 @@ export function privateKifuLimit(plan: Plan): number | null {
 
 /** プランの下書き(draft)保存上限（null=無制限）。 */
 export function draftLimit(plan: Plan): number | null {
-  return DRAFT_LIMIT[plan];
+  return DRAFT_KIFU_LIMIT[plan];
 }
 
 /** プランの何切る問題の保存上限（null=無制限）。 */

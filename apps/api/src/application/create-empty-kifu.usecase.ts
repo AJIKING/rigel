@@ -1,7 +1,14 @@
 // application — 空の局（手動入力の起点）を半荘に追加するユースケース。
 // 解析を伴わないので Gemini 枠は消費しない。既定 private なので無料の非公開上限は守る。
 
-import { KifuSchema, dealerForSeq, type Kifu, type Seat, type Tile } from "@rigel/schema";
+import {
+  KifuSchema,
+  MAX_LOGS_PER_GAME,
+  dealerForSeq,
+  type Kifu,
+  type Seat,
+  type Tile,
+} from "@rigel/schema";
 import type { GameRepository } from "../domain/game/game.repository";
 import type { GameLog } from "../domain/kifu/game-log";
 import type { GameLogRepository } from "../domain/kifu/game-log.repository";
@@ -13,8 +20,9 @@ import type { UserRepository } from "../domain/user/user.repository";
 /** 作成時に焼き込める局メタ（写真に写らない情報。記録のみ・点数計算はしない）。 */
 export type EmptyKifuMeta = Partial<Kifu["meta"]>;
 
-/** 1半荘あたりに追加できる局(牌譜)の上限（全体機能）。 */
-export const MAX_LOGS_PER_GAME = 30;
+// 1半荘あたりに追加できる局(牌譜)の上限は背骨（@rigel/schema の plan.ts）が単一真実源。
+// api 内の既存 import（analyze-and-save-kifu 等）を保つため re-export する。
+export { MAX_LOGS_PER_GAME };
 
 export type CreateEmptyResult =
   | { ok: true; gameId: string; logId: string }

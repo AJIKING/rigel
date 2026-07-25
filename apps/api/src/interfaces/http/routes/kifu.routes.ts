@@ -17,13 +17,13 @@ export function registerKifuRoutes(app: Hono<AppEnv>): void {
     return c.json({ ok: true });
   });
 
-  // 牌譜1件の取得（public は誰でも、private は所有者のみ）。
+  // 牌譜1件の取得。可視性（public は誰でも、private は所有者のみ）は
+  // application 層で判定し、見えない局は不存在と同じ 404（存在を漏らさない）。
   app.get("/kifu/:id", async (c) => {
-    const log = await c.get("container").getKifu.execute(c.req.param("id"));
+    const log = await c
+      .get("container")
+      .getKifu.execute(c.req.param("id"), c.get("userId") ?? null);
     if (!log) return c.json({ error: "not found" }, 404);
-    if (log.visibility === "private" && log.userId !== c.get("userId")) {
-      return c.json({ error: "not found" }, 404); // 存在を漏らさない。
-    }
     return c.json(log);
   });
 
@@ -61,12 +61,13 @@ export function registerKifuRoutes(app: Hono<AppEnv>): void {
     return c.json({ ok: true });
   });
 
-  // ユーザーの牌譜一覧。public は誰でも、private は本人にだけ見せる。
+  // ユーザーの牌譜一覧。public は誰でも、private は本人にだけ見せる
+  //（可視性の判定は application 層）。
   app.get("/users/:id/kifu", async (c) => {
-    const logs = await c.get("container").listKifu.execute(c.req.param("id"));
-    const viewer = c.get("userId");
-    const visible = logs.filter((l) => l.visibility === "public" || l.userId === viewer);
-    return c.json(visible);
+    const logs = await c
+      .get("container")
+      .listKifu.execute(c.req.param("id"), c.get("userId") ?? null);
+    return c.json(logs);
   });
 
   // 撮影画像 → 解析 → 半荘に局として保存（multipart）。
@@ -118,7 +119,8 @@ export function registerKifuRoutes(app: Hono<AppEnv>): void {
         return c.json({ ok: false, reason: result.reason }, reasonStatus(result.reason));
       }
       return c.json({ ok: true, gameId: result.gameId, logId: result.gameLog.id }, 201);
-    } catch {
+    } catch (e) {
+      console.error("POST /kifu/analyze failed", e);
       return c.json({ ok: false, error: "解析に失敗しました" }, 502);
     }
   });

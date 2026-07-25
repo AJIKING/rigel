@@ -50,7 +50,8 @@ export function registerProblemRoutes(app: Hono<AppEnv>): void {
         return c.json({ ok: false, reason: result.reason }, reasonStatus(result.reason));
       }
       return c.json({ ok: true, kifu: result.kifu });
-    } catch {
+    } catch (e) {
+      console.error("POST /problems/analyze failed", e);
       return c.json({ ok: false, error: "解析に失敗しました" }, 502);
     }
   });

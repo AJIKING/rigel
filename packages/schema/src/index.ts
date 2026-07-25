@@ -763,3 +763,9 @@ export function isValidAnswer(problem: Problem, action: ProblemAction): boolean 
   }
   return action.discard === null || hand.includes(action.discard);
 }
+
+// ============================================================
+// プラン上限ポリシー（課金・保存上限の単一真実源）
+// ============================================================
+
+export * from "./plan";
