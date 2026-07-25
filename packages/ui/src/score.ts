@@ -118,11 +118,6 @@ export function payText(score: HandScore): string {
   return `子${p.fromNonDealer} / 親${p.fromDealer}`;
 }
 
-/** Kifu の全和了（ダブロン等は複数）の打点。 */
-export function kifuScores(kifu: Kifu): HandScore[] {
-  return kifu.agari.map((a) => scoreAgari(a, kifu.meta.dealer, kifu.rules));
-}
-
 /** 先頭の和了の打点（単一和了の便宜。和了が無ければ null）。 */
 export function kifuScore(kifu: Kifu): HandScore | null {
   const a = kifu.agari[0];

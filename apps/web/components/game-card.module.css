@@ -206,6 +206,8 @@
 }
 .cmeta .au {
   color: var(--w70);
+  /* 投稿者は実アンカー（next/link）。span 時代の見た目を維持する（UA 既定の下線を消す）。 */
+  text-decoration: none;
 }
 .cmeta .sep {
   opacity: 0.5;

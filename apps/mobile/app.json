@@ -41,7 +41,6 @@
     "plugins": [
       "expo-secure-store",
       "expo-apple-authentication",
-      "./plugins/with-openiap-pin",
       "@react-native-firebase/app",
       "@react-native-firebase/analytics",
       [

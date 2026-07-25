@@ -1,5 +1,15 @@
 import { useRef } from "react";
-import { PanResponder, Pressable, StyleSheet, Text, View, type DimensionValue } from "react-native";
+import {
+  KeyboardAvoidingView,
+  PanResponder,
+  Platform,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+  type DimensionValue,
+} from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { colors, radius } from "../lib/theme";
 
 /**
@@ -33,24 +43,39 @@ export function BottomSheet({
     }),
   ).current;
 
+  // 画面下端に張り付くシートなので、ホームインジケータ（iPhone で 34pt）ぶん下パディングを
+  // 広げて保存ボタン等が重ならないようにする（TabBar と同じ insets 対応。最低 24 は従来値）。
+  const insets = useSafeAreaInsets();
+
   return (
     <View style={styles.overlay} pointerEvents={backdrop ? "auto" : "box-none"}>
       {backdrop ? (
         <Pressable style={styles.backdrop} onPress={onClose} accessibilityLabel="閉じる（背景）" />
       ) : null}
-      <View style={[styles.card, { maxHeight }]}>
-        {grabber ? (
-          <Pressable
-            style={styles.handle}
-            onPress={onClose}
-            accessibilityLabel="シートを閉じる"
-            {...pan.panHandlers}
-          >
-            <View style={styles.grabber} />
-          </Pressable>
-        ) : null}
-        {children}
-      </View>
+      {/* キーボードが出たらシートごと持ち上げ、入力欄や保存ボタンが隠れないようにする
+          （PlayersSheet 等の全シートをここ1箇所で救う）。maxHeight は KAV 側に置き、
+          card は 100% で従わせる（KAV は高さ auto のため % 指定が効かない）。 */}
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        style={{ maxHeight }}
+      >
+        <View
+          style={[styles.card, { paddingBottom: Math.max(24, insets.bottom + 12) }]}
+          testID="bottom-sheet-card"
+        >
+          {grabber ? (
+            <Pressable
+              style={styles.handle}
+              onPress={onClose}
+              accessibilityLabel="シートを閉じる"
+              {...pan.panHandlers}
+            >
+              <View style={styles.grabber} />
+            </Pressable>
+          ) : null}
+          {children}
+        </View>
+      </KeyboardAvoidingView>
     </View>
   );
 }
@@ -74,6 +99,7 @@ const styles = StyleSheet.create({
   overlay: { ...StyleSheet.absoluteFillObject, zIndex: 40, justifyContent: "flex-end" },
   backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(8,10,13,0.66)" },
   card: {
+    maxHeight: "100%",
     backgroundColor: colors.chrome,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: colors.line,
@@ -81,7 +107,7 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 12,
     paddingHorizontal: 16,
     paddingTop: 10,
-    paddingBottom: 24,
+    // paddingBottom はセーフエリア対応のため描画時に動的指定（max(24, insets.bottom+12)）。
     shadowColor: "#000",
     shadowOpacity: 0.5,
     shadowRadius: 20,

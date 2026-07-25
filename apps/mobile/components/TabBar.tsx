@@ -98,7 +98,13 @@ function TabButton({
 }) {
   const color = active ? colors.accent : colors.w45;
   return (
-    <Pressable style={styles.tab} onPress={onPress} accessibilityRole="button">
+    <Pressable
+      style={styles.tab}
+      onPress={onPress}
+      accessibilityRole="button"
+      // 選択中タブをスクリーンリーダーに伝える（Segment/Chip と同じ流儀）。
+      accessibilityState={{ selected: active }}
+    >
       <Icon name={tab.key} color={color} />
       <Text style={[styles.label, { color }]}>{tab.label}</Text>
     </Pressable>

@@ -112,6 +112,18 @@ describe("KifuPlayer", () => {
     expect(screen.getByText("0本場")).toBeTruthy();
   });
 
+  it("トグル（手牌）は選択状態を accessibilityState.selected で読み上げに伝える", () => {
+    render(<KifuPlayer logs={[log(1, kifuOppHand())]} />);
+    // 初期は非表示（selected=false）。押すと表示（selected=true）に変わる。
+    expect(screen.getByRole("button", { name: "手牌" }).props.accessibilityState.selected).toBe(
+      false,
+    );
+    fireEvent.press(screen.getByRole("button", { name: "手牌" }));
+    expect(screen.getByRole("button", { name: "手牌" }).props.accessibilityState.selected).toBe(
+      true,
+    );
+  });
+
   it("全画面ボタンは置かない（モバイルは全画面でもデザインが変わらないため）", () => {
     render(<KifuPlayer logs={[log(1, emptyKifu())]} />);
     expect(screen.queryByLabelText("全画面")).toBeNull();

@@ -41,3 +41,5 @@ apps/api/eval-fixtures/last-report.txt
 # misc
 .DS_Store
 *.log
+# ツール実行の残骸（リポジトリ直下に生成されることがある）
+channels-log.txt

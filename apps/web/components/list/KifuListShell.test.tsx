@@ -3,8 +3,9 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { AuthProvider } from "../../lib/auth-context";
 import { KifuListShell } from "./KifuListShell";
 
-// next/navigation の useRouter をスタブ。
-vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
+// next/navigation の useRouter をスタブ（push はテストから観測できる共有スパイ）。
+const push = vi.hoisted(() => vi.fn());
+vi.mock("next/navigation", () => ({ useRouter: () => ({ push }) }));
 // Server Action は server-only を辿るためモック（未ログインなので呼ばれない）。
 vi.mock("../../app/actions", () => ({ getMyGamesAction: vi.fn(() => Promise.resolve([])) }));
 
@@ -36,6 +37,7 @@ describe("KifuListShell", () => {
   afterEach(() => {
     vi.unstubAllGlobals();
     localStorage.clear();
+    push.mockClear();
   });
 
   it("公開牌譜の並び替えは「新着・今週・お気に入り」（mobile と統一。局数順は出さない）", async () => {
@@ -69,6 +71,24 @@ describe("KifuListShell", () => {
     fireEvent.change(select, { target: { value: "fav" } });
     expect(screen.getByText("先週の半荘")).toBeTruthy();
     expect(screen.queryByText("今日の半荘")).toBeNull();
+  });
+
+  it("投稿者はキーボード操作できる <a href=/u/handle> リンクで、クリックしてもカード遷移（onOpen）へ伝播しない", async () => {
+    stubFetch([card("g1", "今日の半荘", new Date().toISOString())]);
+    render(
+      <AuthProvider>
+        <KifuListShell view="public" />
+      </AuthProvider>,
+    );
+
+    // span[role=link] ではなく実アンカー（href あり）。Enter で開ける＝キーボード操作可能。
+    const author = await screen.findByRole("link", { name: "@taro" });
+    expect(author.tagName).toBe("A");
+    expect(author.getAttribute("href")).toBe("/u/taro");
+
+    // カード内に置くリンクなのでクリックはカードの onOpen（/k/g1 への push）へ伝播させない。
+    fireEvent.click(author);
+    expect(push).not.toHaveBeenCalledWith("/k/g1");
   });
 
   it("公開牌譜ビューは見出しを表示する", async () => {

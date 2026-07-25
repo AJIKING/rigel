@@ -41,4 +41,30 @@ describe("AppHeader（ナビは 牌譜・何切る・特訓・マイページ）
     expect(screen.getByRole("link", { name: "何切る" }).getAttribute("href")).toBe("/problems");
     expect(screen.getByRole("link", { name: "特訓" }).getAttribute("href")).toBe("/training");
   });
+
+  // 現在地は色（className）だけでなく aria-current="page" でも支援技術へ伝える。
+  it.each([
+    ["kifu", "牌譜"],
+    ["problems", "何切る"],
+    ["training", "特訓"],
+    ["mypage", "マイページ"],
+  ] as const)(
+    "active=%s: 「%s」に aria-current=page が付き、他のナビには付かない",
+    (active, label) => {
+      auth.user = { id: "u1", plan: "free" };
+      render(<AppHeader active={active} />);
+      expect(screen.getByRole("link", { name: label }).getAttribute("aria-current")).toBe("page");
+      for (const other of ["牌譜", "何切る", "特訓", "マイページ"].filter((n) => n !== label)) {
+        expect(screen.getByRole("link", { name: other }).getAttribute("aria-current")).toBeNull();
+      }
+    },
+  );
+
+  it("active 未指定なら aria-current はどのナビにも付かない", () => {
+    auth.user = { id: "u1", plan: "free" };
+    render(<AppHeader />);
+    for (const name of ["牌譜", "何切る", "特訓", "マイページ"]) {
+      expect(screen.getByRole("link", { name }).getAttribute("aria-current")).toBeNull();
+    }
+  });
 });

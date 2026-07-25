@@ -29,17 +29,34 @@ export function AppHeader({
       </Link>
 
       <nav className={s.topnav}>
-        <Link href="/kifu" className={`${s.navItem} ${active === "kifu" ? s.on : ""}`}>
+        {/* 現在地は色（s.on）に加えて aria-current="page" で支援技術にも伝える。 */}
+        <Link
+          href="/kifu"
+          className={`${s.navItem} ${active === "kifu" ? s.on : ""}`}
+          aria-current={active === "kifu" ? "page" : undefined}
+        >
           牌譜
         </Link>
-        <Link href="/problems" className={`${s.navItem} ${active === "problems" ? s.on : ""}`}>
+        <Link
+          href="/problems"
+          className={`${s.navItem} ${active === "problems" ? s.on : ""}`}
+          aria-current={active === "problems" ? "page" : undefined}
+        >
           何切る
         </Link>
-        <Link href="/training" className={`${s.navItem} ${active === "training" ? s.on : ""}`}>
+        <Link
+          href="/training"
+          className={`${s.navItem} ${active === "training" ? s.on : ""}`}
+          aria-current={active === "training" ? "page" : undefined}
+        >
           特訓
         </Link>
         {user && (
-          <Link href="/mypage" className={`${s.navItem} ${active === "mypage" ? s.on : ""}`}>
+          <Link
+            href="/mypage"
+            className={`${s.navItem} ${active === "mypage" ? s.on : ""}`}
+            aria-current={active === "mypage" ? "page" : undefined}
+          >
             マイページ
           </Link>
         )}

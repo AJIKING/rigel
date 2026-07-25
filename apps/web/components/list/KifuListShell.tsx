@@ -273,18 +273,14 @@ export function KifuListShell({ view }: { view: "mine" | "public" }) {
                     meta={
                       <>
                         {c.ownerHandle || c.ownerName ? (
-                          <span
+                          // 実アンカー（next/link）: Enter/Space で開ける。カードの onOpen へは伝播させない。
+                          <Link
+                            href={`/u/${c.ownerHandle ?? c.ownerId}`}
                             className={gc.au}
-                            role="link"
-                            tabIndex={0}
-                            style={{ cursor: "pointer" }}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              router.push(`/u/${c.ownerHandle ?? c.ownerId}`);
-                            }}
+                            onClick={(e) => e.stopPropagation()}
                           >
                             {authorLabel({ handle: c.ownerHandle, name: c.ownerName })}
-                          </span>
+                          </Link>
                         ) : (
                           <span className={gc.au}>名無し</span>
                         )}

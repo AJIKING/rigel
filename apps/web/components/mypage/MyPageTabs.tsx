@@ -7,13 +7,26 @@ import s from "../list/kifu-list.module.css";
 export function MyPageTabs({ active }: { active: "kifu" | "problems" | "training" }) {
   return (
     <nav className={s.mypageTabs} aria-label="マイページの切替">
-      <Link href="/mypage" className={active === "kifu" ? s.on : ""}>
+      {/* 現在地は色（s.on）に加えて aria-current="page" で支援技術にも伝える。 */}
+      <Link
+        href="/mypage"
+        className={active === "kifu" ? s.on : ""}
+        aria-current={active === "kifu" ? "page" : undefined}
+      >
         牌譜
       </Link>
-      <Link href="/mypage/problems" className={active === "problems" ? s.on : ""}>
+      <Link
+        href="/mypage/problems"
+        className={active === "problems" ? s.on : ""}
+        aria-current={active === "problems" ? "page" : undefined}
+      >
         何切る
       </Link>
-      <Link href="/mypage/training" className={active === "training" ? s.on : ""}>
+      <Link
+        href="/mypage/training"
+        className={active === "training" ? s.on : ""}
+        aria-current={active === "training" ? "page" : undefined}
+      >
         特訓
       </Link>
     </nav>

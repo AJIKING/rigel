@@ -469,6 +469,8 @@ function Toggle({
       style={[styles.tog, active && styles.togOn]}
       onPress={onPress}
       accessibilityRole="button"
+      // オン/オフをスクリーンリーダーに伝える（Segment/Chip と同じ流儀）。
+      accessibilityState={{ selected: active }}
     >
       <Text style={[styles.togText, active && styles.togTextOn]}>{label}</Text>
     </Pressable>
