@@ -1,6 +1,6 @@
 // 結果画面の受け入れ詳細（UkeireDetail）の計算コスト検証。
-// discardUkeires は 14枚×34種の向聴総当たりで重い（15問で約100ms超）ため、
-// 手牌が変わらない再レンダー（例:「もう一度挑戦」失敗時の state 更新）で
+// ukeireReviewModel（内部の discardUkeires が 14枚×34種の向聴総当たりで重い。15問で約100ms超）
+// を、手牌が変わらない再レンダー（例:「もう一度挑戦」失敗時の state 更新）で
 // 再計算しないこと（useMemo）を、@rigel/ui のモジュール境界スパイで固定する。
 // スパイは実装をそのまま呼ぶ透過ラッパ（値の期待は TrainingScreen.test.tsx が保証）。
 import { act, fireEvent, render, screen } from "@testing-library/react";
@@ -11,13 +11,15 @@ import { stubMe } from "../problem/test-helpers";
 const h = vi.hoisted(() => ({
   startQuizSessionAction: vi.fn(),
   finishQuizSessionAction: vi.fn(),
-  /** TrainingScreen（コンポーネント側）からの discardUkeires 呼び出し回数。
+  listQuizSessionsAction: vi.fn(),
+  /** TrainingScreen（コンポーネント側）からの ukeireReviewModel 呼び出し回数。
    *  packages/ui 内部（出題生成）の呼び出しはモジュール境界を通らないので数えない。 */
   ukeireCalls: { count: 0 },
 }));
 vi.mock("../../app/actions", () => ({
   startQuizSessionAction: h.startQuizSessionAction,
   finishQuizSessionAction: h.finishQuizSessionAction,
+  listQuizSessionsAction: h.listQuizSessionsAction,
 }));
 // 共通ヘッダ（AppHeader）が useRouter を使うためスタブする。
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
@@ -25,14 +27,33 @@ vi.mock("@rigel/ui", async (importOriginal) => {
   const orig = await importOriginal<typeof import("@rigel/ui")>();
   return {
     ...orig,
-    discardUkeires: (...args: Parameters<typeof orig.discardUkeires>) => {
+    ukeireReviewModel: (...args: Parameters<typeof orig.ukeireReviewModel>) => {
       h.ukeireCalls.count += 1;
-      return orig.discardUkeires(...args);
+      return orig.ukeireReviewModel(...args);
     },
   };
 });
 
 import { TrainingScreen } from "./TrainingScreen";
+import type { EfficiencyQuestion } from "@rigel/ui";
+
+// 出題は固定注入（seed 実測に依存しない。値の正しさは @rigel/ui のテストが担保）。
+const EFFICIENCY_QS: readonly EfficiencyQuestion[] = [
+  {
+    kind: "efficiency",
+    // prettier-ignore
+    tiles: ["3m", "3m", "5m", "7m", "3p", "5p", "6p", "7p", "8p", "6s", "7s", "9s", "4z", "7z"],
+    shanten: 2,
+    answer: ["9s", "4z", "7z"],
+  },
+  {
+    kind: "efficiency",
+    // prettier-ignore
+    tiles: ["3m", "4m", "4p", "5p", "6p", "8p", "7s", "8s", "9s", "2z", "3z", "3z", "6z", "7z"],
+    shanten: 2,
+    answer: ["2z", "6z", "7z"],
+  },
+];
 
 /** マイクロタスクと 0ms タイマーを流す。 */
 async function flush() {
@@ -56,6 +77,7 @@ beforeEach(() => {
     remainingToday: 2,
   });
   h.finishQuizSessionAction.mockReset().mockResolvedValue({ ok: true, status: 200 });
+  h.listQuizSessionsAction.mockReset().mockResolvedValue([]);
   h.ukeireCalls.count = 0;
 });
 
@@ -64,16 +86,21 @@ afterEach(() => {
 });
 
 describe("TrainingScreen: 受け入れ詳細の再計算防止（useMemo）", () => {
-  it("結果画面の再レンダー（もう一度挑戦の402失敗）で discardUkeires を再計算しない", async () => {
+  it("結果画面の再レンダー（もう一度挑戦の402失敗）で ukeireReviewModel を再計算しない", async () => {
     stubMe("free");
+    let i = 0;
     render(
       <AuthProvider>
-        <TrainingScreen seed={1} />
+        <TrainingScreen generateQuestion={() => EFFICIENCY_QS[i++ % EFFICIENCY_QS.length]!} />
       </AuthProvider>,
     );
     await flush();
+    // 新フロー: カード → 開始ダイアログ →「開始」→ 3秒カウントダウン → 第1問。
     fireEvent.click(screen.getByRole("button", { name: /牌効率/ }));
     await flush();
+    fireEvent.click(screen.getByRole("button", { name: "開始" }));
+    await flush();
+    await advance(3000);
     // Q1 を 9索・Q2 を 3萬 で回答して60秒経過 → 結果画面（受け入れ詳細2行分を計算）。
     fireEvent.click(screen.getByRole("button", { name: "9索" }));
     await advance(500);

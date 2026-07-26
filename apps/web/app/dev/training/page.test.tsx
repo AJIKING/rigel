@@ -8,6 +8,7 @@ import { AuthProvider } from "../../../lib/auth-context";
 const actions = vi.hoisted(() => ({
   startQuizSessionAction: vi.fn(),
   finishQuizSessionAction: vi.fn(),
+  listQuizSessionsAction: vi.fn(),
 }));
 vi.mock("../../../app/actions", () => actions);
 
@@ -50,7 +51,23 @@ describe("/dev/training（特訓UIの目視検証用フィクスチャ）", () =
     expect(await screen.findByRole("button", { name: /清一色 多面待ち/ })).toBeTruthy();
   });
 
-  it("?phase=result で60秒待たずに結果画面を直接表示できる（devショートカット）", async () => {
+  it("?phase=running&kind=score で点数計算のセッションを直接表示できる（既定の実生成経路）", async () => {
+    stubMe(null);
+    nav.params = new URLSearchParams("phase=running&kind=score&seed=1");
+    render(
+      <AuthProvider>
+        <DevTrainingPage />
+      </AuthProvider>,
+    );
+    // 既定の generateQuestion（本物の生成器）で出題される配線を確認する
+    // （出題の中身は seed で決定的だが、実測値の焼き付けはしない=生成×採点の正しさは
+    // @rigel/ui のテストが担保。条件ラベルの形だけを見る）。
+    expect(await screen.findByText("点数を選ぶ")).toBeTruthy();
+    expect((await screen.findByText(/場風 [東南]/)).textContent).toMatch(/[親子]（.家）/);
+    expect(actions.startQuizSessionAction).not.toHaveBeenCalled();
+  });
+
+  it("?phase=result で60秒もカウントダウンも待たずに結果画面を直接表示できる（devショートカット）", async () => {
     stubMe(null);
     nav.params = new URLSearchParams("phase=result&kind=efficiency&seed=1");
     render(
@@ -58,9 +75,13 @@ describe("/dev/training（特訓UIの目視検証用フィクスチャ）", () =
         <DevTrainingPage />
       </AuthProvider>,
     );
+    // 新フロー（カード→開始ダイアログ→開始→カウントダウン）はフィクスチャが自動で踏み、
+    // countdownSeconds=0 でカウントダウンを飛ばす（実タイマーでも待たない）。
     expect(await screen.findByText("結果")).toBeTruthy();
-    // セッション開始・結果送信はフェイク注入分が使われ、本物の Server Action は呼ばれない。
+    // セッション開始・結果送信・直近記録の取得はフェイク注入分が使われ、
+    // 本物の Server Action は呼ばれない。
     expect(actions.startQuizSessionAction).not.toHaveBeenCalled();
     expect(actions.finishQuizSessionAction).not.toHaveBeenCalled();
+    expect(actions.listQuizSessionsAction).not.toHaveBeenCalled();
   });
 });

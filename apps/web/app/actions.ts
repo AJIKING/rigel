@@ -18,6 +18,7 @@ import {
   answerProblem,
   createCheckout,
   finishQuizSession,
+  listQuizSessions,
   startQuizSession,
   createPortal,
   createEmptyKifu,
@@ -194,4 +195,9 @@ export async function startQuizSessionAction(kind: QuizKind) {
 /** 60秒セッションの結果（クライアント採点）を記録する。 */
 export async function finishQuizSessionAction(sessionId: string, result: QuizResult) {
   return finishQuizSession(await requireToken(), sessionId, result);
+}
+
+/** 自分の完了済みセッション履歴（新しい順）。開始ダイアログの直近記録などで使う。 */
+export async function listQuizSessionsAction(since?: string) {
+  return listQuizSessions(await requireToken(), since);
 }

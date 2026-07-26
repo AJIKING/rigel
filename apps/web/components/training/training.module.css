@@ -55,7 +55,8 @@
    ------------------------------------------------------------ */
 .cards {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  /* 3種目がデスクトップ幅で1段に並ぶ最小幅（狭幅では自然に折返し） */
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: 14px;
 }
 .card {
@@ -132,6 +133,86 @@
   margin: 12px 4px 0;
   color: #ffb4a8;
   font-size: 13px;
+}
+
+/* ------------------------------------------------------------
+   開始ダイアログ（種目名＋説明＋直近5回の記録＋開始/もどる。
+   overlay+role=dialog は RulesDialog と同じ流儀。ボタンは既存の
+   .retry（白ベタ主）/.back（線ボタン副）を流用＝共通トークンのまま）
+   ------------------------------------------------------------ */
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(8, 10, 13, 0.66);
+}
+.dialog {
+  width: min(440px, 100%);
+  background: var(--chrome);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  padding: 20px 18px 18px;
+}
+.dlgTitle {
+  font-family: var(--round);
+  font-weight: 800;
+  font-size: 17px;
+  margin: 0 0 6px;
+}
+.dlgDesc {
+  margin: 0 0 14px;
+  font-size: 12.5px;
+  color: var(--w70);
+  line-height: 1.7;
+}
+.dlgRecentTitle {
+  margin: 0 0 6px;
+  font-size: 11px;
+  color: var(--w45);
+}
+.dlgRecent {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.dlgRecent li {
+  font-size: 12px;
+  color: var(--w70);
+  font-variant-numeric: tabular-nums;
+  background: var(--chrome-2);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  padding: 6px 10px;
+}
+.dlgEmpty {
+  margin: 0;
+  font-size: 12px;
+  color: var(--w45);
+}
+.dlgActions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+/* 開始カウントダウン（出題エリアに大きく 3→2→1。牌・タイマーは出さない） */
+.countdown {
+  margin: 0;
+  padding: 40px 0;
+  text-align: center;
+  font-family: var(--round);
+  font-weight: 800;
+  font-size: 64px;
+  font-variant-numeric: tabular-nums;
+  color: var(--em-light, #3ec487);
 }
 
 /* 無料枠使い切り（402）時のアップグレード導線（/settings のプラン変更へ） */
@@ -265,6 +346,146 @@ button.tile:disabled {
   .tile {
     flex: 0 0 34px;
   }
+}
+
+/* ------------------------------------------------------------
+   点数計算（条件ラベル＋牌姿（手牌+カン+上がり牌）＋4択）
+   ------------------------------------------------------------ */
+/* 条件（自風・ツモロン・場風）は出題の主役なので大きく中央に */
+.scoreCond {
+  margin: 0 0 16px;
+  text-align: center;
+  font-family: var(--round);
+  font-weight: 800;
+  font-size: 20px;
+}
+/* ドラ表示牌（小ラベル+牌1〜2枚。牌姿の上に控えめに） */
+.doraRow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.doraLabel {
+  color: var(--w45, rgba(255, 255, 255, 0.45));
+  font-size: 11px;
+}
+/* ドラ表示牌は主役ではないので手牌よりひと回り小さく */
+.doraRow .tile {
+  width: 34px;
+  flex: 0 0 34px;
+}
+/* 牌姿列: 手牌・副露・上がり牌を必ず1行に（折返し禁止。幅が足りないときは牌が均等に縮む）。
+   点数計算は牌数が多いので牌をひと回り小さくし、間隔を広げて密着を防ぐ。 */
+.scoreHand {
+  display: flex;
+  /* 下端揃え: 和了牌のバッジ（牌の上に縦積み）があっても牌の高さは手牌と揃う。
+     バッジ分は padding-top で逃がす。 */
+  align-items: flex-end;
+  justify-content: center;
+  gap: 16px;
+  flex-wrap: nowrap;
+  min-width: 0;
+  padding-top: 16px;
+}
+.scoreHand .hand {
+  gap: 5px;
+  min-width: 0;
+}
+.scoreHand .tile {
+  width: 38px;
+  flex: 0 1 38px;
+}
+.meld {
+  display: inline-flex;
+  align-items: flex-end;
+  gap: 2px;
+}
+/* 上がり牌: 手牌と分けて強調（アクセント枠） */
+.winTile {
+  outline: 2px solid var(--accent, #ff9e45);
+  outline-offset: 1px;
+}
+/* 和了牌: バッジ（ロン/ツモ）を牌の上に縦積みして横幅を節約し、手牌と同じ行に置く */
+.winSlot {
+  flex-wrap: nowrap;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  flex: none;
+}
+.winBadge {
+  color: var(--accent, #ff9e45);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  order: -1; /* 牌の上に表示 */
+}
+/* 暗槓の背面（面を伏せた牌） */
+.tileBack {
+  background: #274a37;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 5px;
+}
+/* 大明槓の横向き牌（位置が鳴き元を示す） */
+.tileLay {
+  transform: rotate(90deg);
+}
+/* 選択肢4ボタン: 2×2（狭幅は縦1列）・中央揃え・共通トークン（--r-sm / --line） */
+.choices2 {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  max-width: 420px;
+  margin: 26px auto 0;
+}
+.choice {
+  background: var(--chrome);
+  color: var(--white);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  font-family: var(--round);
+  font-weight: 800;
+  font-size: 15px;
+  font-variant-numeric: tabular-nums;
+  padding: 13px 10px;
+  text-align: center;
+  cursor: pointer;
+  transition:
+    border-color 0.12s var(--ease),
+    transform 0.1s var(--ease);
+}
+.choice:hover:not(:disabled) {
+  border-color: rgba(255, 158, 69, 0.55);
+}
+.choice:active:not(:disabled) {
+  transform: scale(0.97);
+}
+.choice:disabled {
+  cursor: default;
+  opacity: 0.7;
+}
+@media (max-width: 400px) {
+  .choices2 {
+    grid-template-columns: 1fr;
+  }
+}
+/* 見直しリストのテキスト行（点数計算の条件・回答・正解） */
+.reviewText {
+  font-size: 12.5px;
+  font-variant-numeric: tabular-nums;
+}
+.reviewMeld {
+  display: inline-flex;
+  gap: 2px;
+  margin-left: 8px;
+}
+/* 開始ダイアログのルール一文（説明の直下・控えめに） */
+.dlgRule {
+  margin: -8px 0 14px;
+  font-size: 11.5px;
+  color: var(--w45);
 }
 
 /* 清一色: 待ち牌の候補ボタン（1〜9・牌画像ボタン）。牌姿との間に明確な余白を置く */
