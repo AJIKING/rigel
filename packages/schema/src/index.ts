@@ -708,8 +708,9 @@ export function problemTargetTile(problem: Problem): Tile | null {
 //（乱用でグラフ・D1 を荒らさせない）。
 // ============================================================
 
-/** クイズ種別。chinitsu=清一色多面待ち / efficiency=牌効率。 */
-export const QuizKindSchema = z.enum(["chinitsu", "efficiency"]);
+/** クイズ種別。chinitsu=清一色多面待ち / efficiency=牌効率 /
+ *  score=点数計算（牌姿から点数を選ぶ。[決定] 2026-07-26 追加）。 */
+export const QuizKindSchema = z.enum(["chinitsu", "efficiency", "score"]);
 export type QuizKind = z.infer<typeof QuizKindSchema>;
 
 /** 60秒セッション1回の結果（クライアント採点をサーバに記録する形）。 */
@@ -769,3 +770,9 @@ export function isValidAnswer(problem: Problem, action: ProblemAction): boolean 
 // ============================================================
 
 export * from "./plan";
+
+// ============================================================
+// JST 日付ヘルパ（api の無料枠キーと ui の日毎集計が共有）
+// ============================================================
+
+export * from "./jst";

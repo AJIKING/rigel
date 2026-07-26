@@ -5,11 +5,12 @@ import { describe, expect, it } from "vitest";
 import { QuizKindSchema, QuizResultSchema } from "./index";
 
 describe("QuizKindSchema（クイズ種別）", () => {
-  it.each([["chinitsu"], ["efficiency"]])("%s を受理する", (kind) => {
+  // score = 点数計算クイズ（[決定] 2026-07-26 追加）。
+  it.each([["chinitsu"], ["efficiency"], ["score"]])("%s を受理する", (kind) => {
     expect(QuizKindSchema.parse(kind)).toBe(kind);
   });
 
-  it.each([["score"], [""], [null], [123]])("%o は拒否する", (kind) => {
+  it.each([["speed"], [""], [null], [123]])("%o は拒否する", (kind) => {
     expect(QuizKindSchema.safeParse(kind).success).toBe(false);
   });
 });
