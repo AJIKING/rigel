@@ -1,0 +1,4 @@
+interface:
+  display_name: "Rigel Gate"
+  short_description: "Rigelの型、lint、整形、テスト、ビルドを検証"
+  default_prompt: "Use $rigel-gate to run and report the appropriate Rigel validation gates."

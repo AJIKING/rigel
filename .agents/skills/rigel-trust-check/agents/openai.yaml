@@ -1,0 +1,4 @@
+interface:
+  display_name: "Rigel Trust Check"
+  short_description: "RigelのAI出力、課金、プライバシー境界を監査"
+  default_prompt: "Use $rigel-trust-check to audit this Rigel change against the trust gates."

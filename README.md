@@ -5,7 +5,8 @@
 
 - **構想・スコープ（why/what）** … [docs/mahjong-kifu-app-design.md](docs/mahjong-kifu-app-design.md)（単一真実源）
 - **進め方（how）** … [docs/開発ガイド/](docs/開発ガイド/README.md)（ハーネスエンジニアリング / TDD / 計画 / 検証）
-- **エージェントの起点** … [CLAUDE.md](CLAUDE.md)
+- **Codex の起点** … [AGENTS.md](AGENTS.md)
+- **Claude Code の起点** … [CLAUDE.md](CLAUDE.md)
 
 ## モノレポ構成
 
@@ -20,7 +21,7 @@ apps/
 ```
 
 `api` の構成は [05 APIアーキテクチャ](docs/開発ガイド/05_APIアーキテクチャ.md) を参照。
-`web` / `mobile` は土台のみ（共有パッケージの利用デモ）。画面実装は後続。
+`web` / `mobile` も主要画面まで実装済み。共有契約は `schema`、共有ロジックは `ui` / `client` を参照する。
 
 ## 開発コマンド
 
@@ -46,4 +47,5 @@ CI（GitHub Actions）は `.github/workflows/ci.yml` で同じゲートを回す
 
 ## 必要環境
 
-Node.js >= 20 / pnpm 10。ツールチェーンは TypeScript 一気通貫（Vitest / ESLint / Prettier / turborepo）。
+Node.js >= 22.12（ローカル・CI の標準は 24）/ pnpm 10。ツールチェーンは TypeScript 一気通貫
+（Vitest / Jest / Playwright / ESLint / Prettier / turborepo）。

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Rigel Plan"
+  short_description: "Rigelの機能を分解し、実装前の合意可能な計画を作成"
+  default_prompt: "Use $rigel-plan to create an implementation plan for this Rigel feature."

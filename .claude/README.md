@@ -1,7 +1,8 @@
 # .claude — rigel 開発ハーネス（Claude Code 資産）
 
 Claude Code がこのプロジェクトで使うコマンド・エージェント・設定を置く場所。
-全体の進め方は [../docs/開発ガイド/](../docs/開発ガイド/README.md)、エージェントの起点は [../CLAUDE.md](../CLAUDE.md)。
+全体の進め方は [../docs/開発ガイド/](../docs/開発ガイド/README.md)、Claude Code の起点は
+[../CLAUDE.md](../CLAUDE.md)、Codex の起点は [../AGENTS.md](../AGENTS.md)。
 
 ## スラッシュコマンド（`commands/`）
 

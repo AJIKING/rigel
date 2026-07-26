@@ -25,7 +25,8 @@ Zod 検証を通し、`users.plan` への反映だけを内部に許す。
   - 既存 App Store 直結実装（redeem / notifications / verifier / `appstore_original_transaction_id`）の
     **撤去**（未デプロイのため移行不要）
 - やらないこと（非対象）:
-  - 価格・枠の変更（¥480/¥1480・20/100/320 は現行のまま。IAP 価格は別価格になりうる → [未確定]）
+  - 価格・枠の変更（承認時点の ¥480/¥1480・20/100/320 を維持。現在の枠は
+    `packages/schema/src/plan.ts` を真実源とする。IAP 価格は別価格になりうる → [未確定]）
   - 従量課金・買い切り・トライアル
   - web の Stripe Checkout / Portal フロー自体の変更（導線は現状維持）
   - アプリ内から web 決済への誘導 UI（アンチステアリング。§10）

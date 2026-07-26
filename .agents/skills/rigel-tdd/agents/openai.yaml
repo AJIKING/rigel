@@ -1,0 +1,4 @@
+interface:
+  display_name: "Rigel TDD"
+  short_description: "Rigelの振る舞いをRed、Green、Refactorで実装"
+  default_prompt: "Use $rigel-tdd to implement this Rigel behavior with a verified Red-Green-Refactor cycle."
