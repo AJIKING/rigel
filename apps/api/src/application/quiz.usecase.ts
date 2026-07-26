@@ -4,8 +4,8 @@
 // 結果はクライアント採点だが、使う前に必ず QuizResultSchema.parse を通す（背骨ゲート）。
 // 成績は本人のみ（履歴は自分の行しか返さず、他人向けレスポンスに含めない）。
 
-import { FREE_QUIZ_PER_DAY, QuizKindSchema, QuizResultSchema } from "@rigel/schema";
-import { jstDayOf, withResult, type CompletedQuizSession } from "../domain/quiz/quiz-session";
+import { FREE_QUIZ_PER_DAY, jstDayOf, QuizKindSchema, QuizResultSchema } from "@rigel/schema";
+import { withResult, type CompletedQuizSession } from "../domain/quiz/quiz-session";
 import type { QuizSessionRepository } from "../domain/quiz/quiz-session.repository";
 import type { UserRepository } from "../domain/user/user.repository";
 
@@ -33,13 +33,17 @@ export class StartQuizSession {
     const now = this.deps.now();
     const day = jstDayOf(now);
 
-    // プラン判定は users.plan（真実源 RevenueCat の D1 射影）。free 以外は無制限。
+    // プラン判定は users.plan（真実源 RevenueCat の D1 射影）。free 以外は無制限（null）。
     const user = await this.deps.users.findById(params.userId);
     if (!user) return { ok: false, reason: "quota_exceeded" }; // 不在は安全側（消費させない）
-    const isFree = user.plan === "free";
-    if (isFree) {
+    let remainingToday: number | null = null;
+    if (user.plan === "free") {
       const started = await this.deps.sessions.countByUserAndDay(params.userId, day);
       if (started >= FREE_QUIZ_PER_DAY) return { ok: false, reason: "quota_exceeded" };
+      // 消費後の残りは開始前カウント+1 から算出（INSERT 後の再カウント=D1 二度読みをしない）。
+      // count→insert は非原子で並行開始により僅かに超え得るが、有界オーバーシュートとして
+      // 許容済み（docs/plans/quiz-training.md 10章）。Math.max 0 で負値だけ防ぐ。
+      remainingToday = Math.max(0, FREE_QUIZ_PER_DAY - (started + 1));
     }
 
     const id = this.deps.newId();
@@ -54,12 +58,6 @@ export class StartQuizSession {
       durationMs: null,
       createdAt: now,
     });
-    const remainingToday = isFree
-      ? Math.max(
-          0,
-          FREE_QUIZ_PER_DAY - (await this.deps.sessions.countByUserAndDay(params.userId, day)),
-        )
-      : null;
     return { ok: true, id, remainingToday };
   }
 }

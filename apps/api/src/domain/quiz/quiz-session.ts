@@ -3,19 +3,12 @@
 // ------------------------------------------------------------
 // 無料プランは「1日3回・開始時に1回消費・JST 0時回復」をサーバで強制する
 // （Plan: docs/plans/quiz-training.md [決定] 2026-07-25）。
-// 回数制限のキーは JST の日付文字列（started_day）。
+// 回数制限のキーは JST の日付文字列（started_day）。丸めは背骨（@rigel/schema の
+// jstDayOf）に一元化（ui の quiz-stats と同じ丸めを共有する）。
 // 結果（total/correct/durationMs）は null = 未完了（開始しただけ・途中離脱）。
 // ============================================================
 
 import type { QuizKind, QuizResult } from "@rigel/schema";
-
-/** JST(UTC+9) のオフセット。日本にサマータイムは無いので固定値でよい。 */
-const JST_OFFSET_MS = 9 * 60 * 60 * 1000;
-
-/** UTC 時刻を JST の日付 'YYYY-MM-DD' にする（無料枠の回復境界 = JST 0時）。 */
-export function jstDayOf(now: Date): string {
-  return new Date(now.getTime() + JST_OFFSET_MS).toISOString().slice(0, 10);
-}
 
 export interface QuizSession {
   id: string;

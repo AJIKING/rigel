@@ -4,7 +4,7 @@
 //   - 完了: QuizResultSchema を通った結果だけを自分の行に書く（他人・不存在は not_found）。
 //   - 履歴: 本人の完了済みセッションのみ（未完了の放棄行は除く）。
 
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { makeFreeUser } from "../test-support/billing";
 import { InMemoryQuizSessionRepository, InMemoryUserRepository } from "../test-support/in-memory";
 import { FinishQuizSession, ListQuizSessions, StartQuizSession } from "./quiz.usecase";
@@ -47,6 +47,14 @@ describe("StartQuizSession（開始 = 消費）", () => {
     }
   });
 
+  it("free の開始1回あたり回数カウントは1回だけ読む（INSERT 後の再カウント=D1 二度読みをしない。remainingToday は開始前カウント+1 から算出）", async () => {
+    const { start, sessions } = makeDeps("free");
+    const spy = vi.spyOn(sessions, "countByUserAndDay");
+    const r = await start.execute({ userId: "u1", kind: "chinitsu" });
+    expect(r).toEqual({ ok: true, id: expect.any(String), remainingToday: 2 });
+    expect(spy).toHaveBeenCalledTimes(1);
+  });
+
   it("free の4回目は quota_exceeded（行も増えない）", async () => {
     const { start, sessions } = makeDeps("free");
     for (let i = 0; i < 3; i++) await start.execute({ userId: "u1", kind: "chinitsu" });
@@ -76,9 +84,16 @@ describe("StartQuizSession（開始 = 消費）", () => {
     },
   );
 
-  it("不正な kind は invalid（行を作らない）", async () => {
+  it("kind=score（点数計算 [決定] 2026-07-26 追加）でも開始できる", async () => {
     const { start, sessions } = makeDeps("free");
     const r = await start.execute({ userId: "u1", kind: "score" });
+    expect(r).toEqual({ ok: true, id: expect.any(String), remainingToday: 2 });
+    expect(sessions.rows[0]).toMatchObject({ kind: "score" });
+  });
+
+  it("不正な kind は invalid（行を作らない）", async () => {
+    const { start, sessions } = makeDeps("free");
+    const r = await start.execute({ userId: "u1", kind: "speed" });
     expect(r).toEqual({ ok: false, reason: "invalid" });
     expect(sessions.rows).toHaveLength(0);
   });

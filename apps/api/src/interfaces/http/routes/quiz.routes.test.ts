@@ -129,11 +129,21 @@ describe("POST /quiz/sessions（開始 = 消費）", () => {
     }
   });
 
-  it("不正な kind は 400", async () => {
+  it("kind=score（点数計算 [決定] 2026-07-26 追加）でも開始できる", async () => {
     const { request, authInit } = await makeQuizApp();
     const res = await request(
       "/quiz/sessions",
       await authInit("u-free", { method: "POST", json: { kind: "score" } }),
+    );
+    expect(res.status).toBe(201);
+    expect(await res.json()).toEqual({ ok: true, id: "q1", remainingToday: 2 });
+  });
+
+  it("不正な kind は 400", async () => {
+    const { request, authInit } = await makeQuizApp();
+    const res = await request(
+      "/quiz/sessions",
+      await authInit("u-free", { method: "POST", json: { kind: "speed" } }),
     );
     expect(res.status).toBe(400);
   });

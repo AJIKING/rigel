@@ -160,8 +160,9 @@ export const quizSessions = sqliteTable(
     userId: text("user_id")
       .notNull()
       .references(() => users.id),
-    /** クイズ種別（@rigel/schema の QuizKind）。 */
-    kind: text("kind", { enum: ["chinitsu", "efficiency"] }).notNull(),
+    /** クイズ種別（@rigel/schema の QuizKind。enum は型レベルのみ＝D1 は text なので
+     *  種目追加に migration は不要。score は [決定] 2026-07-26 追加）。 */
+    kind: text("kind", { enum: ["chinitsu", "efficiency", "score"] }).notNull(),
     /** 開始日（JST 'YYYY-MM-DD'）。無料 1日3回・JST 0時回復のカウントキー。 */
     startedDay: text("started_day").notNull(),
     /** 出題数。null = 未完了（開始しただけ・途中離脱）。 */
