@@ -6,6 +6,8 @@ import { toViewerDetail } from "./view-detail";
 function makeOwn(): GameDetail {
   return {
     game: { id: "g1", userId: "u1", title: "非公開テスト卓", createdAt: "2026-07-01T00:00:00Z" },
+    favoriteCount: 0,
+    viewerFaved: false,
     logs: [
       {
         id: "l1",

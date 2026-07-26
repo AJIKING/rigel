@@ -14,6 +14,7 @@ import {
   scoreYakuLine,
   sessionResult,
   tileLabel,
+  chinitsuUkeireCandidates,
   ukeireReviewModel,
   QUIZ_CARD_MOTIF,
   QUIZ_COUNTDOWN_SECONDS,
@@ -463,8 +464,16 @@ export function TrainingScreen({
                                 ))}
                               </span>
                             </span>
-                            {q.kind === "efficiency" && (
-                              <UkeireDetail tiles={q.tiles} picked={r.picked[0] ?? null} />
+                            {(q.kind === "efficiency" || q.kind === "chinitsuUkeire") && (
+                              <UkeireDetail
+                                tiles={q.tiles}
+                                picked={r.picked[0] ?? null}
+                                candidates={
+                                  q.kind === "chinitsuUkeire"
+                                    ? chinitsuUkeireCandidates(q.suit)
+                                    : undefined
+                                }
+                              />
                             )}
                           </>
                         )}
@@ -558,8 +567,20 @@ export function TrainingScreen({
  * （60秒セッション中の負荷を増やさない）。計算は重い（14枚×34種の向聴総当たり）ので
  * useMemo で手牌が変わらない再レンダーでは再計算しない。
  */
-function UkeireDetail({ tiles, picked }: { tiles: readonly Tile[]; picked: Tile | null }) {
-  const model = useMemo(() => ukeireReviewModel(tiles, picked), [tiles, picked]);
+function UkeireDetail({
+  tiles,
+  picked,
+  candidates,
+}: {
+  tiles: readonly Tile[];
+  picked: Tile | null;
+  /** 受け入れとして数える牌種。出題時と同じものを渡す（清一色 何切るは同色9種）。 */
+  candidates?: readonly Tile[];
+}) {
+  const model = useMemo(
+    () => ukeireReviewModel(tiles, picked, candidates),
+    [tiles, picked, candidates],
+  );
   const { mine, regressed, best } = model;
   return (
     <span className={s.ukeireDetail}>
@@ -742,7 +763,7 @@ function QuestionPanel({
 
   return (
     <div className={s.panel}>
-      <p className={s.question}>{QUIZ_KIND_PROMPTS.efficiency}</p>
+      <p className={s.question}>{QUIZ_KIND_PROMPTS[question.kind]}</p>
       {/* 牌は白地カードに載せず暗い背景へ直接・中央揃え（[決定] 2026-07-25 オーナーレビュー）。 */}
       <span className={s.hand}>
         {question.tiles.map((t, i) => (

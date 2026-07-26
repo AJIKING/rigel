@@ -25,10 +25,7 @@ import {
   removeRiverTile,
   resultModeOf,
   setDoraTile,
-  sortHandTiles,
   sortKifuHands,
-  playersFromInput,
-  playersToInput,
   visibilityLabel,
   LIMIT_MESSAGES,
   MAX_SEQ,
@@ -45,15 +42,18 @@ import {
   setGameStatusAction,
   setGameVisibilityAction,
   updateGameAction,
-  updateGamePlayersAction,
   updateGameRulesAction,
   updateKifuAction,
 } from "../../app/actions";
 import { type GameDetail, type GameLog } from "../../lib/api";
+import { usePlayersForm } from "./use-players-form";
 import {
   SEAT_ORDER,
+  cameraSeatOf,
+  handIndexAfterEdit,
   meldTiles,
   popAnchor,
+  shimochaOf,
   roundHonbaLabel,
   roundNameForSeq,
   windOf,
@@ -68,137 +68,11 @@ import { Stepper } from "./Stepper";
 import { TimelineEditor } from "./TimelineEditor";
 import { TilePickerPopup, type KanType, type MeldType } from "./TilePickerPopup";
 import { fkey, type Selection } from "./shared";
-import { DoraGlyph } from "./tiles";
+import { DoraNavRow, GateShell, Seg } from "./BoardEditorParts";
 import s from "./board-editor.module.css";
 
-/** ゲート（認証確認中・未ログイン・エラー・データ取得中）用のダーク全画面シェル。
- *  盤面と同じ地色（themeBoard の .app）で、白画面フラッシュを出さない。 */
-function GateShell({ children }: { children?: React.ReactNode }) {
-  return (
-    <div
-      className={`${s.app} themeBoard`}
-      style={{ display: "grid", placeItems: "center", padding: 24 }}
-    >
-      {children}
-    </div>
-  );
-}
-
-/** 局情報のドラ/裏ドラ1行（複数枚）。牌クリックで変更、✕で削除、＋で追加（最大5枚）。 */
-function DoraNavRow({
-  label,
-  tiles,
-  onOpen,
-  onRemove,
-}: {
-  label: string;
-  tiles: Tile[];
-  /** index あり=その1枚の変更、無し=追加。 */
-  onOpen: (e: React.MouseEvent, index?: number) => void;
-  onRemove: (index: number) => void;
-}) {
-  return (
-    <div className={s.steprow}>
-      <span className={s.stlabel}>{label}</span>
-      <span style={{ display: "flex", flexWrap: "wrap", gap: 4, alignItems: "center" }}>
-        {tiles.map((t, i) => (
-          <span key={`${t}-${i}`} style={{ display: "inline-flex", alignItems: "center" }}>
-            <button
-              className={s.doraPick}
-              aria-label={`${label}${i + 1}を変更`}
-              onClick={(e) => onOpen(e, i)}
-            >
-              <DoraGlyph code={t} />
-            </button>
-            <button
-              aria-label={`${label}${i + 1}を削除`}
-              onClick={() => onRemove(i)}
-              style={{
-                background: "none",
-                border: "none",
-                color: "var(--vermilion)",
-                cursor: "pointer",
-                fontSize: 12,
-                padding: "0 2px",
-              }}
-            >
-              ✕
-            </button>
-          </span>
-        ))}
-        {tiles.length < 5 && (
-          <button
-            className={s.doraPick}
-            aria-label={`${label}を追加`}
-            onClick={(e) => onOpen(e, undefined)}
-          >
-            <DoraGlyph code={null} />
-            {/* 牌の破線スロットだけだと気づきにくいので、未選択時はラベルも出す。 */}
-            {tiles.length === 0 && <span className={s.doraAddText}>＋ 選ぶ</span>}
-          </button>
-        )}
-      </span>
-    </div>
-  );
-}
-
-/** ヘッダのセグメント切替（盤面/手順・下書き/編集済 で共用）。 */
-function Seg<T extends string>({
-  value,
-  options,
-  onChange,
-  label,
-}: {
-  value: T;
-  options: readonly (readonly [T, string])[];
-  onChange: (v: T) => void;
-  label: string;
-}) {
-  return (
-    <div className={s.statusSeg} role="group" aria-label={label}>
-      {options.map(([v, l]) => (
-        <button
-          key={v}
-          className={value === v ? s.on : ""}
-          aria-pressed={value === v}
-          onClick={(e) => {
-            e.stopPropagation();
-            onChange(v);
-          }}
-        >
-          {l}
-        </button>
-      ))}
-    </div>
-  );
-}
-
-/** 読み込んだ牌譜の配牌を理牌して状態に載せる（AIドラフト等の並び順を正規化）。
- *  盤面の表示順＝データ順を保つことで、牌タップの index 編集を壊さない。 */
 function normalizeKifu(k: Kifu | null | undefined): Kifu | null {
   return k ? sortKifuHands(k) : null;
-}
-
-const CAMS: CameraSeat[] = ["bottom", "right", "top", "left"];
-
-/** 絶対席をカメラ相対（手前基準）へ戻す。追加ピッカーの「鳴いた人」の既定値に使う。 */
-function cameraSeatOf(seat: Seat, bottomSeat: Seat): CameraSeat {
-  return CAMS.find((cam) => toAbsoluteSeat(cam, bottomSeat) === seat) ?? "bottom";
-}
-
-/** 下家（次の打牌席）。捨て牌から鳴きを作るときの鳴き主の既定に使う。 */
-function shimochaOf(seat: Seat): Seat {
-  return SEAT_ORDER[(SEAT_ORDER.indexOf(seat) + 1) % 4]!;
-}
-
-/** 手牌修正後のフラッシュ位置。理牌で牌が動くので、applyTileEdit と同じ安定ソートを
- *  元 index 付きで再現して「動いた先」を求める。 */
-function handIndexAfterEdit(kifu: Kifu, loc: TileLocation, code: Tile): number {
-  const edited = kifu.seats[loc.seat].hand.map((t, i) => ({
-    tile: i === loc.index ? code : t.tile,
-    i,
-  }));
-  return sortHandTiles(edited).findIndex((t) => t.i === loc.index);
 }
 
 /**
@@ -342,53 +216,14 @@ function Editor(p: EditorProps) {
   // 選手情報（選手名・リーグ戦ポイント）。kifu.players（半荘単位）から初期化し、
   // 入力の blur で半荘単位に保存する（rules と同じ全局一括反映）。
   // Players→入力文字列は共有ヘルパ playersToInput（mobile の PlayersSheet と同一）。
-  const initialPlayers = playersToInput(log.kifu.players);
-  const [showPoints, setShowPoints] = useState(false);
-  const [names, setNames] = useState<Record<Seat, string>>({
-    east: initialPlayers.east.name,
-    south: initialPlayers.south.name,
-    west: initialPlayers.west.name,
-    north: initialPlayers.north.name,
+  // 選手情報（名前・持ちポイント）はフックへ切り出し（半荘単位・blur 保存で関心が別）。
+  const players = usePlayersForm({
+    gameId,
+    initialPlayers: log.kifu.players,
+    mutate,
+    onError: setSaveErr,
   });
-  const [points, setPoints] = useState<Record<Seat, string>>({
-    east: initialPlayers.east.points,
-    south: initialPlayers.south.points,
-    west: initialPlayers.west.points,
-    north: initialPlayers.north.points,
-  });
-  // 直近に保存した選手情報（dirty 判定用）。未変更の blur では全局書き込みを撃たない。
-  const lastSavedPlayers = useRef(JSON.stringify(log.kifu.players));
-  const [playersMsg, setPlayersMsg] = useState<string | null>(null);
 
-  /** 選手情報の保存（入力の blur で呼ぶ。変更があるときのみ）。半荘単位＝全局へ一括反映。 */
-  function savePlayers() {
-    // 入力→Players（全席が空なら null）は共有ヘルパ（mobile の PlayersSheet と同一）。
-    const players = playersFromInput({
-      east: { name: names.east, points: points.east },
-      south: { name: names.south, points: points.south },
-      west: { name: names.west, points: points.west },
-      north: { name: names.north, points: points.north },
-    });
-    const key = JSON.stringify(players);
-    if (key === lastSavedPlayers.current) return;
-    lastSavedPlayers.current = key;
-    setPlayersMsg(null);
-    void updateGamePlayersAction(gameId, players)
-      .then((res) => {
-        if (!res.ok) {
-          setSaveErr("選手情報の保存に失敗しました。");
-          return;
-        }
-        // blur 保存は暗黙なので、成功を明示する（本体保存の「保存しました」と同じ流儀）。
-        setPlayersMsg("選手情報を保存しました");
-        setTimeout(() => setPlayersMsg(null), 2000);
-      })
-      .catch(() => setSaveErr("通信に失敗しました。"));
-    // ローカルの kifu ドラフトにも反映（後続の kifu 保存・表示との整合のため）。
-    mutate((d) => {
-      d.players = players;
-    });
-  }
   const [open, setOpen] = useState<Record<string, boolean>>({
     han: true,
     info: true,
@@ -718,9 +553,9 @@ function Editor(p: EditorProps) {
           mainRef={mainRef}
           sel={sel}
           flashKey={flashKey}
-          names={names}
-          showPoints={showPoints}
-          points={points}
+          names={players.names}
+          showPoints={players.showPoints}
+          points={players.points}
           honba={honba}
           kyotaku={kyotaku}
           round={round}
@@ -731,7 +566,12 @@ function Editor(p: EditorProps) {
         />
 
         {tab === "timeline" && (
-          <TimelineEditor kifu={kifu} dealer={dealer} names={names} onChange={(k) => setKifu(k)} />
+          <TimelineEditor
+            kifu={kifu}
+            dealer={dealer}
+            names={players.names}
+            onChange={(k) => setKifu(k)}
+          />
         )}
 
         {tab === "board" && (
@@ -966,33 +806,35 @@ function Editor(p: EditorProps) {
             {/* ポイント */}
             <section className={s.navsec}>
               <button
-                className={`${s.accHead} ${showPoints ? s.accHeadOpen : ""}`}
-                aria-expanded={showPoints}
-                onClick={() => setShowPoints((v) => !v)}
+                className={`${s.accHead} ${players.showPoints ? s.accHeadOpen : ""}`}
+                aria-expanded={players.showPoints}
+                onClick={() => players.setShowPoints((v) => !v)}
               >
                 <svg className={s.arr} viewBox="0 0 12 12">
                   <path d="M4 2l5 4-5 4" />
                 </svg>
                 選手情報
               </button>
-              {showPoints && (
+              {players.showPoints && (
                 <div className={s.accBody}>
                   {SEAT_ORDER.map((seat) => (
                     <div key={seat} className={s.agrow}>
                       <input
                         className={s.field}
                         style={{ flex: 1, minWidth: 0 }}
-                        value={names[seat]}
+                        value={players.names[seat]}
                         placeholder={`${windOf(seat, dealer)}家`}
                         aria-label="選手名"
                         maxLength={20}
-                        onChange={(e) => setNames((n) => ({ ...n, [seat]: e.target.value }))}
-                        onBlur={savePlayers}
+                        onChange={(e) =>
+                          players.setNames((n) => ({ ...n, [seat]: e.target.value }))
+                        }
+                        onBlur={players.save}
                       />
                       <input
                         type="number"
                         step="0.1"
-                        value={points[seat]}
+                        value={players.points[seat]}
                         aria-label="ポイント"
                         style={{
                           width: 72,
@@ -1005,14 +847,16 @@ function Editor(p: EditorProps) {
                           textAlign: "right",
                           fontFamily: "var(--round)",
                         }}
-                        onChange={(e) => setPoints((pt) => ({ ...pt, [seat]: e.target.value }))}
-                        onBlur={savePlayers}
+                        onChange={(e) =>
+                          players.setPoints((pt) => ({ ...pt, [seat]: e.target.value }))
+                        }
+                        onBlur={players.save}
                       />
                     </div>
                   ))}
-                  {playersMsg && (
+                  {players.message && (
                     <p style={{ color: "var(--emLite, #6fbf9a)", fontSize: 12, margin: "4px 0 0" }}>
-                      {playersMsg}
+                      {players.message}
                     </p>
                   )}
                 </div>
@@ -1128,7 +972,7 @@ function Editor(p: EditorProps) {
           setKanType={setKanType}
           bottomSeat={bottomSeat}
           dealer={dealer}
-          names={names}
+          names={players.names}
           onApplyTile={applyTile}
           onSetDiscardKind={setDiscardKind}
           onSetDiscardRiichi={setDiscardRiichi}

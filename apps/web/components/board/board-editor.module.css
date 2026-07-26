@@ -1321,3 +1321,13 @@
     min-height: auto;
   }
 }
+
+/* ドラ表示牌の削除ボタン（インライン style を BoardEditorParts から移設）。 */
+.doraRemove {
+  background: none;
+  border: none;
+  color: var(--vermilion);
+  cursor: pointer;
+  font-size: 12px;
+  padding: 0 2px;
+}

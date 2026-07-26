@@ -131,7 +131,7 @@
 
 .error {
   margin: 12px 4px 0;
-  color: #ffb4a8;
+  color: var(--danger);
   font-size: 13px;
 }
 
@@ -743,7 +743,7 @@ button.tile:disabled {
 
 .sendError {
   margin: 10px 0 0;
-  color: #ffb4a8;
+  color: var(--danger);
   font-size: 12px;
 }
 /* 結果画面の操作: 主=もう一度挑戦（白ベタ）／副=問題選択にもどる（線ボタン）。

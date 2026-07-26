@@ -30,7 +30,7 @@ export type KifuStatus = "draft" | "complete";
 export type ProblemStatus = "draft" | "published";
 
 /** 何切る問題1件（API は createdAt を ISO 文字列で返す）。 */
-export interface ProblemPost {
+export interface ProblemPost extends FavoriteFields {
   id: string;
   userId: string;
   title: string;
@@ -91,6 +91,10 @@ export interface PublicGameDetail {
   game: { id: string; title: string; createdAt: string };
   owner: { id: string; handle: string | null; displayName: string };
   logs: GameLog[];
+  /** この半荘のお気に入り数（ビューアの★に添える）。 */
+  favoriteCount: number;
+  /** 見ている人が付けているか（未ログインは false）。 */
+  viewerFaved: boolean;
 }
 
 export interface AuthResult {
@@ -121,10 +125,25 @@ export interface GameLog {
 export interface GameDetail {
   game: Game;
   logs: GameLog[];
+  /** この半荘のお気に入り数（所有者プレビューの★に添える）。 */
+  favoriteCount: number;
+  viewerFaved: boolean;
 }
 
 /** マイページの半荘カード（局数・公開数・下書き数つき）。 */
-export interface MyGameCard {
+/** お気に入り（★）を付けられる対象の種別。 */
+export type FavoriteTargetType = "game" | "problem";
+
+/**
+ * 一覧カードに載るお気に入り情報。API は「件数」と「自分が付けたか」だけを返し、
+ * 誰が付けたかは返さない。人気順（お気に入りが多い順）の並べ替えは favoriteCount を使う。
+ */
+export interface FavoriteFields {
+  favoriteCount: number;
+  viewerFaved: boolean;
+}
+
+export interface MyGameCard extends FavoriteFields {
   id: string;
   title: string;
   createdAt: string;
@@ -135,7 +154,7 @@ export interface MyGameCard {
 }
 
 /** 公開牌譜フィードの半荘カード。 */
-export interface PublicGameCard {
+export interface PublicGameCard extends FavoriteFields {
   id: string;
   ownerId: string;
   /** 著者ハンドル(@なし)。プロフィール非公開・未設定なら null。 */
@@ -148,6 +167,29 @@ export interface PublicGameCard {
   /** 最新の公開局ID（読み取り表示先 /k/[logId]）。 */
   firstLogId: string;
 }
+
+/** マイページ「お気に入り」タブの半荘カード（他人の公開半荘＋自分の半荘）。 */
+export interface FavoriteGameCard extends PublicGameCard {
+  /** 自分が所有する半荘か（true なら編集画面 /kifu/[id]、false なら公開ビューア /k/[id] へ）。 */
+  mine: boolean;
+}
+
+/** マイページ「お気に入り」タブの何切るカード。 */
+export interface FavoriteProblemCard extends ProblemPost {
+  mine: boolean;
+  ownerHandle: string | null;
+  ownerName: string | null;
+}
+
+/** 自分のお気に入り一覧（付けた新しい順。非公開に戻された・削除された対象は含まれない）。 */
+export interface MyFavorites {
+  games: FavoriteGameCard[];
+  problems: FavoriteProblemCard[];
+}
+
+/** お気に入りの付け外しの結果（favoriteCount は反映後の件数）。 */
+export type SetFavoriteResult =
+  { ok: true; faved: boolean; favoriteCount: number } | { ok: false; status: number };
 
 export type AnalyzeResult =
   { ok: true; gameId: string; logId: string } | { ok: false; status: number; reason?: string };
@@ -308,6 +350,16 @@ export interface ApiClient {
   ): Promise<{ ok: boolean; status: number }>;
   /** 自分の完了済みセッション履歴（新しい順・since=ISO8601 で期間指定）。 */
   listQuizSessions(token: string, since?: string): Promise<QuizSessionDto[]>;
+
+  /** お気に入りを付ける/外す（冪等）。自分に見えない対象は ok:false（status 404）。 */
+  setFavorite(
+    token: string,
+    targetType: FavoriteTargetType,
+    targetId: string,
+    faved: boolean,
+  ): Promise<SetFavoriteResult>;
+  /** 自分のお気に入り一覧（半荘・何切る。付けた新しい順）。 */
+  listMyFavorites(token: string): Promise<MyFavorites>;
 }
 
 /**
@@ -652,6 +704,21 @@ export function createApiClient(baseUrl: string, fetchImpl?: typeof fetch): ApiC
       const res = await doFetch(`${baseUrl}/quiz/sessions${query}`, { headers: bearer(token) });
       if (!res.ok) throw new Error(`quiz sessions failed: ${res.status}`);
       return res.json() as Promise<QuizSessionDto[]>;
+    },
+
+    async setFavorite(token, targetType, targetId, faved) {
+      const res = await doFetch(
+        `${baseUrl}/favorites/${targetType}/${encodeURIComponent(targetId)}`,
+        { method: faved ? "PUT" : "DELETE", headers: bearer(token) },
+      );
+      if (!res.ok) return { ok: false, status: res.status };
+      return (await res.json()) as { ok: true; faved: boolean; favoriteCount: number };
+    },
+
+    async listMyFavorites(token) {
+      const res = await doFetch(`${baseUrl}/favorites`, { headers: bearer(token) });
+      if (!res.ok) throw new Error(`favorites failed: ${res.status}`);
+      return res.json() as Promise<MyFavorites>;
     },
   };
 }

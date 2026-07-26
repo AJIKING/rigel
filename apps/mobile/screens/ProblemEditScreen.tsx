@@ -901,7 +901,7 @@ const styles = StyleSheet.create({
   },
   addSmall: { width: 26, height: 36 },
   addText: { color: colors.accent, fontSize: 18, fontWeight: "800" },
-  err: { color: colors.vermilion, fontSize: 12.5 },
+  err: { color: colors.danger, fontSize: 12.5 },
   saveBar: {
     flexDirection: "row",
     alignItems: "center",

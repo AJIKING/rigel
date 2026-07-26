@@ -8,6 +8,7 @@ const h = vi.hoisted(() => ({
   getMyProblemsAction: vi.fn(),
   updateProblemAction: vi.fn(),
   deleteProblemAction: vi.fn(),
+  setFavoriteAction: vi.fn(),
 }));
 vi.mock("../../app/actions", () => h);
 // 一覧カードは牌譜一覧と同じ role=button + router.push 遷移（GameCard 共有）。
@@ -17,14 +18,26 @@ vi.mock("next/navigation", () => ({ useRouter: () => ({ push }) }));
 import { MyProblemsScreen } from "./MyProblemsScreen";
 import { ProblemListScreen } from "./ProblemListScreen";
 
-function post(id: string, status: "draft" | "published" = "published"): ProblemPost {
-  return makeDiscardPost({ id, userId: "u1", title: `問題${id}`, status });
+function post(
+  id: string,
+  status: "draft" | "published" = "published",
+  fav: { favoriteCount?: number; viewerFaved?: boolean } = {},
+): ProblemPost {
+  return makeDiscardPost({
+    id,
+    userId: "u1",
+    title: `問題${id}`,
+    status,
+    favoriteCount: fav.favoriteCount ?? 0,
+    viewerFaved: fav.viewerFaved ?? false,
+  });
 }
 
 beforeEach(() => {
   push.mockReset();
   h.updateProblemAction.mockReset().mockResolvedValue({ ok: true, status: 200 });
   h.deleteProblemAction.mockReset().mockResolvedValue({ ok: true, status: 200 });
+  h.setFavoriteAction.mockReset().mockResolvedValue({ ok: true, faved: true, favoriteCount: 1 });
 });
 
 afterEach(() => {
@@ -84,7 +97,7 @@ describe("ProblemListScreen（公開一覧。牌譜一覧と同じカードUI）
     expect(await screen.findByText(/まだ公開された問題がありません/)).toBeTruthy();
   });
 
-  it("牌譜一覧と同じ絞り込み（新着/今週/お気に入り）ができる", async () => {
+  it("牌譜一覧と同じ絞り込み（新着/人気/今週/お気に入り）ができる", async () => {
     stubMe(null);
     const day = 24 * 3600 * 1000;
     const old = {
@@ -179,5 +192,93 @@ describe("MyProblemsScreen（マイ何切る。牌譜マイページと同じ構
       </AuthProvider>,
     );
     expect(await screen.findByText(/まだ問題がありません/)).toBeTruthy();
+  });
+
+  it("ツールバーは牌譜タブと同じ構成（検索・状態・並び替え・お気に入り・新規）", async () => {
+    stubMe("free");
+    render(
+      <AuthProvider>
+        <MyProblemsScreen initialPosts={[post("p1")]} />
+      </AuthProvider>,
+    );
+    expect(await screen.findByLabelText("自分の問題を検索")).toBeTruthy();
+    expect(screen.getByLabelText("状態で絞り込み")).toBeTruthy();
+    const sort = screen.getByLabelText("並び替え") as HTMLSelectElement;
+    expect(Array.from(sort.options).map((o) => o.textContent)).toEqual([
+      "新しい順",
+      "古い順",
+      "お気に入りが多い順",
+    ]);
+    expect(screen.getByRole("button", { name: "お気に入りのみ表示", pressed: false })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "新規" })).toBeTruthy();
+  });
+
+  it("「お気に入り」トグルは状態フィルタと掛け合わせられる（公開かつお気に入り）", async () => {
+    stubMe("free");
+    render(
+      <AuthProvider>
+        <MyProblemsScreen
+          initialPosts={[
+            post("p1", "published", { viewerFaved: true }),
+            post("p2", "published"),
+            post("p3", "draft", { viewerFaved: true }),
+          ]}
+        />
+      </AuthProvider>,
+    );
+    fireEvent.click(await screen.findByRole("button", { name: "お気に入りのみ表示" }));
+    expect(screen.getByText("問題p1")).toBeTruthy();
+    expect(screen.queryByText("問題p2")).toBeNull();
+    expect(screen.getByText("問題p3")).toBeTruthy();
+
+    // さらに「公開」で絞ると下書きの p3 も落ちる。
+    fireEvent.change(screen.getByLabelText("状態で絞り込み"), { target: { value: "published" } });
+    expect(screen.getByText("問題p1")).toBeTruthy();
+    expect(screen.queryByText("問題p3")).toBeNull();
+  });
+
+  it("「お気に入りが多い順」で並べ替えできる（局数順に代わる並び）", async () => {
+    stubMe("free");
+    render(
+      <AuthProvider>
+        <MyProblemsScreen
+          initialPosts={[
+            post("p1", "published", { favoriteCount: 1 }),
+            post("p2", "published", { favoriteCount: 8 }),
+          ]}
+        />
+      </AuthProvider>,
+    );
+    fireEvent.change(await screen.findByLabelText("並び替え"), { target: { value: "fav" } });
+    expect(screen.getAllByRole("heading", { level: 3 }).map((h3) => h3.textContent)).toEqual([
+      "問題p2",
+      "問題p1",
+    ]);
+  });
+
+  it("★を押すとサーバーへ保存し、件数と押下状態が即座に反映される", async () => {
+    stubMe("free");
+    render(
+      <AuthProvider>
+        <MyProblemsScreen initialPosts={[post("p1", "published", { favoriteCount: 4 })]} />
+      </AuthProvider>,
+    );
+    fireEvent.click(await screen.findByRole("button", { name: "お気に入り（4件）" }));
+    await waitFor(() => expect(h.setFavoriteAction).toHaveBeenCalledWith("problem", "p1", true));
+    // 楽観更新: 取り直さずに 5 件・押下状態になる。
+    expect(screen.getByRole("button", { name: "お気に入り（5件）" }).getAttribute("aria-pressed")).toBe("true"); // prettier-ignore
+  });
+
+  it("★の保存に失敗したら押す前に戻し、注意を出す（黙って付いたことにしない）", async () => {
+    stubMe("free");
+    h.setFavoriteAction.mockResolvedValue({ ok: false, status: 404 });
+    render(
+      <AuthProvider>
+        <MyProblemsScreen initialPosts={[post("p1", "published", { favoriteCount: 4 })]} />
+      </AuthProvider>,
+    );
+    fireEvent.click(await screen.findByRole("button", { name: "お気に入り（4件）" }));
+    expect(await screen.findByText("お気に入りを更新できませんでした。")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "お気に入り（4件）" }).getAttribute("aria-pressed")).toBe("false"); // prettier-ignore
   });
 });

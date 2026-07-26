@@ -15,6 +15,12 @@ export default async function MyPageProblemsPage() {
   const token = await getSessionToken();
   if (!token) redirect("/login");
 
-  const raw = await getMyProblems(token).catch(() => []);
-  return <MyProblemsScreen initialPosts={normalizeProblemPosts(raw)} />;
+  // 取得失敗を「0件」に化けさせない（空状態の案内を出すと通信失敗に気づけない）。
+  const loaded = await getMyProblems(token).then(
+    (r) => ({ ok: true as const, posts: r }),
+    () => ({ ok: false as const, posts: [] }),
+  );
+  return (
+    <MyProblemsScreen initialPosts={normalizeProblemPosts(loaded.posts)} loadFailed={!loaded.ok} />
+  );
 }

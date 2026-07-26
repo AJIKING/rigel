@@ -2,6 +2,7 @@
 
 import {
   filterPublicFeed,
+  LIST_LOAD_ERROR_MESSAGE,
   PROBLEM_KIND_LABELS,
   PUBLIC_FEED_FILTERS,
   type FeedFilterKey,
@@ -18,17 +19,25 @@ import gc from "../game-card.module.css";
 import s from "../list/kifu-list.module.css";
 
 /** 何切る問題の公開一覧（published のみ）。牌譜一覧（/kifu）と同じカードUI・ツールバー・
- *  絞り込み（新着/今週/お気に入り。選択肢は @rigel/ui で mobile とも共通）。 */
-export function ProblemListScreen({ posts }: { posts: ProblemPost[] }) {
+ *  絞り込み（新着/人気/今週/お気に入り。選択肢は @rigel/ui で mobile とも共通）。 */
+export function ProblemListScreen({
+  posts,
+  loadFailed = false,
+}: {
+  posts: ProblemPost[];
+  /** 取得に失敗した（0件ではない）。空状態の案内に化けさせないためのフラグ。 */
+  loadFailed?: boolean;
+}) {
   const router = useRouter();
-  const { favs, toggle: toggleFav } = useFavorites();
+  const { apply, toggle: toggleFav, error: favError } = useFavorites();
   const [q, setQ] = useState("");
   const [filter, setFilter] = useState<FeedFilterKey>("new");
 
   const view = useMemo(() => {
-    const arr = q ? posts.filter((p) => p.title.includes(q)) : posts;
-    return filterPublicFeed(arr, filter, favs);
-  }, [posts, q, filter, favs]);
+    const resolved = apply(posts);
+    const arr = q ? resolved.filter((p) => p.title.includes(q)) : resolved;
+    return filterPublicFeed(arr, filter);
+  }, [posts, q, filter, apply]);
 
   return (
     <div className={`${s.shell} themeApp`}>
@@ -39,6 +48,7 @@ export function ProblemListScreen({ posts }: { posts: ProblemPost[] }) {
             <h1>何切る</h1>
             <p>みんなが出題した一打の判断を解く</p>
           </div>
+          {favError && <p className={s.favError}>{favError}</p>}
           <div className={s.toolbar}>
             <div className={s.search}>
               <svg viewBox="0 0 24 24">
@@ -70,10 +80,12 @@ export function ProblemListScreen({ posts }: { posts: ProblemPost[] }) {
           </div>
           <div className={gc.feed}>
             {view.length === 0 ? (
-              <div className={gc.empty}>
-                {filter === "fav"
-                  ? "お気に入りした問題がまだありません"
-                  : "まだ公開された問題がありません"}
+              <div className={gc.empty} role={loadFailed ? "alert" : undefined}>
+                {loadFailed
+                  ? LIST_LOAD_ERROR_MESSAGE
+                  : filter === "fav"
+                    ? "お気に入りした問題がまだありません"
+                    : "まだ公開された問題がありません"}
               </div>
             ) : (
               view.map((p) => (
@@ -87,8 +99,9 @@ export function ProblemListScreen({ posts }: { posts: ProblemPost[] }) {
                   }
                   meta={fmtDateSlash(p.createdAt)}
                   thumb={<ProblemThumb problem={p.problem} />}
-                  faved={favs.has(p.id)}
-                  onToggleFav={() => toggleFav(p.id)}
+                  faved={p.viewerFaved}
+                  favCount={p.favoriteCount}
+                  onToggleFav={() => toggleFav("problem", p)}
                   onOpen={() => router.push(`/p/${p.id}`)}
                 />
               ))

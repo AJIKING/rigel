@@ -43,6 +43,8 @@ function makeKifu(honba = 0, east: Record<string, unknown> = {}): Kifu {
 function makeDetail(logs: { id: string; seq: number; honba?: number }[]): GameDetail {
   return {
     game: { id: "g1", userId: "u1", title: "テスト卓", createdAt: "2026-07-01T00:00:00.000Z" },
+    favoriteCount: 0,
+    viewerFaved: false,
     logs: logs.map((l) => ({
       id: l.id,
       userId: "u1",

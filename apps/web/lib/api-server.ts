@@ -57,4 +57,6 @@ export const {
   startQuizSession,
   finishQuizSession,
   listQuizSessions,
+  setFavorite,
+  listMyFavorites,
 } = serverClient;

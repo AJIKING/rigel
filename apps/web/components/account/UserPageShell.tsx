@@ -15,7 +15,7 @@ export function UserPageShell({ idOrHandle }: { idOrHandle: string }) {
   const router = useRouter();
   const [profile, setProfile] = useState<PublicProfile | null>(null);
   const [state, setState] = useState<"loading" | "ok" | "notfound">("loading");
-  const { favs, toggle: toggleFav } = useFavorites();
+  const { apply, toggle: toggleFav } = useFavorites();
 
   useEffect(() => {
     getPublicProfile(idOrHandle)
@@ -48,7 +48,8 @@ export function UserPageShell({ idOrHandle }: { idOrHandle: string }) {
                 {profile.games.length === 0 ? (
                   <div className={gc.empty}>公開されている牌譜がまだありません</div>
                 ) : (
-                  profile.games.map((g) => (
+                  // ★は画面での操作を重ねてから描く（押した直後に見た目と件数が合う）。
+                  apply(profile.games).map((g) => (
                     <GameCard
                       key={g.id}
                       title={g.title || "（無題の半荘）"}
@@ -59,8 +60,9 @@ export function UserPageShell({ idOrHandle }: { idOrHandle: string }) {
                           {g.kyokuCount}局
                         </>
                       }
-                      faved={favs.has(g.id)}
-                      onToggleFav={() => toggleFav(g.id)}
+                      faved={g.viewerFaved}
+                      favCount={g.favoriteCount}
+                      onToggleFav={() => toggleFav("game", g)}
                       onOpen={() => router.push(`/k/${g.id}`)}
                     />
                   ))

@@ -1,10 +1,11 @@
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import { planKifuLimits } from "@rigel/ui";
-import { useCallback } from "react";
+import { planKifuLimits, sortMyList, type MyListSortKey } from "@rigel/ui";
+import { useCallback, useMemo, useState } from "react";
 import { FlatList, Pressable, StyleSheet, Text, View } from "react-native";
 import { CenterState } from "../components/CenterState";
 import { KifuCard } from "../components/KifuCard";
+import { MyListToolbar } from "../components/MyListToolbar";
 import { Toolbar } from "../components/Toolbar";
 import { deleteGame } from "../lib/api";
 import { useAuth } from "../lib/auth";
@@ -12,6 +13,7 @@ import { confirmDestructive } from "../lib/confirm";
 import { relativeTime } from "../lib/format";
 import type { RootStackParamList } from "../lib/navigation";
 import { colors, radius } from "../lib/theme";
+import { useFavorites } from "../lib/use-favorites";
 import { useMyGames } from "../lib/use-kifu-data";
 
 type Nav = NativeStackNavigationProp<RootStackParamList, "Home">;
@@ -20,7 +22,16 @@ type Nav = NativeStackNavigationProp<RootStackParamList, "Home">;
 export function MyListScreen() {
   const nav = useNavigation<Nav>();
   const { user, token } = useAuth();
-  const { loading, games, sample, refetch } = useMyGames();
+  const { loading, games, sample, error, refetch } = useMyGames();
+  // お気に入りはサーバー保存。カードの値に、この画面での操作を重ねる（web のマイページと対）。
+  const { apply, toggle: toggleFav, error: favError } = useFavorites();
+  const [sort, setSort] = useState<MyListSortKey>("new");
+  const [favOnly, setFavOnly] = useState(false);
+
+  const shown = useMemo(() => {
+    const resolved = apply(games);
+    return sortMyList(favOnly ? resolved.filter((g) => g.viewerFaved) : resolved, sort);
+  }, [games, apply, favOnly, sort]);
 
   // 撮影・編集から戻ったとき一覧を最新化する（静かに再取得）。
   useFocusEffect(
@@ -55,6 +66,8 @@ export function MyListScreen() {
   return (
     <View style={styles.root}>
       <Toolbar />
+      <MyListToolbar sort={sort} onSort={setSort} favOnly={favOnly} onFavOnly={setFavOnly} />
+      {favError ? <Text style={styles.favError}>{favError}</Text> : null}
       {!loading && (
         <View style={styles.head}>
           {sample ? (
@@ -85,11 +98,19 @@ export function MyListScreen() {
       )}
       {loading ? (
         <CenterState loading />
-      ) : games.length === 0 ? (
-        <CenterState message="まだ半荘がありません。「＋ 新規」から撮影、または手入力で記録できます。" />
+      ) : shown.length === 0 ? (
+        <CenterState
+          message={
+            // 取得失敗を「0件」に化けさせない（空状態の案内より失敗の理由を優先する）。
+            error ??
+            (favOnly
+              ? "お気に入りした半荘はまだありません。"
+              : "まだ半荘がありません。「＋ 新規」から撮影、または手入力で記録できます。")
+          }
+        />
       ) : (
         <FlatList
-          data={games}
+          data={shown}
           keyExtractor={(g) => g.id}
           contentContainerStyle={styles.feed}
           renderItem={({ item }) => (
@@ -105,6 +126,9 @@ export function MyListScreen() {
                   : { label: "編集済", tone: "muted" },
               ]}
               metaParts={[relativeTime(item.createdAt), `${item.kyokuCount}局`]}
+              fav={item.viewerFaved}
+              favCount={item.favoriteCount}
+              onToggleFav={sample ? undefined : () => toggleFav("game", item)}
               onPress={() => nav.navigate("GameDetail", { gameId: item.id })}
               onLongPress={sample ? undefined : () => onDelete(item.id, item.title)}
             />
@@ -126,6 +150,7 @@ const styles = StyleSheet.create({
     paddingBottom: 8,
   },
   sample: { color: colors.accent, fontSize: 12, flexShrink: 1 },
+  favError: { color: colors.danger, fontSize: 12, paddingHorizontal: 16, paddingTop: 8 },
   feed: { paddingHorizontal: 16, paddingTop: 2, paddingBottom: 20, gap: 10 },
   quota: { flexDirection: "row", alignItems: "center", gap: 6 },
   quotaText: { color: colors.w70, fontSize: 12, fontWeight: "700" },

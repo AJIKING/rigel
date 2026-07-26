@@ -5,7 +5,7 @@
 import { KifuSchema, PlayersSchema, RulesSchema, SeatSchema } from "@rigel/schema";
 import type { Context, Hono } from "hono";
 import { MAX_SEQ } from "../../../application/update-kifu.usecase";
-import { reasonStatus, requireAuth, type AppEnv } from "../shared";
+import { reasonStatus, requireAuth, withFavorites, type AppEnv } from "../shared";
 
 /** 空の局を作る POST 共通処理。gameId 無し=新半荘、有り=既存半荘に追加。
  *  body: { cameraBottomSeat, meta?: { honba, kyotaku, dora, junme } }。meta は記録のみ。 */
@@ -45,16 +45,22 @@ export function registerGameRoutes(app: Hono<AppEnv>): void {
   });
 
   // 公開牌譜フィード: 公開局を含む半荘を新着順に（全ユーザー・閲覧は自由）。
+  // カードにはお気に入り数（人気順の並べ替えに使う）と自分が付けたかを載せる。
   app.get("/games/public", async (c) => {
     const cards = await c.get("container").listPublicGames.execute();
-    return c.json(cards);
+    return c.json(await withFavorites(c, "game", cards));
   });
 
   // 公開半荘の取得（読み取り専用ビューア用。公開局＋所有者表示。閲覧は自由）。
   app.get("/games/:id/public", async (c) => {
     const detail = await c.get("container").getPublicGameDetail.execute(c.req.param("id"));
     if (!detail) return c.json({ error: "not found" }, 404);
-    return c.json(detail);
+    const [favorite] = await withFavorites(c, "game", [{ id: detail.game.id }]);
+    return c.json({
+      ...detail,
+      favoriteCount: favorite!.favoriteCount,
+      viewerFaved: favorite!.viewerFaved,
+    });
   });
 
   // 半荘名の変更。所有者のみ。body: { title }。
@@ -153,7 +159,13 @@ export function registerGameRoutes(app: Hono<AppEnv>): void {
       .get("container")
       .getGameWithLogs.execute(c.req.param("id"), c.get("userId")!);
     if (!detail) return c.json({ error: "not found" }, 404);
-    return c.json(detail);
+    // 所有者の非公開プレビュー（/k/[gameId]）でも★の状態を正しく出すため一緒に返す。
+    const [favorite] = await withFavorites(c, "game", [{ id: detail.game.id }]);
+    return c.json({
+      ...detail,
+      favoriteCount: favorite!.favoriteCount,
+      viewerFaved: favorite!.viewerFaved,
+    });
   });
 
   // 新しい半荘を「空の初局」つきで作る（手動入力の起点）。

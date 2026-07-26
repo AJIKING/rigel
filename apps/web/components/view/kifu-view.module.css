@@ -162,6 +162,11 @@
   fill: var(--accent);
   stroke: var(--accent);
 }
+/* お気に入り数（1件以上のときだけ添える）。桁が増えても幅が跳ねないよう等幅数字。 */
+.favn {
+  font-variant-numeric: tabular-nums;
+  opacity: 0.75;
+}
 
 /* layout */
 .wrap {

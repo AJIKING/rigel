@@ -12,32 +12,41 @@ jest.mock("../lib/api", () => ({
   getPublicProblems: (...args: unknown[]) => mockGetPublicProblems(...args),
 }));
 
-// お気に入り（SecureStore 永続化）はフックごとスタブ（PublicListScreen テストと同型）。
-let mockFavs = new Set<string>();
+// お気に入り（サーバー保存）はフックごとスタブ（PublicListScreen テストと同型）。
+// 状態はカード（viewerFaved / favoriteCount）が持つので、apply はそのまま返す。
 const mockToggle = jest.fn();
 jest.mock("../lib/use-favorites", () => ({
-  useFavorites: () => ({ favs: mockFavs, toggle: mockToggle }),
+  useFavorites: () => ({ apply: (cards: unknown[]) => cards, toggle: mockToggle, error: null }),
 }));
 
 describe("ProblemsListScreen（何切る公開一覧）", () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    mockFavs = new Set();
   });
 
-  it("牌譜一覧と同じ絞り込み（新着/今週/お気に入り）ができる", async () => {
+  it("牌譜一覧と同じ絞り込み（新着/人気/今週/お気に入り）ができる", async () => {
     const day = 24 * 3600 * 1000;
     mockGetPublicProblems.mockResolvedValue([
       makePost({
         id: "old",
         title: "古い問題",
         createdAt: new Date(Date.now() - 10 * day).toISOString(),
+        viewerFaved: true,
       }),
-      makePost({ id: "new", title: "今週の問題", createdAt: new Date().toISOString() }),
+      makePost({
+        id: "new",
+        title: "今週の問題",
+        createdAt: new Date().toISOString(),
+        favoriteCount: 1,
+      }),
     ]);
-    mockFavs = new Set(["old"]);
     render(<ProblemsListScreen />);
     expect(await screen.findByText("古い問題")).toBeTruthy();
+
+    // 人気: お気に入りが多い順（両方出るが、件数の多い「今週の問題」が先）。
+    fireEvent.press(screen.getByText("人気"));
+    expect(screen.getByText("古い問題")).toBeTruthy();
+    expect(screen.getByText("今週の問題")).toBeTruthy();
 
     // 今週: 直近7日の問題だけ。
     fireEvent.press(screen.getByText("今週"));
@@ -61,7 +70,7 @@ describe("ProblemsListScreen（何切る公開一覧）", () => {
     await screen.findByText("リーチ判断の基本");
 
     fireEvent.press(screen.getAllByLabelText("お気に入りに追加/解除")[0]!);
-    expect(mockToggle).toHaveBeenCalledWith("p1");
+    expect(mockToggle).toHaveBeenCalledWith("problem", expect.objectContaining({ id: "p1" }));
   });
 
   it("お気に入りが空のときは絞り込み向けの空文言を出す", async () => {

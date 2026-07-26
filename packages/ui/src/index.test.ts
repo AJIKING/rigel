@@ -6,7 +6,9 @@ import {
   analyzeErrorMessage,
   applyTileEdit,
   filterPublicFeed,
+  MY_LIST_SORTS,
   PUBLIC_FEED_FILTERS,
+  sortMyList,
   isStoreManagedSubscription,
   planCardSubLabel,
   authorLabel,
@@ -242,23 +244,68 @@ describe("プラン表示", () => {
     expect(isStoreManagedSubscription(null)).toBe(false);
     expect(isStoreManagedSubscription(undefined)).toBe(false);
   });
-  it("filterPublicFeed: 新着=全件を新しい順 / 今週=直近7日（ちょうど7日前を含む）/ お気に入り=favs のみ", () => {
+  it("filterPublicFeed: 新着=全件を新しい順 / 今週=直近7日（ちょうど7日前を含む）/ お気に入り=viewerFaved のみ", () => {
     const now = Date.parse("2026-07-11T12:00:00.000Z");
     const day = 24 * 3600 * 1000;
+    const card = (id: string, daysAgo: number, favoriteCount = 0, viewerFaved = false) => ({
+      id,
+      createdAt: new Date(now - daysAgo * day).toISOString(),
+      favoriteCount,
+      viewerFaved,
+    });
     const cards = [
-      { id: "a", createdAt: new Date(now - 10 * day).toISOString() },
-      { id: "b", createdAt: new Date(now - 7 * day).toISOString() }, // ちょうど7日前=今週に含む
-      { id: "c", createdAt: new Date(now).toISOString() },
+      card("a", 10, 0, true),
+      card("b", 7), // ちょうど7日前=今週に含む
+      card("c", 0),
     ];
-    const favs = new Set(["a"]);
 
-    expect(filterPublicFeed(cards, "new", favs, now).map((c) => c.id)).toEqual(["c", "b", "a"]);
-    expect(filterPublicFeed(cards, "week", favs, now).map((c) => c.id)).toEqual(["c", "b"]);
-    expect(filterPublicFeed(cards, "fav", favs, now).map((c) => c.id)).toEqual(["a"]);
+    expect(filterPublicFeed(cards, "new", now).map((c) => c.id)).toEqual(["c", "b", "a"]);
+    expect(filterPublicFeed(cards, "week", now).map((c) => c.id)).toEqual(["c", "b"]);
+    expect(filterPublicFeed(cards, "fav", now).map((c) => c.id)).toEqual(["a"]);
+  });
+  it("filterPublicFeed: 人気=お気に入りが多い順（全件対象。同数は新しい順で決着）", () => {
+    const now = Date.parse("2026-07-11T12:00:00.000Z");
+    const day = 24 * 3600 * 1000;
+    const card = (id: string, daysAgo: number, favoriteCount: number) => ({
+      id,
+      createdAt: new Date(now - daysAgo * day).toISOString(),
+      favoriteCount,
+      viewerFaved: false,
+    });
+    // old/new は同数（3）。新しい new が先に来る。
+    const cards = [card("old", 30, 3), card("top", 20, 9), card("new", 0, 3), card("none", 1, 0)];
+
+    expect(filterPublicFeed(cards, "popular", now).map((c) => c.id)).toEqual([
+      "top",
+      "new",
+      "old",
+      "none",
+    ]);
   });
   it("PUBLIC_FEED_FILTERS は web/mobile 共通の選択肢（キー＋ラベル）を1箇所で定義する", () => {
-    expect(PUBLIC_FEED_FILTERS.map((f) => f.key)).toEqual(["new", "week", "fav"]);
-    expect(PUBLIC_FEED_FILTERS.map((f) => f.label)).toEqual(["新着", "今週", "お気に入り"]);
+    expect(PUBLIC_FEED_FILTERS.map((f) => f.key)).toEqual(["new", "popular", "week", "fav"]);
+    expect(PUBLIC_FEED_FILTERS.map((f) => f.label)).toEqual(["新着", "人気", "今週", "お気に入り"]);
+  });
+  it("MY_LIST_SORTS は 新しい順/古い順/お気に入りが多い順（『局数が多い順』は廃止）", () => {
+    expect(MY_LIST_SORTS.map((s) => s.key)).toEqual(["new", "old", "fav"]);
+    expect(MY_LIST_SORTS.map((s) => s.label)).toEqual(["新しい順", "古い順", "お気に入りが多い順"]);
+  });
+  it("sortMyList: new=新しい順 / old=古い順 / fav=お気に入りが多い順（同数は新しい順）", () => {
+    const card = (id: string, createdAt: string, favoriteCount: number) => ({
+      id,
+      createdAt,
+      favoriteCount,
+      viewerFaved: false,
+    });
+    const cards = [
+      card("a", "2026-07-01T00:00:00.000Z", 2),
+      card("b", "2026-07-03T00:00:00.000Z", 5),
+      card("c", "2026-07-02T00:00:00.000Z", 2),
+    ];
+
+    expect(sortMyList(cards, "new").map((c) => c.id)).toEqual(["b", "c", "a"]);
+    expect(sortMyList(cards, "old").map((c) => c.id)).toEqual(["a", "c", "b"]);
+    expect(sortMyList(cards, "fav").map((c) => c.id)).toEqual(["b", "c", "a"]);
   });
   it("PLAN_FEATURES は全プランに説明があり、上限は半荘単位の文言", () => {
     expect(PLAN_FEATURES.free.some((f) => f.includes("半荘"))).toBe(true);

@@ -22,6 +22,16 @@ jest.mock("../lib/api", () => ({
   deleteGame: jest.fn(),
 }));
 
+// お気に入りはサーバー保存。状態はカードが持つので apply はそのまま返す。
+const mockToggleFav = jest.fn();
+jest.mock("../lib/use-favorites", () => ({
+  useFavorites: () => ({
+    apply: (cards: unknown[]) => cards,
+    toggle: mockToggleFav,
+    error: null,
+  }),
+}));
+
 function makeGame(overrides: Partial<MyGameCard> = {}): MyGameCard {
   return {
     id: "g1",
@@ -30,6 +40,8 @@ function makeGame(overrides: Partial<MyGameCard> = {}): MyGameCard {
     kyokuCount: 4,
     publicCount: 0,
     draftCount: 0,
+    favoriteCount: 0,
+    viewerFaved: false,
     ...overrides,
   };
 }
@@ -65,5 +77,64 @@ describe("MyListScreen（マイ牌譜一覧）", () => {
     expect(
       screen.getByText("まだ半荘がありません。「＋ 新規」から撮影、または手入力で記録できます。"),
     ).toBeTruthy();
+  });
+
+  it("並べ替えは 新しい順/古い順/お気に入りが多い順（局数順は出さない。web と統一）", () => {
+    setGames([makeGame()]);
+    render(<MyListScreen />);
+
+    expect(screen.getByText("新しい順")).toBeTruthy();
+    expect(screen.getByText("古い順")).toBeTruthy();
+    expect(screen.getByText("お気に入りが多い順")).toBeTruthy();
+    expect(screen.queryByText("局数が多い順")).toBeNull();
+  });
+
+  it("「お気に入りが多い順」で並べ替えられる", () => {
+    setGames([
+      makeGame({ id: "g1", title: "少ない", favoriteCount: 1 }),
+      makeGame({ id: "g2", title: "多い", favoriteCount: 12 }),
+    ]);
+    render(<MyListScreen />);
+
+    fireEvent.press(screen.getByText("お気に入りが多い順"));
+    // 並べ替えセグメントのラベルを拾わないよう、カードのタイトルだけを完全一致で集める。
+    const titles = screen.getAllByText(/^(多い|少ない)$/).map((t) => t.props.children as string);
+    expect(titles).toEqual(["多い", "少ない"]);
+  });
+
+  it("「お気に入りのみ表示」で自分が付けた半荘だけに絞れる", () => {
+    setGames([
+      makeGame({ id: "g1", title: "お気に入り", viewerFaved: true }),
+      makeGame({ id: "g2", title: "ふつう" }),
+    ]);
+    render(<MyListScreen />);
+
+    fireEvent.press(screen.getByLabelText("お気に入りのみ表示"));
+    expect(screen.getByText("お気に入り")).toBeTruthy();
+    expect(screen.queryByText("ふつう")).toBeNull();
+  });
+
+  it("カードの★を押すとサーバー保存の toggle が種別つきで呼ばれる", () => {
+    setGames([makeGame({ id: "g1", favoriteCount: 3 })]);
+    render(<MyListScreen />);
+
+    fireEvent.press(screen.getByLabelText("お気に入りに追加/解除（3件）"));
+    expect(mockToggleFav).toHaveBeenCalledWith("game", expect.objectContaining({ id: "g1" }));
+  });
+});
+
+describe("MyListScreen（取得失敗を空状態に化けさせない）", () => {
+  it("失敗したら理由を出す（「まだ半荘がありません」と言わない）", () => {
+    mockUseMyGames.mockReturnValue({
+      loading: false,
+      games: [],
+      sample: false,
+      error: "読み込めませんでした。通信状況を確認して、画面を再読み込みしてください。",
+      refetch: jest.fn(),
+    });
+    render(<MyListScreen />);
+
+    expect(screen.getByText(/読み込めませんでした/)).toBeTruthy();
+    expect(screen.queryByText(/まだ半荘がありません/)).toBeNull();
   });
 });

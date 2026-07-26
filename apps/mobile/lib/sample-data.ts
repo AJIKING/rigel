@@ -55,7 +55,12 @@ const sampleLogs: GameLog[] = [
   },
 ];
 
-export const sampleGameDetail: GameDetail = { game: sampleGames[0], logs: sampleLogs };
+export const sampleGameDetail: GameDetail = {
+  game: sampleGames[0],
+  logs: sampleLogs,
+  favoriteCount: 0,
+  viewerFaved: false,
+};
 
 /** マイ牌譜フィードのサンプル（未ログイン時の表示用）。 */
 export const sampleMyGames: MyGameCard[] = [
@@ -66,6 +71,8 @@ export const sampleMyGames: MyGameCard[] = [
     kyokuCount: 8,
     publicCount: 8,
     draftCount: 0,
+    favoriteCount: 0,
+    viewerFaved: false,
   },
   {
     id: "sample-2",
@@ -74,6 +81,8 @@ export const sampleMyGames: MyGameCard[] = [
     kyokuCount: 12,
     publicCount: 0,
     draftCount: 3,
+    favoriteCount: 0,
+    viewerFaved: false,
   },
   {
     id: "sample-3",
@@ -82,6 +91,8 @@ export const sampleMyGames: MyGameCard[] = [
     kyokuCount: 16,
     publicCount: 16,
     draftCount: 0,
+    favoriteCount: 0,
+    viewerFaved: false,
   },
 ];
 
@@ -96,6 +107,8 @@ export const samplePublicGames: PublicGameCard[] = [
     createdAt: "2026-06-28T12:00:00.000Z",
     kyokuCount: 8,
     firstLogId: "sample-e1",
+    favoriteCount: 12,
+    viewerFaved: false,
   },
   {
     id: "sample-p2",
@@ -106,6 +119,8 @@ export const samplePublicGames: PublicGameCard[] = [
     createdAt: "2026-06-28T11:00:00.000Z",
     kyokuCount: 4,
     firstLogId: "sample-p2-e1",
+    favoriteCount: 47,
+    viewerFaved: false,
   },
   {
     id: "sample-p3",
@@ -116,5 +131,7 @@ export const samplePublicGames: PublicGameCard[] = [
     createdAt: "2026-06-26T09:00:00.000Z",
     kyokuCount: 16,
     firstLogId: "sample-p3-e1",
+    favoriteCount: 3,
+    viewerFaved: false,
   },
 ];

@@ -21,8 +21,10 @@
 import { type QuizKind, type QuizResult, type Tile } from "@rigel/schema";
 import {
   generateChinitsuQuestion,
+  generateChinitsuUkeireQuestion,
   generateEfficiencyQuestion,
   type ChinitsuQuestion,
+  type ChinitsuUkeireQuestion,
   type EfficiencyQuestion,
   type QuizAnswerRecord,
 } from "./quiz";
@@ -30,7 +32,8 @@ import { QUIZ_COUNTDOWN_SECONDS, QUIZ_SESSION_SECONDS } from "./quiz-copy";
 import { generateScoreQuestion, type ScoreQuestion } from "./quiz-score-question";
 
 /** 特訓クイズの出題（3種目の合併型。web/mobile の画面と reducer が共有）。 */
-export type QuizQuestion = ChinitsuQuestion | EfficiencyQuestion | ScoreQuestion;
+export type QuizQuestion =
+  ChinitsuQuestion | ChinitsuUkeireQuestion | EfficiencyQuestion | ScoreQuestion;
 
 export type QuizPhase = "select" | "countdown" | "running" | "result";
 
@@ -99,9 +102,11 @@ export interface QuizSessionContext {
 export function defaultQuizQuestion(kind: QuizKind, rng: () => number): QuizQuestion {
   return kind === "chinitsu"
     ? generateChinitsuQuestion(rng)
-    : kind === "efficiency"
-      ? generateEfficiencyQuestion(rng)
-      : generateScoreQuestion(rng);
+    : kind === "chinitsuUkeire"
+      ? generateChinitsuUkeireQuestion(rng)
+      : kind === "efficiency"
+        ? generateEfficiencyQuestion(rng)
+        : generateScoreQuestion(rng);
 }
 
 /** 初期状態（種目選択）を作る。 */
@@ -278,9 +283,10 @@ export function quizSessionReducer(
       return grade(state, ok, state.picked);
     }
     case "DISCARD": {
-      if (!canAnswer(state, "efficiency")) return state;
-      const ok = (state.question as EfficiencyQuestion).answer.includes(event.tile);
-      return grade(state, ok, [event.tile]);
+      // 打牌1枚で答える種目（牌効率・清一色 何切る）は同じ経路で採点する。
+      if (!canAnswer(state, "efficiency") && !canAnswer(state, "chinitsuUkeire")) return state;
+      const question = state.question as EfficiencyQuestion | ChinitsuUkeireQuestion;
+      return grade(state, question.answer.includes(event.tile), [event.tile]);
     }
     case "CHOOSE_SCORE": {
       if (!canAnswer(state, "score")) return state;

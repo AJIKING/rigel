@@ -107,12 +107,8 @@ export function MyTrainingScreen({
             </div>
           </div>
 
-          {points.length > 0 && (
-            <div className={t.chartCard}>
-              <p className={t.chartTitle}>1分あたり正解数</p>
-              <QuizLineChart points={points} />
-            </div>
-          )}
+          {/* カード（白地・タイトル）はグラフ側が持つ。期間内に記録が無ければ何も出ない。 */}
+          <QuizLineChart points={points} title="1分あたり正解数" />
 
           {history.length === 0 ? (
             <p className={t.empty}>{QUIZ_EMPTY_HISTORY_MESSAGE}</p>

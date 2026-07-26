@@ -411,7 +411,7 @@ const styles = StyleSheet.create({
   },
   scoreMain: { color: colors.white, fontWeight: "800", fontSize: 18 },
   scoreSub: { color: colors.w70, fontSize: 12.5 },
-  warn: { color: colors.vermilion, fontSize: 12 },
+  warn: { color: colors.danger, fontSize: 12 },
   addBtn: {
     marginTop: 8,
     paddingVertical: 11,

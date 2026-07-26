@@ -63,6 +63,8 @@ export function makePost(overrides: Partial<ProblemPost> = {}): ProblemPost {
     problem: makeProblem(),
     status: "published",
     createdAt: "2026-07-01T00:00:00.000Z",
+    favoriteCount: 0,
+    viewerFaved: false,
     ...overrides,
   };
 }

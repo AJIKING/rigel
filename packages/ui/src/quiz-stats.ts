@@ -26,6 +26,7 @@ export const QUIZ_KIND_FILTERS: readonly { key: "all" | QuizKind; label: string 
   { key: "chinitsu", label: "清一色" },
   { key: "efficiency", label: "牌効率" },
   { key: "score", label: "点数計算" },
+  { key: "chinitsuUkeire", label: "清一色何切る" },
 ];
 
 /** 履歴リストの表示上限（直近。web/mobile のマイページ「特訓」で共用）。 */
@@ -170,26 +171,82 @@ export function quizStatsSummary(
   };
 }
 
+/** y 軸の目盛り1本（値と表示テキスト）。 */
+export interface QuizChartTick {
+  value: number;
+  text: string;
+}
+
 /** グラフ描画用の系列（web の SVG 折れ線と mobile が共用する座標前計算）。 */
 export interface QuizChartSeries {
-  /** 各点の y 値（correctPerMinute。データ無し日は 0 として折れ線を切らない）。 */
-  values: number[];
-  /** y 軸スケール上限（最大値。全点 0 でも 1 = 0除算防止）。 */
+  /** 各点の y 値（correctPerMinute）。**記録の無い日は null**（0 と区別する）。 */
+  values: (number | null)[];
+  /** 折れ線として結ぶ点（記録のある点だけ・index 昇順。欠損日は跨いで繋ぐ）。 */
+  line: { index: number; value: number }[];
+  /** y 軸スケール上限（切りの良い値へ切り上げ。記録なしでも 1 = 0除算防止）。 */
   max: number;
+  /** y 軸の水平グリッド（0 から max まで等間隔。軸だけで値が読めるように）。 */
+  ticks: QuizChartTick[];
   /** 日付軸ラベル（最初/中央/最後の最大3個。'M/D' 表記・点 index 付き）。 */
   labels: { index: number; text: string }[];
+  /** 全点ぶんの 'M/D'（ツールチップ・読み上げ用）。 */
+  dayLabels: string[];
+  /** 最新の記録がある点の index（終端マーカーと値ラベルの位置。記録なしは null）。 */
+  lastIndex: number | null;
+  /** 期間内に1日でも記録があるか（false ならグラフを出さず空状態にする）。 */
+  hasData: boolean;
+}
+
+/** 浮動小数の刻み計算の誤差を落とす（0.1*3 = 0.30000000000000004 対策）。 */
+function round10(v: number): number {
+  return Number(v.toFixed(10));
+}
+
+/**
+ * 0 起点で「切りの良い」目盛りを作る（刻みは 1/2/5×10^n から選び、区間は 2〜4 本）。
+ * 生の最大値をそのまま上限にすると軸の数字が半端になり読めないため。
+ */
+function niceTicks(raw: number): { max: number; values: number[] } {
+  if (!(raw > 0)) return { max: 1, values: [0, 1] };
+  const unit = 10 ** Math.floor(Math.log10(raw / 3));
+  const step = [1, 2, 5, 10].map((m) => m * unit).find((s) => raw / s <= 4) ?? 10 * unit;
+  const count = Math.max(2, Math.ceil(round10(raw / step)));
+  const values = Array.from({ length: count + 1 }, (_, i) => round10(i * step));
+  return { max: values[count]!, values };
+}
+
+/** 目盛りの表示テキスト（整数はそのまま・小数は1桁）。 */
+function tickText(v: number): string {
+  return Number.isInteger(v) ? String(v) : v.toFixed(1);
+}
+
+/** 1分あたり正解数の表示（小数1桁・整数は小数点なし。null＝記録なしは '—' で 0 と区別）。 */
+export function quizRateLabel(rate: number | null): string {
+  return rate === null ? "—" : tickText(Math.round(rate * 10) / 10);
+}
+
+/** 'YYYY-MM-DD' → 'M/D'（0埋めしない軸ラベル表記）。 */
+function shortDay(day: string): string {
+  const [, m, d] = day.split("-");
+  return `${Number(m)}/${Number(d)}`;
 }
 
 /** 日毎集計からグラフ系列を組む（描画側は座標のスケーリングだけを行う）。 */
 export function quizChartSeries(points: QuizDayPoint[]): QuizChartSeries {
-  const values = points.map((p) => p.correctPerMinute ?? 0);
-  const max = Math.max(1, ...values);
+  const values = points.map((p) => p.correctPerMinute);
+  const line = values.flatMap((value, index) => (value === null ? [] : [{ index, value }]));
+  const { max, values: tickValues } = niceTicks(Math.max(0, ...line.map((p) => p.value)));
   const labelIndexes = [...new Set([0, Math.floor((points.length - 1) / 2), points.length - 1])];
-  const labels = points.length
-    ? labelIndexes.map((index) => {
-        const [, m, d] = points[index]!.day.split("-");
-        return { index, text: `${Number(m)}/${Number(d)}` };
-      })
-    : [];
-  return { values, max, labels };
+  return {
+    values,
+    line,
+    max,
+    ticks: tickValues.map((value) => ({ value, text: tickText(value) })),
+    labels: points.length
+      ? labelIndexes.map((index) => ({ index, text: shortDay(points[index]!.day) }))
+      : [],
+    dayLabels: points.map((p) => shortDay(p.day)),
+    lastIndex: line.length ? line[line.length - 1]!.index : null,
+    hasData: line.length > 0,
+  };
 }

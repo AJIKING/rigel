@@ -1,6 +1,12 @@
 import type { QuizSessionDto } from "@rigel/client";
 import type { QuizKind } from "@rigel/schema";
-import type { ChinitsuQuestion, EfficiencyQuestion, QuizQuestion, ScoreQuestion } from "@rigel/ui";
+import type {
+  ChinitsuQuestion,
+  ChinitsuUkeireQuestion,
+  EfficiencyQuestion,
+  QuizQuestion,
+  ScoreQuestion,
+} from "@rigel/ui";
 import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AuthProvider } from "../../lib/auth-context";
@@ -110,15 +116,33 @@ const SCORE_QS: readonly ScoreQuestion[] = [
     answer: "11600点",
   },
 ];
+// 清一色 何切る: 1112244557788m（順子が作れない6種・6対子）＋9m の14枚。1向聴で、
+// 1m を切ると七対子1向聴のまま受け入れ最大（同色のみ数える）。
+const CHINITSU_UKEIRE_QS: readonly ChinitsuUkeireQuestion[] = [
+  {
+    kind: "chinitsuUkeire",
+    // prettier-ignore
+    tiles: ["1m", "1m", "1m", "2m", "2m", "4m", "4m", "5m", "5m", "7m", "7m", "8m", "8m", "9m"],
+    suit: "m",
+    shanten: 1,
+    answer: ["1m"],
+  },
+];
 const FIXTURES: Record<QuizKind, readonly QuizQuestion[]> = {
   chinitsu: CHINITSU_QS,
   efficiency: EFFICIENCY_QS,
   score: SCORE_QS,
+  chinitsuUkeire: CHINITSU_UKEIRE_QS,
 };
 
 /** 種目ごとにフィクスチャを順番に出す generateQuestion（尽きたら循環。rng は使わない）。 */
 function fixtureGenerate(): (kind: QuizKind) => QuizQuestion {
-  const used: Record<QuizKind, number> = { chinitsu: 0, efficiency: 0, score: 0 };
+  const used: Record<QuizKind, number> = {
+    chinitsu: 0,
+    efficiency: 0,
+    score: 0,
+    chinitsuUkeire: 0,
+  };
   return (kind) => FIXTURES[kind][used[kind]++ % FIXTURES[kind].length]!;
 }
 
@@ -1010,5 +1034,42 @@ describe("TrainingScreen: dev プレビュー用の注入口（/dev/training が
       durationMs: 1000,
     });
     expect(h.finishQuizSessionAction).not.toHaveBeenCalled();
+  });
+});
+
+describe("TrainingScreen: 清一色 何切る（牌タップ=切る・広さ最大）", () => {
+  async function startChinitsuUkeire() {
+    stubMe("free");
+    renderScreen();
+    await flush();
+    await startViaDialog(/清一色 何切る/);
+  }
+
+  it("指示文は種目のもの（牌効率の文言を使い回さない）", async () => {
+    await startChinitsuUkeire();
+    expect(screen.getByText("一番広くなる牌を切る")).toBeTruthy();
+    expect(screen.queryByText("受け入れ最大の牌を切る")).toBeNull();
+  });
+
+  it("正解打牌をタップすると正解カウントが増える", async () => {
+    await startChinitsuUkeire();
+    fireEvent.click(screen.getAllByRole("button", { name: "1萬" })[0]!);
+    expect(screen.getByText("正解 1 / 1問")).toBeTruthy();
+  });
+
+  it("見直し行に受け入れ詳細が出て、他色を数えない（同色だけで広さを測る）", async () => {
+    await startChinitsuUkeire();
+    fireEvent.click(screen.getAllByRole("button", { name: "1萬" })[0]!);
+    await advance(500);
+    await advance(59_500);
+    await flush();
+
+    const list = screen.getByRole("list", { name: "見直しリスト" });
+    const mine = within(list).getByRole("group", { name: "あなたの回答の受け入れ" });
+    const alts = within(mine)
+      .getAllByRole("img")
+      .map((el) => el.getAttribute("alt") ?? "");
+    expect(alts.length).toBeGreaterThan(0);
+    expect(alts.every((a) => a.endsWith("萬"))).toBe(true);
   });
 });

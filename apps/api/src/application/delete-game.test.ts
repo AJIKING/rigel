@@ -1,7 +1,11 @@
 import { describe, expect, it } from "vitest";
 import type { Game } from "../domain/game/game";
 import type { GameLog } from "../domain/kifu/game-log";
-import { InMemoryGameLogRepository, InMemoryGameRepository } from "../test-support/in-memory";
+import {
+  InMemoryFavoriteRepository,
+  InMemoryGameLogRepository,
+  InMemoryGameRepository,
+} from "../test-support/in-memory";
 import { validKifu } from "../test-support/kifu";
 import { DeleteGame } from "./delete-game.usecase";
 
@@ -30,17 +34,34 @@ describe("DeleteGame（半荘の削除）", () => {
     await gameLogs.save(log("l2", "u1", "g1"));
     await gameLogs.save(log("l3", "u1", "g2")); // 別半荘は残る
 
-    const result = await new DeleteGame(games, gameLogs).execute({ userId: "u1", gameId: "g1" });
+    const favorites = new InMemoryFavoriteRepository();
+    const result = await new DeleteGame(games, gameLogs, favorites).execute({
+      userId: "u1",
+      gameId: "g1",
+    });
     expect(result).toEqual({ ok: true });
     expect(await games.findById("g1")).toBeNull();
     expect(await gameLogs.listByGame("g1")).toHaveLength(0);
     expect(await gameLogs.listByGame("g2")).toHaveLength(1);
   });
 
+  it("半荘に付いた他人のお気に入りも一緒に消す（対象が消えたのに★が残らない）", async () => {
+    const games = new InMemoryGameRepository([game("g1", "u1"), game("g2", "u1")]);
+    const gameLogs = new InMemoryGameLogRepository();
+    const favorites = new InMemoryFavoriteRepository();
+    const at = new Date("2026-07-05T00:00:00.000Z");
+    await favorites.add({ userId: "u2", targetType: "game", targetId: "g1", createdAt: at });
+    await favorites.add({ userId: "u3", targetType: "game", targetId: "g1", createdAt: at });
+    await favorites.add({ userId: "u2", targetType: "game", targetId: "g2", createdAt: at });
+
+    await new DeleteGame(games, gameLogs, favorites).execute({ userId: "u1", gameId: "g1" });
+    expect(await favorites.countsByTargets("game", ["g1", "g2"])).toEqual({ g2: 1 });
+  });
+
   it("他人の半荘は消せない（not_found として扱い、存在も漏らさない）", async () => {
     const games = new InMemoryGameRepository([game("g1", "u1")]);
     const gameLogs = new InMemoryGameLogRepository();
-    const result = await new DeleteGame(games, gameLogs).execute({
+    const result = await new DeleteGame(games, gameLogs, new InMemoryFavoriteRepository()).execute({
       userId: "attacker",
       gameId: "g1",
     });
@@ -51,7 +72,10 @@ describe("DeleteGame（半荘の削除）", () => {
   it("存在しない半荘は not_found", async () => {
     const games = new InMemoryGameRepository([]);
     const gameLogs = new InMemoryGameLogRepository();
-    const result = await new DeleteGame(games, gameLogs).execute({ userId: "u1", gameId: "gx" });
+    const result = await new DeleteGame(games, gameLogs, new InMemoryFavoriteRepository()).execute({
+      userId: "u1",
+      gameId: "gx",
+    });
     expect(result).toEqual({ ok: false, reason: "not_found" });
   });
 });

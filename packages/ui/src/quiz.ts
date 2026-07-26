@@ -12,7 +12,7 @@ import type { ScoreQuestion } from "./quiz-score-question";
 import { shanten } from "./shanten";
 import { winningTiles } from "./tenpai";
 import { CANDIDATE_TILES } from "./tile-counts";
-import { bestUkeires, discardUkeires } from "./ukeire";
+import { bestUkeires, discardUkeires, keepUkeires } from "./ukeire";
 
 // クイズ種別は背骨（@rigel/schema の QuizKindSchema）に一本化する（重複定義しない）。
 export type { QuizKind } from "@rigel/schema";
@@ -56,8 +56,9 @@ export interface EfficiencyQuestion {
  */
 export interface QuizAnswerRecord {
   /** 出題（tiles=手牌 / answer=正解）。 */
-  question: ChinitsuQuestion | EfficiencyQuestion | ScoreQuestion;
-  /** あなたの回答（清一色=選んだ待ち牌・選択順 / 牌効率=切った牌1枚 / 点数計算=空配列）。 */
+  question: ChinitsuQuestion | ChinitsuUkeireQuestion | EfficiencyQuestion | ScoreQuestion;
+  /** あなたの回答（清一色=選んだ待ち牌・選択順 / 牌効率・清一色何切る=切った牌1枚 /
+   *  点数計算=空配列）。 */
   picked: Tile[];
   /** 点数計算の選んだ選択肢（他種目は undefined）。 */
   pickedChoice?: string;
@@ -88,6 +89,73 @@ export function generateChinitsuQuestion(
     const answer = winningTiles(tiles);
     if (answer.length < 2) return null;
     return { kind: "chinitsu" as const, tiles: tiles.sort(compareTiles), answer };
+  }, maxAttempts);
+}
+
+/** 数牌のスート（清一色 何切るの手牌の色）。 */
+export type NumberSuit = (typeof NUMBER_SUITS)[number];
+
+export interface ChinitsuUkeireQuestion {
+  kind: "chinitsuUkeire";
+  /** 単色14枚（理牌済み・赤5なし）。 */
+  tiles: Tile[];
+  /** 手牌の色。受け入れをこの色の9種に絞る根拠で、見直しも同じ候補を使う。 */
+  suit: NumberSuit;
+  /** 出題時点の向聴数（0=テンパイ / 1=1向聴。単色14枚に2向聴は存在しない）。 */
+  shanten: number;
+  /** 正解 = 最小向聴を保つ打牌のうち「広さ」最大（同率全部）。
+   *  広さ = 切った後に向聴が1つ進む同色牌の残り枚数（0向聴なら待ち枚数・1向聴なら受け入れ枚数）。 */
+  answer: Tile[];
+}
+
+/** 色ごとの受け入れ候補（9種）。**参照を固定する**: 画面は candidates を useMemo の依存に
+ *  渡すので、呼ぶたびに新しい配列を作ると見直しの重い受け入れ計算が毎レンダー走る。 */
+const SUIT_CANDIDATES: Record<NumberSuit, readonly Tile[]> = {
+  m: CANDIDATE_TILES.filter((t) => t[1] === "m"),
+  p: CANDIDATE_TILES.filter((t) => t[1] === "p"),
+  s: CANDIDATE_TILES.filter((t) => t[1] === "s"),
+};
+
+/** 清一色 何切るで受け入れとして数える牌種（その色の9種）。出題と見直しが同じ物差しを使う。 */
+export function chinitsuUkeireCandidates(suit: NumberSuit): readonly Tile[] {
+  return SUIT_CANDIDATES[suit];
+}
+
+/** テンパイ問題で要求する「テンパイを保つ打牌」の下限（[決定] 2026-07-26。
+ *  少ないと総当たりで解けてしまい、上級者向けの難度にならない）。 */
+const CHINITSU_UKEIRE_MIN_TENPAI_DISCARDS = 4;
+
+/**
+ * 清一色 何切る問題を1問生成する（Plan: docs/plans/quiz-chinitsu-ukeire.md）。
+ *
+ * フィルタ: 1問ごとに「テンパイ / 1向聴」を 1/2 で選び、その向聴の単色14枚を引く
+ * （単色14枚に2向聴は存在しないため、この2つが全て）。正解は**最小向聴を保つ打牌**
+ * （＝向聴戻しもテンパイ崩しもしない）のうち広さ最大で、同率は全部。
+ * 全打牌が正解になる手は選ぶ意味がないので捨てる。テンパイ問題はさらに打牌候補の下限を課す。
+ */
+export function generateChinitsuUkeireQuestion(
+  rng: () => number,
+  maxAttempts = QUIZ_MAX_GENERATION_ATTEMPTS,
+): ChinitsuUkeireQuestion {
+  const target = rng() < 0.5 ? 0 : 1;
+  const minDiscards = target === 0 ? CHINITSU_UKEIRE_MIN_TENPAI_DISCARDS : 2;
+  return sampleUntil(() => {
+    const suit = NUMBER_SUITS[Math.floor(rng() * NUMBER_SUITS.length)]!;
+    const tiles = drawTiles(SUIT_WALLS[suit], 14, rng);
+    if (shanten(tiles) !== target) return null;
+    // 最小向聴を保つ打牌だけを評価する（向聴戻しは正解になり得ず、単色手では
+    // 全14打牌ぶんの受け入れ計算が重い）。受け入れは同色9種のみ数える。
+    const keep = keepUkeires(tiles, 0, chinitsuUkeireCandidates(suit));
+    if (keep.length < minDiscards) return null;
+    const answer = bestUkeires(keep).map((u) => u.discard);
+    if (answer.length >= keep.length) return null; // 全打牌が正解では選ぶ意味がない
+    return {
+      kind: "chinitsuUkeire" as const,
+      tiles: tiles.sort(compareTiles),
+      suit,
+      shanten: target,
+      answer,
+    };
   }, maxAttempts);
 }
 

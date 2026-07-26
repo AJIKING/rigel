@@ -1,6 +1,11 @@
 "use server";
 
-import { type KifuMetaInput, type KifuStatus, type ProblemStatus } from "@rigel/client";
+import {
+  type FavoriteTargetType,
+  type KifuMetaInput,
+  type KifuStatus,
+  type ProblemStatus,
+} from "@rigel/client";
 // KifuStatus は setGameStatusAction（半荘単位の下書き/編集済）で使う。
 import {
   type Kifu,
@@ -18,7 +23,9 @@ import {
   answerProblem,
   createCheckout,
   finishQuizSession,
+  listMyFavorites,
   listQuizSessions,
+  setFavorite,
   startQuizSession,
   createPortal,
   createEmptyKifu,
@@ -200,4 +207,22 @@ export async function finishQuizSessionAction(sessionId: string, result: QuizRes
 /** 自分の完了済みセッション履歴（新しい順）。開始ダイアログの直近記録などで使う。 */
 export async function listQuizSessionsAction(since?: string) {
   return listQuizSessions(await requireToken(), since);
+}
+
+// ------------------------------------------------------------
+// お気に入り（★）。サーバー保存（[決定] 2026-07-26）。要ログイン。
+// ------------------------------------------------------------
+
+/** お気に入りを付ける/外す（冪等）。自分に見えない対象は ok:false（status 404）。 */
+export async function setFavoriteAction(
+  targetType: FavoriteTargetType,
+  targetId: string,
+  faved: boolean,
+) {
+  return setFavorite(await requireToken(), targetType, targetId, faved);
+}
+
+/** 自分のお気に入り一覧（半荘・何切る。付けた新しい順）。 */
+export async function getMyFavoritesAction() {
+  return listMyFavorites(await requireToken());
 }

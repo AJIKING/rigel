@@ -28,7 +28,8 @@ export function ProblemsListScreen({ onOpenMine }: { onOpenMine?: () => void }) 
   const nav = useNavigation<Nav>();
   const [loading, setLoading] = useState(true);
   const [posts, setPosts] = useState<ProblemPost[]>([]);
-  const { favs, toggle: toggleFav } = useFavorites();
+  // お気に入りはサーバー保存。カードの値に、この画面での操作を重ねる。
+  const { apply, toggle: toggleFav } = useFavorites();
   const [filter, setFilter] = useState(0);
   const filterKey = PUBLIC_FEED_FILTERS[filter]!.key;
 
@@ -48,7 +49,7 @@ export function ProblemsListScreen({ onOpenMine }: { onOpenMine?: () => void }) 
   }, []);
 
   // 絞り込みと新着順ソートは牌譜一覧と共通の filterPublicFeed（API 既定に頼らず固定）。
-  const shown = useMemo(() => filterPublicFeed(posts, filterKey, favs), [posts, filterKey, favs]);
+  const shown = useMemo(() => filterPublicFeed(apply(posts), filterKey), [posts, filterKey, apply]);
 
   return (
     <View style={styles.root}>
@@ -83,8 +84,9 @@ export function ProblemsListScreen({ onOpenMine }: { onOpenMine?: () => void }) 
               title={item.title || "（無題の問題）"}
               badges={[{ label: KIND_LABELS[item.problem.kind], tone: "accent" }]}
               metaParts={[relativeTime(item.createdAt)]}
-              fav={favs.has(item.id)}
-              onToggleFav={() => toggleFav(item.id)}
+              fav={item.viewerFaved}
+              favCount={item.favoriteCount}
+              onToggleFav={() => toggleFav("problem", item)}
               onPress={() => nav.navigate("ProblemAnswer", { problemId: item.id })}
             />
           )}

@@ -1,6 +1,13 @@
 "use client";
 
-import { PROBLEM_KIND_LABELS, PROBLEM_LIMIT, LIMIT_MESSAGES } from "@rigel/ui";
+import {
+  PROBLEM_KIND_LABELS,
+  PROBLEM_LIMIT,
+  LIMIT_MESSAGES,
+  LIST_LOAD_ERROR_MESSAGE,
+  sortMyList,
+  type MyListSortKey,
+} from "@rigel/ui";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { deleteProblemAction, updateProblemAction } from "../../app/actions";
@@ -10,37 +17,56 @@ import { fmtDateSlash } from "../../lib/format";
 import { useFavorites } from "../../lib/use-favorites";
 import { AppHeader } from "../AppHeader";
 import { GameCard } from "../GameCard";
+import { MyListToolbar } from "../list/MyListToolbar";
 import { MyPageTabs } from "../mypage/MyPageTabs";
 import { ProblemThumb } from "./ProblemThumb";
 import gc from "../game-card.module.css";
 import s from "../list/kifu-list.module.css";
 import p9 from "./problem.module.css";
 
+/** マイページ 何切るタブの状態フィルタ（牌譜タブと同じ形。お気に入りは独立トグル）。 */
+const STATUS_OPTIONS = [
+  { value: "all", label: "すべて" },
+  { value: "published", label: "公開" },
+  { value: "draft", label: "下書き" },
+] as const;
+
 /**
  * マイ何切る（自分の問題の管理）。牌譜のマイページ（/kifu）と同じ構造
  * （統計・クォータ・ツールバー・GameCard）。状態は draft / published の二択。
  * free は draft+published 合算 20 問まで。
  */
-export function MyProblemsScreen({ initialPosts }: { initialPosts: ProblemPost[] }) {
+export function MyProblemsScreen({
+  initialPosts,
+  loadFailed = false,
+}: {
+  initialPosts: ProblemPost[];
+  /** 取得に失敗した（0件ではない）。空状態の案内に化けさせないためのフラグ。 */
+  loadFailed?: boolean;
+}) {
   const { user } = useAuth();
   const router = useRouter();
-  const { favs, toggle: toggleFav } = useFavorites();
+  // お気に入りはサーバー保存。牌譜タブと同じ扱い（カードの値に画面の操作を重ねる）。
+  const { apply, toggle: toggleFav, error: favError } = useFavorites();
   const [posts, setPosts] = useState(initialPosts);
   const [delArm, setDelArm] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [q, setQ] = useState("");
-  const [status, setStatus] = useState<"all" | "published" | "draft">("all");
+  const [status, setStatus] = useState<string>("all");
+  const [sort, setSort] = useState<MyListSortKey>("new");
+  const [favOnly, setFavOnly] = useState(false);
 
   const limit = PROBLEM_LIMIT[user?.plan ?? "free"];
   const atLimit = limit !== null && posts.length >= limit;
   const publishedCount = posts.filter((post) => post.status === "published").length;
 
   const view = useMemo(() => {
-    let arr = posts.slice();
+    let arr = apply(posts);
+    if (favOnly) arr = arr.filter((post) => post.viewerFaved);
     if (status !== "all") arr = arr.filter((post) => post.status === status);
     if (q) arr = arr.filter((post) => post.title.includes(q));
-    return arr.sort((a, b) => -a.createdAt.localeCompare(b.createdAt));
-  }, [posts, status, q]);
+    return sortMyList(arr, sort);
+  }, [posts, status, sort, favOnly, q, apply]);
 
   /** draft⇔published の切替（楽観更新・失敗でロールバック）。 */
   async function toggleStatus(post: ProblemPost) {
@@ -85,6 +111,11 @@ export function MyProblemsScreen({ initialPosts }: { initialPosts: ProblemPost[]
                 <b>{posts.length - publishedCount}</b>
                 <span>下書き</span>
               </div>
+              {/* 牌譜タブと同じ3枠構成に揃える（反響が一目で分かるように）。 */}
+              <div className={s.stat}>
+                <b>{posts.reduce((n, post) => n + post.favoriteCount, 0)}</b>
+                <span>お気に入りされた数</span>
+              </div>
             </div>
             {limit !== null && (
               <p className={s.quota}>
@@ -94,57 +125,35 @@ export function MyProblemsScreen({ initialPosts }: { initialPosts: ProblemPost[]
           </div>
           {atLimit && <p className={p9.limitNote}>{LIMIT_MESSAGES.problems}</p>}
           {err && <p className={p9.err}>{err}</p>}
+          {favError && <p className={s.favError}>{favError}</p>}
 
-          <div className={s.toolbar}>
-            <div className={s.search}>
-              <svg viewBox="0 0 24 24">
-                <circle cx="11" cy="11" r="7" />
-                <path d="M21 21l-4-4" />
-              </svg>
-              <input
-                type="search"
-                placeholder="問題を検索"
-                aria-label="自分の問題を検索"
-                value={q}
-                onChange={(e) => setQ(e.target.value.trim())}
-              />
-            </div>
-            <div className={s.sortwrap}>
-              <select
-                aria-label="状態で絞り込み"
-                value={status}
-                onChange={(e) => setStatus(e.target.value as typeof status)}
-              >
-                <option value="all">すべて</option>
-                <option value="published">公開</option>
-                <option value="draft">下書き</option>
-              </select>
-            </div>
-            <button
-              className={s.newbtn}
-              disabled={atLimit}
-              onClick={() => router.push("/problems/new")}
-            >
-              <svg
-                viewBox="0 0 24 24"
-                width="14"
-                height="14"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2.4"
-              >
-                <path d="M12 5v14M5 12h14" />
-              </svg>
-              新規
-            </button>
-          </div>
+          <MyListToolbar
+            q={q}
+            onQ={setQ}
+            searchLabel="自分の問題を検索"
+            searchPlaceholder="問題を検索"
+            statusLabel="状態で絞り込み"
+            statusOptions={STATUS_OPTIONS}
+            status={status}
+            onStatus={setStatus}
+            sort={sort}
+            onSort={setSort}
+            favOnly={favOnly}
+            onFavOnly={setFavOnly}
+            onNew={() => router.push("/problems/new")}
+            newDisabled={atLimit}
+          />
 
           <div className={gc.feed}>
             {view.length === 0 ? (
-              <div className={gc.empty}>
-                {posts.length === 0
-                  ? "まだ問題がありません。「＋ 新規」から作成できます"
-                  : "該当する問題がありません"}
+              <div className={gc.empty} role={loadFailed ? "alert" : undefined}>
+                {loadFailed
+                  ? LIST_LOAD_ERROR_MESSAGE
+                  : favOnly
+                    ? "お気に入りした問題はまだありません"
+                    : posts.length === 0
+                      ? "まだ問題がありません。「＋ 新規」から作成できます"
+                      : "該当する問題がありません"}
               </div>
             ) : (
               view.map((post) => (
@@ -165,8 +174,9 @@ export function MyProblemsScreen({ initialPosts }: { initialPosts: ProblemPost[]
                   }
                   meta={fmtDateSlash(post.createdAt)}
                   thumb={<ProblemThumb problem={post.problem} />}
-                  faved={favs.has(post.id)}
-                  onToggleFav={() => toggleFav(post.id)}
+                  faved={post.viewerFaved}
+                  favCount={post.favoriteCount}
+                  onToggleFav={() => toggleFav("problem", post)}
                   onOpen={() => router.push(`/p/${post.id}`)}
                   actions={
                     <>

@@ -58,7 +58,11 @@ function DoraRow({ label, codes }: { label: string; codes: Tile[] }) {
  */
 export function KifuViewer({ detail, gameId }: { detail: PublicGameDetail; gameId: string }) {
   const { user } = useAuth();
-  const { favs, toggle: toggleFav } = useFavorites();
+  // ★はサーバー保存。詳細レスポンスの favoriteCount/viewerFaved に画面の操作を重ねる。
+  const { apply, toggle: toggleFav } = useFavorites();
+  const [favCard] = apply([
+    { id: gameId, favoriteCount: detail.favoriteCount, viewerFaved: detail.viewerFaved },
+  ]);
 
   const [gi, setGi] = useState(0);
   const [reveal, setReveal] = useState(-1); // -1 = 全表示
@@ -295,15 +299,22 @@ export function KifuViewer({ detail, gameId }: { detail: PublicGameDetail; gameI
               情報
             </button>
             <button
-              className={`${s.iconbtn} ${s.fav} ${favs.has(gameId) ? s.on : ""}`}
-              aria-pressed={favs.has(gameId)}
-              aria-label="お気に入り"
-              onClick={() => toggleFav(gameId)}
+              className={`${s.iconbtn} ${s.fav} ${favCard!.viewerFaved ? s.on : ""}`}
+              aria-pressed={favCard!.viewerFaved}
+              aria-label={
+                favCard!.favoriteCount > 0
+                  ? `お気に入り（${favCard!.favoriteCount}件）`
+                  : "お気に入り"
+              }
+              onClick={() => toggleFav("game", favCard!)}
             >
               <svg viewBox="0 0 24 24">
                 <path d="M12 2.6l2.85 6.02 6.6.62-4.97 4.4 1.46 6.46L12 17.7 6.06 20.7l1.46-6.46-4.97-4.4 6.6-.62z" />
               </svg>
               お気に入り
+              {favCard!.favoriteCount > 0 && (
+                <span className={s.favn}>{favCard!.favoriteCount}</span>
+              )}
             </button>
             {/* 共有は公開のみ（非公開のURLは所有者以外開けないため）。mobile と同一方針。 */}
             {!isPrivate && (

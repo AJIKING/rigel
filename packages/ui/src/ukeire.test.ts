@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { TILE_VALUES, type Tile } from "@rigel/schema";
-import { bestDiscards, bestUkeires, discardUkeires, ukeireReviewModel } from "./ukeire";
+import {
+  bestDiscards,
+  bestUkeires,
+  discardUkeires,
+  keepUkeires,
+  ukeireReviewModel,
+} from "./ukeire";
 import { createQuizRng } from "./quiz";
 import { toCounts, winningTiles } from "./tenpai";
 import { shanten } from "./shanten";
@@ -225,10 +231,11 @@ describe("ukeireReviewModel（見直し行のヘッドレス計算。web/mobile 
     { name: "D: 同率最大のひとつ（9p）", hand: HAND_D, picked: "9p", regressed: false },
   ])("$name", ({ hand, picked, regressed }) => {
     const model = ukeireReviewModel(tiles(hand), picked);
-    // ukeires / minShanten / mine / best は discardUkeires・bestUkeires と一致する
-    //（画面側で再実装しないための一元化）。
+    // minShanten / mine / best は discardUkeires・bestUkeires と一致する
+    //（画面側で再実装しないための一元化）。ukeires は最小向聴を保つ打牌だけ
+    //（見直しは正解集合と自分の回答しか出さないため。向聴戻しの回答は mine に入る）。
     const all = discardUkeires(tiles(hand));
-    expect(model.ukeires).toEqual(all);
+    expect(model.ukeires).toEqual(all.filter((u) => u.shanten === all[0]!.shanten));
     expect(model.minShanten).toBe(all[0]!.shanten);
     expect(model.mine).toEqual(all.find((u) => u.discard === picked));
     expect(model.regressed).toBe(regressed);
@@ -363,5 +370,133 @@ describe("discardUkeires と shanten の整合（性質テスト・シード固�
     const start = Date.now();
     discardUkeires(hand);
     expect(Date.now() - start).toBeLessThan(1000);
+  });
+});
+
+describe("discardUkeires（受け入れ候補の限定: 清一色の出題で他色を数えない）", () => {
+  // 単色13枚＋他色1枚。七対子の受け入れとして他色が混ざる手を使う
+  // （清一色の出題では「同色だけで広くなるか」を問うので、他色は数えてはいけない）。
+  const SUIT_M: Tile[] = TILE_VALUES.filter((t) => t.endsWith("m") && t !== "0m") as Tile[];
+
+  it("候補を同色9種に絞ると、受け入れ牌は同色だけになる", () => {
+    // 1112244557788m（順子が作れない6種・6対子）＋他色1枚。9p を切ると七対子1向聴で、
+    // 「7種類目」を引けば聴牌するため、34種のままだと未使用の他色すべてが受け入れに入る。
+    const hand = tiles("1112244557788m9p");
+    const all = discardUkeires(hand).find((u) => u.discard === "9p")!;
+    const suited = discardUkeires(hand, 0, SUIT_M).find((u) => u.discard === "9p")!;
+
+    expect(all.tiles.some((t) => !t.endsWith("m"))).toBe(true); // 絞らないと他色が入る
+    expect(suited.tiles.every((t) => t.endsWith("m"))).toBe(true);
+    expect(suited.count).toBeLessThan(all.count);
+  });
+
+  it("向聴数は候補の限定に影響されない（切った後の手は同じ）", () => {
+    const hand = tiles("1112244557788m9p");
+    for (const u of discardUkeires(hand, 0, SUIT_M)) {
+      expect(u.shanten).toBe(shanten(afterDiscard(hand, u.discard)));
+    }
+  });
+
+  it("候補を省略すると従来どおり34種すべてを見る（既存の呼び出しは不変）", () => {
+    const hand = tiles(HAND_A);
+    expect(discardUkeires(hand, 0, undefined)).toEqual(discardUkeires(hand));
+  });
+});
+
+describe("discardUkeires（テンパイ打牌の受け入れ = 待ち牌。高速路と shanten 定義の同値）", () => {
+  // 0向聴では「向聴が1つ進む牌」= 和了牌なので、winningTiles と一致しなければならない。
+  // discardUkeires はこの同値を使ってテンパイ手を高速化している（単色手では shanten が
+  // 1回 0.3ms 前後かかり、34種×14打牌の総当たりが重いため）。ここを壊すと採点が狂う。
+  const rng = createQuizRng(20260726);
+  const wall: Tile[] = TILE_VALUES.filter((t) => !t.startsWith("0")).flatMap((t) => [
+    t,
+    t,
+    t,
+    t,
+  ]) as Tile[];
+
+  /** shanten だけで定義した受け入れ（高速路を使わない素朴版）。 */
+  function naive(rest: readonly Tile[]): Tile[] {
+    const after = shanten(rest);
+    const counts = toCounts(rest);
+    return TILE_VALUES.filter((t) => !t.startsWith("0")).filter((t, _i) => {
+      const k = toCounts([t]).findIndex((n) => n > 0);
+      return counts[k]! < 4 && shanten([...rest, t]) === after - 1;
+    }) as Tile[];
+  }
+
+  // 素朴版（naive）は1打牌あたり34回の向聴計算を回すので重い。性質を示すのに数は要らないので
+  // 検査する打牌数を絞る（多くすると CI の並列実行でタイムアウトする）。
+  it("シード固定の手で、テンパイ打牌の受け入れが winningTiles と一致する", () => {
+    let checked = 0;
+    for (let i = 0; i < 60 && checked < 6; i++) {
+      const hand = [...wall].sort(() => rng() - 0.5).slice(0, 14);
+      for (const u of discardUkeires(hand)) {
+        if (u.shanten !== 0 || checked >= 6) continue;
+        checked++;
+        const rest = afterDiscard(hand, u.discard);
+        expect(u.tiles).toEqual(winningTiles(rest));
+        expect(u.tiles).toEqual(naive(rest));
+      }
+    }
+    expect(checked, "テンパイになる打牌を1つ以上検査している").toBeGreaterThan(0);
+  });
+
+  it("既知手: 和了形14枚はどの打牌もテンパイ維持で、受け入れ=待ち牌", () => {
+    const hand = tiles("123456789m11122p");
+    for (const u of discardUkeires(hand)) {
+      expect(u.shanten).toBe(0);
+      expect(u.tiles).toEqual(winningTiles(afterDiscard(hand, u.discard)));
+    }
+  });
+});
+
+describe("ukeireReviewModel（候補の限定: 見直しの受け入れ詳細を出題と同じ物差しで出す）", () => {
+  const SUIT_M2: Tile[] = TILE_VALUES.filter((t) => t.endsWith("m") && t !== "0m") as Tile[];
+
+  it("候補を同色9種に絞ると、見直しの受け入れも同色だけになる", () => {
+    const hand = tiles("1112244557788m9p");
+    const model = ukeireReviewModel(hand, "9p", SUIT_M2);
+    for (const u of model.ukeires) {
+      expect(u.tiles.every((t) => t.endsWith("m"))).toBe(true);
+    }
+  });
+
+  it("正解集合は出題側（bestUkeires + 同じ候補）と一致する（採点の二重実装をしない）", () => {
+    const hand = tiles("1112244557788m9p");
+    const expected = bestUkeires(discardUkeires(hand, 0, SUIT_M2));
+    expect(ukeireReviewModel(hand, "9p", SUIT_M2).best).toEqual(expected);
+  });
+});
+
+describe("keepUkeires（最小向聴を保つ打牌だけ計算する: 清一色で総当たりを避ける）", () => {
+  const SUIT_M3: Tile[] = TILE_VALUES.filter((t) => t.endsWith("m") && t !== "0m") as Tile[];
+
+  it("最小向聴を保つ打牌だけを返す（向聴戻しの打牌は含まない）", () => {
+    const hand = tiles(HAND_A);
+    const all = discardUkeires(hand);
+    const min = all[0]!.shanten;
+    const keep = keepUkeires(hand);
+
+    expect(keep.length).toBeGreaterThan(0);
+    expect(keep.every((u) => u.shanten === min)).toBe(true);
+    expect(keep.length).toBe(all.filter((u) => u.shanten === min).length);
+  });
+
+  it("返すエントリは discardUkeires と完全に同じ（枝刈りで値を変えない）", () => {
+    for (const [hand, cand] of [
+      [tiles(HAND_A), undefined],
+      [tiles("1112244557788m9p"), SUIT_M3],
+    ] as const) {
+      const min = discardUkeires(hand, 0, cand)[0]!.shanten;
+      expect(keepUkeires(hand, 0, cand)).toEqual(
+        discardUkeires(hand, 0, cand).filter((u) => u.shanten === min),
+      );
+    }
+  });
+
+  it("正解集合は discardUkeires 経由と一致する（採点の物差しを変えない）", () => {
+    const hand = tiles(HAND_A);
+    expect(bestUkeires(keepUkeires(hand))).toEqual(bestUkeires(discardUkeires(hand)));
   });
 });

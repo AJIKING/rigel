@@ -148,7 +148,7 @@
 .btn.danger {
   background: transparent;
   border: 1px solid rgba(226, 75, 58, 0.35);
-  color: var(--vermilion);
+  color: var(--danger);
 }
 .btn.danger:hover {
   background: rgba(226, 75, 58, 0.1);
@@ -168,7 +168,7 @@
 .errmsg {
   margin-right: auto;
   font-size: 12px;
-  color: var(--vermilion);
+  color: var(--danger);
 }
 /* 課金メッセージ（IAP 案内・checkout/ポータルのエラー）。料金プランカードの下の全幅行。 */
 .billingNote {

@@ -105,6 +105,8 @@ const DETAIL: PublicGameDetail = {
   owner: { id: "dev", handle: "dev", displayName: "dev" },
   // 2局目を置く: 和了ダイアログの「次の局へ」で次局の開始に移れることを確認するため。
   logs: [devLog(1, playbackKifu()), devLog(2, playbackKifu())],
+  favoriteCount: 0,
+  viewerFaved: false,
 };
 
 export default function DevPlaybackPage() {

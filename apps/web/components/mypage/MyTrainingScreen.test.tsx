@@ -57,10 +57,21 @@ function statText(label: string): string {
   return screen.getByText(label).parentElement?.textContent ?? "";
 }
 
-/** グラフ（SVG 折れ線）の点の数。 */
-function chartPointCount(): number {
-  const svg = screen.getByRole("img", { name: "1分あたり正解数の推移" });
-  return svg.querySelectorAll("circle").length;
+/** グラフ（SVG 折れ線）。記録が1日も無い期間では描画されない。 */
+function chart(): SVGElement {
+  return screen.getByRole("img", { name: /1分あたり正解数の推移/ }) as unknown as SVGElement;
+}
+
+/** グラフに打たれた点の数（記録のある日だけ＋終端の強調で1つ重ねる）。 */
+function chartDotCount(): number {
+  return chart().querySelectorAll("circle").length;
+}
+
+/** 日付軸のラベル（最初/中央/最後。y 目盛りや値ラベルの数字は 'M/D' を含まないので除ける）。 */
+function chartAxisDays(): string[] {
+  return [...chart().querySelectorAll("text")]
+    .map((el) => el.textContent ?? "")
+    .filter((s) => s.includes("/"));
 }
 
 afterEach(() => {
@@ -68,12 +79,17 @@ afterEach(() => {
 });
 
 describe("MyTrainingScreen: タブとサマリ", () => {
-  it("マイページのタブは 牌譜 / 何切る / 特訓 の並びで、特訓が /mypage/training を指す", () => {
+  it("マイページのタブは 牌譜 / 何切る / お気に入り / 特訓 の並びで、各タブのリンク先が正しい", () => {
     renderScreen();
     const tabs = screen.getByRole("navigation", { name: "マイページの切替" });
     const links = within(tabs).getAllByRole("link");
-    expect(links.map((a) => a.textContent)).toEqual(["牌譜", "何切る", "特訓"]);
-    expect(links[2]!.getAttribute("href")).toBe("/mypage/training");
+    expect(links.map((a) => a.textContent)).toEqual(["牌譜", "何切る", "お気に入り", "特訓"]);
+    expect(links.map((a) => a.getAttribute("href"))).toEqual([
+      "/mypage",
+      "/mypage/problems",
+      "/mypage/favorites",
+      "/mypage/training",
+    ]);
   });
 
   it("サマリに挑戦回数・自己ベスト・平均正答率（正解合計/出題合計）が stat カードで出る", () => {
@@ -92,20 +108,52 @@ describe("MyTrainingScreen: タブとサマリ", () => {
 });
 
 describe("MyTrainingScreen: 期間・種目の切替", () => {
-  it("グラフは既定で直近7日（7点）。30日 → 30点、全期間 → 最古(7/14)〜now の11点", () => {
+  it("グラフの日付軸は既定で直近7日。30日 → 6/25〜7/24、全期間 → 最古(7/14)〜now", () => {
     renderScreen();
     // グラフカードには小ラベル「1分あたり正解数」を出す。
     expect(screen.getByText("1分あたり正解数")).toBeTruthy();
-    expect(chartPointCount()).toBe(7);
+    expect(chartAxisDays()).toEqual(["7/18", "7/21", "7/24"]);
 
     fireEvent.click(screen.getByRole("button", { name: "30日" }));
-    expect(chartPointCount()).toBe(30);
+    expect(chartAxisDays()).toEqual(["6/25", "7/9", "7/24"]);
 
     fireEvent.click(screen.getByRole("button", { name: "全期間" }));
-    expect(chartPointCount()).toBe(11);
+    expect(chartAxisDays()).toEqual(["7/14", "7/19", "7/24"]);
 
     fireEvent.click(screen.getByRole("button", { name: "7日" }));
-    expect(chartPointCount()).toBe(7);
+    expect(chartAxisDays()).toEqual(["7/18", "7/21", "7/24"]);
+  });
+
+  it("点は記録のある日だけに打つ（欠損日を 0 埋めしない）。終端は強調でもう1つ重ねる", () => {
+    renderScreen();
+    // 7d 窓（7/18〜7/24）の記録は 7/22・7/23 の2日 → 2点 + 終端の強調1点。
+    expect(chartDotCount()).toBe(3);
+
+    // 30d 窓は 7/14 の牌効率も入る → 3点 + 終端1点。
+    fireEvent.click(screen.getByRole("button", { name: "30日" }));
+    expect(chartDotCount()).toBe(4);
+  });
+
+  it("期間内に記録が1日も無ければグラフを出さない（0 の平坦な線を見せない）", () => {
+    renderScreen();
+    // 牌効率の記録は 7/14 だけ。7d 窓に絞るとその種目の記録は 0 日になる。
+    fireEvent.click(screen.getByRole("button", { name: "牌効率" }));
+    expect(screen.queryByRole("img", { name: /1分あたり正解数の推移/ })).toBeNull();
+    expect(screen.queryByText("1分あたり正解数")).toBeNull();
+
+    // 30日に広げれば 7/14 の記録が入るので再び出る。
+    fireEvent.click(screen.getByRole("button", { name: "30日" }));
+    expect(chartDotCount()).toBe(2);
+  });
+
+  it("グラフはキーボードで各日の値を読める（左右キーでツールチップが動く）", () => {
+    renderScreen();
+    const svg = chart();
+    // 既定は最新の記録日（7/23 = 5問/分）から。右キーで 7/24（記録なし）へ。
+    fireEvent.keyDown(svg, { key: "ArrowRight" });
+    expect(screen.getByRole("status").textContent).toBe("7/24—");
+    fireEvent.keyDown(svg, { key: "ArrowLeft" });
+    expect(screen.getByRole("status").textContent).toBe("7/235");
   });
 
   it("種目チップ（全種目/清一色/牌効率）で清一色に絞るとサマリと履歴から牌効率の分が消える", () => {

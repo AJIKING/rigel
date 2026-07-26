@@ -3,6 +3,7 @@
 // 検証を通っていないデータを下流に流さない）。保存上限は free 20問（draft+published 合算）。
 
 import { ProblemSchema } from "@rigel/schema";
+import type { FavoriteRepository } from "../domain/favorite/favorite.repository";
 import type { ProblemPost, ProblemStatus } from "../domain/problem/problem";
 import type { ProblemAnswerRepository } from "../domain/problem/problem-answer.repository";
 import type { ProblemRepository } from "../domain/problem/problem.repository";
@@ -104,13 +105,16 @@ export class DeleteProblem {
   constructor(
     private readonly problems: ProblemRepository,
     private readonly answers: ProblemAnswerRepository,
+    private readonly favorites: FavoriteRepository,
   ) {}
 
   async execute(params: { userId: string; problemId: string }): Promise<DeleteProblemResult> {
     const post = await findOwnedProblem(this.problems, params.problemId, params.userId);
     if (!post) return { ok: false, reason: "not_found" };
-    // ぶら下がる回答も一緒に消す（孤児を残さない）。
+    // ぶら下がる回答も★も一緒に消す（孤児を残さない）。
+    // ★は対象への外部キーを持てない（ポリモーフィック）ので明示的に消す。
     await this.answers.deleteByProblem(post.id);
+    await this.favorites.deleteByTarget("problem", post.id);
     await this.problems.deleteById(post.id);
     return { ok: true };
   }

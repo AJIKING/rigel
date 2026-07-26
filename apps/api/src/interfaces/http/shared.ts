@@ -1,15 +1,46 @@
 // interfaces/http — ルート実装の共有部品（型・ガード・整形）。
 // 各 routes/*.ts と app.ts から使う。HTTP の都合だけを扱う。
 
-import type { MiddlewareHandler } from "hono";
+import type { Context, MiddlewareHandler } from "hono";
 import type { AppContainer } from "../../composition-root";
 import type { Env } from "../../env";
+import type { FavoriteTargetType } from "../../domain/favorite/favorite.repository";
 import type { User } from "../../domain/user/user";
 
 export type AppEnv = {
   Bindings: Env;
   Variables: { container: AppContainer; userId?: string };
 };
+
+/** 一覧カードに載せるお気に入りの情報（件数と、見ている人が付けているか）。
+ *  「誰が付けたか」は含めない（件数と自分の状態だけ）。 */
+export interface FavoriteFields {
+  favoriteCount: number;
+  viewerFaved: boolean;
+}
+
+/**
+ * 一覧カードに★（件数・自分が付けたか）を重ねる。
+ * 未ログインでも件数は返し、viewerFaved は常に false。
+ * 集計は表示中の id ぶんだけ引く（全件走査にしない）。
+ */
+export async function withFavorites<T extends { id: string }>(
+  c: Context<AppEnv>,
+  targetType: FavoriteTargetType,
+  cards: readonly T[],
+): Promise<(T & FavoriteFields)[]> {
+  const { counts, mine } = await c.get("container").getFavoriteSummary.execute({
+    viewerId: c.get("userId"),
+    targetType,
+    targetIds: cards.map((x) => x.id),
+  });
+  const faved = new Set(mine);
+  return cards.map((x) => ({
+    ...x,
+    favoriteCount: counts[x.id] ?? 0,
+    viewerFaved: faved.has(x.id),
+  }));
+}
 
 /** 認証必須ルートのガード。userId（認証ミドルウェアが載せる）が無ければ 401。 */
 export const requireAuth: MiddlewareHandler<AppEnv> = async (c, next) => {

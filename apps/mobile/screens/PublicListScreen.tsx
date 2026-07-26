@@ -21,12 +21,13 @@ const SEGMENT_LABELS = PUBLIC_FEED_FILTERS.map((f) => f.label);
 /** 公開牌譜フィード（全ユーザーの公開半荘・新着順、認証不要）。 */
 export function PublicListScreen() {
   const nav = useNavigation<Nav>();
-  const { loading, games, sample } = usePublicGames();
-  const { favs, toggle: toggleFav } = useFavorites();
+  const { loading, games, sample, error } = usePublicGames();
+  // お気に入りはサーバー保存。カードの値に、この画面での操作を重ねる。
+  const { apply, toggle: toggleFav } = useFavorites();
   const [filter, setFilter] = useState(0);
   const filterKey = PUBLIC_FEED_FILTERS[filter]!.key;
 
-  const shown = useMemo(() => filterPublicFeed(games, filterKey, favs), [games, filterKey, favs]);
+  const shown = useMemo(() => filterPublicFeed(apply(games), filterKey), [games, filterKey, apply]);
 
   return (
     <View style={styles.root}>
@@ -37,9 +38,11 @@ export function PublicListScreen() {
       ) : shown.length === 0 ? (
         <CenterState
           message={
-            filterKey === "fav"
+            // 取得失敗を「0件」に化けさせない（空状態の案内より失敗の理由を優先する）。
+            error ??
+            (filterKey === "fav"
               ? "お気に入りした牌譜がまだありません。"
-              : "まだ公開牌譜がありません。"
+              : "まだ公開牌譜がありません。")
           }
         />
       ) : (
@@ -59,8 +62,9 @@ export function PublicListScreen() {
                 title={item.title || "（無題の半荘）"}
                 badges={[{ label: author, tone: "accent" }]}
                 metaParts={[relativeTime(item.createdAt), `${item.kyokuCount}局`]}
-                fav={favs.has(item.id)}
-                onToggleFav={() => toggleFav(item.id)}
+                fav={item.viewerFaved}
+                favCount={item.favoriteCount}
+                onToggleFav={() => toggleFav("game", item)}
                 onPress={() =>
                   nav.navigate("PublicGame", { gameId: item.id, logId: item.firstLogId })
                 }

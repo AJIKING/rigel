@@ -11,10 +11,12 @@ import { handScore, payText } from "./score";
 import { scoreAgariHand } from "./score-engine";
 import { shanten } from "./shanten";
 import { winningTiles } from "./tenpai";
-import { bestDiscards, discardUkeires } from "./ukeire";
+import { bestDiscards, bestUkeires, discardUkeires, keepUkeires } from "./ukeire";
 import {
   createQuizRng,
   generateChinitsuQuestion,
+  generateChinitsuUkeireQuestion,
+  chinitsuUkeireCandidates,
   generateEfficiencyQuestion,
   QUIZ_MAX_GENERATION_ATTEMPTS,
 } from "./quiz";
@@ -605,5 +607,96 @@ describe("試行上限（品質フィルタを満たせない場合は Error）"
     { name: "点数計算", run: () => generateScoreQuestion(() => 0.1, 30) },
   ])("$name: フィルタを満たせない乱数では上限到達で Error を投げる", ({ run }) => {
     expect(run).toThrowError(/試行上限/);
+  });
+});
+
+describe("清一色 何切る問題の品質（シード20260726で20問）", () => {
+  const rng = createQuizRng(20260726);
+  const questions = Array.from({ length: 20 }, () => generateChinitsuUkeireQuestion(rng));
+
+  it("全問が単色14枚・赤5なし・同種4枚以内・理牌済み（手牌の種別は必ず全て同一）", () => {
+    const mismatches: string[] = [];
+    for (const q of questions) {
+      const hand = q.tiles.join("");
+      if (q.kind !== "chinitsuUkeire") mismatches.push(`${hand}: kind=${q.kind}`);
+      if (q.tiles.length !== 14) mismatches.push(`${hand}: ${q.tiles.length}枚`);
+      if (q.tiles.some((t) => t[1] !== q.suit)) mismatches.push(`${hand}: ${q.suit} 以外を含む`);
+      if (q.tiles.some((t) => t[0] === "0")) mismatches.push(`${hand}: 赤5を含む`);
+      if (maxDuplicates(q.tiles) > 4) mismatches.push(`${hand}: 同種5枚`);
+      if (!isSorted(q.tiles)) mismatches.push(`${hand}: 理牌されていない`);
+    }
+    expect(mismatches).toEqual([]);
+  });
+
+  it("全問の shanten が 0 か 1（単色14枚に2向聴は存在しない）で、フィールドと一致する", () => {
+    const mismatches: string[] = [];
+    for (const q of questions) {
+      const hand = q.tiles.join("");
+      const s = shanten(q.tiles);
+      if (s !== 0 && s !== 1) mismatches.push(`${hand}: shanten=${s}`);
+      if (q.shanten !== s) mismatches.push(`${hand}: フィールド=${q.shanten} 実際=${s}`);
+    }
+    expect(mismatches).toEqual([]);
+  });
+
+  it("テンパイ問題も1向聴問題も出る（1問ごとに 1/2 でランダムに選ぶ）", () => {
+    const kinds = new Set(questions.map((q) => q.shanten));
+    expect([...kinds].sort()).toEqual([0, 1]);
+  });
+
+  it("正解は最小向聴を保つ打牌のみ（向聴戻し・テンパイ崩しは正解にしない）", () => {
+    const mismatches: string[] = [];
+    for (const q of questions) {
+      const hand = q.tiles.join("");
+      for (const d of q.answer) {
+        const rest = [...q.tiles];
+        rest.splice(rest.indexOf(d), 1);
+        if (shanten(rest) !== q.shanten) mismatches.push(`${hand}: ${d} は向聴が変わる`);
+      }
+    }
+    expect(mismatches).toEqual([]);
+  });
+
+  it("正解は「同色だけで広さ最大」の打牌全部で、全打牌が正解の手は出題しない", () => {
+    const mismatches: string[] = [];
+    for (const q of questions) {
+      const hand = q.tiles.join("");
+      const keep = keepUkeires(q.tiles, 0, chinitsuUkeireCandidates(q.suit));
+      const expected = bestUkeires(keep).map((u) => u.discard);
+      if (JSON.stringify(q.answer) !== JSON.stringify(expected)) {
+        mismatches.push(`${hand}: answer=${q.answer.join(",")} 期待=${expected.join(",")}`);
+      }
+      if (q.answer.length >= keep.length) mismatches.push(`${hand}: 全打牌が正解（差が付かない）`);
+      // 受け入れは同色だけを数える（七対子経由の他色を正解根拠にしない）。
+      for (const u of keep) {
+        if (u.tiles.some((t) => t[1] !== q.suit)) mismatches.push(`${hand}: ${u.discard} に他色`);
+      }
+    }
+    expect(mismatches).toEqual([]);
+  });
+
+  it("テンパイ問題はテンパイを保つ打牌が4種以上（総当たりで解けてしまわない難度）", () => {
+    const mismatches: string[] = [];
+    for (const q of questions.filter((x) => x.shanten === 0)) {
+      const keep = keepUkeires(q.tiles, 0, chinitsuUkeireCandidates(q.suit));
+      if (keep.length < 4) mismatches.push(`${q.tiles.join("")}: ${keep.length}種`);
+    }
+    expect(mismatches).toEqual([]);
+  });
+});
+
+describe("chinitsuUkeireCandidates（同じ色なら同じ配列を返す＝参照が安定する）", () => {
+  // 画面は candidates を useMemo の依存に渡す（見直しの受け入れ計算は重い）。
+  // 呼ぶたびに新しい配列を作ると依存が毎レンダー変わり、useMemo が意味を失う。
+  it.each(["m", "p", "s"] as const)("%s は毎回同じ参照", (suit) => {
+    expect(chinitsuUkeireCandidates(suit)).toBe(chinitsuUkeireCandidates(suit));
+  });
+
+  it("色ごとにその色の9種を返す", () => {
+    for (const suit of ["m", "p", "s"] as const) {
+      const tiles = chinitsuUkeireCandidates(suit);
+      expect(tiles).toHaveLength(9);
+      expect(tiles.every((t) => t[1] === suit)).toBe(true);
+    }
   });
 });

@@ -15,5 +15,7 @@ export function toViewerDetail(own: GameDetail, me: AuthUser | null): PublicGame
       displayName: me?.displayName ?? "",
     },
     logs: own.logs,
+    favoriteCount: own.favoriteCount,
+    viewerFaved: own.viewerFaved,
   };
 }

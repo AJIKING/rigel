@@ -105,13 +105,12 @@ export function MyTrainingScreen({ now }: { now?: Date }) {
             <View style={styles.segRow}>
               <Segment options={KINDS} value={kind} onChange={setKind} />
             </View>
-            {points.length > 0 ? (
-              <QuizLineChart
-                points={points}
-                title="1分あたり正解数"
-                accessibilityLabel={`1分あたり正解数の推移（${QUIZ_STATS_PERIOD_LABELS[period]}）`}
-              />
-            ) : null}
+            {/* カード（白地・タイトル）はグラフ側が持つ。期間内に記録が無ければ何も出ない。 */}
+            <QuizLineChart
+              points={points}
+              title="1分あたり正解数"
+              accessibilityLabel={`1分あたり正解数の推移（${QUIZ_STATS_PERIOD_LABELS[period]}）`}
+            />
           </View>
         }
         ListEmptyComponent={<CenterState message={QUIZ_EMPTY_HISTORY_MESSAGE} />}

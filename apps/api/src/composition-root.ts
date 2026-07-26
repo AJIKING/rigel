@@ -11,6 +11,7 @@ import { AnalyzeProblemDraft } from "./application/analyze-problem-draft.usecase
 import { AuthenticateWithApple } from "./application/authenticate-with-apple.usecase";
 import { AuthenticateWithGoogle } from "./application/authenticate-with-google.usecase";
 import { CreateEmptyKifu } from "./application/create-empty-kifu.usecase";
+import { GetFavoriteSummary, ListMyFavorites, SetFavorite } from "./application/favorite.usecase";
 import { DeleteGame } from "./application/delete-game.usecase";
 import { DeleteKifu } from "./application/delete-kifu.usecase";
 import { UpdateGame } from "./application/update-game.usecase";
@@ -53,6 +54,7 @@ import { HttpRevenueCatGateway } from "./infrastructure/billing/http-revenuecat-
 import { StripeBillingGateway } from "./infrastructure/billing/stripe-billing-gateway";
 import { DrizzleAnalysisStore } from "./infrastructure/analysis/drizzle-analysis-store";
 import { createDb } from "./infrastructure/db/client";
+import { DrizzleFavoriteRepository } from "./infrastructure/favorite/drizzle-favorite.repository";
 import { DrizzleGameRepository } from "./infrastructure/game/drizzle-game.repository";
 import { GeminiAnalyzer } from "./infrastructure/gemini/gemini-analyzer";
 import { HttpGeminiClient } from "./infrastructure/gemini/gemini-client";
@@ -103,6 +105,9 @@ export interface AppContainer {
   listPublishedProblems: ListPublishedProblems;
   answerProblem: AnswerProblem;
   getProblemStats: GetProblemStats;
+  setFavorite: SetFavorite;
+  getFavoriteSummary: GetFavoriteSummary;
+  listMyFavorites: ListMyFavorites;
   startQuizSession: StartQuizSession;
   finishQuizSession: FinishQuizSession;
   listQuizSessions: ListQuizSessions;
@@ -128,6 +133,7 @@ export function buildContainer(env: Env): AppContainer {
   const problems = new DrizzleProblemRepository(db);
   const problemAnswers = new DrizzleProblemAnswerRepository(db);
   const quizSessions = new DrizzleQuizSessionRepository(db);
+  const favorites = new DrizzleFavoriteRepository(db);
 
   // 副作用（時刻・ID生成）の供給は1か所に集約してユースケースへ注入する。
   const now = () => new Date();
@@ -204,7 +210,7 @@ export function buildContainer(env: Env): AppContainer {
     listKifu: new ListKifu(gameLogs),
     updateKifu: new UpdateKifu(gameLogs),
     deleteKifu: new DeleteKifu(gameLogs),
-    deleteGame: new DeleteGame(gamesRepo, gameLogs),
+    deleteGame: new DeleteGame(gamesRepo, gameLogs, favorites),
     updateGame: new UpdateGame(gamesRepo),
     updateGameRules: new UpdateGameRules(gamesRepo, gameLogs),
     updateGamePlayers: new UpdateGamePlayers(gamesRepo, gameLogs),
@@ -240,12 +246,21 @@ export function buildContainer(env: Env): AppContainer {
     deleteAccount: new DeleteAccount(users, new DrizzleAccountStore(db), appleAuth),
     createProblem: new CreateProblem({ problems, users, now, newId }),
     updateProblem: new UpdateProblem(problems),
-    deleteProblem: new DeleteProblem(problems, problemAnswers),
+    deleteProblem: new DeleteProblem(problems, problemAnswers, favorites),
     getProblem: new GetProblem(problems),
     listMyProblems: new ListMyProblems(problems),
     listPublishedProblems: new ListPublishedProblems(problems),
     answerProblem: new AnswerProblem({ problems, answers: problemAnswers, now }),
     getProblemStats: new GetProblemStats({ problems, answers: problemAnswers }),
+    setFavorite: new SetFavorite({ favorites, games: gamesRepo, gameLogs, problems, now }),
+    getFavoriteSummary: new GetFavoriteSummary(favorites),
+    listMyFavorites: new ListMyFavorites({
+      favorites,
+      games: gamesRepo,
+      gameLogs,
+      problems,
+      users,
+    }),
     startQuizSession: new StartQuizSession({ users, sessions: quizSessions, now, newId }),
     finishQuizSession: new FinishQuizSession({ sessions: quizSessions }),
     listQuizSessions: new ListQuizSessions({ sessions: quizSessions }),

@@ -7,6 +7,11 @@ import type {
 } from "../domain/analysis/analysis-store";
 import type { AccountStore } from "../domain/user/account-store";
 import type { RevenueCatEventRepository } from "../domain/billing/revenuecat";
+import type {
+  Favorite,
+  FavoriteRepository,
+  FavoriteTargetType,
+} from "../domain/favorite/favorite.repository";
 import type { Game } from "../domain/game/game";
 import type { GameRepository } from "../domain/game/game.repository";
 import type { GameLog, GameLogSummary, KifuStatus, Visibility } from "../domain/kifu/game-log";
@@ -84,6 +89,10 @@ export class InMemoryRevenueCatEventRepository implements RevenueCatEventReposit
 
 export class InMemoryGameLogRepository implements GameLogRepository {
   readonly saved: GameLog[] = [];
+
+  constructor(seed: GameLog[] = []) {
+    this.saved.push(...seed);
+  }
 
   save(gameLog: GameLog): Promise<void> {
     // 実 Drizzle 実装(onConflictDoUpdate)に合わせて id で upsert する。
@@ -256,6 +265,81 @@ export class InMemoryProblemRepository implements ProblemRepository {
     for (const [id, p] of this.byId) {
       if (p.userId === userId) this.byId.delete(id);
     }
+    return Promise.resolve();
+  }
+}
+
+export class InMemoryFavoriteRepository implements FavoriteRepository {
+  private rows: Favorite[] = [];
+
+  constructor(seed: Favorite[] = []) {
+    this.rows = [...seed];
+  }
+
+  private index(userId: string, targetType: FavoriteTargetType, targetId: string): number {
+    return this.rows.findIndex(
+      (f) => f.userId === userId && f.targetType === targetType && f.targetId === targetId,
+    );
+  }
+
+  add(favorite: Favorite): Promise<void> {
+    // 二度押しは何もしない（Drizzle 実装の onConflictDoNothing と同じ）。
+    if (this.index(favorite.userId, favorite.targetType, favorite.targetId) < 0) {
+      this.rows.push(favorite);
+    }
+    return Promise.resolve();
+  }
+
+  remove(userId: string, targetType: FavoriteTargetType, targetId: string): Promise<void> {
+    const i = this.index(userId, targetType, targetId);
+    if (i >= 0) this.rows.splice(i, 1);
+    return Promise.resolve();
+  }
+
+  listByUser(userId: string): Promise<Favorite[]> {
+    return Promise.resolve(
+      this.rows
+        .filter((f) => f.userId === userId)
+        .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime()),
+    );
+  }
+
+  countsByTargets(
+    targetType: FavoriteTargetType,
+    targetIds: readonly string[],
+  ): Promise<Record<string, number>> {
+    const out: Record<string, number> = {};
+    for (const f of this.rows) {
+      if (f.targetType !== targetType || !targetIds.includes(f.targetId)) continue;
+      out[f.targetId] = (out[f.targetId] ?? 0) + 1;
+    }
+    return Promise.resolve(out);
+  }
+
+  findMineIn(
+    userId: string,
+    targetType: FavoriteTargetType,
+    targetIds: readonly string[],
+  ): Promise<Set<string>> {
+    return Promise.resolve(
+      new Set(
+        this.rows
+          .filter(
+            (f) =>
+              f.userId === userId && f.targetType === targetType && targetIds.includes(f.targetId),
+          )
+          .map((f) => f.targetId),
+      ),
+    );
+  }
+
+  deleteByTarget(targetType: FavoriteTargetType, targetId: string): Promise<void> {
+    this.rows = this.rows.filter((f) => !(f.targetType === targetType && f.targetId === targetId));
+    return Promise.resolve();
+  }
+
+  deleteByUser(userId: string): Promise<void> {
+    this.rows = this.rows.filter((f) => f.userId !== userId);
     return Promise.resolve();
   }
 }

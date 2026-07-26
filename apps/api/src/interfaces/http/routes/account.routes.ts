@@ -4,7 +4,7 @@
 import type { Context, Hono } from "hono";
 import type { User } from "../../../domain/user/user";
 import { monthlyCallQuota } from "../../../domain/user/user";
-import { requireAuth, userProfileJson, type AppEnv } from "../shared";
+import { requireAuth, userProfileJson, withFavorites, type AppEnv } from "../shared";
 
 /** /auth/xxx 共通のレスポンス整形。成功=200/201（/me と同じプロフィール項目を同梱し、
  *  ログイン直後の設定画面が /me 再取得なしで handle/表示名を出せるように）。
@@ -70,10 +70,10 @@ export function registerAccountRoutes(app: Hono<AppEnv>): void {
     });
   });
 
-  // マイページ用: 自分の半荘＋局数/公開数/下書き数。
+  // マイページ用: 自分の半荘＋局数/公開数/下書き数＋お気に入り数（人気順の並べ替えに使う）。
   app.get("/me/games", requireAuth, async (c) => {
     const cards = await c.get("container").listMyGamesWithCounts.execute(c.get("userId")!);
-    return c.json(cards);
+    return c.json(await withFavorites(c, "game", cards));
   });
 
   // プロフィール更新（ハンドル/表示名）。プロフィールは常に公開（非公開機能は無し）。
@@ -109,6 +109,7 @@ export function registerAccountRoutes(app: Hono<AppEnv>): void {
   app.get("/users/:idOrHandle/profile", async (c) => {
     const profile = await c.get("container").getPublicProfile.execute(c.req.param("idOrHandle"));
     if (!profile) return c.json({ error: "not found" }, 404);
-    return c.json(profile);
+    // 一覧カードと同じく★（件数・自分が付けたか）を載せる。
+    return c.json({ ...profile, games: await withFavorites(c, "game", profile.games) });
   });
 }

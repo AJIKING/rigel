@@ -1,4 +1,4 @@
-import { KifuListShell } from "../../components/list/KifuListShell";
+import { MyKifuScreen } from "../../components/list/MyKifuScreen";
 
 // 本人専用ページ。検索結果に載せない。
 export const metadata = {
@@ -8,5 +8,5 @@ export const metadata = {
 
 /** マイページ（牌譜タブ）。自分の牌譜一覧・要ログイン。何切るタブは /mypage/problems。 */
 export default function MyPageKifuPage() {
-  return <KifuListShell view="mine" />;
+  return <MyKifuScreen />;
 }

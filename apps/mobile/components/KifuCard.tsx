@@ -1,33 +1,12 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
-import Svg, { Path } from "react-native-svg";
 import { colors, radius } from "../lib/theme";
+import { StarButton } from "./StarButton";
 import { TileChip } from "./TileChip";
 
 export interface CardBadge {
   label: string;
   /** accent=オレンジ(公開/著者), muted=灰(非公開/編集済), warn=朱(下書きあり)。 */
   tone: "accent" | "muted" | "warn";
-}
-
-function StarButton({ on, onPress }: { on: boolean; onPress: () => void }) {
-  return (
-    <Pressable
-      style={styles.star}
-      hitSlop={8}
-      accessibilityRole="button"
-      accessibilityLabel="お気に入りに追加/解除"
-      onPress={onPress}
-    >
-      <Svg width={18} height={18} viewBox="0 0 24 24" fill={on ? colors.accent : "none"}>
-        <Path
-          d="M12 2.6l2.85 6.02 6.6.62-4.97 4.4 1.46 6.46L12 17.7 6.06 20.7l1.46-6.46-4.97-4.4 6.6-.62z"
-          stroke={on ? colors.accent : colors.w45}
-          strokeWidth={1.8}
-          strokeLinejoin="round"
-        />
-      </Svg>
-    </Pressable>
-  );
 }
 
 const BADGE_STYLE: Record<CardBadge["tone"], object> = {
@@ -42,6 +21,7 @@ export function KifuCard({
   badges = [],
   metaParts,
   fav = false,
+  favCount = 0,
   onToggleFav,
   onPress,
   onLongPress,
@@ -52,6 +32,8 @@ export function KifuCard({
   /** バッジ以降のメタ（例: ["3分前","8局"]）。 */
   metaParts: string[];
   fav?: boolean;
+  /** お気に入り数（サーバー集計）。0 なら数字を出さない。 */
+  favCount?: number;
   /** 星の押下（お気に入りの追加/解除）。未指定なら星を出さない（偽トグルにしない）。 */
   onToggleFav?: () => void;
   onPress?: () => void;
@@ -80,7 +62,11 @@ export function KifuCard({
           ))}
         </View>
       </View>
-      {onToggleFav ? <StarButton on={fav} onPress={onToggleFav} /> : null}
+      {onToggleFav ? (
+        <View style={styles.star}>
+          <StarButton on={fav} count={favCount} onPress={onToggleFav} />
+        </View>
+      ) : null}
     </Pressable>
   );
 }
@@ -107,13 +93,5 @@ const styles = StyleSheet.create({
     backgroundColor: colors.w45,
     marginHorizontal: 6,
   },
-  star: {
-    position: "absolute",
-    top: 9,
-    right: 9,
-    width: 30,
-    height: 30,
-    alignItems: "center",
-    justifyContent: "center",
-  },
+  star: { position: "absolute", top: 9, right: 9 },
 });

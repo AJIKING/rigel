@@ -161,8 +161,10 @@ export const quizSessions = sqliteTable(
       .notNull()
       .references(() => users.id),
     /** クイズ種別（@rigel/schema の QuizKind。enum は型レベルのみ＝D1 は text なので
-     *  種目追加に migration は不要。score は [決定] 2026-07-26 追加）。 */
-    kind: text("kind", { enum: ["chinitsu", "efficiency", "score"] }).notNull(),
+     *  種目追加に migration は不要。score・chinitsuUkeire は [決定] 2026-07-26 追加）。 */
+    kind: text("kind", {
+      enum: ["chinitsu", "efficiency", "score", "chinitsuUkeire"],
+    }).notNull(),
     /** 開始日（JST 'YYYY-MM-DD'）。無料 1日3回・JST 0時回復のカウントキー。 */
     startedDay: text("started_day").notNull(),
     /** 出題数。null = 未完了（開始しただけ・途中離脱）。 */
@@ -180,6 +182,33 @@ export const quizSessions = sqliteTable(
     index("quiz_sessions_user_day_idx").on(t.userId, t.startedDay),
     // 本人の履歴（期間グラフ）用。
     index("quiz_sessions_user_created_idx").on(t.userId, t.createdAt),
+  ],
+);
+
+// お気に入り（★）。半荘（牌譜）と何切るの両方に付けられる。1人1対象1件（PK で保証）。
+// target_type + target_id のポリモーフィックな参照なので外部キーは張れない。対象が消えても
+// 行が残らないよう、半荘/問題の削除ユースケースと退会処理が明示的に消す（下記 repository）。
+// API が外に出すのは「件数」と「自分が付けたか」だけで、誰が付けたかは返さない
+// （problem_answers と同じプライバシー原則）。
+export const favorites = sqliteTable(
+  "favorites",
+  {
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id),
+    /** 対象の種別（game=半荘 / problem=何切る）。D1 は text なので種別追加に migration は不要。 */
+    targetType: text("target_type", { enum: ["game", "problem"] }).notNull(),
+    targetId: text("target_id").notNull(),
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
+      .notNull()
+      .$defaultFn(() => new Date()),
+  },
+  (t) => [
+    primaryKey({ columns: [t.userId, t.targetType, t.targetId] }),
+    // 一覧カードのお気に入り数の集計（対象ごと）用。
+    index("favorites_target_idx").on(t.targetType, t.targetId),
+    // 自分のお気に入り一覧（新しい順）用。
+    index("favorites_user_created_idx").on(t.userId, t.createdAt),
   ],
 );
 
@@ -204,3 +233,5 @@ export type ProblemAnswerRow = typeof problemAnswers.$inferSelect;
 export type NewProblemAnswerRow = typeof problemAnswers.$inferInsert;
 export type QuizSessionRow = typeof quizSessions.$inferSelect;
 export type NewQuizSessionRow = typeof quizSessions.$inferInsert;
+export type FavoriteRow = typeof favorites.$inferSelect;
+export type NewFavoriteRow = typeof favorites.$inferInsert;

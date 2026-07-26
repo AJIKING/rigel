@@ -11,6 +11,7 @@ import {
   jstShortDateTime,
   quizChartSeries,
   quizDailyStats,
+  quizRateLabel,
   quizRecentLine,
   quizStatsSummary,
   type QuizDayPoint,
@@ -216,8 +217,9 @@ describe("quizStatsSummary（サマリ: 回数・ベストスコア・平均正�
 });
 
 describe("quizChartSeries（折れ線/バー描画用の系列。web SVG と mobile が共用）", () => {
-  it("y 値は correctPerMinute（データ無し日は 0 で線を切らない）、max は最大値", () => {
-    const points = quizDailyStats(
+  /** 記録あり2日（7/22=12・7/24=6）の 7d 窓。 */
+  function twoDays() {
+    return quizDailyStats(
       [
         mk("2026-07-22T01:00:00.000Z", { correct: 12, durationMs: 60_000 }),
         mk("2026-07-24T01:00:00.000Z", { correct: 6, durationMs: 60_000 }),
@@ -225,30 +227,94 @@ describe("quizChartSeries（折れ線/バー描画用の系列。web SVG と mob
       "7d",
       NOW,
     );
+  }
+
+  it("記録の無い日は null（0 と区別する。0埋めすると『やらなかった日』が『成績0』に見える）", () => {
+    const series = quizChartSeries(twoDays());
+    expect(series.values).toEqual([null, null, null, null, 12, null, 6]);
+    expect(series.hasData).toBe(true);
+  });
+
+  it("line は記録のある点だけを index 昇順で結ぶ（欠損日を跨いで繋ぐ）", () => {
+    expect(quizChartSeries(twoDays()).line).toEqual([
+      { index: 4, value: 12 },
+      { index: 6, value: 6 },
+    ]);
+  });
+
+  it("max は切りの良い上限へ切り上げ、ticks は 0 から等間隔（軸で値が読める）", () => {
+    const series = quizChartSeries(twoDays());
+    expect(series.max).toBe(15);
+    expect(series.ticks).toEqual([
+      { value: 0, text: "0" },
+      { value: 5, text: "5" },
+      { value: 10, text: "10" },
+      { value: 15, text: "15" },
+    ]);
+  });
+
+  it("小数の刻みは 1 桁で表示する（0.5 刻み）", () => {
+    const points = quizDailyStats(
+      [mk("2026-07-24T01:00:00.000Z", { correct: 1, durationMs: 60_000 })],
+      "7d",
+      NOW,
+    );
     const series = quizChartSeries(points);
-    expect(series.values).toEqual([0, 0, 0, 0, 12, 0, 6]);
-    expect(series.max).toBe(12);
+    expect(series.ticks.map((t) => t.text)).toEqual(["0", "0.5", "1"]);
   });
 
-  it("全点 0 でも max は 1（0除算・全高バーを避ける）", () => {
+  it("記録が1件も無ければ hasData=false・line 空・max は 1（0除算回避）", () => {
     const series = quizChartSeries(quizDailyStats([], "7d", NOW));
-    expect(series.values).toEqual([0, 0, 0, 0, 0, 0, 0]);
+    expect(series.values).toEqual([null, null, null, null, null, null, null]);
+    expect(series.hasData).toBe(false);
+    expect(series.line).toEqual([]);
     expect(series.max).toBe(1);
+    expect(series.lastIndex).toBeNull();
   });
 
-  it("日付軸ラベルは 最初/中央/最後 の3個（M/D 表記）", () => {
+  it("lastIndex は最新の記録がある点（終端マーカーと値ラベルの位置）", () => {
+    expect(quizChartSeries(twoDays()).lastIndex).toBe(6);
+  });
+
+  it("日付軸ラベルは 最初/中央/最後 の3個（M/D 表記）。dayLabels は全点ぶん（ツールチップ用）", () => {
     const series = quizChartSeries(quizDailyStats([], "7d", NOW));
     expect(series.labels).toEqual([
       { index: 0, text: "7/18" },
       { index: 3, text: "7/21" },
       { index: 6, text: "7/24" },
     ]);
+    expect(series.dayLabels).toEqual(["7/18", "7/19", "7/20", "7/21", "7/22", "7/23", "7/24"]);
   });
 
-  it("点が1つならラベルは1個に重複除去する。空なら空", () => {
+  it("点が1つならラベルは1個に重複除去する。空なら空の系列", () => {
     const one = quizChartSeries(quizDailyStats([mk("2026-07-24T01:00:00.000Z")], "all", NOW));
     expect(one.labels).toEqual([{ index: 0, text: "7/24" }]);
-    expect(quizChartSeries([])).toEqual({ values: [], max: 1, labels: [] });
+    expect(quizChartSeries([])).toEqual({
+      values: [],
+      line: [],
+      max: 1,
+      ticks: [
+        { value: 0, text: "0" },
+        { value: 1, text: "1" },
+      ],
+      labels: [],
+      dayLabels: [],
+      lastIndex: null,
+      hasData: false,
+    });
+  });
+});
+
+describe("quizRateLabel（1分あたり正解数の表示。グラフの値ラベル/ツールチップで共用）", () => {
+  it("小数1桁に丸め、整数は小数点を出さない", () => {
+    expect(quizRateLabel(12)).toBe("12");
+    expect(quizRateLabel(12.34)).toBe("12.3");
+    expect(quizRateLabel(12.35)).toBe("12.4");
+  });
+
+  it("記録なし（null）は '—'（0 と区別する）", () => {
+    expect(quizRateLabel(null)).toBe("—");
+    expect(quizRateLabel(0)).toBe("0");
   });
 });
 
@@ -346,6 +412,7 @@ describe("マイページ「特訓」の共有定義（履歴上限・期間・�
       { key: "chinitsu", label: "清一色" },
       { key: "efficiency", label: "牌効率" },
       { key: "score", label: "点数計算" },
+      { key: "chinitsuUkeire", label: "清一色何切る" },
     ]);
     // 種目が増えたらチップも増やす（正式名 QUIZ_KIND_LABELS との網羅整合）。
     expect(QUIZ_KIND_FILTERS.map((k) => k.key)).toEqual(["all", ...Object.keys(QUIZ_KIND_LABELS)]);

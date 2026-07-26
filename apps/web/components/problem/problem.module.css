@@ -421,12 +421,12 @@
 /* ---- マイ何切るの注意文言（一覧本体は牌譜一覧の kifu-list/game-card を共用） ---- */
 .limitNote {
   font-size: 12.5px;
-  color: var(--vermilion, #d64545);
+  color: var(--danger);
   margin: 0 0 12px;
 }
 .err {
   font-size: 12.5px;
-  color: var(--vermilion, #d64545);
+  color: var(--danger);
   margin: 0 0 12px;
 }
 /* ---- 作成/編集画面 ---- */

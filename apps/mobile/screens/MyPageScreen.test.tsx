@@ -22,6 +22,8 @@ const myGames: MyGameCard[] = [
     kyokuCount: 4,
     publicCount: 0,
     draftCount: 0,
+    favoriteCount: 0,
+    viewerFaved: false,
   },
 ];
 jest.mock("../lib/use-kifu-data", () => ({

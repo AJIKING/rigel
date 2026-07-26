@@ -16,6 +16,7 @@ import { rateLimit } from "./rate-limit";
 import type { Env } from "../../env";
 import { registerAccountRoutes } from "./routes/account.routes";
 import { registerBillingRoutes } from "./routes/billing.routes";
+import { registerFavoriteRoutes } from "./routes/favorites.routes";
 import { registerGameRoutes } from "./routes/games.routes";
 import { registerKifuRoutes } from "./routes/kifu.routes";
 import { registerProblemRoutes } from "./routes/problems.routes";
@@ -101,6 +102,7 @@ export function createApp(options: CreateAppOptions = {}): Hono<AppEnv> {
   registerKifuRoutes(app);
   registerProblemRoutes(app);
   registerQuizRoutes(app);
+  registerFavoriteRoutes(app);
   registerBillingRoutes(app);
 
   return app;

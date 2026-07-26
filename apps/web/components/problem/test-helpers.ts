@@ -29,6 +29,8 @@ export function makeDiscardPost(overrides: Partial<ProblemPost> = {}): ProblemPo
     title: "何を切る？",
     status: "published",
     createdAt: "2026-07-07T00:00:00.000Z",
+    favoriteCount: 0,
+    viewerFaved: false,
     problem: ProblemSchema.parse({
       schemaVersion: PROBLEM_SCHEMA_VERSION,
       kind: "discard",

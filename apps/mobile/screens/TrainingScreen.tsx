@@ -12,6 +12,7 @@ import {
   scoreYakuLine,
   sessionResult,
   tileLabel,
+  chinitsuUkeireCandidates,
   ukeireReviewModel,
   QUIZ_CARD_MOTIF,
   QUIZ_FEEDBACK_MS,
@@ -396,8 +397,17 @@ export function TrainingScreen({
                               ))}
                             </View>
                           </View>
-                          {q.kind === "efficiency" ? (
-                            <UkeireDetail no={i + 1} tiles={q.tiles} picked={r.picked[0] ?? null} />
+                          {q.kind === "efficiency" || q.kind === "chinitsuUkeire" ? (
+                            <UkeireDetail
+                              no={i + 1}
+                              tiles={q.tiles}
+                              picked={r.picked[0] ?? null}
+                              candidates={
+                                q.kind === "chinitsuUkeire"
+                                  ? chinitsuUkeireCandidates(q.suit)
+                                  : undefined
+                              }
+                            />
                           ) : null}
                         </>
                       )}
@@ -560,12 +570,18 @@ function UkeireDetail({
   no,
   tiles,
   picked,
+  candidates,
 }: {
   no: number;
   tiles: readonly Tile[];
   picked: Tile | null;
+  /** 受け入れとして数える牌種。出題時と同じものを渡す（清一色 何切るは同色9種）。 */
+  candidates?: readonly Tile[];
 }) {
-  const model = useMemo(() => ukeireReviewModel(tiles, picked), [tiles, picked]);
+  const model = useMemo(
+    () => ukeireReviewModel(tiles, picked, candidates),
+    [tiles, picked, candidates],
+  );
   const { mine, regressed, best } = model;
   return (
     <View style={styles.ukeireDetail}>
@@ -738,7 +754,7 @@ function QuestionPanel({
 
   return (
     <View style={styles.panel}>
-      <Text style={styles.question}>{QUIZ_KIND_PROMPTS.efficiency}</Text>
+      <Text style={styles.question}>{QUIZ_KIND_PROMPTS[question.kind]}</Text>
       {/* 牌は白地カードに載せず暗い背景へ直接・中央揃え（[決定] 2026-07-25 オーナーレビュー）。 */}
       <View style={styles.hand}>
         {question.tiles.map((t, i) => (
@@ -820,7 +836,7 @@ const styles = StyleSheet.create({
   fanR: { transform: [{ rotate: "12deg" }, { translateY: 2 }] },
   cardTitle: { color: colors.white, fontSize: 17, fontWeight: "800", letterSpacing: 0.3 },
   cardDesc: { color: colors.w70, fontSize: 12, lineHeight: 19 },
-  error: { color: colors.vermilion, fontSize: 13 },
+  error: { color: colors.danger, fontSize: 13 },
   upgrade: {
     alignSelf: "flex-start",
     backgroundColor: colors.accent,
@@ -1095,7 +1111,7 @@ const styles = StyleSheet.create({
     fontWeight: "800",
     overflow: "hidden",
   },
-  sendError: { color: colors.vermilion, fontSize: 12 },
+  sendError: { color: colors.danger, fontSize: 12 },
   // 結果画面の操作: 主=もう一度挑戦（accent）／副=問題選択にもどる（線ボタン。
   // ProblemAnswerScreen の redoBtn と同じ「明るい線＋薄い面」の既存フォーム）。
   // 横並びで中央寄せ（[決定] 2026-07-25 オーナーレビュー・web と同構成）

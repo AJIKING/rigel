@@ -26,14 +26,19 @@ body {
   --white: #f5f6f7;
   --w85: rgba(245, 246, 247, 0.86);
   --w70: rgba(245, 246, 247, 0.66);
-  --w45: rgba(245, 246, 247, 0.42);
+  /* 二次テキスト。0.42 は #0f1115 上で 3.35:1（AA 未達）だったので引き上げた
+     （[決定] 2026-07-26。0.55 で 5.8:1）。 */
+  --w45: rgba(245, 246, 247, 0.55);
   --em: #0c7a57;
   --em-deep: #0a5f44;
   --em-light: #3ec487;
   --accent: #ff9e45;
   --accent-2: #ff7d33;
   --orange: #ff9e45;
+  /* 赤は用途で分ける: --vermilion=塗り/枠（バッジ・削除ボタン）、
+     --danger=ダーク面のエラー文字（4.8:1 の vermilion では本文として弱いので明るい側）。 */
   --vermilion: #e24b3a;
+  --danger: #ffb4a8;
   --bone: #f5eee0;
   --round: "M PLUS Rounded 1c", "Noto Sans JP", sans-serif;
   --r: 6px;
@@ -60,6 +65,7 @@ body {
   --pin: #2f6fb0;
   --sou: #2f7d4f;
   --vermilion: #e24b3a;
+  --danger: #ffb4a8;
   --accent: #ff9e45;
   --orange: #ff9e45;
   --round: "Noto Sans JP", system-ui, sans-serif;

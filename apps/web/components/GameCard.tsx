@@ -14,13 +14,15 @@ export function Thumb() {
   );
 }
 
-function FavButton({ on, onToggle }: { on: boolean; onToggle: () => void }) {
+/** お気に入りボタン。件数は 1 以上のときだけ添える（0 を並べても情報にならない）。
+ *  件数はサーバー保存の集計値で、「お気に入りが多い順」の並べ替えの根拠でもある。 */
+function FavButton({ on, count, onToggle }: { on: boolean; count: number; onToggle: () => void }) {
   return (
     <button
       type="button"
       className={`${s.fav} ${on ? s.on : ""}`}
       aria-pressed={on}
-      aria-label="お気に入り"
+      aria-label={count > 0 ? `お気に入り（${count}件）` : "お気に入り"}
       onClick={(e) => {
         e.stopPropagation();
         onToggle();
@@ -29,6 +31,7 @@ function FavButton({ on, onToggle }: { on: boolean; onToggle: () => void }) {
       <svg viewBox="0 0 24 24">
         <path d="M12 2.6l2.85 6.02 6.6.62-4.97 4.4 1.46 6.46L12 17.7 6.06 20.7l1.46-6.46-4.97-4.4 6.6-.62z" />
       </svg>
+      {count > 0 && <span className={s.favn}>{count}</span>}
     </button>
   );
 }
@@ -43,6 +46,7 @@ export function GameCard({
   badge,
   meta,
   faved,
+  favCount = 0,
   onToggleFav,
   onOpen,
   actions,
@@ -52,6 +56,8 @@ export function GameCard({
   badge?: ReactNode;
   meta: ReactNode;
   faved: boolean;
+  /** お気に入り数（サーバー集計）。0 なら数字を出さない。 */
+  favCount?: number;
   onToggleFav: () => void;
   onOpen: () => void;
   actions?: ReactNode;
@@ -73,7 +79,7 @@ export function GameCard({
         }
       }}
     >
-      <FavButton on={faved} onToggle={onToggleFav} />
+      <FavButton on={faved} count={favCount} onToggle={onToggleFav} />
       {thumb ?? <Thumb />}
       <div className={s.ctop}>
         <h3 className={s.ctitle}>{title}</h3>

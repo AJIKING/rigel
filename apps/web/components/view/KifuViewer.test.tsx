@@ -35,6 +35,8 @@ function detail(logs: Kifu[], visibility: "public" | "private" = "public"): Publ
   return {
     game: { id: "g1", title: "公開テスト卓", createdAt: "2026-06-28T00:00:00.000Z" },
     owner: { id: "u1", handle: "taro", displayName: "太郎" },
+    favoriteCount: 0,
+    viewerFaved: false,
     logs: logs.map((k, i) => ({
       id: `l${i + 1}`,
       userId: "u1",

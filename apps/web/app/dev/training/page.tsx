@@ -43,7 +43,9 @@ function DevTrainingInner() {
   const phase = params.get("phase") ?? "select";
   const kindParam = params.get("kind");
   const kind: QuizKind =
-    kindParam === "efficiency" || kindParam === "score" ? kindParam : "chinitsu";
+    kindParam === "efficiency" || kindParam === "score" || kindParam === "chinitsuUkeire"
+      ? kindParam
+      : "chinitsu";
   const seedParam = Number(params.get("seed"));
   const seed = Number.isFinite(seedParam) && seedParam > 0 ? seedParam : 1;
   const secondsParam = Number(params.get("seconds"));
@@ -91,6 +93,7 @@ function DevTrainingInner() {
         {link("?phase=running&kind=chinitsu&seed=1", "清一色")}
         {link("?phase=running&kind=efficiency&seed=1", "牌効率")}
         {link("?phase=running&kind=score&seed=1", "点数計算")}
+        {link("?phase=running&kind=chinitsuUkeire&seed=1", "清一色何切る")}
         {link("?phase=running&kind=efficiency&seed=1&seconds=5", "5秒→結果")}
         {link("?phase=result&kind=efficiency&seed=1", "結果(空)")}
       </div>

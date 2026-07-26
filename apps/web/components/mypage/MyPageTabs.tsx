@@ -3,32 +3,30 @@
 import Link from "next/link";
 import s from "../list/kifu-list.module.css";
 
-/** マイページのタブ（牌譜 / 何切る / 特訓）。/mypage・/mypage/problems・/mypage/training を切り替える。 */
-export function MyPageTabs({ active }: { active: "kifu" | "problems" | "training" }) {
+/** マイページのタブ。「お気に入り」は牌譜・何切るをまたいだ自分の★（[決定] 2026-07-26）。 */
+const TABS = [
+  { key: "kifu", href: "/mypage", label: "牌譜" },
+  { key: "problems", href: "/mypage/problems", label: "何切る" },
+  { key: "favorites", href: "/mypage/favorites", label: "お気に入り" },
+  { key: "training", href: "/mypage/training", label: "特訓" },
+] as const;
+
+export type MyPageTabKey = (typeof TABS)[number]["key"];
+
+export function MyPageTabs({ active }: { active: MyPageTabKey }) {
   return (
     <nav className={s.mypageTabs} aria-label="マイページの切替">
       {/* 現在地は色（s.on）に加えて aria-current="page" で支援技術にも伝える。 */}
-      <Link
-        href="/mypage"
-        className={active === "kifu" ? s.on : ""}
-        aria-current={active === "kifu" ? "page" : undefined}
-      >
-        牌譜
-      </Link>
-      <Link
-        href="/mypage/problems"
-        className={active === "problems" ? s.on : ""}
-        aria-current={active === "problems" ? "page" : undefined}
-      >
-        何切る
-      </Link>
-      <Link
-        href="/mypage/training"
-        className={active === "training" ? s.on : ""}
-        aria-current={active === "training" ? "page" : undefined}
-      >
-        特訓
-      </Link>
+      {TABS.map((tab) => (
+        <Link
+          key={tab.key}
+          href={tab.href}
+          className={active === tab.key ? s.on : ""}
+          aria-current={active === tab.key ? "page" : undefined}
+        >
+          {tab.label}
+        </Link>
+      ))}
     </nav>
   );
 }

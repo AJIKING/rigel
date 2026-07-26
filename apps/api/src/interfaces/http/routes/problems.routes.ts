@@ -7,7 +7,7 @@ import { SeatSchema } from "@rigel/schema";
 import type { Hono } from "hono";
 import type { AnalysisInput } from "../../../domain/kifu/analyzer";
 import { asFile, isValidImageFile, toImageRef, MAX_IMAGE_COUNT } from "../limits";
-import { reasonStatus, requireAuth, type AppEnv } from "../shared";
+import { reasonStatus, requireAuth, withFavorites, type AppEnv } from "../shared";
 
 /** body から status を安全に取り出す（不正値は undefined）。 */
 function parseStatus(v: unknown): "draft" | "published" | undefined {
@@ -57,15 +57,16 @@ export function registerProblemRoutes(app: Hono<AppEnv>): void {
   });
 
   // 公開一覧（published のみ・新着順。閲覧は自由）。
+  // カードにはお気に入り数（人気順の並べ替えに使う）と自分が付けたかを載せる。
   app.get("/problems", async (c) => {
     const posts = await c.get("container").listPublishedProblems.execute();
-    return c.json(posts);
+    return c.json(await withFavorites(c, "problem", posts));
   });
 
   // 自分の一覧（draft 含む）。
   app.get("/problems/mine", requireAuth, async (c) => {
     const posts = await c.get("container").listMyProblems.execute(c.get("userId")!);
-    return c.json(posts);
+    return c.json(await withFavorites(c, "problem", posts));
   });
 
   // 詳細。published は誰でも・draft は所有者のみ（他人には存在を伏せて 404）。
@@ -73,7 +74,8 @@ export function registerProblemRoutes(app: Hono<AppEnv>): void {
   app.get("/problems/:id", async (c) => {
     const post = await c.get("container").getProblem.execute(c.req.param("id"), c.get("userId"));
     if (!post) return c.json({ error: "not found" }, 404);
-    return c.json(post);
+    const [withFav] = await withFavorites(c, "problem", [post]);
+    return c.json(withFav);
   });
 
   // 作成。free は合算20問で 403（problem_limit）。

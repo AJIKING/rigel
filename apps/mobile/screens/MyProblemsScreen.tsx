@@ -1,11 +1,13 @@
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import { LIMIT_MESSAGES, PROBLEM_LIMIT } from "@rigel/ui";
-import { useEffect, useState } from "react";
+import { LIMIT_MESSAGES, PROBLEM_LIMIT, sortMyList, type MyListSortKey } from "@rigel/ui";
+import { useEffect, useMemo, useState } from "react";
 import { FlatList, Pressable, StyleSheet, Text, View } from "react-native";
 import { CenterState } from "../components/CenterState";
 import { Chip } from "../components/Chip";
 import { DangerButton } from "../components/DangerButton";
+import { MyListToolbar } from "../components/MyListToolbar";
+import { StarButton } from "../components/StarButton";
 import { deleteProblem, getMyProblems, updateProblem, type ProblemPost } from "../lib/api";
 import { useAuth } from "../lib/auth";
 import { confirmDestructive } from "../lib/confirm";
@@ -13,6 +15,7 @@ import { relativeTime } from "../lib/format";
 import type { RootStackParamList } from "../lib/navigation";
 import { KIND_LABELS } from "../lib/problems";
 import { colors, radius } from "../lib/theme";
+import { useFavorites } from "../lib/use-favorites";
 
 type Nav = NativeStackNavigationProp<RootStackParamList, "Home">;
 
@@ -27,6 +30,15 @@ export function MyProblemsScreen() {
   const [loading, setLoading] = useState(true);
   const [posts, setPosts] = useState<ProblemPost[]>([]);
   const [err, setErr] = useState<string | null>(null);
+  // お気に入りはサーバー保存。並べ替え・絞り込みは牌譜セグメントと同じ形（web と対）。
+  const { apply, toggle: toggleFav, error: favError } = useFavorites();
+  const [sort, setSort] = useState<MyListSortKey>("new");
+  const [favOnly, setFavOnly] = useState(false);
+
+  const shown = useMemo(() => {
+    const resolved = apply(posts);
+    return sortMyList(favOnly ? resolved.filter((p) => p.viewerFaved) : resolved, sort);
+  }, [posts, apply, favOnly, sort]);
 
   useEffect(() => {
     if (!token) return;
@@ -102,16 +114,24 @@ export function MyProblemsScreen() {
           <Text style={styles.newBtnText}>＋ 新規</Text>
         </Pressable>
       </View>
+      <MyListToolbar sort={sort} onSort={setSort} favOnly={favOnly} onFavOnly={setFavOnly} />
       {atLimit ? <Text style={styles.limitNote}>{LIMIT_MESSAGES.problems}</Text> : null}
       {err ? <Text style={styles.err}>{err}</Text> : null}
+      {favError ? <Text style={styles.err}>{favError}</Text> : null}
 
       {loading ? (
         <CenterState loading />
-      ) : posts.length === 0 ? (
-        <CenterState message="まだ問題がありません。「＋ 新規」から作成できます。" />
+      ) : shown.length === 0 ? (
+        <CenterState
+          message={
+            favOnly
+              ? "お気に入りした問題はまだありません。"
+              : "まだ問題がありません。「＋ 新規」から作成できます。"
+          }
+        />
       ) : (
         <FlatList
-          data={posts}
+          data={shown}
           keyExtractor={(p) => p.id}
           contentContainerStyle={styles.feed}
           renderItem={({ item }) => (
@@ -129,6 +149,13 @@ export function MyProblemsScreen() {
                   <Text style={styles.meta}>{relativeTime(item.createdAt)}</Text>
                 </View>
               </Pressable>
+              <View style={styles.star}>
+                <StarButton
+                  on={item.viewerFaved}
+                  count={item.favoriteCount}
+                  onPress={() => toggleFav("problem", item)}
+                />
+              </View>
               <View style={styles.acts}>
                 <Chip
                   label={item.status === "draft" ? "公開する" : "下書きに戻す"}
@@ -170,8 +197,8 @@ const styles = StyleSheet.create({
   },
   newBtnOff: { opacity: 0.4 },
   newBtnText: { color: "#16181d", fontWeight: "800", fontSize: 13 },
-  limitNote: { color: colors.vermilion, fontSize: 12, paddingHorizontal: 16, paddingBottom: 4 },
-  err: { color: colors.vermilion, fontSize: 12, paddingHorizontal: 16, paddingBottom: 4 },
+  limitNote: { color: colors.danger, fontSize: 12, paddingHorizontal: 16, paddingBottom: 4 },
+  err: { color: colors.danger, fontSize: 12, paddingHorizontal: 16, paddingBottom: 4 },
   feed: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 20, gap: 10 },
   card: {
     padding: 12,
@@ -188,4 +215,5 @@ const styles = StyleSheet.create({
   badgePub: { color: colors.accent, fontSize: 11.5, fontWeight: "700" },
   meta: { color: colors.w45, fontSize: 11.5 },
   acts: { flexDirection: "row", alignItems: "center", gap: 8 },
+  star: { position: "absolute", top: 8, right: 8 },
 });

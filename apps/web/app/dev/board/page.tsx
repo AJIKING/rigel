@@ -76,6 +76,8 @@ function fullKifu(): Kifu {
 const DETAIL: PublicGameDetail = {
   game: { id: "dev", title: "レイアウト検証（満河）", createdAt: "2026-06-28T00:00:00.000Z" },
   owner: { id: "dev", handle: "dev", displayName: "dev" },
+  favoriteCount: 0,
+  viewerFaved: false,
   logs: [
     {
       id: "dev-log",

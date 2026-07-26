@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { ProblemPost } from "../domain/problem/problem";
 import { firstOfNextMonthUtc, User, type Plan } from "../domain/user/user";
 import {
+  InMemoryFavoriteRepository,
   InMemoryProblemAnswerRepository,
   InMemoryProblemRepository,
   InMemoryUserRepository,
@@ -46,9 +47,10 @@ function post(
 function deps(plan: Plan = "free") {
   const problems = new InMemoryProblemRepository();
   const answers = new InMemoryProblemAnswerRepository();
+  const favorites = new InMemoryFavoriteRepository();
   const users = new InMemoryUserRepository([user(plan)]);
   let n = 0;
-  return { problems, answers, users, now: () => NOW, newId: () => `p${++n}` };
+  return { problems, answers, favorites, users, now: () => NOW, newId: () => `p${++n}` };
 }
 
 describe("CreateProblem", () => {
@@ -157,9 +159,10 @@ describe("UpdateProblem", () => {
 });
 
 describe("DeleteProblem", () => {
-  it("所有者は削除でき、ぶら下がる回答も消える", async () => {
+  it("所有者は削除でき、ぶら下がる回答も他人が付けた★も消える（孤児を残さない）", async () => {
     const d = deps();
     await d.problems.save(post("p1", "u1"));
+    await d.problems.save(post("p2", "u1"));
     await d.answers.upsert({
       problemId: "p1",
       userId: "u2",
@@ -167,20 +170,35 @@ describe("DeleteProblem", () => {
       action: { type: "pass" },
       createdAt: NOW,
     });
-    const result = await new DeleteProblem(d.problems, d.answers).execute({
+    await d.favorites.add({
+      userId: "u2",
+      targetType: "problem",
+      targetId: "p1",
+      createdAt: NOW,
+    });
+    await d.favorites.add({
+      userId: "u2",
+      targetType: "problem",
+      targetId: "p2",
+      createdAt: NOW,
+    });
+
+    const result = await new DeleteProblem(d.problems, d.answers, d.favorites).execute({
       userId: "u1",
       problemId: "p1",
     });
     expect(result).toEqual({ ok: true });
     expect(await d.problems.findById("p1")).toBeNull();
     expect(await d.answers.countsByProblem("p1")).toEqual({});
+    // 消したのは p1 の★だけ（残りの問題の★は無傷）。
+    expect(await d.favorites.countsByTargets("problem", ["p1", "p2"])).toEqual({ p2: 1 });
   });
 
   it("他人の問題は not_found", async () => {
     const d = deps();
     await d.problems.save(post("p1", "owner"));
     expect(
-      await new DeleteProblem(d.problems, d.answers).execute({
+      await new DeleteProblem(d.problems, d.answers, d.favorites).execute({
         userId: "attacker",
         problemId: "p1",
       }),

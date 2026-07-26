@@ -252,7 +252,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.chrome,
   },
   handLabel: { color: colors.w70 },
-  error: { color: colors.vermilion, fontSize: 14 },
+  error: { color: colors.danger, fontSize: 14 },
   submit: {
     backgroundColor: colors.accent,
     borderRadius: 8,

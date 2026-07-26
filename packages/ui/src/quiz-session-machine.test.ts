@@ -5,6 +5,7 @@ import {
   generateChinitsuQuestion,
   generateEfficiencyQuestion,
   type ChinitsuQuestion,
+  type ChinitsuUkeireQuestion,
   type EfficiencyQuestion,
 } from "./quiz";
 import { generateScoreQuestion, type ScoreQuestion } from "./quiz-score-question";
@@ -385,5 +386,34 @@ describe("defaultQuizQuestion: 種目→生成器の配線", () => {
     const viaDefault = defaultQuizQuestion(kind, createQuizRng(123));
     expect(viaDefault.kind).toBe(kind);
     expect(viaDefault).toEqual(direct(createQuizRng(123)));
+  });
+});
+
+describe("清一色 何切る（DISCARD を牌効率と同じ経路で採点する）", () => {
+  // 1112244557788m: 順子が作れない6種・6対子＋1枚。9m を足した14枚から1枚切る。
+  const CHINITSU_UKEIRE_Q1: ChinitsuUkeireQuestion = {
+    kind: "chinitsuUkeire",
+    // prettier-ignore
+    tiles: ["1m", "1m", "1m", "2m", "2m", "4m", "4m", "5m", "5m", "7m", "7m", "8m", "8m", "9m"],
+    suit: "m",
+    shanten: 1,
+    answer: ["1m"],
+  };
+
+  it.each([
+    { name: "正解打牌（answer に含まれる）", tile: "1m" as Tile, ok: true },
+    { name: "不正解打牌", tile: "9m" as Tile, ok: false },
+  ])("DISCARD: $name → correct=$ok", ({ tile, ok }) => {
+    const { state: started, ctx } = startRunning("chinitsuUkeire", [CHINITSU_UKEIRE_Q1]);
+    let s = started;
+    s = quizSessionReducer(s, { type: "DISCARD", tile }, ctx);
+    expect(s.total).toBe(1);
+    expect(s.correct).toBe(ok ? 1 : 0);
+    expect(s.records[0]!.picked).toEqual([tile]);
+  });
+
+  it("defaultQuizQuestion は清一色 何切るを生成する（種目→生成器の配線）", () => {
+    const q = defaultQuizQuestion("chinitsuUkeire", createQuizRng(20260726));
+    expect(q.kind).toBe("chinitsuUkeire");
   });
 });

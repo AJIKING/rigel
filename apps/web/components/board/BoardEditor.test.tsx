@@ -38,6 +38,8 @@ function kifu(): Kifu {
 function detail(logs: { id: string }[]): GameDetail {
   return {
     game: { id: "g1", userId: "u1", title: "テスト卓", createdAt: "2026-06-28T00:00:00.000Z" },
+    favoriteCount: 0,
+    viewerFaved: false,
     logs: logs.map((l, i) => ({
       id: l.id,
       userId: "u1",

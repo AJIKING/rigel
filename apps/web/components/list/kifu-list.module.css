@@ -154,6 +154,51 @@
   pointer-events: none;
 }
 
+/* 「お気に入りのみ」トグル（状態セレクトと掛け合わせられる独立ボタン）。
+   押下中はアクセント色の枠と★の塗りで、セレクトの選択とは別の軸だと分かるようにする。 */
+.favbtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--chrome-2);
+  border: 1px solid var(--line);
+  color: var(--w70);
+  font-family: var(--round);
+  font-weight: 700;
+  font-size: 12px;
+  padding: 7px 12px;
+  border-radius: var(--r-sm);
+  cursor: pointer;
+  transition:
+    background 0.15s var(--ease),
+    color 0.15s var(--ease),
+    border-color 0.15s var(--ease);
+}
+.favbtn svg {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linejoin: round;
+}
+.favbtn:hover {
+  color: #fff;
+}
+.favbtn[aria-pressed="true"] {
+  color: var(--accent);
+  border-color: rgba(255, 158, 69, 0.55);
+}
+.favbtn[aria-pressed="true"] svg {
+  fill: var(--accent);
+  stroke: var(--accent);
+}
+
+/* お気に入りの更新に失敗したときの控えめな注意（操作はロールバック済み）。 */
+.favError {
+  margin: 0 4px 10px;
+  color: var(--danger);
+  font-size: 12.5px;
+}
+
 .loginNote {
   color: var(--w70);
   font-size: 13px;

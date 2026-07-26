@@ -1,3 +1,4 @@
+import { LIST_LOAD_ERROR_MESSAGE } from "@rigel/ui";
 import { useCallback, useEffect, useState } from "react";
 import {
   getGame,
@@ -8,7 +9,7 @@ import {
   type PublicGameCard,
 } from "./api";
 import { useAuth } from "./auth";
-import { sampleGameDetail, sampleMyGames, samplePublicGames } from "./sample-data";
+import { sampleGameDetail, sampleMyGames } from "./sample-data";
 
 interface ResourceState<T> {
   loading: boolean;
@@ -52,7 +53,7 @@ function useAuthedData<T>(
             loading: false,
             data: fallback.empty,
             sample: false,
-            error: "取得に失敗しました",
+            error: LIST_LOAD_ERROR_MESSAGE,
           });
         }
       });
@@ -79,12 +80,18 @@ export function useMyGames() {
   };
 }
 
-/** 公開牌譜フィード（認証不要・全ユーザーの公開半荘）。失敗時はサンプルを表示。 */
+/**
+ * 公開牌譜フィード（認証不要・全ユーザーの公開半荘）。
+ * **通信失敗時にサンプルを出さない**（[決定] 2026-07-26）: 架空の牌譜を本物の一覧として
+ * 見せると、利用者は「まだ誰も投稿していない」と受け取り、失敗に気づけないし、
+ * 開いても存在しない半荘に飛ぶ。失敗は失敗として伝える。
+ */
 export function usePublicGames() {
   const [state, setState] = useState<{
     loading: boolean;
     games: PublicGameCard[];
     sample: boolean;
+    error?: string;
   }>({ loading: true, games: [], sample: false });
 
   useEffect(() => {
@@ -94,7 +101,9 @@ export function usePublicGames() {
         if (active) setState({ loading: false, games, sample: false });
       })
       .catch(() => {
-        if (active) setState({ loading: false, games: samplePublicGames, sample: true });
+        if (active) {
+          setState({ loading: false, games: [], sample: false, error: LIST_LOAD_ERROR_MESSAGE });
+        }
       });
     return () => {
       active = false;

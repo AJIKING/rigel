@@ -1,5 +1,11 @@
 import type { QuizKind } from "@rigel/schema";
-import type { ChinitsuQuestion, EfficiencyQuestion, QuizQuestion, ScoreQuestion } from "@rigel/ui";
+import type {
+  ChinitsuQuestion,
+  ChinitsuUkeireQuestion,
+  EfficiencyQuestion,
+  QuizQuestion,
+  ScoreQuestion,
+} from "@rigel/ui";
 import { act, fireEvent, render, screen, within } from "@testing-library/react-native";
 import { MiniTile } from "../components/MiniTile";
 import { TrainingScreen } from "./TrainingScreen";
@@ -95,15 +101,32 @@ const SCORE_QS: readonly ScoreQuestion[] = [
     answer: "11600点",
   },
 ];
+// 清一色 何切る: 1112244557788m（順子が作れない6種・6対子）＋9m の14枚。1向聴で 1m 切りが正解。
+const CHINITSU_UKEIRE_QS: readonly ChinitsuUkeireQuestion[] = [
+  {
+    kind: "chinitsuUkeire",
+    // prettier-ignore
+    tiles: ["1m", "1m", "1m", "2m", "2m", "4m", "4m", "5m", "5m", "7m", "7m", "8m", "8m", "9m"],
+    suit: "m",
+    shanten: 1,
+    answer: ["1m"],
+  },
+];
 const FIXTURES: Record<QuizKind, readonly QuizQuestion[]> = {
   chinitsu: CHINITSU_QS,
   efficiency: EFFICIENCY_QS,
   score: SCORE_QS,
+  chinitsuUkeire: CHINITSU_UKEIRE_QS,
 };
 
 /** 種目ごとにフィクスチャを順番に出す generateQuestion（尽きたら循環。rng は使わない）。 */
 function fixtureGenerate(): (kind: QuizKind) => QuizQuestion {
-  const used: Record<QuizKind, number> = { chinitsu: 0, efficiency: 0, score: 0 };
+  const used: Record<QuizKind, number> = {
+    chinitsu: 0,
+    efficiency: 0,
+    score: 0,
+    chinitsuUkeire: 0,
+  };
   return (kind) => FIXTURES[kind][used[kind]++ % FIXTURES[kind].length]!;
 }
 
@@ -935,5 +958,28 @@ describe("TrainingScreen: 結果画面の見直しリスト", () => {
     expect(screen.getByText("結果")).toBeTruthy();
     expect(screen.queryByText("見直し")).toBeNull();
     expect(screen.queryByTestId("review-row-1")).toBeNull();
+  });
+});
+
+describe("TrainingScreen: 清一色 何切る（牌タップ=切る・広さ最大）", () => {
+  it("指示文は種目のもので、正解打牌で正解カウントが増える", async () => {
+    render(<TrainingScreen generateQuestion={fixtureGenerate()} />);
+    await startViaDialog(/清一色 何切る/);
+
+    expect(screen.getByText("一番広くなる牌を切る")).toBeTruthy();
+    expect(screen.queryByText("受け入れ最大の牌を切る")).toBeNull();
+
+    fireEvent.press(screen.getAllByLabelText("1萬")[0]!);
+    expect(screen.getByText("正解 1 / 1問")).toBeTruthy();
+  });
+
+  it("見直し行に受け入れ詳細が出る（同色だけで広さを測る）", async () => {
+    render(<TrainingScreen generateQuestion={fixtureGenerate()} />);
+    await startViaDialog(/清一色 何切る/);
+    fireEvent.press(screen.getAllByLabelText("1萬")[0]!);
+    await advance(500);
+    await advance(59_500);
+
+    expect(screen.getByTestId("review-ukeire-mine-1")).toBeTruthy();
   });
 });

@@ -57,6 +57,7 @@ export * from "./quiz-score-question";
 // 特訓クイズのセッション状態機械（60秒タイムアタックの全遷移。web/mobile の画面が共有）。
 export * from "./quiz-session-machine";
 // 特訓クイズの履歴グラフ整形（マイページ「特訓」の日毎集計・サマリ・系列）。
+export * from "./favorites";
 export * from "./quiz-stats";
 // 局跨ぎの点棒集計（持ち点・成績）。
 export * from "./standings";
@@ -311,13 +312,28 @@ export function planMonthlyPriceAppStore(plan: Plan): number {
 }
 
 // ------------------------------------------------------------
-// 公開フィードの絞り込み（web/mobile 共通。選択肢と意味をここで一元定義する）
+// 一覧の絞り込み・並べ替え（web/mobile 共通。選択肢と意味をここで一元定義する）
 // ------------------------------------------------------------
-export type FeedFilterKey = "new" | "week" | "fav";
 
-/** 公開牌譜フィードの絞り込み選択肢（キー＋表示ラベル）。 */
+/**
+ * 一覧カードのうち、絞り込み・並べ替えが必要とする最小の形。
+ * お気に入りは **サーバー保存**（[決定] 2026-07-26）なので、件数と自分の状態はカードが持つ。
+ */
+export interface FeedCard {
+  id: string;
+  createdAt: string;
+  /** お気に入り数（人気順の並べ替えに使う）。 */
+  favoriteCount: number;
+  /** 見ている人が付けているか。 */
+  viewerFaved: boolean;
+}
+
+export type FeedFilterKey = "new" | "popular" | "week" | "fav";
+
+/** 公開フィード（公開牌譜・公開何切る）の絞り込み選択肢（キー＋表示ラベル）。 */
 export const PUBLIC_FEED_FILTERS: readonly { key: FeedFilterKey; label: string }[] = [
   { key: "new", label: "新着" },
+  { key: "popular", label: "人気" },
   { key: "week", label: "今週" },
   { key: "fav", label: "お気に入り" },
 ];
@@ -325,15 +341,20 @@ export const PUBLIC_FEED_FILTERS: readonly { key: FeedFilterKey; label: string }
 /** 「今週」の窓（直近7日・ちょうど7日前を含む）。 */
 const WEEK_MS = 7 * 24 * 3600 * 1000;
 
+/** 新しい順（ISO8601 は文字列比較で時系列順になる）。 */
+function byNewest(a: FeedCard, b: FeedCard): number {
+  return b.createdAt < a.createdAt ? -1 : b.createdAt > a.createdAt ? 1 : 0;
+}
+
 /**
- * 公開フィードの絞り込み＋新着順ソート（純関数）。
- * new=全件 / week=直近7日 / fav=お気に入り（favs に入っている id）のみ。並びは常に新しい順。
+ * 公開フィードの絞り込み＋並べ替え（純関数）。
+ * new=全件を新しい順 / popular=お気に入りが多い順（同数なら新しい順）/
+ * week=直近7日を新しい順 / fav=自分が付けたものを新しい順。
  * now はテストの決定性のため注入可能。
  */
-export function filterPublicFeed<T extends { id: string; createdAt: string }>(
+export function filterPublicFeed<T extends FeedCard>(
   cards: readonly T[],
   filter: FeedFilterKey,
-  favs: ReadonlySet<string>,
   now: number = Date.now(),
 ): T[] {
   let arr = [...cards];
@@ -341,10 +362,34 @@ export function filterPublicFeed<T extends { id: string; createdAt: string }>(
     const cutoff = new Date(now - WEEK_MS).toISOString();
     arr = arr.filter((c) => c.createdAt >= cutoff);
   } else if (filter === "fav") {
-    arr = arr.filter((c) => favs.has(c.id));
+    arr = arr.filter((c) => c.viewerFaved);
   }
-  // ISO8601 は文字列比較で時系列順になる。
-  return arr.sort((a, b) => (b.createdAt < a.createdAt ? -1 : b.createdAt > a.createdAt ? 1 : 0));
+  if (filter === "popular") {
+    // 同数のときに並びが実行ごとに揺れないよう、新しい順で決着させる。
+    return arr.sort((a, b) => b.favoriteCount - a.favoriteCount || byNewest(a, b));
+  }
+  return arr.sort(byNewest);
+}
+
+/** マイページ（自分の牌譜・自分の何切る）の並べ替えキー。 */
+export type MyListSortKey = "new" | "old" | "fav";
+
+/** マイページの並べ替え選択肢。
+ *  「局数が多い順」は廃止（[決定] 2026-07-26。多く撮った半荘が上に来るだけで
+ *  探す手がかりにならない）。代わりに反響の大きさで並べられるようにする。 */
+export const MY_LIST_SORTS: readonly { key: MyListSortKey; label: string }[] = [
+  { key: "new", label: "新しい順" },
+  { key: "old", label: "古い順" },
+  { key: "fav", label: "お気に入りが多い順" },
+];
+
+/** マイページ一覧の並べ替え（純関数。牌譜・何切るで共用）。 */
+export function sortMyList<T extends FeedCard>(cards: readonly T[], sort: MyListSortKey): T[] {
+  const arr = [...cards];
+  if (sort === "fav")
+    return arr.sort((a, b) => b.favoriteCount - a.favoriteCount || byNewest(a, b));
+  if (sort === "old") return arr.sort((a, b) => -byNewest(a, b));
+  return arr.sort(byNewest);
 }
 
 /** いまのプランからアップグレード可能な有料プラン（上位のみ）。 */

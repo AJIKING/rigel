@@ -709,8 +709,13 @@ export function problemTargetTile(problem: Problem): Tile | null {
 // ============================================================
 
 /** クイズ種別。chinitsu=清一色多面待ち / efficiency=牌効率 /
- *  score=点数計算（牌姿から点数を選ぶ。[決定] 2026-07-26 追加）。 */
-export const QuizKindSchema = z.enum(["chinitsu", "efficiency", "score"]);
+ *  score=点数計算（牌姿から点数を選ぶ。[決定] 2026-07-26 追加）/
+ *  chinitsuUkeire=清一色 何切る（単色14枚から一番広くなる1枚を切る。[決定] 2026-07-26 追加。
+ *    テンパイ手は待ち枚数・1向聴手は受け入れ枚数が最大の打牌が正解。
+ *    単色14枚に2向聴は存在しない（全118,800通りの総当たりで確認）ので出題は0/1向聴のみ。
+ *    Plan: docs/plans/quiz-chinitsu-ukeire.md）。
+ *  D1 の kind は text 列なので、種別追加にマイグレーションは要らない。 */
+export const QuizKindSchema = z.enum(["chinitsu", "efficiency", "score", "chinitsuUkeire"]);
 export type QuizKind = z.infer<typeof QuizKindSchema>;
 
 /** 60秒セッション1回の結果（クライアント採点をサーバに記録する形）。 */
