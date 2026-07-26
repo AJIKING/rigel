@@ -9,7 +9,7 @@
 //                   `pnpm --filter api db:migrate:local|db:migrate`（wrangler d1）で適用。
 // ============================================================
 
-import type { Kifu, Problem, ProblemAction } from "@rigel/schema";
+import { QuizKindSchema, type Kifu, type Problem, type ProblemAction } from "@rigel/schema";
 import { index, integer, primaryKey, sqliteTable, text } from "drizzle-orm/sqlite-core";
 
 export const users = sqliteTable("users", {
@@ -161,10 +161,9 @@ export const quizSessions = sqliteTable(
       .notNull()
       .references(() => users.id),
     /** クイズ種別（@rigel/schema の QuizKind。enum は型レベルのみ＝D1 は text なので
-     *  種目追加に migration は不要。score・chinitsuUkeire は [決定] 2026-07-26 追加）。 */
-    kind: text("kind", {
-      enum: ["chinitsu", "efficiency", "score", "chinitsuUkeire"],
-    }).notNull(),
+     *  種目追加に migration は不要）。値は背骨からそのまま引く——手で並べ直すと
+     *  背骨との差分が型エラーにならず黙って腐る（実際に種目追加で二重管理が発生した）。 */
+    kind: text("kind", { enum: QuizKindSchema.options }).notNull(),
     /** 開始日（JST 'YYYY-MM-DD'）。無料 1日3回・JST 0時回復のカウントキー。 */
     startedDay: text("started_day").notNull(),
     /** 出題数。null = 未完了（開始しただけ・途中離脱）。 */

@@ -173,7 +173,7 @@ export function ukeireReviewModel(
   picked: Tile | null,
   candidates?: readonly Tile[],
 ): UkeireReviewModel {
-  // candidates は出題時と同じものを渡す（清一色 何切るは同色9種）。ここがズレると
+  // candidates は出題時と同じものを渡す（清一色 牌効率は同色9種）。ここがズレると
   // 「出題では正解だった打牌が、見直しでは不正解に見える」という最悪の齟齬になる。
   //
   // 表示に要るのは「正解集合」と「あなたの回答」の2つだけなので、まず最小向聴の打牌だけを
@@ -194,4 +194,13 @@ export function ukeireReviewModel(
     regressed: mine !== undefined && mine.shanten !== minShanten,
     best: bestUkeires(ukeires),
   };
+}
+
+/**
+ * 受け入れ枚数の見出し語。**0向聴（テンパイ）では「向聴が1つ進む牌」＝和了牌なので「待ち」**。
+ * ここを一律「受け入れ」にすると、清一色 牌効率の説明（テンパイなら待ち・1向聴なら受け入れ）と
+ * 見直し表示が食い違う。web/mobile の UkeireDetail が共有する。
+ */
+export function ukeireLabel(shanten: number): string {
+  return shanten === 0 ? "待ち" : "受け入れ";
 }

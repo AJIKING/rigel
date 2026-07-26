@@ -15,6 +15,7 @@ import {
   sessionResult,
   tileLabel,
   chinitsuUkeireCandidates,
+  ukeireLabel,
   ukeireReviewModel,
   QUIZ_CARD_MOTIF,
   QUIZ_COUNTDOWN_SECONDS,
@@ -49,7 +50,7 @@ import { OssTileFace } from "../OssTileFace";
 import s from "./training.module.css";
 
 /**
- * 特訓画面（/training)。60秒タイムアタックで清一色多面待ち・牌効率・点数計算を反復する。
+ * 特訓画面（/training)。60秒タイムアタックで点数計算・牌効率・清一色（何待ち／牌効率）を反復する。
  * セッションの状態遷移（ダイアログ→開始→3,2,1→出題→回答→○×→時間切れ→結果→retry/back）は
  * web/mobile 共有の状態機械（@rigel/ui quiz-session-machine）に一元化し、この画面は
  * 「イベントを dispatch して state を描画する」だけ。API 呼び出し・タイマー駆動・analytics は
@@ -574,7 +575,7 @@ function UkeireDetail({
 }: {
   tiles: readonly Tile[];
   picked: Tile | null;
-  /** 受け入れとして数える牌種。出題時と同じものを渡す（清一色 何切るは同色9種）。 */
+  /** 受け入れとして数える牌種。出題時と同じものを渡す（清一色 牌効率は同色9種）。 */
   candidates?: readonly Tile[];
 }) {
   const model = useMemo(
@@ -586,10 +587,14 @@ function UkeireDetail({
     <span className={s.ukeireDetail}>
       {mine && (
         <span className={s.ukeireLine}>
-          <span role="group" aria-label="あなたの回答の受け入れ" className={s.ukeireBody}>
+          <span
+            role="group"
+            aria-label={`あなたの回答の${ukeireLabel(mine.shanten)}`}
+            className={s.ukeireBody}
+          >
             {regressed && <span className={s.regress}>向聴戻し</span>}
             <span className={s.ukeireCount}>
-              受け入れ {mine.tiles.length}種{mine.count}枚
+              {ukeireLabel(mine.shanten)} {mine.tiles.length}種{mine.count}枚
             </span>
             <span className={s.reviewTiles}>
               {mine.tiles.map((t, j) => (
@@ -609,11 +614,11 @@ function UkeireDetail({
           <span className={s.ukeireArrow}>→</span>
           <span
             role="group"
-            aria-label={`正解${tileLabel(u.discard)}の受け入れ`}
+            aria-label={`正解${tileLabel(u.discard)}の${ukeireLabel(u.shanten)}`}
             className={s.ukeireBody}
           >
             <span className={s.ukeireCount}>
-              受け入れ {u.tiles.length}種{u.count}枚
+              {ukeireLabel(u.shanten)} {u.tiles.length}種{u.count}枚
             </span>
             <span className={s.reviewTiles}>
               {u.tiles.map((t, j) => (
@@ -629,7 +634,7 @@ function UkeireDetail({
   );
 }
 
-/** 出題エリア（清一色=待ち牌の複数選択 / 牌効率=切る牌のタップ / 点数計算=4択）。 */
+/** 出題エリア（清一色 何待ち=待ち牌の複数選択 / 牌効率系=切る牌のタップ / 点数計算=4択）。 */
 function QuestionPanel({
   question,
   picked,

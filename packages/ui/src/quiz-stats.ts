@@ -2,7 +2,8 @@
 // 日付の丸めは api の started_day と同じ JST（背骨 @rigel/schema の JST_OFFSET_MS を共有）。
 // 欠損日は 0 セッションの点として埋める（折れ線が日付軸で飛ばないように）。
 
-import { JST_OFFSET_MS, type QuizKind } from "@rigel/schema";
+import { JST_OFFSET_MS, QuizKindSchema, type QuizKind } from "@rigel/schema";
+import { QUIZ_KIND_LABELS } from "./quiz-copy";
 
 /** グラフの期間（7日/30日は now から遡る。all は最古のセッション〜now）。 */
 export type QuizStatsPeriod = "7d" | "30d" | "all";
@@ -19,14 +20,12 @@ export const QUIZ_STATS_PERIODS: readonly { key: QuizStatsPeriod; label: string 
   ["7d", "30d", "all"] as const
 ).map((key) => ({ key, label: QUIZ_STATS_PERIOD_LABELS[key] }));
 
-/** 種目絞り込みチップ（「全種目」+ 各種目の短縮名。web/mobile のマイページ「特訓」で共用。
- *  チップは短縮名。履歴行の種目名は QUIZ_KIND_LABELS（quiz-copy.ts）の正式名を使う。 */
+/** 種目絞り込みチップ（「全種目」+ 各種目。web/mobile のマイページ「特訓」で共用）。
+ *  かつてはチップ用の短縮名を別に持っていたが、種目名を素の名前へ揃えた結果
+ *  同一になったので**表示名から導出する**（二重管理をやめて表記ゆれの余地を消す）。 */
 export const QUIZ_KIND_FILTERS: readonly { key: "all" | QuizKind; label: string }[] = [
   { key: "all", label: "全種目" },
-  { key: "chinitsu", label: "清一色" },
-  { key: "efficiency", label: "牌効率" },
-  { key: "score", label: "点数計算" },
-  { key: "chinitsuUkeire", label: "清一色何切る" },
+  ...QuizKindSchema.options.map((key) => ({ key, label: QUIZ_KIND_LABELS[key] })),
 ];
 
 /** 履歴リストの表示上限（直近。web/mobile のマイページ「特訓」で共用）。 */

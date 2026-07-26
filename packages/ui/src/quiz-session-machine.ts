@@ -283,7 +283,7 @@ export function quizSessionReducer(
       return grade(state, ok, state.picked);
     }
     case "DISCARD": {
-      // 打牌1枚で答える種目（牌効率・清一色 何切る）は同じ経路で採点する。
+      // 打牌1枚で答える種目（牌効率・清一色 牌効率）は同じ経路で採点する。
       if (!canAnswer(state, "efficiency") && !canAnswer(state, "chinitsuUkeire")) return state;
       const question = state.question as EfficiencyQuestion | ChinitsuUkeireQuestion;
       return grade(state, question.answer.includes(event.tile), [event.tile]);

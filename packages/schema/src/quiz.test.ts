@@ -6,7 +6,7 @@ import { QuizKindSchema, QuizResultSchema } from "./index";
 
 describe("QuizKindSchema（クイズ種別）", () => {
   // score = 点数計算クイズ（[決定] 2026-07-26 追加）。
-  // chinitsuUkeire = 清一色 何切る（単色14枚から一番広くなる1枚を切る。[決定] 2026-07-26 追加。
+  // chinitsuUkeire = 清一色 牌効率（単色14枚から一番広くなる1枚を切る。[決定] 2026-07-26 追加。
   //   Plan: docs/plans/quiz-chinitsu-ukeire.md）。
   it.each([["chinitsu"], ["efficiency"], ["score"], ["chinitsuUkeire"]])(
     "%s を受理する",

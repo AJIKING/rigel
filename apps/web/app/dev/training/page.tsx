@@ -93,7 +93,7 @@ function DevTrainingInner() {
         {link("?phase=running&kind=chinitsu&seed=1", "清一色")}
         {link("?phase=running&kind=efficiency&seed=1", "牌効率")}
         {link("?phase=running&kind=score&seed=1", "点数計算")}
-        {link("?phase=running&kind=chinitsuUkeire&seed=1", "清一色何切る")}
+        {link("?phase=running&kind=chinitsuUkeire&seed=1", "清一色 牌効率")}
         {link("?phase=running&kind=efficiency&seed=1&seconds=5", "5秒→結果")}
         {link("?phase=result&kind=efficiency&seed=1", "結果(空)")}
       </div>

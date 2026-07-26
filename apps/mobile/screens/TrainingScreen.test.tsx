@@ -101,15 +101,15 @@ const SCORE_QS: readonly ScoreQuestion[] = [
     answer: "11600点",
   },
 ];
-// 清一色 何切る: 1112244557788m（順子が作れない6種・6対子）＋9m の14枚。1向聴で 1m 切りが正解。
+// 清一色 牌効率: 単色14枚の1向聴手（生成器 seed 20260726 の実物）。7m 切りが正解。
 const CHINITSU_UKEIRE_QS: readonly ChinitsuUkeireQuestion[] = [
   {
     kind: "chinitsuUkeire",
     // prettier-ignore
-    tiles: ["1m", "1m", "1m", "2m", "2m", "4m", "4m", "5m", "5m", "7m", "7m", "8m", "8m", "9m"],
+    tiles: ["1m", "1m", "1m", "2m", "2m", "4m", "4m", "5m", "5m", "7m", "7m", "7m", "8m", "9m"],
     suit: "m",
     shanten: 1,
-    answer: ["1m"],
+    answer: ["7m"],
   },
 ];
 const FIXTURES: Record<QuizKind, readonly QuizQuestion[]> = {
@@ -209,7 +209,7 @@ describe("TrainingScreen: 種目選択", () => {
     render(<TrainingScreen />);
 
     expect(screen.getByText(/特訓するにはログイン/)).toBeTruthy();
-    expect(screen.queryByText(/清一色 多面待ち/)).toBeNull();
+    expect(screen.queryByText(/清一色 何待ち/)).toBeNull();
   });
 
   it("認証確認中（loading）は「読み込み中…」を出し、ログイン導線をフラッシュさせない", () => {
@@ -219,7 +219,7 @@ describe("TrainingScreen: 種目選択", () => {
     // 文言は web の TrainingScreen と同じ「読み込み中…」。
     expect(screen.getByText("読み込み中…")).toBeTruthy();
     expect(screen.queryByText(/特訓するにはログイン/)).toBeNull();
-    expect(screen.queryByText(/清一色 多面待ち/)).toBeNull();
+    expect(screen.queryByText(/清一色 何待ち/)).toBeNull();
   });
 
   it.each([{ plan: "free" }, { plan: "next" }])(
@@ -228,8 +228,8 @@ describe("TrainingScreen: 種目選択", () => {
       mockAuth = { token: "t", user: { plan } };
       render(<TrainingScreen />);
 
-      expect(screen.getByRole("button", { name: /清一色 多面待ち/ })).toBeTruthy();
-      expect(screen.getByRole("button", { name: /牌効率（受け入れ最大）/ })).toBeTruthy();
+      expect(screen.getByRole("button", { name: /清一色 何待ち/ })).toBeTruthy();
+      expect(screen.getByRole("button", { name: /^牌効率/ })).toBeTruthy();
       expect(screen.getByRole("button", { name: /点数計算/ })).toBeTruthy();
       expect(screen.getByText(/待ち牌を全部見抜く/)).toBeTruthy();
       expect(screen.getByText(/受け入れが最大になる1枚を切る/)).toBeTruthy();
@@ -245,10 +245,10 @@ describe("TrainingScreen: 種目選択", () => {
 describe("TrainingScreen: 開始ダイアログ（カードタップでは枠を消費しない）", () => {
   it("カードをタップすると開始ダイアログ（種目名＋説明＋直近記録）が出て、開始 API はまだ呼ばれない", async () => {
     render(<TrainingScreen generateQuestion={fixtureGenerate()} />);
-    await openDialog(/清一色 多面待ち/);
+    await openDialog(/清一色 何待ち/);
 
     const dialog = within(screen.getByTestId("bottom-sheet-card"));
-    expect(dialog.getByText("清一色 多面待ち")).toBeTruthy();
+    expect(dialog.getByText("清一色 何待ち")).toBeTruthy();
     expect(dialog.getByText(/待ち牌を全部見抜く/)).toBeTruthy();
     // ルール一文（[決定] 2026-07-26）: 種目名/説明の近くに1文だけ出す。
     expect(dialog.getByText("60秒でできるだけ多くの問題に答える")).toBeTruthy();
@@ -272,7 +272,7 @@ describe("TrainingScreen: 開始ダイアログ（カードタップでは枠を
       session({ id: "c6", createdAt: "2026-07-19T01:00:00.000Z", correct: 1, total: 10 }),
     ]);
     render(<TrainingScreen generateQuestion={fixtureGenerate()} />);
-    await openDialog(/清一色 多面待ち/);
+    await openDialog(/清一色 何待ち/);
 
     const dialog = within(screen.getByTestId("bottom-sheet-card"));
     for (const line of [
@@ -291,7 +291,7 @@ describe("TrainingScreen: 開始ダイアログ（カードタップでは枠を
 
   it("記録が無ければ「まだ特訓の記録がありません」を出す", async () => {
     render(<TrainingScreen generateQuestion={fixtureGenerate()} />);
-    await openDialog(/清一色 多面待ち/);
+    await openDialog(/清一色 何待ち/);
 
     expect(
       within(screen.getByTestId("bottom-sheet-card")).getByText("まだ特訓の記録がありません"),
@@ -300,18 +300,18 @@ describe("TrainingScreen: 開始ダイアログ（カードタップでは枠を
 
   it("「もどる」でダイアログが閉じ、開始 API は呼ばれないまま種目選択に戻る", async () => {
     render(<TrainingScreen generateQuestion={fixtureGenerate()} />);
-    await openDialog(/清一色 多面待ち/);
+    await openDialog(/清一色 何待ち/);
     fireEvent.press(screen.getByRole("button", { name: "もどる" }));
 
     expect(screen.queryByTestId("bottom-sheet-card")).toBeNull();
-    expect(screen.getByRole("button", { name: /清一色 多面待ち/ })).toBeTruthy();
+    expect(screen.getByRole("button", { name: /清一色 何待ち/ })).toBeTruthy();
     expect(mockStartQuizSession).not.toHaveBeenCalled();
     expect(mockTrackEvent).not.toHaveBeenCalled();
   });
 
   it("「開始」で開始 API（枠消費）と quiz_start が走り、3→2→1 のカウントダウン後に第1問と60秒タイマーが始まる", async () => {
     render(<TrainingScreen generateQuestion={fixtureGenerate()} />); // 清一色 Q1 フィクスチャ = 筒子13枚・待ち 4p/5p/6p（固定注入）
-    await openDialog(/清一色 多面待ち/);
+    await openDialog(/清一色 何待ち/);
     fireEvent.press(screen.getByRole("button", { name: "開始" }));
     await flush();
 
@@ -339,7 +339,7 @@ describe("TrainingScreen: 開始ダイアログ（カードタップでは枠を
 
   it("カウントダウン中は60秒タイマーが減らない（3秒進めても残り60秒のまま）", async () => {
     render(<TrainingScreen generateQuestion={fixtureGenerate()} />);
-    await openDialog(/清一色 多面待ち/);
+    await openDialog(/清一色 何待ち/);
     fireEvent.press(screen.getByRole("button", { name: "開始" }));
     await flush();
     await advance(3000); // カウントダウン3秒ぶん
@@ -351,7 +351,7 @@ describe("TrainingScreen: 開始ダイアログ（カードタップでは枠を
     const onOpenSettings = jest.fn();
     mockStartQuizSession.mockResolvedValue({ ok: false, status: 402, reason: "quota" });
     render(<TrainingScreen generateQuestion={fixtureGenerate()} onOpenSettings={onOpenSettings} />);
-    await openDialog(/清一色 多面待ち/);
+    await openDialog(/清一色 何待ち/);
     fireEvent.press(screen.getByRole("button", { name: "開始" }));
     await flush();
 
@@ -372,7 +372,7 @@ describe("TrainingScreen: 開始ダイアログ（カードタップでは枠を
   it("token 失効（user はいるが token が無い）でカードをタップすると再ログインを促し、ダイアログも開始 API も無し（沈黙しない）", async () => {
     mockAuth = { token: null, user: { plan: "free" } };
     render(<TrainingScreen generateQuestion={fixtureGenerate()} />);
-    fireEvent.press(screen.getByRole("button", { name: /清一色 多面待ち/ }));
+    fireEvent.press(screen.getByRole("button", { name: /清一色 何待ち/ }));
     await flush();
 
     expect(screen.getByText("ログインが必要です。再度ログインしてください。")).toBeTruthy();
@@ -385,7 +385,7 @@ describe("TrainingScreen: 開始ダイアログ（カードタップでは枠を
   it("その他の開始エラー（500）はダイアログ内に汎用文言を出し、アップグレード導線は出さない", async () => {
     mockStartQuizSession.mockResolvedValue({ ok: false, status: 500 });
     render(<TrainingScreen generateQuestion={fixtureGenerate()} onOpenSettings={jest.fn()} />);
-    await openDialog(/清一色 多面待ち/);
+    await openDialog(/清一色 何待ち/);
     fireEvent.press(screen.getByRole("button", { name: "開始" }));
     await flush();
 
@@ -399,7 +399,7 @@ describe("TrainingScreen: 開始ダイアログ（カードタップでは枠を
 describe("TrainingScreen: 清一色（待ち牌の複数選択・完全一致）", () => {
   async function startChinitsu() {
     render(<TrainingScreen generateQuestion={fixtureGenerate()} />);
-    await startViaDialog(/清一色 多面待ち/);
+    await startViaDialog(/清一色 何待ち/);
   }
 
   it("待ち牌を全部選んで回答すると正解カウントが増え、0.5秒後に次問へ進む", async () => {
@@ -495,7 +495,7 @@ describe("TrainingScreen: 清一色（待ち牌の複数選択・完全一致）
 describe("TrainingScreen: 牌効率（牌タップ=切る）", () => {
   async function startEfficiency() {
     render(<TrainingScreen generateQuestion={fixtureGenerate()} />);
-    await startViaDialog(/牌効率/);
+    await startViaDialog(/^牌効率/);
   }
 
   it("正解打牌（受け入れ最大）をタップすると正解カウントが増え、次問へ進む", async () => {
@@ -650,7 +650,7 @@ describe("TrainingScreen: 点数計算（4択・牌姿ベース v2）", () => {
 describe("TrainingScreen: 60秒経過と結果画面", () => {
   async function runOneCorrectEfficiency() {
     render(<TrainingScreen generateQuestion={fixtureGenerate()} />);
-    await startViaDialog(/牌効率/);
+    await startViaDialog(/^牌効率/);
     // t=0 で正解（9索）→ t=500 で次問 → 以降は無回答のまま60秒経過（回答中の問題は打ち切り）。
     fireEvent.press(screen.getByRole("button", { name: "9索" }));
     await advance(500);
@@ -753,7 +753,7 @@ describe("TrainingScreen: 60秒経過と結果画面", () => {
     const onOpenSettings = jest.fn();
     mockStartQuizSession.mockResolvedValueOnce({ ok: true, id: "qs1", remainingToday: 2 });
     render(<TrainingScreen generateQuestion={fixtureGenerate()} onOpenSettings={onOpenSettings} />);
-    await startViaDialog(/牌効率/);
+    await startViaDialog(/^牌効率/);
     fireEvent.press(screen.getByRole("button", { name: "9索" }));
     await advance(500);
     await advance(59_500);
@@ -778,14 +778,14 @@ describe("TrainingScreen: 60秒経過と結果画面", () => {
     await flush();
 
     fireEvent.press(screen.getByRole("button", { name: "問題選択にもどる" }));
-    expect(screen.getByRole("button", { name: /清一色 多面待ち/ })).toBeTruthy();
+    expect(screen.getByRole("button", { name: /清一色 何待ち/ })).toBeTruthy();
     expect(mockStartQuizSession).toHaveBeenCalledTimes(1);
   });
 
   it("「もう一度挑戦」の402後に「問題選択にもどる」と、上限メッセージと導線を選択画面へ持ち越さない", async () => {
     const onOpenSettings = jest.fn();
     render(<TrainingScreen generateQuestion={fixtureGenerate()} onOpenSettings={onOpenSettings} />);
-    await startViaDialog(/牌効率/);
+    await startViaDialog(/^牌効率/);
     fireEvent.press(screen.getByRole("button", { name: "9索" }));
     await advance(500);
     await advance(59_500);
@@ -797,7 +797,7 @@ describe("TrainingScreen: 60秒経過と結果画面", () => {
 
     fireEvent.press(screen.getByRole("button", { name: "問題選択にもどる" }));
     // 選択画面: エラーは消える（上限はプランカードで伝える方針。貼り付いたままにしない）。
-    expect(screen.getByRole("button", { name: /清一色 多面待ち/ })).toBeTruthy();
+    expect(screen.getByRole("button", { name: /清一色 何待ち/ })).toBeTruthy();
     expect(screen.queryByText(/本日の無料枠/)).toBeNull();
     expect(screen.queryByRole("button", { name: "プランをアップグレード" })).toBeNull();
   });
@@ -816,7 +816,7 @@ describe("TrainingScreen: 結果画面の見直しリスト", () => {
 
   it("牌効率: 回答した2問が○×・手牌・あなたの回答・正解（bestDiscards 全部）つきで並び、回答中だった問題は含めない", async () => {
     render(<TrainingScreen generateQuestion={fixtureGenerate()} />);
-    await startViaDialog(/牌効率/);
+    await startViaDialog(/^牌効率/);
     // Q1 を 9索 で正解 → Q2 を 3萬 で不正解 → Q3 は回答中のまま60秒経過。
     fireEvent.press(screen.getByRole("button", { name: "9索" }));
     await advance(500);
@@ -846,7 +846,7 @@ describe("TrainingScreen: 結果画面の見直しリスト", () => {
 
   it("見直し行は「番号＋○×」のヘッダ行に続き、問題も「ラベル＋牌列」で回答・正解と同じ並びになる", async () => {
     render(<TrainingScreen generateQuestion={fixtureGenerate()} />);
-    await startViaDialog(/牌効率/);
+    await startViaDialog(/^牌効率/);
     fireEvent.press(screen.getByRole("button", { name: "9索" }));
     await advance(500);
     await advance(59_500);
@@ -861,7 +861,7 @@ describe("TrainingScreen: 結果画面の見直しリスト", () => {
 
   it("清一色: あなたの回答=選んだ待ち牌・正解=answer の待ち牌が牌で並ぶ", async () => {
     render(<TrainingScreen generateQuestion={fixtureGenerate()} />);
-    await startViaDialog(/清一色 多面待ち/);
+    await startViaDialog(/清一色 何待ち/);
     // Q1 を 4筒5筒6筒 で正解 → Q2 を 1索 だけ（不完全）で不正解 → Q3 は回答中のまま60秒経過。
     fireEvent.press(screen.getByRole("button", { name: "4筒" }));
     fireEvent.press(screen.getByRole("button", { name: "5筒" }));
@@ -894,7 +894,7 @@ describe("TrainingScreen: 結果画面の見直しリスト", () => {
   //   Q2: 最小向聴2。2z/6z/7z 切り → 受け入れ 10種34枚。3m 切りは 3向聴（向聴戻し）→ 14種48枚。
   it("牌効率: 見直し行に受け入れ詳細（あなたの回答の種類・枚数・向聴戻し / 正解各打牌の受け入れ）が出る", async () => {
     render(<TrainingScreen generateQuestion={fixtureGenerate()} />);
-    await startViaDialog(/牌効率/);
+    await startViaDialog(/^牌効率/);
     // Q1 を 9索（正解・向聴維持）→ Q2 を 3萬（不正解・向聴戻し）で回答して60秒経過。
     fireEvent.press(screen.getByRole("button", { name: "9索" }));
     await advance(500);
@@ -938,7 +938,7 @@ describe("TrainingScreen: 結果画面の見直しリスト", () => {
 
   it("清一色: 見直し行に受け入れ詳細を出さない（待ち牌の比較のみで現状維持）", async () => {
     render(<TrainingScreen generateQuestion={fixtureGenerate()} />);
-    await startViaDialog(/清一色 多面待ち/);
+    await startViaDialog(/清一色 何待ち/);
     fireEvent.press(screen.getByRole("button", { name: "4筒" }));
     fireEvent.press(screen.getByRole("button", { name: "回答" }));
     await advance(500);
@@ -951,7 +951,7 @@ describe("TrainingScreen: 結果画面の見直しリスト", () => {
 
   it("1問も回答していなければ見直しリスト自体を出さない", async () => {
     render(<TrainingScreen generateQuestion={fixtureGenerate()} />);
-    await startViaDialog(/牌効率/);
+    await startViaDialog(/^牌効率/);
     await advance(60_000);
     await flush();
 
@@ -961,22 +961,22 @@ describe("TrainingScreen: 結果画面の見直しリスト", () => {
   });
 });
 
-describe("TrainingScreen: 清一色 何切る（牌タップ=切る・広さ最大）", () => {
+describe("TrainingScreen: 清一色 牌効率（牌タップ=切る・広さ最大）", () => {
   it("指示文は種目のもので、正解打牌で正解カウントが増える", async () => {
     render(<TrainingScreen generateQuestion={fixtureGenerate()} />);
-    await startViaDialog(/清一色 何切る/);
+    await startViaDialog(/清一色 牌効率/);
 
     expect(screen.getByText("一番広くなる牌を切る")).toBeTruthy();
     expect(screen.queryByText("受け入れ最大の牌を切る")).toBeNull();
 
-    fireEvent.press(screen.getAllByLabelText("1萬")[0]!);
+    fireEvent.press(screen.getAllByLabelText("7萬")[0]!);
     expect(screen.getByText("正解 1 / 1問")).toBeTruthy();
   });
 
   it("見直し行に受け入れ詳細が出る（同色だけで広さを測る）", async () => {
     render(<TrainingScreen generateQuestion={fixtureGenerate()} />);
-    await startViaDialog(/清一色 何切る/);
-    fireEvent.press(screen.getAllByLabelText("1萬")[0]!);
+    await startViaDialog(/清一色 牌効率/);
+    fireEvent.press(screen.getAllByLabelText("7萬")[0]!);
     await advance(500);
     await advance(59_500);
 

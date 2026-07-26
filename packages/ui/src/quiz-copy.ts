@@ -22,12 +22,15 @@ export const QUIZ_COUNTDOWN_SECONDS = 3;
 /** ルール一文（開始ダイアログの種目名/説明の近くに出す。[決定] 2026-07-26 オーナー指示）。 */
 export const QUIZ_RULE_NOTE = "60秒でできるだけ多くの問題に答える";
 
-/** 種目の表示名（種目選択カード・結果画面で共用）。 */
+/** 種目の表示名（種目選択カード・結果画面・マイページの絞り込みで共用）。
+ *  4つとも素の名前で粒度を揃える（ルールの補足は QUIZ_KIND_DESCRIPTIONS が担う）。
+ *  清一色は2種目あるので接頭辞を揃えて隣に並べる（[決定] 2026-07-26 オーナー指定）。
+ *  並び（= 種目カードの並び）は背骨の QuizKindSchema.options が持つ。 */
 export const QUIZ_KIND_LABELS: Record<QuizKind, string> = {
-  chinitsu: "清一色 多面待ち",
-  efficiency: "牌効率（受け入れ最大）",
   score: "点数計算",
-  chinitsuUkeire: "清一色 何切る",
+  efficiency: "牌効率",
+  chinitsu: "清一色 何待ち",
+  chinitsuUkeire: "清一色 牌効率",
 };
 
 /** 種目の説明文（種目選択カードで共用）。「何をするか（＋ルール補足）＋何が鍛えられるか」を1行で伝える。
@@ -39,7 +42,7 @@ export const QUIZ_KIND_DESCRIPTIONS: Record<QuizKind, string> = {
     "14枚から受け入れが最大になる1枚を切る（同率はどれでも正解）。手広く構える感覚を鍛える。",
   score: "牌姿から点数を即答する（鳴き・ドラあり）。点数計算を体で覚える。",
   chinitsuUkeire:
-    "単色14枚から一番広くなる1枚を切る（テンパイなら待ち・1向聴なら受け入れが最大。同率はどれでも正解）。全部の切り方を同時に見る力を鍛える。",
+    "単色14枚から一番広くなる1枚を切る（同率はどれでも正解）。全部の切り方を同時に読む力を鍛える。",
 };
 
 /** 出題中の指示文（web/mobile の出題エリアで共用）。最短で（補足は QUIZ_KIND_DESCRIPTIONS に寄せる）。 */

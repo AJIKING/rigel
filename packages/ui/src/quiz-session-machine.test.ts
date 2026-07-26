@@ -389,7 +389,7 @@ describe("defaultQuizQuestion: 種目→生成器の配線", () => {
   });
 });
 
-describe("清一色 何切る（DISCARD を牌効率と同じ経路で採点する）", () => {
+describe("清一色 牌効率（DISCARD を牌効率と同じ経路で採点する）", () => {
   // 1112244557788m: 順子が作れない6種・6対子＋1枚。9m を足した14枚から1枚切る。
   const CHINITSU_UKEIRE_Q1: ChinitsuUkeireQuestion = {
     kind: "chinitsuUkeire",
@@ -412,7 +412,7 @@ describe("清一色 何切る（DISCARD を牌効率と同じ経路で採点す�
     expect(s.records[0]!.picked).toEqual([tile]);
   });
 
-  it("defaultQuizQuestion は清一色 何切るを生成する（種目→生成器の配線）", () => {
+  it("defaultQuizQuestion は清一色 牌効率を生成する（種目→生成器の配線）", () => {
     const q = defaultQuizQuestion("chinitsuUkeire", createQuizRng(20260726));
     expect(q.kind).toBe("chinitsuUkeire");
   });

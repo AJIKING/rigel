@@ -48,7 +48,7 @@ describe("/dev/training（特訓UIの目視検証用フィクスチャ）", () =
         <DevTrainingPage />
       </AuthProvider>,
     );
-    expect(await screen.findByRole("button", { name: /清一色 多面待ち/ })).toBeTruthy();
+    expect(await screen.findByRole("button", { name: /清一色 何待ち/ })).toBeTruthy();
   });
 
   it("?phase=running&kind=score で点数計算のセッションを直接表示できる（既定の実生成経路）", async () => {

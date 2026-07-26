@@ -201,13 +201,13 @@ describe("特訓の共有定数・文言（web/mobile の画面と api のサー
   it.each([
     {
       kind: "chinitsu" as const,
-      label: "清一色 多面待ち",
+      label: "清一色 何待ち",
       desc: "単色13枚のテンパイから待ち牌を全部見抜く（完全一致で正解）。多面待ちを読む速さを鍛える。",
       prompt: "待ち牌を全部選ぶ",
     },
     {
       kind: "efficiency" as const,
-      label: "牌効率（受け入れ最大）",
+      label: "牌効率",
       desc: "14枚から受け入れが最大になる1枚を切る（同率はどれでも正解）。手広く構える感覚を鍛える。",
       prompt: "受け入れ最大の牌を切る",
     },

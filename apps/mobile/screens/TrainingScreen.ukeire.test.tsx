@@ -91,7 +91,7 @@ describe("TrainingScreen: 受け入れ詳細の再計算防止（useMemo）", ()
     let i = 0;
     render(<TrainingScreen generateQuestion={() => EFFICIENCY_QS[i++ % EFFICIENCY_QS.length]!} />);
     // 新フロー: カード → 開始ダイアログ →「開始」→ 3秒カウントダウン → 第1問。
-    fireEvent.press(screen.getByRole("button", { name: /牌効率/ }));
+    fireEvent.press(screen.getByRole("button", { name: /^牌効率/ }));
     await flush();
     fireEvent.press(screen.getByRole("button", { name: "開始" }));
     await flush();

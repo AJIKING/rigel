@@ -5,6 +5,7 @@ import {
   bestUkeires,
   discardUkeires,
   keepUkeires,
+  ukeireLabel,
   ukeireReviewModel,
 } from "./ukeire";
 import { createQuizRng } from "./quiz";
@@ -440,7 +441,9 @@ describe("discardUkeires（テンパイ打牌の受け入れ = 待ち牌。高�
       }
     }
     expect(checked, "テンパイになる打牌を1つ以上検査している").toBeGreaterThan(0);
-  });
+    // 素朴版は1打牌あたり34回の向聴計算を回す。単独では2秒弱だが、CI の並列実行で
+    // 既定の5秒を超えてフレークするので明示的に余裕を持たせる（件数は上で絞ってある）。
+  }, 30_000);
 
   it("既知手: 和了形14枚はどの打牌もテンパイ維持で、受け入れ=待ち牌", () => {
     const hand = tiles("123456789m11122p");
@@ -498,5 +501,17 @@ describe("keepUkeires（最小向聴を保つ打牌だけ計算する: 清一色
   it("正解集合は discardUkeires 経由と一致する（採点の物差しを変えない）", () => {
     const hand = tiles(HAND_A);
     expect(bestUkeires(keepUkeires(hand))).toEqual(bestUkeires(discardUkeires(hand)));
+  });
+});
+
+describe("ukeireLabel（テンパイの「受け入れ」は待ち牌なので呼び分ける）", () => {
+  // 清一色 牌効率はテンパイ手も出す。0向聴で「向聴が1つ進む牌」は和了牌＝待ちなので、
+  // 見直しで「受け入れ」と書くと種目の説明（テンパイなら待ち）と食い違う。
+  it.each([
+    { shanten: 0, want: "待ち" },
+    { shanten: 1, want: "受け入れ" },
+    { shanten: 2, want: "受け入れ" },
+  ])("$shanten 向聴の見出しは $want", ({ shanten: s, want }) => {
+    expect(ukeireLabel(s)).toBe(want);
   });
 });

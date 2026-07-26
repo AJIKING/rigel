@@ -116,16 +116,16 @@ const SCORE_QS: readonly ScoreQuestion[] = [
     answer: "11600点",
   },
 ];
-// 清一色 何切る: 1112244557788m（順子が作れない6種・6対子）＋9m の14枚。1向聴で、
-// 1m を切ると七対子1向聴のまま受け入れ最大（同色のみ数える）。
+// 清一色 牌効率: 単色14枚の1向聴手。7m を切ると1向聴を保ったまま受け入れ最大（同色のみ数える）。
 const CHINITSU_UKEIRE_QS: readonly ChinitsuUkeireQuestion[] = [
   {
     kind: "chinitsuUkeire",
+    // 生成器（seed 20260726）が実際に出す1向聴手。切っても最小向聴のまま＝見出しは「受け入れ」。
     // prettier-ignore
-    tiles: ["1m", "1m", "1m", "2m", "2m", "4m", "4m", "5m", "5m", "7m", "7m", "8m", "8m", "9m"],
+    tiles: ["1m", "1m", "1m", "2m", "2m", "4m", "4m", "5m", "5m", "7m", "7m", "7m", "8m", "9m"],
     suit: "m",
     shanten: 1,
-    answer: ["1m"],
+    answer: ["7m"],
   },
 ];
 const FIXTURES: Record<QuizKind, readonly QuizQuestion[]> = {
@@ -223,7 +223,7 @@ describe("TrainingScreen: 種目選択", () => {
     // 確認が終わると消えて、本来の画面（種目カード）が出る。
     await flush();
     expect(screen.queryByText("読み込み中…")).toBeNull();
-    expect(screen.getByRole("button", { name: /清一色 多面待ち/ })).toBeTruthy();
+    expect(screen.getByRole("button", { name: /清一色 何待ち/ })).toBeTruthy();
   });
 
   it("未ログインはログイン導線を出し、種目カードは出さない", async () => {
@@ -232,15 +232,15 @@ describe("TrainingScreen: 種目選択", () => {
     await flush();
     const note = screen.getByText(/特訓するには/);
     expect(within(note).getByRole("link", { name: "ログイン" })).toBeTruthy();
-    expect(screen.queryByRole("button", { name: /清一色 多面待ち/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: /清一色 何待ち/ })).toBeNull();
   });
 
   it("ログイン中: 3種目のカード＋説明が出る。キャッチコピー・無料枠の注記は出さない（文言削減）", async () => {
     stubMe("free");
     renderScreen();
     await flush();
-    expect(screen.getByRole("button", { name: /清一色 多面待ち/ })).toBeTruthy();
-    expect(screen.getByRole("button", { name: /牌効率（受け入れ最大）/ })).toBeTruthy();
+    expect(screen.getByRole("button", { name: /清一色 何待ち/ })).toBeTruthy();
+    expect(screen.getByRole("button", { name: /^牌効率/ })).toBeTruthy();
     expect(screen.getByRole("button", { name: /点数計算/ })).toBeTruthy();
     expect(screen.getByText(/待ち牌を全部見抜く/)).toBeTruthy();
     expect(screen.getByText(/受け入れが最大になる1枚を切る/)).toBeTruthy();
@@ -257,9 +257,9 @@ describe("TrainingScreen: 開始ダイアログ（カードタップでは枠を
     stubMe("free");
     renderScreen();
     await flush();
-    await openDialog(/清一色 多面待ち/);
+    await openDialog(/清一色 何待ち/);
 
-    const dialog = screen.getByRole("dialog", { name: "清一色 多面待ちを開始" });
+    const dialog = screen.getByRole("dialog", { name: "清一色 何待ちを開始" });
     expect(within(dialog).getByText(/待ち牌を全部見抜く/)).toBeTruthy();
     // ルール一文（[決定] 2026-07-26）: 種目名/説明の近くに1文だけ出す。
     expect(within(dialog).getByText("60秒でできるだけ多くの問題に答える")).toBeTruthy();
@@ -285,7 +285,7 @@ describe("TrainingScreen: 開始ダイアログ（カードタップでは枠を
     ]);
     renderScreen();
     await flush();
-    await openDialog(/清一色 多面待ち/);
+    await openDialog(/清一色 何待ち/);
 
     const list = within(screen.getByRole("dialog")).getByRole("list", { name: "直近の記録" });
     expect(
@@ -305,7 +305,7 @@ describe("TrainingScreen: 開始ダイアログ（カードタップでは枠を
     stubMe("free");
     renderScreen();
     await flush();
-    await openDialog(/清一色 多面待ち/);
+    await openDialog(/清一色 何待ち/);
 
     const dialog = screen.getByRole("dialog");
     expect(within(dialog).getByText("まだ特訓の記録がありません")).toBeTruthy();
@@ -316,11 +316,11 @@ describe("TrainingScreen: 開始ダイアログ（カードタップでは枠を
     stubMe("free");
     renderScreen();
     await flush();
-    await openDialog(/清一色 多面待ち/);
+    await openDialog(/清一色 何待ち/);
     fireEvent.click(screen.getByRole("button", { name: "もどる" }));
 
     expect(screen.queryByRole("dialog")).toBeNull();
-    expect(screen.getByRole("button", { name: /清一色 多面待ち/ })).toBeTruthy();
+    expect(screen.getByRole("button", { name: /清一色 何待ち/ })).toBeTruthy();
     expect(h.startQuizSessionAction).not.toHaveBeenCalled();
     expect(gtag).not.toHaveBeenCalled();
   });
@@ -329,7 +329,7 @@ describe("TrainingScreen: 開始ダイアログ（カードタップでは枠を
     stubMe("free");
     renderScreen(); // 清一色 Q1 フィクスチャ = 筒子13枚・待ち 4p/5p/6p（固定注入）
     await flush();
-    await openDialog(/清一色 多面待ち/);
+    await openDialog(/清一色 何待ち/);
     fireEvent.click(screen.getByRole("button", { name: "開始" }));
     await flush();
 
@@ -359,7 +359,7 @@ describe("TrainingScreen: 開始ダイアログ（カードタップでは枠を
     stubMe("free");
     renderScreen();
     await flush();
-    await openDialog(/清一色 多面待ち/);
+    await openDialog(/清一色 何待ち/);
     fireEvent.click(screen.getByRole("button", { name: "開始" }));
     await flush();
     await advance(3000); // カウントダウン3秒ぶん
@@ -372,7 +372,7 @@ describe("TrainingScreen: 開始ダイアログ（カードタップでは枠を
     h.startQuizSessionAction.mockResolvedValue({ ok: false, status: 402, reason: "quota" });
     renderScreen();
     await flush();
-    await openDialog(/清一色 多面待ち/);
+    await openDialog(/清一色 何待ち/);
     fireEvent.click(screen.getByRole("button", { name: "開始" }));
     await flush();
 
@@ -395,7 +395,7 @@ describe("TrainingScreen: 開始ダイアログ（カードタップでは枠を
     h.startQuizSessionAction.mockResolvedValue({ ok: false, status: 500 });
     renderScreen();
     await flush();
-    await openDialog(/清一色 多面待ち/);
+    await openDialog(/清一色 何待ち/);
     fireEvent.click(screen.getByRole("button", { name: "開始" }));
     await flush();
 
@@ -411,7 +411,7 @@ describe("TrainingScreen: 清一色（待ち牌の複数選択・完全一致）
     stubMe("free");
     renderScreen();
     await flush();
-    await startViaDialog(/清一色 多面待ち/);
+    await startViaDialog(/清一色 何待ち/);
   }
 
   it("待ち牌を全部選んで回答すると正解カウントが増え、0.5秒後に次問へ進む", async () => {
@@ -484,7 +484,7 @@ describe("TrainingScreen: 牌効率（牌タップ=切る）", () => {
     stubMe("free");
     renderScreen();
     await flush();
-    await startViaDialog(/牌効率/);
+    await startViaDialog(/^牌効率/);
   }
 
   it("正解打牌（受け入れ最大）をタップすると正解カウントが増え、次問へ進む", async () => {
@@ -649,7 +649,7 @@ describe("TrainingScreen: 60秒経過と結果画面", () => {
     stubMe("free");
     renderScreen();
     await flush();
-    await startViaDialog(/牌効率/);
+    await startViaDialog(/^牌効率/);
     // t=0 で正解（9索）→ t=500 で次問 → 以降は無回答のまま60秒経過（回答中の問題は打ち切り）。
     fireEvent.click(screen.getByRole("button", { name: "9索" }));
     await advance(500);
@@ -769,7 +769,7 @@ describe("TrainingScreen: 60秒経過と結果画面", () => {
     await advance(59_500);
     await flush();
     fireEvent.click(screen.getByRole("button", { name: "問題選択にもどる" }));
-    expect(screen.getByRole("button", { name: /清一色 多面待ち/ })).toBeTruthy();
+    expect(screen.getByRole("button", { name: /清一色 何待ち/ })).toBeTruthy();
     expect(h.startQuizSessionAction).toHaveBeenCalledTimes(1); // 戻るだけでは開始しない
   });
 
@@ -784,7 +784,7 @@ describe("TrainingScreen: 60秒経過と結果画面", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "問題選択にもどる" }));
     // 選択画面: エラーは消える（上限はプランカードで伝える方針。貼り付いたままにしない）。
-    expect(screen.getByRole("button", { name: /清一色 多面待ち/ })).toBeTruthy();
+    expect(screen.getByRole("button", { name: /清一色 何待ち/ })).toBeTruthy();
     expect(screen.queryByText(/本日の無料枠/)).toBeNull();
     expect(screen.queryByRole("link", { name: "プランをアップグレード" })).toBeNull();
   });
@@ -806,7 +806,7 @@ describe("TrainingScreen: 結果画面の見直しリスト", () => {
     stubMe("free");
     renderScreen();
     await flush();
-    await startViaDialog(/牌効率/);
+    await startViaDialog(/^牌効率/);
     // Q1 を 9索 で正解 → Q2 を 3萬 で不正解 → Q3 は回答中のまま60秒経過。
     fireEvent.click(screen.getByRole("button", { name: "9索" }));
     await advance(500);
@@ -838,7 +838,7 @@ describe("TrainingScreen: 結果画面の見直しリスト", () => {
     stubMe("free");
     renderScreen();
     await flush();
-    await startViaDialog(/牌効率/);
+    await startViaDialog(/^牌効率/);
     fireEvent.click(screen.getByRole("button", { name: "9索" }));
     await advance(500);
     await advance(59_500);
@@ -861,7 +861,7 @@ describe("TrainingScreen: 結果画面の見直しリスト", () => {
     stubMe("free");
     renderScreen();
     await flush();
-    await startViaDialog(/清一色 多面待ち/);
+    await startViaDialog(/清一色 何待ち/);
     // Q1 を 4筒5筒6筒 で正解 → Q2 を 1索 だけ（不完全）で不正解 → Q3 は回答中のまま60秒経過。
     fireEvent.click(screen.getByRole("button", { name: "4筒" }));
     fireEvent.click(screen.getByRole("button", { name: "5筒" }));
@@ -897,7 +897,7 @@ describe("TrainingScreen: 結果画面の見直しリスト", () => {
     stubMe("free");
     renderScreen();
     await flush();
-    await startViaDialog(/牌効率/);
+    await startViaDialog(/^牌効率/);
     // Q1 を 9索（正解・向聴維持）→ Q2 を 3萬（不正解・向聴戻し）で回答して60秒経過。
     fireEvent.click(screen.getByRole("button", { name: "9索" }));
     await advance(500);
@@ -962,7 +962,7 @@ describe("TrainingScreen: 結果画面の見直しリスト", () => {
     stubMe("free");
     renderScreen();
     await flush();
-    await startViaDialog(/清一色 多面待ち/);
+    await startViaDialog(/清一色 何待ち/);
     fireEvent.click(screen.getByRole("button", { name: "4筒" }));
     fireEvent.click(screen.getByRole("button", { name: "回答" }));
     await advance(500);
@@ -979,7 +979,7 @@ describe("TrainingScreen: 結果画面の見直しリスト", () => {
     stubMe("free");
     renderScreen();
     await flush();
-    await startViaDialog(/牌効率/);
+    await startViaDialog(/^牌効率/);
     await advance(60_000);
     await flush();
 
@@ -1010,7 +1010,7 @@ describe("TrainingScreen: dev プレビュー用の注入口（/dev/training が
     await flush();
 
     // 注入 user により種目カードが出る（ログイン導線ではない）。直近記録は注入 listSessions から。
-    await openDialog(/牌効率/);
+    await openDialog(/^牌効率/);
     expect(listSessions).toHaveBeenCalledTimes(1);
     expect(h.listQuizSessionsAction).not.toHaveBeenCalled();
     expect(
@@ -1037,12 +1037,12 @@ describe("TrainingScreen: dev プレビュー用の注入口（/dev/training が
   });
 });
 
-describe("TrainingScreen: 清一色 何切る（牌タップ=切る・広さ最大）", () => {
+describe("TrainingScreen: 清一色 牌効率（牌タップ=切る・広さ最大）", () => {
   async function startChinitsuUkeire() {
     stubMe("free");
     renderScreen();
     await flush();
-    await startViaDialog(/清一色 何切る/);
+    await startViaDialog(/清一色 牌効率/);
   }
 
   it("指示文は種目のもの（牌効率の文言を使い回さない）", async () => {
@@ -1053,13 +1053,13 @@ describe("TrainingScreen: 清一色 何切る（牌タップ=切る・広さ最�
 
   it("正解打牌をタップすると正解カウントが増える", async () => {
     await startChinitsuUkeire();
-    fireEvent.click(screen.getAllByRole("button", { name: "1萬" })[0]!);
+    fireEvent.click(screen.getAllByRole("button", { name: "7萬" })[0]!);
     expect(screen.getByText("正解 1 / 1問")).toBeTruthy();
   });
 
   it("見直し行に受け入れ詳細が出て、他色を数えない（同色だけで広さを測る）", async () => {
     await startChinitsuUkeire();
-    fireEvent.click(screen.getAllByRole("button", { name: "1萬" })[0]!);
+    fireEvent.click(screen.getAllByRole("button", { name: "7萬" })[0]!);
     await advance(500);
     await advance(59_500);
     await flush();
@@ -1071,5 +1071,41 @@ describe("TrainingScreen: 清一色 何切る（牌タップ=切る・広さ最�
       .map((el) => el.getAttribute("alt") ?? "");
     expect(alts.length).toBeGreaterThan(0);
     expect(alts.every((a) => a.endsWith("萬"))).toBe(true);
+  });
+});
+
+describe("TrainingScreen: 清一色 牌効率（テンパイ問題の見直しは「待ち」と書く）", () => {
+  // 0向聴では「向聴が1つ進む牌」＝和了牌なので、見出しは「受け入れ」ではなく「待ち」。
+  // ここが食い違うと、種目の説明（テンパイなら待ち・1向聴なら受け入れ）と矛盾する。
+  const TENPAI_Q: ChinitsuUkeireQuestion = {
+    kind: "chinitsuUkeire",
+    // prettier-ignore
+    tiles: ["1m", "2m", "3m", "3m", "4m", "5m", "6m", "7m", "7m", "8m", "8m", "8m", "9m", "9m"],
+    suit: "m",
+    shanten: 0,
+    answer: ["7m"],
+  };
+
+  it("テンパイを保つ打牌の見直しは「待ち」表記（1向聴問題の「受け入れ」と呼び分ける）", async () => {
+    stubMe("free");
+    render(
+      <AuthProvider>
+        <TrainingScreen generateQuestion={() => TENPAI_Q} />
+      </AuthProvider>,
+    );
+    await flush();
+    await startViaDialog(/清一色 牌効率/);
+
+    fireEvent.click(screen.getAllByRole("button", { name: "7萬" })[0]!);
+    await advance(500);
+    await advance(59_500);
+    await flush();
+
+    const list = screen.getByRole("list", { name: "見直しリスト" });
+    // 読み上げ名と表示テキストは同じ語を使う（名前は「受け入れ」なのに中身は「待ち」を防ぐ）。
+    const mine = within(list).getByRole("group", { name: "あなたの回答の待ち" });
+    expect(within(mine).getByText(/^待ち /)).toBeTruthy();
+    expect(within(mine).queryByText(/^受け入れ /)).toBeNull();
+    expect(within(list).getByRole("group", { name: "正解7萬の待ち" })).toBeTruthy();
   });
 });

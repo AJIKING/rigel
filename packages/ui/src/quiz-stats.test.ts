@@ -406,13 +406,15 @@ describe("マイページ「特訓」の共有定義（履歴上限・期間・�
     }
   });
 
-  it("種目チップは「全種目」+ 短縮名で、QUIZ_KIND_LABELS の全種目を網羅する", () => {
+  // チップは種目の表示名から導出する（別に短縮名を持つと表記がずれる）。
+  // 並びは種目カードと同じ（背骨 QuizKindSchema.options）。
+  it("種目チップは「全種目」+ 種目名で、QUIZ_KIND_LABELS の全種目を並び順どおり網羅する", () => {
     expect(QUIZ_KIND_FILTERS).toEqual([
       { key: "all", label: "全種目" },
-      { key: "chinitsu", label: "清一色" },
-      { key: "efficiency", label: "牌効率" },
       { key: "score", label: "点数計算" },
-      { key: "chinitsuUkeire", label: "清一色何切る" },
+      { key: "efficiency", label: "牌効率" },
+      { key: "chinitsu", label: "清一色 何待ち" },
+      { key: "chinitsuUkeire", label: "清一色 牌効率" },
     ]);
     // 種目が増えたらチップも増やす（正式名 QUIZ_KIND_LABELS との網羅整合）。
     expect(QUIZ_KIND_FILTERS.map((k) => k.key)).toEqual(["all", ...Object.keys(QUIZ_KIND_LABELS)]);

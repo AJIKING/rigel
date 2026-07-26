@@ -57,7 +57,7 @@ export interface EfficiencyQuestion {
 export interface QuizAnswerRecord {
   /** 出題（tiles=手牌 / answer=正解）。 */
   question: ChinitsuQuestion | ChinitsuUkeireQuestion | EfficiencyQuestion | ScoreQuestion;
-  /** あなたの回答（清一色=選んだ待ち牌・選択順 / 牌効率・清一色何切る=切った牌1枚 /
+  /** あなたの回答（清一色=選んだ待ち牌・選択順 / 牌効率・清一色 牌効率=切った牌1枚 /
    *  点数計算=空配列）。 */
   picked: Tile[];
   /** 点数計算の選んだ選択肢（他種目は undefined）。 */
@@ -75,7 +75,7 @@ const SUIT_WALLS: Record<(typeof NUMBER_SUITS)[number], readonly Tile[]> = {
 };
 
 /**
- * 清一色多面待ち問題を1問生成する。
+ * 清一色 何待ち問題を1問生成する。
  * フィルタ: 萬/筒/索からランダムに1色 → その色のみ13枚 → テンパイかつ待ち2種以上。
  */
 export function generateChinitsuQuestion(
@@ -92,7 +92,7 @@ export function generateChinitsuQuestion(
   }, maxAttempts);
 }
 
-/** 数牌のスート（清一色 何切るの手牌の色）。 */
+/** 数牌のスート（清一色 牌効率の手牌の色）。 */
 export type NumberSuit = (typeof NUMBER_SUITS)[number];
 
 export interface ChinitsuUkeireQuestion {
@@ -116,7 +116,7 @@ const SUIT_CANDIDATES: Record<NumberSuit, readonly Tile[]> = {
   s: CANDIDATE_TILES.filter((t) => t[1] === "s"),
 };
 
-/** 清一色 何切るで受け入れとして数える牌種（その色の9種）。出題と見直しが同じ物差しを使う。 */
+/** 清一色 牌効率で受け入れとして数える牌種（その色の9種）。出題と見直しが同じ物差しを使う。 */
 export function chinitsuUkeireCandidates(suit: NumberSuit): readonly Tile[] {
   return SUIT_CANDIDATES[suit];
 }
@@ -126,7 +126,7 @@ export function chinitsuUkeireCandidates(suit: NumberSuit): readonly Tile[] {
 const CHINITSU_UKEIRE_MIN_TENPAI_DISCARDS = 4;
 
 /**
- * 清一色 何切る問題を1問生成する（Plan: docs/plans/quiz-chinitsu-ukeire.md）。
+ * 清一色 牌効率問題を1問生成する（Plan: docs/plans/quiz-chinitsu-ukeire.md）。
  *
  * フィルタ: 1問ごとに「テンパイ / 1向聴」を 1/2 で選び、その向聴の単色14枚を引く
  * （単色14枚に2向聴は存在しないため、この2つが全て）。正解は**最小向聴を保つ打牌**

@@ -73,8 +73,10 @@ describe("MyTrainingScreen（マイページ 特訓: サマリ・履歴・グラ
     // 先頭 = 一番新しい s2（JST 7/23 10:00・清一色・5/10）。
     const dates = screen.getAllByText(/^2026\/07\//);
     expect(dates[0]!.props.children).toBe("2026/07/23 10:00");
-    expect(screen.getAllByText("清一色 多面待ち")).toHaveLength(2);
-    expect(screen.getByText("牌効率（受け入れ最大）")).toBeTruthy();
+    // 絞り込みチップと履歴行の種目名は同じ文字列（表示名を一本化したため）。
+    // ここでは履歴行だけを数えたいので、チップ（role=button）を除いた数で見る。
+    expect(screen.getAllByText("清一色 何待ち")).toHaveLength(3); // チップ1 + 履歴2
+    expect(screen.getAllByText("牌効率")).toHaveLength(2); // チップ1 + 履歴1
     expect(screen.getByText("5 / 10問")).toBeTruthy();
     expect(screen.getByText("正答率 50%")).toBeTruthy();
     expect(screen.getByText("正答率 90%")).toBeTruthy();
@@ -92,17 +94,18 @@ describe("MyTrainingScreen（マイページ 特訓: サマリ・履歴・グラ
     expect(screen.getByLabelText("1分あたり正解数の推移（全期間）")).toBeTruthy();
   });
 
-  it("種目チップ（全種目/清一色/牌効率）で清一色に絞るとサマリと履歴から牌効率の分が消える", async () => {
+  it("種目チップ（全種目/点数計算/牌効率/清一色 何待ち/清一色 牌効率）で絞ると履歴から他種目が消える", async () => {
     render(<MyTrainingScreen now={NOW} />);
     await screen.findByText("挑戦回数");
 
     expect(screen.getByText("全種目")).toBeTruthy();
-    fireEvent.press(screen.getByText("清一色"));
+    fireEvent.press(screen.getByRole("button", { name: "清一色 何待ち" }));
     expect(stat("stat-sessions").getByText("2")).toBeTruthy();
     expect(stat("stat-best").getByText("7")).toBeTruthy();
     expect(stat("stat-accuracy").getByText("60%")).toBeTruthy();
-    expect(screen.queryByText("牌効率（受け入れ最大）")).toBeNull();
-    expect(screen.getAllByText("清一色 多面待ち")).toHaveLength(2);
+    // 牌効率はチップだけが残る（履歴からは消える）。
+    expect(screen.getAllByText("牌効率")).toHaveLength(1);
+    expect(screen.getAllByText("清一色 何待ち")).toHaveLength(3); // チップ1 + 履歴2
   });
 
   it("記録が無ければ空状態は短い1文（共有文言）を出す（平均正答率は —）", async () => {

@@ -156,27 +156,27 @@ describe("MyTrainingScreen: 期間・種目の切替", () => {
     expect(screen.getByRole("status").textContent).toBe("7/235");
   });
 
-  it("種目チップ（全種目/清一色/牌効率）で清一色に絞るとサマリと履歴から牌効率の分が消える", () => {
+  it("種目チップ（全種目/清一色 何待ち/牌効率…）で清一色に絞るとサマリと履歴から牌効率の分が消える", () => {
     renderScreen();
     // 絞る前: 牌効率の行（正答率 90%）があり、チップの既定は「全種目」。
     const before = screen.getAllByRole("listitem").map((r) => r.textContent ?? "");
-    expect(before.some((r) => r.includes("牌効率（受け入れ最大）"))).toBe(true);
+    expect(before.some((r) => r.includes("牌効率"))).toBe(true);
     const kinds = screen.getByRole("group", { name: "種目で絞り込み" });
     expect(within(kinds).getByRole("button", { name: "全種目" }).getAttribute("aria-pressed")).toBe(
       "true",
     );
 
-    fireEvent.click(within(kinds).getByRole("button", { name: "清一色" }));
-    expect(within(kinds).getByRole("button", { name: "清一色" }).getAttribute("aria-pressed")).toBe(
-      "true",
-    );
+    fireEvent.click(within(kinds).getByRole("button", { name: "清一色 何待ち" }));
+    expect(
+      within(kinds).getByRole("button", { name: "清一色 何待ち" }).getAttribute("aria-pressed"),
+    ).toBe("true");
     expect(statText("挑戦回数")).toBe("2挑戦回数");
     expect(statText("自己ベスト")).toBe("7自己ベスト");
     expect(statText("平均正答率")).toBe("60%平均正答率");
     const rows = screen.getAllByRole("listitem").map((r) => r.textContent ?? "");
     expect(rows).toHaveLength(2);
-    expect(rows.every((r) => r.includes("清一色 多面待ち"))).toBe(true);
-    expect(rows.some((r) => r.includes("牌効率（受け入れ最大）"))).toBe(false);
+    expect(rows.every((r) => r.includes("清一色 何待ち"))).toBe(true);
+    expect(rows.some((r) => r.includes("牌効率"))).toBe(false);
   });
 });
 
@@ -187,11 +187,11 @@ describe("MyTrainingScreen: 履歴リスト", () => {
     expect(rows).toHaveLength(3);
     // 先頭 = 一番新しい s2（JST 7/23 10:00・5/10）。
     expect(rows[0]!.textContent).toContain("2026/07/23 10:00");
-    expect(rows[0]!.textContent).toContain("清一色 多面待ち");
+    expect(rows[0]!.textContent).toContain("清一色 何待ち");
     expect(rows[0]!.textContent).toContain("5 / 10問");
     expect(rows[0]!.textContent).toContain("正答率 50%");
     // 末尾 = 一番古い s3（牌効率・9/10）。
-    expect(rows[2]!.textContent).toContain("牌効率（受け入れ最大）");
+    expect(rows[2]!.textContent).toContain("牌効率");
     expect(rows[2]!.textContent).toContain("正答率 90%");
   });
 
