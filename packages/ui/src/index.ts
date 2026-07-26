@@ -39,6 +39,8 @@ import { chiVariants, meldTiles, sortHandTiles, SUITS, type MeldPick } from "./e
 
 // 打点計算（han/fu + ルール → 支払い）。
 export * from "./score";
+// 採点エンジン v2（任意の和了手 → 全分解列挙×高点法で翻・符・点数。点数計算クイズ v2 の基盤）。
+export * from "./score-engine";
 // 役カタログ（点数計算の入力補助）。
 export * from "./yaku";
 export * from "./tenpai";
@@ -46,8 +48,14 @@ export * from "./tenpai";
 export * from "./shanten";
 // 受け入れ計算（打牌ごとの受け入れ種類×枚数と正解集合。特訓クイズ「牌効率」の採点基盤）。
 export * from "./ukeire";
-// 特訓クイズの出題生成（シード付き決定的乱数＋品質フィルタ）。
+// 特訓クイズの出題生成（シード付き決定的乱数＋品質フィルタ。清一色/牌効率）。
 export * from "./quiz";
+// 特訓クイズの共有定数・文言（web/mobile の特訓画面で共有）。
+export * from "./quiz-copy";
+// 点数計算クイズの出題生成（採点は score-engine へ全委譲）。
+export * from "./quiz-score-question";
+// 特訓クイズのセッション状態機械（60秒タイムアタックの全遷移。web/mobile の画面が共有）。
+export * from "./quiz-session-machine";
 // 特訓クイズの履歴グラフ整形（マイページ「特訓」の日毎集計・サマリ・系列）。
 export * from "./quiz-stats";
 // 局跨ぎの点棒集計（持ち点・成績）。
@@ -213,8 +221,8 @@ export function planKifuLimits(plan: Plan): { private: number | null; draft: num
   return { private: PRIVATE_KIFU_LIMIT[plan], draft: DRAFT_KIFU_LIMIT[plan] };
 }
 
-// FREE_QUIZ_PER_DAY（無料の特訓クイズ1日3回）は @rigel/schema に一元化し、
-// quiz.ts の re-export（`export * from "./quiz"`）経由で従来どおり @rigel/ui から import できる。
+// FREE_QUIZ_PER_DAY（無料の特訓クイズ1日3回）は @rigel/schema に一元化（@rigel/ui からは
+// re-export しない。参照する側は @rigel/schema から直接 import する）。
 
 // 1半荘の局数上限(30)・局順 seq の上限(16)も背骨に一元化（api のサーバ強制と共有）。
 export { MAX_LOGS_PER_GAME, MAX_SEQ } from "@rigel/schema";

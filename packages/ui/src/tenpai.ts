@@ -3,22 +3,12 @@
 // 将来 API 側の回答検証（schema の isValidAnswer）にも riichi 妥当性を載せる場合は、
 // 形判定のコア（isWinningShape/isTenpaiShape）を @rigel/schema へ移して共有する。
 
-import { TILE_VALUES, type Problem, type Tile } from "@rigel/schema";
+import type { Problem, Tile } from "@rigel/schema";
+import { CANDIDATE_TILES, KOKUSHI, toCounts } from "./tile-counts";
 
-// 牌種インデックス: 0-8=萬 9-17=筒 18-26=索 27-33=字。赤5（0m/0p/0s）は通常の5に正規化。
-const SUIT_BASE: Record<string, number> = { m: 0, p: 9, s: 18, z: 27 };
-
-function tileIndex(tile: Tile): number {
-  const n = tile[0] === "0" ? 5 : Number(tile[0]);
-  return SUIT_BASE[tile[1]] + n - 1;
-}
-
-/** 手牌を34種の枚数配列へ（赤5は5に正規化）。shanten.ts と共有する counts 基盤。 */
-export function toCounts(tiles: readonly Tile[]): number[] {
-  const c = new Array<number>(34).fill(0);
-  for (const t of tiles) c[tileIndex(t)]++;
-  return c;
-}
+// counts 基盤（牌種インデックス・toCounts・KOKUSHI・候補34種）は tile-counts.ts に一元化。
+// 既存の import 面（@rigel/ui / "./tenpai" からの toCounts・KOKUSHI）は re-export で維持する。
+export { KOKUSHI, toCounts } from "./tile-counts";
 
 /** counts を刻子・順子だけで使い切れるか（雀頭は除去済みの前提）。 */
 function decomposeSets(c: number[], i: number): boolean {
@@ -43,9 +33,6 @@ function decomposeSets(c: number[], i: number): boolean {
   }
   return false;
 }
-
-/** 幺九牌（国士の構成牌）のインデックス。shanten.ts の国士向聴でも使う。 */
-export const KOKUSHI = [0, 8, 9, 17, 18, 26, 27, 28, 29, 30, 31, 32, 33];
 
 /** counts（34種の枚数・総枚数 total）が和了形か。isTenpaiShape が counts を
  *  増減しながら34種を試すため、counts ベースを中核にする（判定中は破壊しない）。 */
@@ -73,10 +60,6 @@ function isWinningCounts(counts: number[], total: number): boolean {
 export function isWinningShape(tiles: readonly Tile[]): boolean {
   return isWinningCounts(toCounts(tiles), tiles.length);
 }
-
-/** 待ち牌の候補34種（TILE_VALUES 順）。赤5は 5m/5p/5s で代表し 0x は候補に含めない。
- *  並びは tileIndex（0-8=萬 9-17=筒 18-26=索 27-33=字）と一致する。 */
-const CANDIDATE_TILES: readonly Tile[] = TILE_VALUES.filter((t) => t[0] !== "0");
 
 /** 3n+1 枚の手の待ち牌（加えると和了形になる牌種）を TILE_VALUES 順で列挙する。
  *  読めない牌（null）を含む手・枚数不整合の手は判定しない（空配列）。 */

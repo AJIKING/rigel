@@ -1,4 +1,4 @@
-import { KifuSchema, type Kifu } from "@rigel/schema";
+import { FREE_QUIZ_PER_DAY, KifuSchema, type Kifu } from "@rigel/schema";
 import { describe, expect, it } from "vitest";
 import {
   analysisQuotaLabel,
@@ -14,7 +14,6 @@ import {
   checkoutErrorMessage,
   collectReviewItems,
   describeTile,
-  FREE_QUIZ_PER_DAY,
   meldTileViews,
   needsReview,
   planCanAnalyze,

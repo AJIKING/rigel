@@ -1,8 +1,8 @@
 // 特訓クイズの履歴グラフ整形（web/mobile のマイページ「特訓」で共用する純関数）。
-// 日付の丸めは api の started_day と同じ流儀で JST（UTC+9 固定）。
+// 日付の丸めは api の started_day と同じ JST（背骨 @rigel/schema の JST_OFFSET_MS を共有）。
 // 欠損日は 0 セッションの点として埋める（折れ線が日付軸で飛ばないように）。
 
-import type { QuizKind } from "@rigel/schema";
+import { JST_OFFSET_MS, type QuizKind } from "@rigel/schema";
 
 /** グラフの期間（7日/30日は now から遡る。all は最古のセッション〜now）。 */
 export type QuizStatsPeriod = "7d" | "30d" | "all";
@@ -20,15 +20,19 @@ export const QUIZ_STATS_PERIODS: readonly { key: QuizStatsPeriod; label: string 
 ).map((key) => ({ key, label: QUIZ_STATS_PERIOD_LABELS[key] }));
 
 /** 種目絞り込みチップ（「全種目」+ 各種目の短縮名。web/mobile のマイページ「特訓」で共用。
- *  チップは短縮名。履歴行の種目名は QUIZ_KIND_LABELS（quiz.ts）の正式名を使う。 */
+ *  チップは短縮名。履歴行の種目名は QUIZ_KIND_LABELS（quiz-copy.ts）の正式名を使う。 */
 export const QUIZ_KIND_FILTERS: readonly { key: "all" | QuizKind; label: string }[] = [
   { key: "all", label: "全種目" },
   { key: "chinitsu", label: "清一色" },
   { key: "efficiency", label: "牌効率" },
+  { key: "score", label: "点数計算" },
 ];
 
 /** 履歴リストの表示上限（直近。web/mobile のマイページ「特訓」で共用）。 */
 export const QUIZ_HISTORY_LIMIT = 20;
+
+/** 開始ダイアログに出す直近記録の最大件数（web/mobile の特訓画面で共用）。 */
+export const QUIZ_RECENT_LIMIT = 5;
 
 /** ISO日時 → JST の 'YYYY/MM/DD HH:MM'（履歴行の日時。集計と同じ UTC+9 固定）。 */
 export function jstDateTime(iso: string): string {
@@ -42,6 +46,19 @@ export function jstDateTime(iso: string): string {
 /** 正答率 0-1 → '70%'（null は '—' = 出題0問を0%と区別）。 */
 export function accuracyLabel(accuracy: number | null): string {
   return accuracy === null ? "—" : `${Math.round(accuracy * 100)}%`;
+}
+
+/** ISO日時 → JST の 'M/D HH:mm'（開始ダイアログの直近記録行。年なし・月日は0埋めしない）。 */
+export function jstShortDateTime(iso: string): string {
+  const d = new Date(Date.parse(iso) + JST_OFFSET_MS);
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${d.getUTCMonth() + 1}/${d.getUTCDate()} ${p(d.getUTCHours())}:${p(d.getUTCMinutes())}`;
+}
+
+/** 開始ダイアログの直近記録1行（「M/D HH:mm ・ 正解 X/Y問 ・ 正答率 Z%」。web/mobile で共用）。 */
+export function quizRecentLine(s: QuizSessionLike): string {
+  const accuracy = s.total > 0 ? s.correct / s.total : null;
+  return `${jstShortDateTime(s.createdAt)} ・ 正解 ${s.correct}/${s.total}問 ・ 正答率 ${accuracyLabel(accuracy)}`;
 }
 
 /** 集計に必要な最小のセッション形（client の QuizSessionDto がそのまま入る）。 */
@@ -67,7 +84,6 @@ export interface QuizDayPoint {
 }
 
 const DAY_MS = 86_400_000;
-const JST_OFFSET_MS = 9 * 3_600_000;
 
 /** all 期間の点数上限（1年ぶん。無限に伸ばさない）。 */
 export const QUIZ_STATS_MAX_DAYS = 365;

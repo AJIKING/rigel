@@ -1,14 +1,17 @@
 import { describe, expect, it } from "vitest";
-import { QUIZ_KIND_LABELS } from "./quiz";
+import { QUIZ_KIND_LABELS } from "./quiz-copy";
 import {
   QUIZ_HISTORY_LIMIT,
   QUIZ_KIND_FILTERS,
+  QUIZ_RECENT_LIMIT,
   QUIZ_STATS_PERIOD_LABELS,
   QUIZ_STATS_PERIODS,
   accuracyLabel,
   jstDateTime,
+  jstShortDateTime,
   quizChartSeries,
   quizDailyStats,
+  quizRecentLine,
   quizStatsSummary,
   type QuizDayPoint,
   type QuizSessionLike,
@@ -282,7 +285,46 @@ describe("accuracyLabel（正答率 0-1 の % 表示）", () => {
   });
 });
 
+describe("jstShortDateTime（開始ダイアログの直近記録行。年なし M/D HH:mm・UTC+9 固定）", () => {
+  it.each<{ name: string; iso: string; expected: string }>([
+    { name: "UTC 03:05 は JST 12:05", iso: "2026-07-24T03:05:00.000Z", expected: "7/24 12:05" },
+    {
+      name: "UTC 15:00 は JST の翌日 0:00（日跨ぎ）",
+      iso: "2026-07-23T15:00:00.000Z",
+      expected: "7/24 00:00",
+    },
+    {
+      name: "月日は 0 埋めしない・時分は 2 桁 0 埋め",
+      iso: "2026-01-02T18:04:00.000Z",
+      expected: "1/3 03:04",
+    },
+  ])("$name（$iso → $expected）", ({ iso, expected }) => {
+    expect(jstShortDateTime(iso)).toBe(expected);
+  });
+});
+
+describe("quizRecentLine（開始ダイアログの直近記録1行。web/mobile で共用）", () => {
+  it.each<{ name: string; session: QuizSessionLike; expected: string }>([
+    {
+      name: "日時・正解 X/Y問・正答率 Z% を「 ・ 」区切りで1行に",
+      session: mk("2026-07-24T03:05:00.000Z", { correct: 7, total: 10 }),
+      expected: "7/24 12:05 ・ 正解 7/10問 ・ 正答率 70%",
+    },
+    {
+      name: "出題 0 問の正答率は '—'（0% と区別）",
+      session: mk("2026-07-24T03:05:00.000Z", { correct: 0, total: 0 }),
+      expected: "7/24 12:05 ・ 正解 0/0問 ・ 正答率 —",
+    },
+  ])("$name", ({ session, expected }) => {
+    expect(quizRecentLine(session)).toBe(expected);
+  });
+});
+
 describe("マイページ「特訓」の共有定義（履歴上限・期間・種目チップ）", () => {
+  it("開始ダイアログの直近記録は最大5件", () => {
+    expect(QUIZ_RECENT_LIMIT).toBe(5);
+  });
+
   it("履歴リストの表示上限は直近20件", () => {
     expect(QUIZ_HISTORY_LIMIT).toBe(20);
   });
@@ -303,6 +345,7 @@ describe("マイページ「特訓」の共有定義（履歴上限・期間・�
       { key: "all", label: "全種目" },
       { key: "chinitsu", label: "清一色" },
       { key: "efficiency", label: "牌効率" },
+      { key: "score", label: "点数計算" },
     ]);
     // 種目が増えたらチップも増やす（正式名 QUIZ_KIND_LABELS との網羅整合）。
     expect(QUIZ_KIND_FILTERS.map((k) => k.key)).toEqual(["all", ...Object.keys(QUIZ_KIND_LABELS)]);

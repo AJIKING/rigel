@@ -5,7 +5,7 @@
 
 import { TILE_VALUES, type Tile } from "@rigel/schema";
 import { shanten } from "./shanten";
-import { toCounts } from "./tenpai";
+import { CANDIDATE_TILES, toCounts } from "./tile-counts";
 
 export interface DiscardUkeire {
   /** 切る牌（手牌の実コード。赤5は 0x のまま）。 */
@@ -17,9 +17,6 @@ export interface DiscardUkeire {
   /** 受け入れ枚数（Σ 4 − 自分の手牌内の使用枚数。赤5は5と同一視して数える）。 */
   count: number;
 }
-
-/** 受け入れ候補34種（TILE_VALUES 順・赤抜き）。tenpai.ts の tileIndex と並びが一致する。 */
-const CANDIDATE_TILES: readonly Tile[] = TILE_VALUES.filter((t) => t[0] !== "0");
 
 /** 牌コードの表示順（同率打牌の並び・bestDiscards の順序に使う）。 */
 function tileOrder(tile: Tile): number {
@@ -84,4 +81,37 @@ export function bestUkeires(ukeires: readonly DiscardUkeire[]): DiscardUkeire[] 
  */
 export function bestDiscards(tiles: readonly Tile[], meldCount = 0): Tile[] {
   return bestUkeires(discardUkeires(tiles, meldCount)).map((u) => u.discard);
+}
+
+/** 特訓の見直し行（受け入れ詳細）のヘッドレス計算結果。 */
+export interface UkeireReviewModel {
+  /** 全打牌の受け入れ（discardUkeires と同一）。 */
+  ukeires: DiscardUkeire[];
+  /** 最小向聴（不正枚数の手は undefined）。 */
+  minShanten: number | undefined;
+  /** あなたの回答（切った牌）のエントリ（回答なし・手牌に無い牌は undefined）。 */
+  mine: DiscardUkeire | undefined;
+  /** あなたの回答が最小向聴を保っていない（=「向聴戻し」バッジを出す）。 */
+  regressed: boolean;
+  /** 正解集合のエントリ（bestUkeires と同一）。 */
+  best: DiscardUkeire[];
+}
+
+/**
+ * 特訓の見直し行に出す受け入れ詳細の計算（web/mobile の UkeireDetail が共有する
+ * ヘッドレスモデル。2026-07-26 に画面側の二重実装を解消）。
+ * 「最小向聴かつ受け入れ最大」の判定は bestUkeires に一元化したまま、
+ * あなたの回答のエントリと向聴戻し判定までをここでまとめて返す。
+ */
+export function ukeireReviewModel(tiles: readonly Tile[], picked: Tile | null): UkeireReviewModel {
+  const ukeires = discardUkeires(tiles);
+  const minShanten = ukeires[0]?.shanten;
+  const mine = picked === null ? undefined : ukeires.find((u) => u.discard === picked);
+  return {
+    ukeires,
+    minShanten,
+    mine,
+    regressed: mine !== undefined && mine.shanten !== minShanten,
+    best: bestUkeires(ukeires),
+  };
 }

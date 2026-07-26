@@ -2,54 +2,23 @@
 // シード付き決定的乱数（mulberry32）＋棄却サンプリングで「解く価値のある手」だけを出題する。
 // 採点基盤（winningTiles / bestDiscards）の結果をそのまま正解に使い、採点ロジックを二重実装しない。
 // Date.now() / Math.random() は使わない（同一シード→同一問題列の再現が受け入れ条件）。
+// 2026-07-26 に分割: 文言・共有定数は quiz-copy.ts、点数計算の生成は quiz-score-question.ts、
+// サンプリングの内部ヘルパは quiz-random.ts（公開面は index.ts の export * で従来どおり）。
 
-import { TILE_VALUES, type QuizKind, type Tile } from "@rigel/schema";
+import type { Tile } from "@rigel/schema";
 import { compareTiles } from "./edit";
+import { drawTiles, NUMBER_SUITS, QUIZ_MAX_GENERATION_ATTEMPTS, sampleUntil } from "./quiz-random";
+import type { ScoreQuestion } from "./quiz-score-question";
 import { shanten } from "./shanten";
 import { winningTiles } from "./tenpai";
+import { CANDIDATE_TILES } from "./tile-counts";
 import { bestUkeires, discardUkeires } from "./ukeire";
 
 // クイズ種別は背骨（@rigel/schema の QuizKindSchema）に一本化する（重複定義しない）。
 export type { QuizKind } from "@rigel/schema";
 
-// ------------------------------------------------------------
-// 共有定数・文言（web/mobile の特訓画面で共有。表記ゆれ防止）
-// ------------------------------------------------------------
-
-// 無料の特訓クイズ1日3回は課金ポリシーなので背骨（@rigel/schema の plan.ts）に一元化。
-// 従来どおり @rigel/ui からも import できるよう re-export を残す（web/mobile の文言用）。
-import { FREE_QUIZ_PER_DAY } from "@rigel/schema";
-export { FREE_QUIZ_PER_DAY };
-
-/** 1セッションの制限秒数（60秒タイムアタック）。 */
-export const QUIZ_SESSION_SECONDS = 60;
-
-/** 種目の表示名（種目選択カード・結果画面で共用）。 */
-export const QUIZ_KIND_LABELS: Record<QuizKind, string> = {
-  chinitsu: "清一色 多面待ち",
-  efficiency: "牌効率（受け入れ最大）",
-};
-
-/** 種目の説明文（種目選択カードで共用）。「何をするか（＋ルール補足）＋何が鍛えられるか」を1行で伝える。
- *  ルール補足（完全一致/同率）はここに寄せ、出題中の指示文（QUIZ_KIND_PROMPTS）は最短にする。 */
-export const QUIZ_KIND_DESCRIPTIONS: Record<QuizKind, string> = {
-  chinitsu:
-    "単色13枚のテンパイから待ち牌を全部見抜く（完全一致で正解）。多面待ちを読む速さを鍛える。",
-  efficiency:
-    "14枚から受け入れが最大になる1枚を切る（同率はどれでも正解）。手広く構える感覚を鍛える。",
-};
-
-/** 出題中の指示文（web/mobile の出題エリアで共用）。最短で（補足は QUIZ_KIND_DESCRIPTIONS に寄せる）。 */
-export const QUIZ_KIND_PROMPTS: Record<QuizKind, string> = {
-  chinitsu: "待ち牌を全部選ぶ",
-  efficiency: "受け入れ最大の牌を切る",
-};
-
-/** 無料枠を使い切ったとき（開始 API が 402）の文言。短く（枠と有料無制限のみ）。 */
-export const QUIZ_LIMIT_MESSAGE = `本日の無料枠（${FREE_QUIZ_PER_DAY}回）を使い切りました。有料プランなら無制限です。`;
-
-/** マイページ「特訓」タブの空状態文言（web/mobile で共有）。 */
-export const QUIZ_EMPTY_HISTORY_MESSAGE = "まだ特訓の記録がありません";
+// 棄却サンプリングの既定試行上限（内部実装は quiz-random.ts。公開面は従来どおりここから）。
+export { QUIZ_MAX_GENERATION_ATTEMPTS } from "./quiz-random";
 
 /** シード付き決定的乱数（mulberry32・0以上1未満）。同じ seed から同じ問題列が再現される。 */
 export function createQuizRng(seed: number): () => number {
@@ -61,9 +30,6 @@ export function createQuizRng(seed: number): () => number {
     return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
   };
 }
-
-/** 棄却サンプリングの既定試行上限。超えたら Error（フィルタを満たせない設計ミスを黙って隠さない）。 */
-export const QUIZ_MAX_GENERATION_ATTEMPTS = 10000;
 
 export interface ChinitsuQuestion {
   kind: "chinitsu";
@@ -90,43 +56,22 @@ export interface EfficiencyQuestion {
  */
 export interface QuizAnswerRecord {
   /** 出題（tiles=手牌 / answer=正解）。 */
-  question: ChinitsuQuestion | EfficiencyQuestion;
-  /** あなたの回答（清一色=選んだ待ち牌・選択順 / 牌効率=切った牌1枚）。 */
+  question: ChinitsuQuestion | EfficiencyQuestion | ScoreQuestion;
+  /** あなたの回答（清一色=選んだ待ち牌・選択順 / 牌効率=切った牌1枚 / 点数計算=空配列）。 */
   picked: Tile[];
+  /** 点数計算の選んだ選択肢（他種目は undefined）。 */
+  pickedChoice?: string;
   /** 正誤（picked が正解条件を満たしたか）。 */
   ok: boolean;
 }
 
-// 牌山（各牌種4枚・赤5なし）。KINDS は tenpai/ukeire の CANDIDATE_TILES と同じ34種。
-const KINDS: readonly Tile[] = TILE_VALUES.filter((t) => t[0] !== "0");
-const FULL_WALL: readonly Tile[] = KINDS.flatMap((t) => [t, t, t, t]);
-const NUMBER_SUITS = ["m", "p", "s"] as const;
+// 牌山（各牌種4枚・赤5なし）。牌種34種は counts 基盤（tile-counts.ts）の CANDIDATE_TILES。
+const FULL_WALL: readonly Tile[] = CANDIDATE_TILES.flatMap((t) => [t, t, t, t]);
 const SUIT_WALLS: Record<(typeof NUMBER_SUITS)[number], readonly Tile[]> = {
-  m: KINDS.filter((t) => t[1] === "m").flatMap((t) => [t, t, t, t]),
-  p: KINDS.filter((t) => t[1] === "p").flatMap((t) => [t, t, t, t]),
-  s: KINDS.filter((t) => t[1] === "s").flatMap((t) => [t, t, t, t]),
+  m: CANDIDATE_TILES.filter((t) => t[1] === "m").flatMap((t) => [t, t, t, t]),
+  p: CANDIDATE_TILES.filter((t) => t[1] === "p").flatMap((t) => [t, t, t, t]),
+  s: CANDIDATE_TILES.filter((t) => t[1] === "s").flatMap((t) => [t, t, t, t]),
 };
-
-/** 牌山から重複なしで n 枚引く（Fisher–Yates の先頭 n 枚。rng のみ使用で決定的）。 */
-function drawTiles(wall: readonly Tile[], n: number, rng: () => number): Tile[] {
-  const copy = [...wall];
-  for (let i = copy.length - 1; i > 0; i--) {
-    const j = Math.floor(rng() * (i + 1));
-    [copy[i], copy[j]] = [copy[j]!, copy[i]!];
-  }
-  return copy.slice(0, n);
-}
-
-/** 品質フィルタを通るまで再抽選する。上限を超えたら Error（無限ループ防止）。 */
-function sampleUntil<T>(attempt: () => T | null, maxAttempts: number): T {
-  for (let i = 0; i < maxAttempts; i++) {
-    const q = attempt();
-    if (q !== null) return q;
-  }
-  throw new Error(
-    `出題生成が試行上限 ${maxAttempts} 回を超えました（品質フィルタを満たす手が引けません）`,
-  );
-}
 
 /**
  * 清一色多面待ち問題を1問生成する。

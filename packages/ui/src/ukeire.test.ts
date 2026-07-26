@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { TILE_VALUES, type Tile } from "@rigel/schema";
-import { bestDiscards, bestUkeires, discardUkeires } from "./ukeire";
+import { bestDiscards, bestUkeires, discardUkeires, ukeireReviewModel } from "./ukeire";
 import { createQuizRng } from "./quiz";
 import { toCounts, winningTiles } from "./tenpai";
 import { shanten } from "./shanten";
@@ -210,6 +210,42 @@ describe("bestUkeires（見直し用: discardUkeires の結果から正解集合
 
   it("空配列（不正枚数の手）は空配列", () => {
     expect(bestUkeires([])).toEqual([]);
+  });
+});
+
+describe("ukeireReviewModel（見直し行のヘッドレス計算。web/mobile の UkeireDetail が共有）", () => {
+  it.each<{
+    name: string;
+    hand: string;
+    picked: Tile | null;
+    regressed: boolean;
+  }>([
+    { name: "A: 正解打牌（2z）は向聴戻しでない", hand: HAND_A, picked: "2z", regressed: false },
+    { name: "A: 向聴戻し打牌（1z）は regressed", hand: HAND_A, picked: "1z", regressed: true },
+    { name: "D: 同率最大のひとつ（9p）", hand: HAND_D, picked: "9p", regressed: false },
+  ])("$name", ({ hand, picked, regressed }) => {
+    const model = ukeireReviewModel(tiles(hand), picked);
+    // ukeires / minShanten / mine / best は discardUkeires・bestUkeires と一致する
+    //（画面側で再実装しないための一元化）。
+    const all = discardUkeires(tiles(hand));
+    expect(model.ukeires).toEqual(all);
+    expect(model.minShanten).toBe(all[0]!.shanten);
+    expect(model.mine).toEqual(all.find((u) => u.discard === picked));
+    expect(model.regressed).toBe(regressed);
+    expect(model.best.map((u) => u.discard)).toEqual(bestDiscards(tiles(hand)));
+  });
+
+  it("picked=null（打ち切り等で回答が無い）は mine=undefined・regressed=false", () => {
+    const model = ukeireReviewModel(tiles(HAND_A), null);
+    expect(model.mine).toBeUndefined();
+    expect(model.regressed).toBe(false);
+    expect(model.best.map((u) => u.discard)).toEqual(["2z"]);
+  });
+
+  it("picked が手牌に無い牌でも壊れない（mine=undefined）", () => {
+    const model = ukeireReviewModel(tiles(HAND_A), "9p");
+    expect(model.mine).toBeUndefined();
+    expect(model.regressed).toBe(false);
   });
 });
 

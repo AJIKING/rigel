@@ -1,8 +1,9 @@
 // 向聴数計算（特訓クイズの出題フィルタ・受け入れ計算の基盤。web/mobile 共有）。
-// tenpai.ts と同じ counts（34種・赤5正規化）を土台に、通常形・七対子・国士の最小値を返す。
+// tenpai.ts と同じ counts 基盤（tile-counts.ts。34種・赤5正規化）を土台に、
+// 通常形・七対子・国士の最小値を返す。
 
 import type { Tile } from "@rigel/schema";
-import { KOKUSHI, toCounts } from "./tenpai";
+import { KOKUSHI, toCounts } from "./tile-counts";
 
 /**
  * 通常形の向聴数: 8 - 2*(副露+面子) - 搭子 - 雀頭(0/1) の最小値。
