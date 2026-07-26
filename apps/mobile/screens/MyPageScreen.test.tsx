@@ -77,12 +77,12 @@ describe("MyPageScreen（マイページ：牌譜/何切るの切替）", () => 
     expect(screen.queryByText("公開中の問題")).toBeNull();
   });
 
-  it("セグメントを特訓に切り替えると特訓の履歴（サマリ・空状態）が出る", async () => {
+  it("セグメントを特訓に切り替えると特訓の履歴（空状態）が出る", async () => {
     render(<Harness />);
 
     fireEvent.press(screen.getByText("特訓"));
-    expect(await screen.findByText("挑戦回数")).toBeTruthy();
-    expect(screen.getByText("まだ特訓の記録がありません")).toBeTruthy();
+    // 記録なしのフィクスチャなのでグラフは1枚も出ず、空状態の1文だけになる。
+    expect(await screen.findByText("まだ特訓の記録がありません")).toBeTruthy();
     expect(mockListQuizSessions).toHaveBeenCalledWith("t");
     expect(screen.queryByText("東風戦")).toBeNull();
     expect(screen.queryByText("公開中の問題")).toBeNull();

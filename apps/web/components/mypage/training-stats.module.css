@@ -1,47 +1,17 @@
 /* ============================================================
-   マイページ「特訓」タブ — 履歴サマリ・折れ線グラフ・履歴リスト
+   マイページ「特訓」タブ — 期間チップ・種目ごとの折れ線グラフ・履歴リスト
    トーンは特訓画面（training.module.css）に合わせる:
-   stat カード＝chrome-3 カード / チップ＝ピル / グラフ＝白地カード。
+   チップ＝ピル / グラフカード・履歴行＝chrome-2→chrome のダークカード。
    角丸は共通トークン（カード=var(--r)）に統一（[決定] 2026-07-25 オーナーレビュー）。
    ============================================================ */
 
-/* サマリ3枠（特訓の結果画面と同じ stat カード風）。 */
-.stats {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 10px;
-  padding: 20px 0 14px;
-}
-.stat {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 3px;
-  background: var(--chrome-3);
-  border: 1px solid var(--line);
-  border-radius: var(--r);
-  padding: 16px 8px 13px;
-}
-.stat b {
-  font-family: var(--round);
-  font-weight: 800;
-  font-size: 22px;
-  line-height: 1.1;
-  font-variant-numeric: tabular-nums;
-}
-.stat span {
-  font-size: 11px;
-  font-weight: 700;
-  color: var(--w45);
-}
-
-/* 期間（7日/30日/全期間）・種目の切替チップ列。 */
+/* 期間（7日/30日/全期間）の切替チップ列。種目チップは廃止（種目ごとにグラフを並べる）。 */
 .toolbar {
   display: flex;
   align-items: center;
   gap: 14px;
   flex-wrap: wrap;
-  padding: 0 0 14px;
+  padding: 20px 0 14px;
 }
 .seg {
   display: inline-flex;
@@ -69,27 +39,53 @@
   color: #16181d;
 }
 
-/* グラフカード（白地・影。グラフの視認性のため白地は維持）。
-   線色 --chart-ink はアクセント（#ff9e45）そのままだと白地に対して 1.8:1 しか出ず
-   図形として見えないため、同じ色相の暗いステップに落として 4.4:1 を確保する
-   （非テキストのコントラスト 3:1 を満たす）。--chart-surface はカード地の色で、
-   点の縁取り（サーフェスリング）に使う。 */
-.chartCard {
-  --chart-ink: #b4560c;
-  --chart-surface: #f7f3e9;
-  background: linear-gradient(180deg, #faf7ef, #efe9da);
-  border-radius: var(--r);
-  padding: 14px 14px 8px;
-  margin-bottom: 18px;
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.8),
-    0 8px 20px rgba(0, 0, 0, 0.35);
-}
-.chartTitle {
-  margin: 0 0 8px;
+/* 並べたグラフの上に1度だけ出す指標名（カード見出しは種目名が担う）。 */
+.metricTitle {
+  margin: 0 0 10px;
   font-size: 11.5px;
   font-weight: 700;
-  color: rgba(23, 26, 31, 0.55);
+  color: var(--w45);
+}
+
+/* グラフカード（地はページに合わせたダーク。[決定] 2026-07-27 オーナー）。
+   かつては白地カードだったが、明るい地の上では軸ラベルが 2.95:1 までしか出せず
+   （AA 4.5:1 未達）、暗い画面の中で 16.6:1 の板が光っていた。地を揃えたことで
+   軸ラベル 5.10:1・線 7.34:1 になり、どちらも余裕を持って満たす。
+   線色 --chart-ink は --em-light（#3ec487）。この緑は特訓の見直しで既に
+   「○＝正解」を指す色で、グラフが描くのも「1分あたり正解数」なので意味が一致する。
+   アクセントのオレンジは操作要素（チップ・リンク）に予約し、データには使わない。
+   --chart-surface はカード地の色で、点の縁取り（サーフェスリング）に使う。 */
+.chartCard {
+  --chart-ink: var(--em-light, #3ec487);
+  --chart-surface: #1a1d23;
+  background: linear-gradient(165deg, var(--chrome-2), var(--chrome));
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  padding: 12px 14px 6px;
+  margin-bottom: 10px;
+}
+/* 見出し行: 左に種目名・右にその種目/期間の小さなサマリ。 */
+.chartHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 2px;
+}
+.chartTitle {
+  margin: 0;
+  font-family: var(--round);
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--white);
+}
+.chartMeta {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--w45);
+  font-variant-numeric: tabular-nums;
 }
 /* ツールチップの絶対配置の基準。 */
 .chartBody {
@@ -106,35 +102,38 @@
   outline-offset: 2px;
   border-radius: 8px;
 }
-/* 軸ラベルは白地カード上に載るため暗色。数値は桁を揃える。 */
+/* 軸ラベルはダーク地に載るため明色（--w45 と同値で 5.1:1）。数値は桁を揃える。 */
 .axis {
-  fill: rgba(23, 26, 31, 0.5);
+  fill: rgba(245, 246, 247, 0.55);
   font-size: 10px;
   font-variant-numeric: tabular-nums;
 }
 /* グリッドは実線ヘアライン（破線はしきい値・予測に見えるので使わない）。 */
 .grid {
-  stroke: rgba(23, 26, 31, 0.12);
+  stroke: rgba(245, 246, 247, 0.12);
   stroke-width: 1;
 }
 /* ホバー位置の縦線。グリッドより一段だけ濃く、データより弱く。 */
 .crosshair {
-  stroke: rgba(23, 26, 31, 0.28);
+  stroke: rgba(245, 246, 247, 0.3);
   stroke-width: 1;
 }
-/* 点はカード地の 2px リングで縁取り、線や隣の点と重なっても粒が読めるようにする。 */
+/* 点はカード地の 2px リングで縁取り、線や隣の点と重なっても粒が読めるようにする。
+   半径は CSS から与える（狭い幅で拡大するため。未対応ブラウザは属性値 4 にフォールバック）。 */
 .dot {
+  r: 4;
   stroke: var(--chart-surface);
   stroke-width: 2;
 }
-/* 終端の値ラベル（唯一の直接ラベル）。テキストは系列色ではなく暗いインク。 */
+/* 終端の値ラベル（唯一の直接ラベル）。テキストは系列色ではなく通常のインク。 */
 .endLabel {
-  fill: rgba(23, 26, 31, 0.82);
+  fill: var(--white);
   font-size: 12px;
   font-weight: 800;
   font-variant-numeric: tabular-nums;
 }
-/* ホバー/フォーカスのツールチップ（グラフ上部に浮かせ、横だけ追従する）。 */
+/* ホバー/フォーカスのツールチップ（グラフ上部に浮かせ、横だけ追従する）。
+   カード地がダークになったので、浮いて見えるよう地より明るい面に置く。 */
 .tip {
   position: absolute;
   top: 0;
@@ -144,12 +143,13 @@
   gap: 8px;
   pointer-events: none;
   white-space: nowrap;
-  background: rgba(23, 26, 31, 0.92);
-  color: #fff;
+  background: var(--chrome-3);
+  border: 1px solid var(--line-2);
+  color: var(--white);
   border-radius: 8px;
   padding: 4px 9px;
   font-size: 11px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.45);
 }
 .tip b {
   font-weight: 700;
@@ -222,5 +222,22 @@
 @media (prefers-reduced-motion: reduce) {
   .seg button {
     transition: none;
+  }
+}
+
+/* SVG は viewBox（幅 640）を container 幅へ拡縮するので、文字も点も同じ倍率で縮む。
+   デスクトップ（約960px）では 1.5倍だが、スマホ（約360px）では 0.56倍になり、
+   軸の 10px が実効 5.6px、点の直径 8px が 4.5px まで落ちて読めない。
+   狭い幅ではユーザー単位側を上げて、実効サイズを desktop と揃える。 */
+@media (max-width: 700px) {
+  .axis {
+    font-size: 16px;
+  }
+  .endLabel {
+    font-size: 19px;
+  }
+  .dot {
+    r: 6.5;
+    stroke-width: 3;
   }
 }

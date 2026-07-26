@@ -1,17 +1,15 @@
 "use client";
 
 import type { QuizSessionDto } from "@rigel/client";
-import type { QuizKind } from "@rigel/schema";
 import {
   QUIZ_EMPTY_HISTORY_MESSAGE,
-  QUIZ_HISTORY_LIMIT,
-  QUIZ_KIND_FILTERS,
   QUIZ_KIND_LABELS,
   QUIZ_STATS_PERIODS,
   accuracyLabel,
   jstDateTime,
-  quizDailyStats,
-  quizStatsSummary,
+  quizBoardMeta,
+  quizKindBoards,
+  quizRecentHistory,
   type QuizStatsPeriod,
 } from "@rigel/ui";
 import { useMemo, useState } from "react";
@@ -22,10 +20,14 @@ import s from "../list/kifu-list.module.css";
 import t from "./training-stats.module.css";
 
 /**
- * マイページ「特訓」タブ（本人のみ）。サマリ（stat カード）・1分あたり正解数の推移
- * （白地カードの自前 SVG 折れ線）・直近の履歴リスト（カード行）。トーンは特訓画面
+ * マイページ「特訓」タブ（本人のみ）。**種目ごとの折れ線グラフ**（1分あたり正解数）を
+ * 縦に並べ、その下に全種目まとめた直近の履歴リストを出す。トーンは特訓画面
  * （training.module.css）に合わせる。データはサーバ側（page.tsx）が listQuizSessions で
  * 取得して渡す。now はテストの決定性のため注入可能（既定は現在時刻）。
+ *
+ * 種目をまたいだ合算（旧「全種目」）は置かない（[決定] 2026-07-27 オーナー）:
+ * 1分あたり正解数は種目ごとに1問の重さが違い、混ぜた線は「上達」ではなく
+ * 「その日どの種目をやったか」で動くため。集計は @rigel/ui の quizKindBoards に一元化。
  */
 export function MyTrainingScreen({
   initialSessions,
@@ -36,25 +38,12 @@ export function MyTrainingScreen({
 }) {
   const [nowValue] = useState(() => now ?? new Date());
   const [period, setPeriod] = useState<QuizStatsPeriod>("7d");
-  const [kind, setKind] = useState<"all" | QuizKind>("all");
-  const kindFilter = kind === "all" ? undefined : kind;
 
-  const summary = useMemo(
-    () => quizStatsSummary(initialSessions, kindFilter),
-    [initialSessions, kindFilter],
+  const boards = useMemo(
+    () => quizKindBoards(initialSessions, period, nowValue),
+    [initialSessions, period, nowValue],
   );
-  const points = useMemo(
-    () => quizDailyStats(initialSessions, period, nowValue, kindFilter),
-    [initialSessions, period, nowValue, kindFilter],
-  );
-  const history = useMemo(
-    () =>
-      initialSessions
-        .filter((x) => kindFilter === undefined || x.kind === kindFilter)
-        .sort((a, b) => -a.createdAt.localeCompare(b.createdAt))
-        .slice(0, QUIZ_HISTORY_LIMIT),
-    [initialSessions, kindFilter],
-  );
+  const history = useMemo(() => quizRecentHistory(initialSessions), [initialSessions]);
 
   return (
     <div className={`${s.shell} themeApp`}>
@@ -63,23 +52,7 @@ export function MyTrainingScreen({
         <section>
           <MyPageTabs active="training" />
 
-          {/* サマリ3枠（特訓の結果画面と同じ stat カード風: 数値大きく・ラベル小さくグレー） */}
-          <div className={t.stats}>
-            <div className={t.stat}>
-              <b>{summary.sessions}</b>
-              <span>挑戦回数</span>
-            </div>
-            <div className={t.stat}>
-              <b>{summary.bestCorrect}</b>
-              <span>自己ベスト</span>
-            </div>
-            <div className={t.stat}>
-              <b>{accuracyLabel(summary.avgAccuracy)}</b>
-              <span>平均正答率</span>
-            </div>
-          </div>
-
-          {/* 期間・種目の切替チップ（特訓画面のチップと同じピル形） */}
+          {/* 期間の切替チップ（特訓画面のチップと同じピル形） */}
           <div className={t.toolbar}>
             <div className={t.seg} role="group" aria-label="期間切替">
               {QUIZ_STATS_PERIODS.map((p) => (
@@ -93,22 +66,14 @@ export function MyTrainingScreen({
                 </button>
               ))}
             </div>
-            <div className={t.seg} role="group" aria-label="種目で絞り込み">
-              {QUIZ_KIND_FILTERS.map((k) => (
-                <button
-                  key={k.key}
-                  type="button"
-                  aria-pressed={kind === k.key}
-                  onClick={() => setKind(k.key)}
-                >
-                  {k.label}
-                </button>
-              ))}
-            </div>
           </div>
 
-          {/* カード（白地・タイトル）はグラフ側が持つ。期間内に記録が無ければ何も出ない。 */}
-          <QuizLineChart points={points} title="1分あたり正解数" />
+          {/* 指標名は並んだグラフの上に1度だけ（カードの見出しは種目名が担う）。
+              期間内に記録のある種目が無ければ見出しごと出さない。 */}
+          {boards.length > 0 && <p className={t.metricTitle}>1分あたり正解数の推移</p>}
+          {boards.map((b) => (
+            <QuizLineChart key={b.kind} points={b.points} title={b.label} meta={quizBoardMeta(b)} />
+          ))}
 
           {history.length === 0 ? (
             <p className={t.empty}>{QUIZ_EMPTY_HISTORY_MESSAGE}</p>

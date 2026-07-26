@@ -1,17 +1,19 @@
 import { describe, expect, it } from "vitest";
-import { QUIZ_KIND_LABELS } from "./quiz-copy";
 import {
+  QUIZ_CHART_BOX,
   QUIZ_HISTORY_LIMIT,
-  QUIZ_KIND_FILTERS,
   QUIZ_RECENT_LIMIT,
   QUIZ_STATS_PERIOD_LABELS,
   QUIZ_STATS_PERIODS,
   accuracyLabel,
   jstDateTime,
   jstShortDateTime,
+  quizChartGeometry,
   quizChartSeries,
   quizDailyStats,
+  quizKindBoards,
   quizRateLabel,
+  quizRecentHistory,
   quizRecentLine,
   quizStatsSummary,
   type QuizDayPoint,
@@ -161,15 +163,6 @@ describe("quizDailyStats（期間の窓と欠損日埋め）", () => {
     expect(p.correctPerMinute).toBe(0);
   });
 
-  it("kind を指定すると他種目のセッションを数えない", () => {
-    const sessions = [
-      mk("2026-07-22T01:00:00.000Z", { kind: "chinitsu" }),
-      mk("2026-07-22T02:00:00.000Z", { kind: "efficiency" }),
-    ];
-    const points = quizDailyStats(sessions, "7d", NOW, "chinitsu");
-    expect(pointOf(points, "2026-07-22").sessions).toBe(1);
-  });
-
   it("7d の窓外（8日前）のセッションは集計に入らない", () => {
     const points = quizDailyStats([mk("2026-07-16T00:00:00.000Z")], "7d", NOW);
     expect(points.reduce((n, p) => n + p.sessions, 0)).toBe(0);
@@ -188,19 +181,22 @@ describe("quizStatsSummary（サマリ: 回数・ベストスコア・平均正�
     kind?: "chinitsu" | "efficiency";
     expected: { sessions: number; bestCorrect: number; avgAccuracy: number | null };
   }>([
-    { name: "全種目", expected: { sessions: 3, bestCorrect: 9, avgAccuracy: 0.7 } },
+    { name: "渡された全件", expected: { sessions: 3, bestCorrect: 9, avgAccuracy: 0.7 } },
     {
-      name: "kind=chinitsu",
+      name: "清一色だけ渡した場合",
       kind: "chinitsu",
       expected: { sessions: 2, bestCorrect: 7, avgAccuracy: 0.6 },
     },
     {
-      name: "kind=efficiency",
+      name: "牌効率だけ渡した場合",
       kind: "efficiency",
       expected: { sessions: 1, bestCorrect: 9, avgAccuracy: 0.9 },
     },
   ])("$name のサマリ（平均正答率は正解合計/出題合計）", ({ kind, expected }) => {
-    const s = quizStatsSummary(SESSIONS, kind);
+    // 絞り込みは呼び出し側の責務なので、テストも絞ってから渡す。
+    const s = quizStatsSummary(
+      kind === undefined ? SESSIONS : SESSIONS.filter((x) => x.kind === kind),
+    );
     expect(s.sessions).toBe(expected.sessions);
     expect(s.bestCorrect).toBe(expected.bestCorrect);
     expect(s.avgAccuracy).toBeCloseTo(expected.avgAccuracy!, 10);
@@ -213,6 +209,57 @@ describe("quizStatsSummary（サマリ: 回数・ベストスコア・平均正�
   it("出題合計が 0 なら avgAccuracy は null（0% と区別する）", () => {
     const s = quizStatsSummary([mk("2026-07-20T00:00:00.000Z", { correct: 0, total: 0 })]);
     expect(s).toEqual({ sessions: 1, bestCorrect: 0, avgAccuracy: null });
+  });
+});
+
+// マイページ「特訓」は種目ごとに小さなグラフを並べる（[決定] 2026-07-27 オーナー）。
+// 種目をまたいだ合算は返さない: 1分あたり正解数は種目ごとに1問の重さ（操作量）が
+// 違うので、混ぜた線は「上達」ではなく「その日どの種目をやったか」で動いてしまう。
+describe("quizKindBoards（種目ごとのグラフ＋サマリ。全種目の合算は作らない）", () => {
+  const SESSIONS = [
+    mk("2026-07-20T01:00:00.000Z", { kind: "chinitsu", correct: 7, total: 10 }),
+    mk("2026-07-22T01:00:00.000Z", { kind: "chinitsu", correct: 5, total: 10 }),
+    mk("2026-07-23T01:00:00.000Z", { kind: "score", correct: 9, total: 10 }),
+  ];
+
+  it("記録のある種目だけを、種目カードと同じ並び（QuizKindSchema.options）で返す", () => {
+    const boards = quizKindBoards(SESSIONS, "7d", NOW);
+    // score が chinitsu より先（背骨の並び）。記録の無い efficiency / chinitsuUkeire は出さない。
+    expect(boards.map((b) => b.kind)).toEqual(["score", "chinitsu"]);
+    expect(boards.map((b) => b.label)).toEqual(["点数計算", "清一色 何待ち"]);
+  });
+
+  it("各カードのサマリはその種目・その期間だけを数える", () => {
+    const boards = quizKindBoards(SESSIONS, "7d", NOW);
+    const chinitsu = boards.find((b) => b.kind === "chinitsu")!;
+    expect(chinitsu.sessions).toBe(2);
+    expect(chinitsu.bestCorrect).toBe(7);
+    expect(chinitsu.avgAccuracy).toBeCloseTo(0.6, 10);
+  });
+
+  it("各カードの点は自分の種目だけを集計する（他種目の日は記録なし扱い）", () => {
+    const boards = quizKindBoards(SESSIONS, "7d", NOW);
+    const chinitsu = boards.find((b) => b.kind === "chinitsu")!;
+    // 7/23 は score の日。清一色のカードでは記録なし（0 ではなく null）。
+    expect(pointOf(chinitsu.points, "2026-07-23").correctPerMinute).toBeNull();
+    expect(pointOf(chinitsu.points, "2026-07-22").correctPerMinute).toBe(5);
+  });
+
+  // 並べたグラフを見比べるには横軸が揃っている必要がある。全期間で種目ごとに
+  // 「その種目の最古の日」から始めると、カードごとに日付軸がずれて比較にならない。
+  it("全期間でも全カードの日付軸を揃える（最古は種目別ではなく全体で決める）", () => {
+    const boards = quizKindBoards(SESSIONS, "all", NOW);
+    const days = boards.map((b) => [b.points[0]!.day, b.points[b.points.length - 1]!.day]);
+    expect(days).toEqual([
+      ["2026-07-20", "2026-07-24"],
+      ["2026-07-20", "2026-07-24"],
+    ]);
+  });
+
+  it("期間内に記録が1件も無ければ空配列（グラフを1枚も出さない）", () => {
+    expect(quizKindBoards([], "7d", NOW)).toEqual([]);
+    // 記録はあるが 7d 窓の外（10日前）。
+    expect(quizKindBoards([mk("2026-07-14T01:00:00.000Z")], "7d", NOW)).toEqual([]);
   });
 });
 
@@ -405,18 +452,113 @@ describe("マイページ「特訓」の共有定義（履歴上限・期間・�
       expect(QUIZ_STATS_PERIOD_LABELS[p.key]).toBe(p.label);
     }
   });
+});
 
-  // チップは種目の表示名から導出する（別に短縮名を持つと表記がずれる）。
-  // 並びは種目カードと同じ（背骨 QuizKindSchema.options）。
-  it("種目チップは「全種目」+ 種目名で、QUIZ_KIND_LABELS の全種目を並び順どおり網羅する", () => {
-    expect(QUIZ_KIND_FILTERS).toEqual([
-      { key: "all", label: "全種目" },
-      { key: "score", label: "点数計算" },
-      { key: "efficiency", label: "牌効率" },
-      { key: "chinitsu", label: "清一色 何待ち" },
-      { key: "chinitsuUkeire", label: "清一色 牌効率" },
+// 座標計算は web の SVG と mobile の react-native-svg が同じものを使う。
+// かつては両方の画面に同じ式をベタ書きしていて、縦横比や余白を変えるたびに
+// 2ファイルへ同じ手を入れる必要があった（実際に片方だけ直す事故が起きうる）。
+describe("quizChartGeometry（viewBox 内の座標計算。web/mobile の描画が共用）", () => {
+  const { padL, padR, padTop, padBottom, w, h } = QUIZ_CHART_BOX;
+
+  /** 記録あり3日（7/22=12・7/23=6・7/24=9）の 7d 窓。 */
+  function series() {
+    return quizChartSeries(
+      quizDailyStats(
+        [
+          mk("2026-07-22T01:00:00.000Z", { correct: 12 }),
+          mk("2026-07-23T01:00:00.000Z", { correct: 6 }),
+          mk("2026-07-24T01:00:00.000Z", { correct: 9 }),
+        ],
+        "7d",
+        NOW,
+      ),
+    );
+  }
+
+  it("x は左右の余白の内側に index を等間隔で割り付ける（両端が余白の内縁）", () => {
+    const g = quizChartGeometry(series());
+    expect(g.x(0)).toBe(padL);
+    expect(g.x(6)).toBe(w - padR); // 7d = 7点なので index 6 が右端
+  });
+
+  it("点が1つだけなら中央に置く（0除算しない）", () => {
+    const g = quizChartGeometry(
+      quizChartSeries(quizDailyStats([mk(NOW.toISOString())], "all", NOW)),
+    );
+    expect(g.x(0)).toBe((padL + w - padR) / 2);
+  });
+
+  it("y は 0 が下端・max が上端（上下の余白の内側）", () => {
+    const s = series();
+    const g = quizChartGeometry(s);
+    expect(g.y(0)).toBe(h - padBottom);
+    expect(g.y(s.max)).toBe(padTop);
+    expect(g.baseY).toBe(g.y(0));
+  });
+
+  it("linePoints は記録のある日だけを順に結ぶ（欠損日は跨ぐ）", () => {
+    const s = series();
+    const g = quizChartGeometry(s);
+    // 7/22・7/23・7/24 = index 4,5,6 の3点だけ。
+    expect(g.linePoints.split(" ")).toHaveLength(3);
+    expect(g.linePoints.startsWith(`${g.x(4)},`)).toBe(true);
+  });
+
+  it("areaPath は折れ線を辿って baseline まで下ろして閉じる。記録が無ければ空文字", () => {
+    const g = quizChartGeometry(series());
+    expect(g.areaPath.startsWith(`M ${g.x(4)} ${g.baseY} `)).toBe(true);
+    expect(g.areaPath.endsWith(`L ${g.x(6)} ${g.baseY} Z`)).toBe(true);
+
+    const empty = quizChartGeometry(quizChartSeries(quizDailyStats([], "7d", NOW)));
+    expect(empty.areaPath).toBe("");
+  });
+
+  it("点が多い期間は全部打たない（潰れて読めなくなるので間引く）", () => {
+    expect(quizChartGeometry(series()).showAllDots).toBe(true);
+    const many = Array.from({ length: 20 }, (_, i) =>
+      mk(`2026-07-${String(i + 5).padStart(2, "0")}T01:00:00.000Z`),
+    );
+    expect(quizChartGeometry(quizChartSeries(quizDailyStats(many, "30d", NOW))).showAllDots).toBe(
+      false,
+    );
+  });
+
+  it("indexAtRatio はポインタの横位置(0-1)を最も近い日に丸め、両端で溢れない", () => {
+    const g = quizChartGeometry(series());
+    expect(g.indexAtRatio(0)).toBe(0);
+    expect(g.indexAtRatio(1)).toBe(6);
+    expect(g.indexAtRatio(-5)).toBe(0); // 左に振り切っても負にならない
+    expect(g.indexAtRatio(5)).toBe(6); // 右に振り切っても点数を超えない
+    expect(g.indexAtRatio(g.x(3) / w)).toBe(3);
+  });
+});
+
+describe("quizRecentHistory（履歴リスト。web/mobile が共用）", () => {
+  it("新しい順に並べ、直近 QUIZ_HISTORY_LIMIT 件で切る", () => {
+    const many = Array.from({ length: 25 }, (_, i) =>
+      mk(`2026-07-${String(i + 1).padStart(2, "0")}T01:00:00.000Z`),
+    );
+    const out = quizRecentHistory(many);
+    expect(out).toHaveLength(QUIZ_HISTORY_LIMIT);
+    expect(out[0]!.createdAt).toBe("2026-07-25T01:00:00.000Z");
+    expect(out[19]!.createdAt).toBe("2026-07-06T01:00:00.000Z");
+  });
+
+  it("引数の配列を破壊しない（呼び出し側の順序を勝手に変えない）", () => {
+    const input = [mk("2026-07-01T01:00:00.000Z"), mk("2026-07-09T01:00:00.000Z")];
+    quizRecentHistory(input);
+    expect(input.map((s) => s.createdAt)).toEqual([
+      "2026-07-01T01:00:00.000Z",
+      "2026-07-09T01:00:00.000Z",
     ]);
-    // 種目が増えたらチップも増やす（正式名 QUIZ_KIND_LABELS との網羅整合）。
-    expect(QUIZ_KIND_FILTERS.map((k) => k.key)).toEqual(["all", ...Object.keys(QUIZ_KIND_LABELS)]);
+  });
+
+  // 種目別の推移はグラフが持つ。履歴は「最近やったこと」をまとめて見る場。
+  it("種目でも期間でも絞らない", () => {
+    const out = quizRecentHistory([
+      mk("2026-07-23T01:00:00.000Z", { kind: "score" }),
+      mk("2020-01-01T01:00:00.000Z", { kind: "efficiency" }),
+    ]);
+    expect(out.map((s) => s.kind)).toEqual(["score", "efficiency"]);
   });
 });

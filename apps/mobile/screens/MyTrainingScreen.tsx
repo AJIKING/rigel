@@ -1,15 +1,13 @@
-import type { QuizKind } from "@rigel/schema";
 import {
   QUIZ_EMPTY_HISTORY_MESSAGE,
-  QUIZ_HISTORY_LIMIT,
-  QUIZ_KIND_FILTERS,
   QUIZ_KIND_LABELS,
   QUIZ_STATS_PERIOD_LABELS,
   QUIZ_STATS_PERIODS,
   accuracyLabel,
   jstDateTime,
-  quizDailyStats,
-  quizStatsSummary,
+  quizBoardMeta,
+  quizKindBoards,
+  quizRecentHistory,
   type QuizStatsPeriod,
 } from "@rigel/ui";
 import { useEffect, useMemo, useState } from "react";
@@ -23,12 +21,15 @@ import { colors, radius } from "../lib/theme";
 
 // 共有定義（@rigel/ui。web と同じ選択肢・並び）を Segment の [値, ラベル] 形式へ写す。
 const PERIODS = QUIZ_STATS_PERIODS.map((p) => [p.key, p.label] as const);
-const KINDS = QUIZ_KIND_FILTERS.map((k) => [k.key, k.label] as const);
 
 /**
- * マイページ「特訓」セグメント（本人のみ）。サマリ・1分あたり正解数の推移（SVG 折れ線）・
- * 直近の履歴リスト。web の MyTrainingScreen と同一挙動。
+ * マイページ「特訓」セグメント（本人のみ）。**種目ごとの折れ線グラフ**（1分あたり正解数）を
+ * 縦に並べ、その下に全種目まとめた直近の履歴リストを出す。web の MyTrainingScreen と同一挙動。
  * now はテストの決定性のため注入可能（既定は現在時刻）。
+ *
+ * 種目をまたいだ合算（旧「全種目」）は置かない（[決定] 2026-07-27 オーナー）:
+ * 1分あたり正解数は種目ごとに1問の重さが違い、混ぜた線は「上達」ではなく
+ * 「その日どの種目をやったか」で動くため。集計は @rigel/ui の quizKindBoards に一元化。
  */
 export function MyTrainingScreen({ now }: { now?: Date }) {
   const { token } = useAuth();
@@ -36,8 +37,6 @@ export function MyTrainingScreen({ now }: { now?: Date }) {
   const [loading, setLoading] = useState(true);
   const [sessions, setSessions] = useState<QuizSessionDto[]>([]);
   const [period, setPeriod] = useState<QuizStatsPeriod>("7d");
-  const [kind, setKind] = useState<"all" | QuizKind>("all");
-  const kindFilter = kind === "all" ? undefined : kind;
 
   useEffect(() => {
     if (!token) return;
@@ -55,19 +54,11 @@ export function MyTrainingScreen({ now }: { now?: Date }) {
     };
   }, [token]);
 
-  const summary = useMemo(() => quizStatsSummary(sessions, kindFilter), [sessions, kindFilter]);
-  const points = useMemo(
-    () => quizDailyStats(sessions, period, nowValue, kindFilter),
-    [sessions, period, nowValue, kindFilter],
+  const boards = useMemo(
+    () => quizKindBoards(sessions, period, nowValue),
+    [sessions, period, nowValue],
   );
-  const history = useMemo(
-    () =>
-      sessions
-        .filter((x) => kindFilter === undefined || x.kind === kindFilter)
-        .sort((a, b) => -a.createdAt.localeCompare(b.createdAt))
-        .slice(0, QUIZ_HISTORY_LIMIT),
-    [sessions, kindFilter],
-  );
+  const history = useMemo(() => quizRecentHistory(sessions), [sessions]);
 
   if (!token) {
     return <CenterState message="ログインすると特訓の記録が見られます。" />;
@@ -84,33 +75,23 @@ export function MyTrainingScreen({ now }: { now?: Date }) {
         contentContainerStyle={styles.feed}
         ListHeaderComponent={
           <View style={styles.header}>
-            {/* サマリ3枠（特訓の結果画面と同じ stat カード風: 数値大きく・ラベル小さくグレー） */}
-            <View style={styles.statsRow}>
-              <View style={styles.statCard} testID="stat-sessions">
-                <Text style={styles.statValue}>{summary.sessions}</Text>
-                <Text style={styles.statLabel}>挑戦回数</Text>
-              </View>
-              <View style={styles.statCard} testID="stat-best">
-                <Text style={styles.statValue}>{summary.bestCorrect}</Text>
-                <Text style={styles.statLabel}>自己ベスト</Text>
-              </View>
-              <View style={styles.statCard} testID="stat-accuracy">
-                <Text style={styles.statValue}>{accuracyLabel(summary.avgAccuracy)}</Text>
-                <Text style={styles.statLabel}>平均正答率</Text>
-              </View>
-            </View>
             <View style={styles.segRow}>
               <Segment options={PERIODS} value={period} onChange={setPeriod} />
             </View>
-            <View style={styles.segRow}>
-              <Segment options={KINDS} value={kind} onChange={setKind} />
-            </View>
-            {/* カード（白地・タイトル）はグラフ側が持つ。期間内に記録が無ければ何も出ない。 */}
-            <QuizLineChart
-              points={points}
-              title="1分あたり正解数"
-              accessibilityLabel={`1分あたり正解数の推移（${QUIZ_STATS_PERIOD_LABELS[period]}）`}
-            />
+            {/* 指標名は並んだグラフの上に1度だけ（カードの見出しは種目名が担う）。
+                期間内に記録のある種目が無ければ見出しごと出さない。 */}
+            {boards.length > 0 ? (
+              <Text style={styles.metricTitle}>1分あたり正解数の推移</Text>
+            ) : null}
+            {boards.map((b) => (
+              <QuizLineChart
+                key={b.kind}
+                points={b.points}
+                title={b.label}
+                meta={quizBoardMeta(b)}
+                accessibilityLabel={`${b.label}の1分あたり正解数の推移（${QUIZ_STATS_PERIOD_LABELS[period]}）`}
+              />
+            ))}
           </View>
         }
         ListEmptyComponent={<CenterState message={QUIZ_EMPTY_HISTORY_MESSAGE} />}
@@ -139,26 +120,7 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.bg },
   feed: { paddingHorizontal: 16, paddingTop: 10, paddingBottom: 20, gap: 10, flexGrow: 1 },
   header: { gap: 10, marginBottom: 10 },
-  // サマリの stat カード（特訓の結果画面と同じトーン）
-  statsRow: { flexDirection: "row", gap: 8 },
-  statCard: {
-    flex: 1,
-    alignItems: "center",
-    gap: 3,
-    backgroundColor: colors.chrome2,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.line,
-    borderRadius: radius.card,
-    paddingVertical: 14,
-    paddingHorizontal: 4,
-  },
-  statValue: {
-    color: colors.white,
-    fontSize: 20,
-    fontWeight: "800",
-    fontVariant: ["tabular-nums"],
-  },
-  statLabel: { color: colors.w45, fontSize: 10.5, fontWeight: "700" },
+  metricTitle: { color: colors.w45, fontSize: 11.5, fontWeight: "700", marginTop: 4 },
   segRow: { flexDirection: "row" },
   row: {
     flexDirection: "row",

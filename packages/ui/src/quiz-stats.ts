@@ -20,16 +20,19 @@ export const QUIZ_STATS_PERIODS: readonly { key: QuizStatsPeriod; label: string 
   ["7d", "30d", "all"] as const
 ).map((key) => ({ key, label: QUIZ_STATS_PERIOD_LABELS[key] }));
 
-/** 種目絞り込みチップ（「全種目」+ 各種目。web/mobile のマイページ「特訓」で共用）。
- *  かつてはチップ用の短縮名を別に持っていたが、種目名を素の名前へ揃えた結果
- *  同一になったので**表示名から導出する**（二重管理をやめて表記ゆれの余地を消す）。 */
-export const QUIZ_KIND_FILTERS: readonly { key: "all" | QuizKind; label: string }[] = [
-  { key: "all", label: "全種目" },
-  ...QuizKindSchema.options.map((key) => ({ key, label: QUIZ_KIND_LABELS[key] })),
-];
-
 /** 履歴リストの表示上限（直近。web/mobile のマイページ「特訓」で共用）。 */
 export const QUIZ_HISTORY_LIMIT = 20;
+
+/**
+ * マイページ「特訓」の履歴リスト（新しい順・直近 QUIZ_HISTORY_LIMIT 件）。
+ * **種目でも期間でも絞らない**（種目別の推移はグラフが持ち、履歴は「最近やったこと」を
+ * まとめて見る場）。引数は破壊しない。
+ */
+export function quizRecentHistory<T extends { createdAt: string }>(sessions: readonly T[]): T[] {
+  return [...sessions]
+    .sort((a, b) => -a.createdAt.localeCompare(b.createdAt))
+    .slice(0, QUIZ_HISTORY_LIMIT);
+}
 
 /** 開始ダイアログに出す直近記録の最大件数（web/mobile の特訓画面で共用）。 */
 export const QUIZ_RECENT_LIMIT = 5;
@@ -86,7 +89,7 @@ export interface QuizDayPoint {
 const DAY_MS = 86_400_000;
 
 /** all 期間の点数上限（1年ぶん。無限に伸ばさない）。 */
-export const QUIZ_STATS_MAX_DAYS = 365;
+const QUIZ_STATS_MAX_DAYS = 365;
 
 /** エポックms → JST の日インデックス（日単位の通し番号）。 */
 function jstDayIndex(ms: number): number {
@@ -98,44 +101,50 @@ function dayString(index: number): string {
   return new Date(index * DAY_MS).toISOString().slice(0, 10);
 }
 
+/** 集計する日インデックスの範囲（両端含む）。all で最古が定まらないときは null。 */
+interface StatsWindow {
+  startIdx: number;
+  nowIdx: number;
+}
+
 /**
- * セッション履歴を JST の日毎に集計する。
- * period 7d/30d は now を末尾に固定長（欠損日も 0 で埋める）。
- * all は最古のセッション日〜now（上限 QUIZ_STATS_MAX_DAYS 点で clamp。セッション無しは空配列）。
- * kind を指定するとその種目だけ集計する。
+ * 期間 → 集計する日インデックスの範囲。
+ * 7d/30d は now を末尾に固定長。all は渡された sessions の最古の日〜now
+ * （上限 QUIZ_STATS_MAX_DAYS 点で clamp。セッション無しは null）。
  */
-export function quizDailyStats(
+function statsWindow(
   sessions: QuizSessionLike[],
   period: QuizStatsPeriod,
   now: Date,
-  kind?: QuizKind,
-): QuizDayPoint[] {
-  const filtered = kind === undefined ? sessions : sessions.filter((s) => s.kind === kind);
+): StatsWindow | null {
   const nowIdx = jstDayIndex(now.getTime());
+  if (period === "7d") return { startIdx: nowIdx - 6, nowIdx };
+  if (period === "30d") return { startIdx: nowIdx - 29, nowIdx };
+  const idxs = sessions.map((s) => jstDayIndex(Date.parse(s.createdAt))).filter((i) => i <= nowIdx);
+  if (idxs.length === 0) return null;
+  return { startIdx: Math.max(Math.min(...idxs), nowIdx - (QUIZ_STATS_MAX_DAYS - 1)), nowIdx };
+}
 
-  let startIdx: number;
-  if (period === "7d") startIdx = nowIdx - 6;
-  else if (period === "30d") startIdx = nowIdx - 29;
-  else {
-    const idxs = filtered
-      .map((s) => jstDayIndex(Date.parse(s.createdAt)))
-      .filter((i) => i <= nowIdx);
-    if (idxs.length === 0) return [];
-    startIdx = Math.max(Math.min(...idxs), nowIdx - (QUIZ_STATS_MAX_DAYS - 1));
-  }
-
-  // 日インデックス → その日のセッション（窓外は捨てる）。
-  const byDay = new Map<number, QuizSessionLike[]>();
-  for (const s of filtered) {
+/** 窓の中に入るセッションだけを残す。 */
+function inWindow(sessions: QuizSessionLike[], w: StatsWindow): QuizSessionLike[] {
+  return sessions.filter((s) => {
     const idx = jstDayIndex(Date.parse(s.createdAt));
-    if (idx < startIdx || idx > nowIdx) continue;
+    return idx >= w.startIdx && idx <= w.nowIdx;
+  });
+}
+
+/** 窓の各日を1点ずつに集計する（欠損日も点として埋める。sessions は窓内前提）。 */
+function dailyPoints(sessions: QuizSessionLike[], w: StatsWindow): QuizDayPoint[] {
+  const byDay = new Map<number, QuizSessionLike[]>();
+  for (const s of sessions) {
+    const idx = jstDayIndex(Date.parse(s.createdAt));
     const bucket = byDay.get(idx);
     if (bucket) bucket.push(s);
     else byDay.set(idx, [s]);
   }
 
   const points: QuizDayPoint[] = [];
-  for (let idx = startIdx; idx <= nowIdx; idx++) {
+  for (let idx = w.startIdx; idx <= w.nowIdx; idx++) {
     const day = byDay.get(idx) ?? [];
     const correct = day.reduce((n, s) => n + s.correct, 0);
     const total = day.reduce((n, s) => n + s.total, 0);
@@ -155,19 +164,90 @@ export function quizDailyStats(
   return points;
 }
 
-/** サマリ（回数・ベストスコア・平均正答率=正解合計/出題合計）。kind 指定で種目別。 */
-export function quizStatsSummary(
+/**
+ * セッション履歴を JST の日毎に集計する（渡された分だけを数える。種目の切り分けは呼び出し側）。
+ * period 7d/30d は now を末尾に固定長（欠損日も点として埋める）。
+ * all は最古のセッション日〜now（上限 QUIZ_STATS_MAX_DAYS 点で clamp。セッション無しは空配列）。
+ */
+export function quizDailyStats(
   sessions: QuizSessionLike[],
-  kind?: QuizKind,
-): { sessions: number; bestCorrect: number; avgAccuracy: number | null } {
-  const filtered = kind === undefined ? sessions : sessions.filter((s) => s.kind === kind);
-  const correct = filtered.reduce((n, s) => n + s.correct, 0);
-  const total = filtered.reduce((n, s) => n + s.total, 0);
+  period: QuizStatsPeriod,
+  now: Date,
+): QuizDayPoint[] {
+  const w = statsWindow(sessions, period, now);
+  if (!w) return [];
+  return dailyPoints(inWindow(sessions, w), w);
+}
+
+/** マイページ「特訓」の1種目ぶん（種目別のグラフ＋その種目・その期間のサマリ）。 */
+export interface QuizKindBoard {
+  kind: QuizKind;
+  /** 種目の表示名（QUIZ_KIND_LABELS）。 */
+  label: string;
+  points: QuizDayPoint[];
+  sessions: number;
+  bestCorrect: number;
+  avgAccuracy: number | null;
+}
+
+/**
+ * 期間内に記録のある種目だけを、種目カードと同じ並び（QuizKindSchema.options）で返す。
+ *
+ * **種目をまたいだ合算は返さない**（[決定] 2026-07-27 オーナー）。1分あたり正解数は
+ * 種目ごとに1問の重さ（操作量）が違う——点数計算は4択タップ、清一色 何待ちは待ち牌を
+ * 全部選んで確定——ので、混ぜた線は「上達」ではなく「その日どの種目をやったか」で動く。
+ *
+ * 日付軸は**全種目で共通の窓**から作る。並べたグラフを見比べるには横軸が揃っている
+ * 必要があり、all で種目ごとに「その種目の最古の日」から始めると比較にならないため。
+ */
+export function quizKindBoards(
+  sessions: QuizSessionLike[],
+  period: QuizStatsPeriod,
+  now: Date,
+): QuizKindBoard[] {
+  const w = statsWindow(sessions, period, now);
+  if (!w) return [];
+  return QuizKindSchema.options.flatMap((kind) => {
+    const mine = inWindow(
+      sessions.filter((s) => s.kind === kind),
+      w,
+    );
+    if (mine.length === 0) return [];
+    return [
+      {
+        kind,
+        label: QUIZ_KIND_LABELS[kind],
+        points: dailyPoints(mine, w),
+        ...quizStatsSummary(mine),
+      },
+    ];
+  });
+}
+
+/**
+ * サマリ（回数・ベストスコア・平均正答率=正解合計/出題合計）。
+ * 渡された分だけを数える（種目・期間の切り分けは呼び出し側＝quizKindBoards の責務）。
+ */
+export function quizStatsSummary(sessions: QuizSessionLike[]): {
+  sessions: number;
+  bestCorrect: number;
+  avgAccuracy: number | null;
+} {
+  const correct = sessions.reduce((n, s) => n + s.correct, 0);
+  const total = sessions.reduce((n, s) => n + s.total, 0);
   return {
-    sessions: filtered.length,
-    bestCorrect: filtered.reduce((best, s) => Math.max(best, s.correct), 0),
+    sessions: sessions.length,
+    bestCorrect: sessions.reduce((best, s) => Math.max(best, s.correct), 0),
     avgAccuracy: total > 0 ? correct / total : null,
   };
+}
+
+/**
+ * 種目カード見出しの小さなサマリ1行（「2回 ・ ベスト 7 ・ 正答率 60%」。web/mobile 共用）。
+ * 期間で絞った値なので「自己ベスト」ではなく「ベスト」と書く（全期間の最高記録と読ませない）。
+ */
+export function quizBoardMeta(board: QuizKindBoard): string {
+  return `${board.sessions}回 ・ ベスト ${board.bestCorrect} ・ 正答率 ${accuracyLabel(board.avgAccuracy)}`;
 }
 
 /** y 軸の目盛り1本（値と表示テキスト）。 */
@@ -194,6 +274,72 @@ export interface QuizChartSeries {
   lastIndex: number | null;
   /** 期間内に1日でも記録があるか（false ならグラフを出さず空状態にする）。 */
   hasData: boolean;
+}
+
+/**
+ * グラフの viewBox の箱（web の SVG と mobile の react-native-svg が共用）。
+ * **ここだけを変えれば両方の縦横比・余白が同時に変わる**（かつては両画面にベタ書きしていて、
+ * 縦横比を変えるたびに2ファイルへ同じ手を入れる必要があった）。
+ *
+ * 左は y 目盛り、下は日付軸、上は終端の値ラベルのための余白。
+ * 注意: SVG は viewBox を container 幅へ拡縮するので、文字も点もその倍率で縮む。
+ * 狭い幅ではユーザー単位側を上げないと読めなくなる（web=メディアクエリ / mobile=固定値）。
+ */
+export const QUIZ_CHART_BOX = {
+  w: 640,
+  h: 152,
+  padL: 38,
+  padR: 16,
+  padTop: 20,
+  padBottom: 30,
+} as const;
+
+/** 点を全部打つ上限（これを超えると潰れて読めないので間引く）。 */
+const CHART_ALL_DOTS_MAX = 14;
+
+/** viewBox 内の座標計算（描画プリミティブに依存しない純粋な芯）。 */
+export interface QuizChartGeometry {
+  /** 点の index → x 座標。 */
+  x(index: number): number;
+  /** 値 → y 座標（0 が下端・max が上端）。 */
+  y(value: number): number;
+  /** 0 の y 座標（面を閉じる baseline）。 */
+  baseY: number;
+  /** 折れ線 polyline の points 属性値（記録のある日だけを順に結ぶ）。 */
+  linePoints: string;
+  /** 面（baseline まで下ろして閉じたパス）の d 属性値。記録が無ければ ""。 */
+  areaPath: string;
+  /** 点を全部打つか。 */
+  showAllDots: boolean;
+  /** ポインタの横位置（0-1 の比率）→ 最も近い日の index（両端で溢れない）。 */
+  indexAtRatio(ratio: number): number;
+}
+
+/** 系列 → viewBox 内の座標計算。web/mobile の描画はこれを使い、式を二重に持たない。 */
+export function quizChartGeometry(series: QuizChartSeries): QuizChartGeometry {
+  const { w, h, padL, padR, padTop, padBottom } = QUIZ_CHART_BOX;
+  const { values, line, max } = series;
+  const span = w - padL - padR;
+  const last = values.length - 1;
+
+  const x = (index: number) => (last === 0 ? (padL + w - padR) / 2 : padL + (index * span) / last);
+  const y = (value: number) => padTop + (1 - value / max) * (h - padTop - padBottom);
+  const baseY = y(0);
+
+  return {
+    x,
+    y,
+    baseY,
+    linePoints: line.map((p) => `${x(p.index)},${y(p.value)}`).join(" "),
+    areaPath: line.length
+      ? `M ${x(line[0]!.index)} ${baseY} ` +
+        line.map((p) => `L ${x(p.index)} ${y(p.value)}`).join(" ") +
+        ` L ${x(line[line.length - 1]!.index)} ${baseY} Z`
+      : "",
+    showAllDots: line.length <= CHART_ALL_DOTS_MAX,
+    indexAtRatio: (ratio) =>
+      Math.min(last, Math.max(0, Math.round(((ratio * w - padL) / span) * last))),
+  };
 }
 
 /** 浮動小数の刻み計算の誤差を落とす（0.1*3 = 0.30000000000000004 対策）。 */
