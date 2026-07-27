@@ -50,8 +50,8 @@ API 35 を狙うと Android 15 でエッジトゥエッジが強制されて UI 
 
 - 依拠する `[決定]`: モバイルは React Native (Expo)（設計 6章）
 - `[未確定]`（着手時に検証）:
-  - **現状の targetSdkVersion が本当に 34 か。** changelog は target に言及していないため
-    実測で確定する（Task 0）。35 だったとしても 8/31 の 36 期限は変わらないので結論は動かない。
+  - ~~現状の targetSdkVersion が本当に 34 か~~ → **[決定] 34 で確定**（2026-07-27 実測。
+    prebuild 生成の android/build.gradle: min 24 / compile 35 / **target 34**）。
   - `react-native-purchases` の SDK 57 互換版（RN 0.86 / New Architecture）
   - jest-expo 57 + jest 30 でモバイルテスト一式が緑になるか
   - エッジトゥエッジ既定化で崩れる画面の範囲（`SafeAreaView`/`useSafeAreaInsets` を
@@ -81,14 +81,14 @@ API 35 を狙うと Android 15 でエッジトゥエッジが強制されて UI 
 
 ## 8. Task 分解
 
-0. [ ] **現状の targetSdkVersion を実測**（`npx expo prebuild --platform android --no-install` →
-       `android/gradle.properties` を読む → 生成物は破棄）。結果を §4 に記録する
+0. [x] **現状の targetSdkVersion を実測** → **34 で確定**（2026-07-27。§4 に記録済み）
 1. [ ] `npx expo install expo@^57 --fix` 相当で依存一括解決 → typecheck の破壊箇所を列挙
 2. [ ] コード追随（1振る舞い=1コミットで破壊的変更を潰す）
 3. [ ] jest-expo 57 / jest 30 へテスト基盤更新 → 全テスト緑
 4. [ ] `react-native-purchases` の互換版へ更新（購入導線のテストが緑のまま）
 5. [ ] エッジトゥエッジ追随（全画面の目視 → 崩れた画面の余白を直す）
-6. [ ] `with-openiap-pin.js` 削除・override 撤去検証
+6. [ ] `with-openiap-pin.js` 削除・override 撤去検証・**`android.kotlinVersion: "1.9.25"` の削除**
+       （SDK 52 の版ズレ対処。残すと古い Kotlin への固定になる。台帳 07 参照）
 7. [ ] codemagic.yaml の Xcode/Node 版を SDK 57 要件へ更新
 8. [ ] Codemagic 実ビルド（iOS/Android）→ TestFlight / 内部テストで実機確認
 9. [ ] 台帳・CLAUDE.md の固定記述を更新

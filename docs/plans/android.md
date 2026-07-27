@@ -170,10 +170,15 @@ Play アプリ署名鍵の SHA-1 の両方**を Android OAuth クライアント
 原因に辿り着きにくい。あわせて api 本番の `GOOGLE_CLIENT_ID` に Android クライアント ID を
 カンマ追記する（コードは複数 aud 対応済み）。
 
-### E. Codemagic の `android-googleplay` は一度も実行実績がない
+### E. Codemagic の `android-googleplay` は一度も実行実績がない → **初回実行済み（2026-07-27）**
 
-`node-linker=hoisted` での Gradle 初回ビルドが通るかは未検証。**SDK 移行より先に現状のまま
-一度流しておく**と、後で「SDK 移行が原因か足場が原因か」の切り分けが効く。
+結果: **足場は健全**。prebuild → キーストア配置 → versionCode 差し替え → Gradle 267 タスク
+（autolinking 含む）まで通り、`node-linker=hoisted` の懸念は解消。
+唯一の失敗は `expo-modules-core:compileReleaseKotlin` — SDK 52 既知の版ズレ
+（Compose Compiler 1.5.15 は Kotlin 1.9.25 とペアだが、prebuild テンプレートの既定が 1.9.24）。
+→ app.json の expo-build-properties に `android.kotlinVersion: "1.9.25"` を追加して対処
+（gradle.properties へ入ることを prebuild で検証済み）。**再実行待ち**。
+なお iOS 側はこの版ズレの影響を受けない（Kotlin は Android ビルドのみ）。
 
 ### iOS と差が無いことを確認した項目
 
