@@ -1,6 +1,6 @@
 # Plan: Expo SDK 52 → 57 移行（mobile 一式アップグレード）
 
-> 状態: **未着手／優先度引き上げ（2026-07-27）**。
+> 状態: **実装完了（2026-07-27）。残タスクは Codemagic 実ビルドと実機スモーク**（Task 8）。
 > 当初は「課金ストア対応が安定してから」の後回し枠だったが、**Play の targetSdkVersion 期限が
 > それを追い越した**ため、Android リリースの前提条件として先に片付ける（下記 §1）。
 > 関連: [07 依存固定台帳](../開発ガイド/07_依存固定台帳.md) / [android.md](android.md) /
@@ -49,13 +49,16 @@ API 35 を狙うと Android 15 でエッジトゥエッジが強制されて UI 
 ## 4. `[決定]` / `[未確定]` の仕分け
 
 - 依拠する `[決定]`: モバイルは React Native (Expo)（設計 6章）
-- `[未確定]`（着手時に検証）:
-  - ~~現状の targetSdkVersion が本当に 34 か~~ → **[決定] 34 で確定**（2026-07-27 実測。
-    prebuild 生成の android/build.gradle: min 24 / compile 35 / **target 34**）。
-  - `react-native-purchases` の SDK 57 互換版（RN 0.86 / New Architecture）
-  - jest-expo 57 + jest 30 でモバイルテスト一式が緑になるか
-  - エッジトゥエッジ既定化で崩れる画面の範囲（`SafeAreaView`/`useSafeAreaInsets` を
-    使っているのは 7 ファイルのみ。使っていない画面ほど危ない）
+- `[未確定]` の検証結果（2026-07-27）:
+  - ~~現状の targetSdkVersion が本当に 34 か~~ → **[決定] 34 で確定**（実測）。移行後は
+    RN 0.86 のバージョンカタログで **target 36 / compile 36 / Kotlin 2.1.20** をソース確認済み。
+  - ~~react-native-purchases の互換版~~ → **10.x が現行最新**（10.4系のまま。API 変更なし・
+    テスト緑。ネイティブ互換の最終確認は Codemagic ビルド）
+  - ~~jest-expo 57 + jest 30~~ → **jest-expo 57 の内部は jest 29 世代のまま**（babel-jest ^29）。
+    jest 30 化は依然ブロック＝**jest 29 を維持**（台帳の保留中に記録）
+  - ~~RNTL の React 19 対応~~ → **v13.3.3 を採用**（同期 API のまま）。v14 は render が
+    async 化する意味論変更なので独立作業に切り出した（台帳の保留中）
+  - エッジトゥエッジで崩れる画面の範囲 → **残タスク**（実機でしか確定しない。Task 8 と同時）
 
 ## 5. 影響範囲
 
@@ -82,14 +85,17 @@ API 35 を狙うと Android 15 でエッジトゥエッジが強制されて UI 
 ## 8. Task 分解
 
 0. [x] **現状の targetSdkVersion を実測** → **34 で確定**（2026-07-27。§4 に記録済み）
-1. [ ] `npx expo install expo@^57 --fix` 相当で依存一括解決 → typecheck の破壊箇所を列挙
-2. [ ] コード追随（1振る舞い=1コミットで破壊的変更を潰す）
-3. [ ] jest-expo 57 / jest 30 へテスト基盤更新 → 全テスト緑
-4. [ ] `react-native-purchases` の互換版へ更新（購入導線のテストが緑のまま）
-5. [ ] エッジトゥエッジ追随（全画面の目視 → 崩れた画面の余白を直す）
-6. [ ] `with-openiap-pin.js` 削除・override 撤去検証・**`android.kotlinVersion: "1.9.25"` の削除**
-       （SDK 52 の版ズレ対処。残すと古い Kotlin への固定になる。台帳 07 参照）
-7. [ ] codemagic.yaml の Xcode/Node 版を SDK 57 要件へ更新
+1. [x] 依存一括解決（expo 57.0.8 / RN 0.86.0 / react 19.2.3。typecheck の破壊は 25 件→分類3種）
+2. [x] コード追随 — 本体コードの破壊は **`StyleSheet.absoluteFillObject` の型削除のみ**
+       （`absoluteFill` へ置換。中身は同一オブジェクト）。他は全てテスト型定義由来だった
+3. [x] テスト基盤更新（jest-expo 57 + RNTL 13.3.3 + react-test-renderer 19.2.3。jest は 29 維持）
+       → **mobile 276 テスト全緑**
+4. [x] `react-native-purchases` は 10.x が現行最新のため据え置き（テスト緑）
+5. [ ] エッジトゥエッジ追随（**実機でのみ確定**。Task 8 のビルドで全画面を目視）
+6. [x] 撤去完了: `with-openiap-pin.js`・`@expo/cli>tar` override（prebuild が override 無しで
+       成功することを確認）・`@types/react` override・`android.kotlinVersion` pin
+7. [x] codemagic.yaml は変更不要（`xcode: latest` が 26.4+ を満たす想定・Node 24 は要件 22.13+ を満たす。
+       ダメなら Task 8 の iOS ビルドで露見する）
 8. [ ] Codemagic 実ビルド（iOS/Android）→ TestFlight / 内部テストで実機確認
 9. [ ] 台帳・CLAUDE.md の固定記述を更新
 

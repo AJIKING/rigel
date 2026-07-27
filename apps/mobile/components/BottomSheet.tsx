@@ -96,8 +96,8 @@ export function SheetCloseButton({
 }
 
 const styles = StyleSheet.create({
-  overlay: { ...StyleSheet.absoluteFillObject, zIndex: 40, justifyContent: "flex-end" },
-  backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(8,10,13,0.66)" },
+  overlay: { ...StyleSheet.absoluteFill, zIndex: 40, justifyContent: "flex-end" },
+  backdrop: { ...StyleSheet.absoluteFill, backgroundColor: "rgba(8,10,13,0.66)" },
   card: {
     maxHeight: "100%",
     backgroundColor: colors.chrome,

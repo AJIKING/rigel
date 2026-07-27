@@ -125,10 +125,12 @@ iOS 水準に達していない点の棚卸し。**優先順に並べる**。
   `isStoreManagedSubscription` も `PLAY_STORE` を織り込み済み＝**Play 対応にコード変更はほぼ不要**。
 - コード側 Task 1〜3（`googleClientConfig` / LoginScreen / `scheme`）は実装・テスト済み。
 
-### A. targetSdkVersion が Play の下限を割っている（**リリースを止める**）
+### A. targetSdkVersion が Play の下限を割っている（**リリースを止める**）→ **実測確定（2026-07-27）**
 
 Expo SDK 52 の `targetSdkVersion` は 34。Play の下限は現在 **35**、**2026-08-31 以降は 36**。
-このままではアップロードが弾かれる。
+**Codemagic 3回目の実行で確定**: AAB の**アップロードは成功**（version code 3 が Play の
+バンドルライブラリに載った）、**内部テストへのリリース作成が「Target SDK of artifact is
+too low」で拒否**された。残る障害はこれだけ＝パイプラインは端から端まで健全。
 → **[expo-sdk-57.md](expo-sdk-57.md) で対応**（暫定で 35 に上げる案は、エッジトゥエッジ対応を
 2回やることになるので採らない）。本 Plan では扱わない。
 
@@ -177,8 +179,11 @@ Play アプリ署名鍵の SHA-1 の両方**を Android OAuth クライアント
 唯一の失敗は `expo-modules-core:compileReleaseKotlin` — SDK 52 既知の版ズレ
 （Compose Compiler 1.5.15 は Kotlin 1.9.25 とペアだが、prebuild テンプレートの既定が 1.9.24）。
 → app.json の expo-build-properties に `android.kotlinVersion: "1.9.25"` を追加して対処
-（gradle.properties へ入ることを prebuild で検証済み）。**再実行待ち**。
+（gradle.properties へ入ることを prebuild で検証済み）。
 なお iOS 側はこの版ズレの影響を受けない（Kotlin は Android ビルドのみ）。
+**再実行（3回目・2026-07-27）で AAB 生成・署名・Play へのアップロードまで成功**。
+「新規アプリの初回リリースは API から作れない」制約は**存在しなかった**（手動アップロード不要）。
+落ちたのはリリース作成の target 34 拒否のみ（→ §12-A）。
 
 ### iOS と差が無いことを確認した項目
 

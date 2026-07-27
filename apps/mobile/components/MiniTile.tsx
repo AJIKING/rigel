@@ -85,7 +85,7 @@ const styles = StyleSheet.create({
   hl: { borderWidth: 2, borderColor: colors.accent },
   img: { width: "100%", height: "100%" },
   overlay: { position: "absolute", top: 0, left: 0 },
-  scrim: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(86,90,88,0.42)" },
+  scrim: { ...StyleSheet.absoluteFill, backgroundColor: "rgba(86,90,88,0.42)" },
   back: {
     backgroundColor: colors.em,
     overflow: "hidden",
