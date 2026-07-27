@@ -248,7 +248,7 @@
 | バックエンド | Cloudflare Workers (TypeScript) + **Hono**（HTTP） | [決定] |
 | API 構成 | **DDD レイヤード**（domain/application/infrastructure/interfaces）| [決定]（[開発ガイド/05](開発ガイド/05_APIアーキテクチャ.md)） |
 | DB | Cloudflare D1 (SQLite) + **Drizzle ORM** | [決定] |
-| 認証 | Google + **Sign in with Apple**（web/アプリ両対応） | [決定]（2026-07-17 更新。App Store 審査要件 4.8 で Apple 併設が必須。実装済み: `/auth/google`・`/auth/apple`。退会時は Apple トークンを revoke（TN3194）。計画: [plans/sign-in-with-apple.md](plans/sign-in-with-apple.md)） |
+| 認証 | Google + **Sign in with Apple**（web/アプリ両対応） | [決定]（2026-07-17 更新。App Store 審査要件 4.8 で Apple 併設が必須。実装済み: `/auth/google`・`/auth/apple`。退会時は Apple トークンを revoke（TN3194）。計画: [plans/sign-in-with-apple.md](plans/sign-in-with-apple.md)）／**[未確定] Android アプリで Apple ログインを出すか**（下記） |
 | AI | Gemini API + AI Gateway | [決定] |
 | 画像保存 | しない | [決定] |
 | 利用計測 | GA4 に統一（1プロパティに web/iOS/Android の3ストリーム。web=gtag、アプリ=Firebase Analytics） | [決定]（2026-07-17。web 実装済み・アプリはビルド検証後=[未確定]。PII 非送信・広告用途不使用。計画: [plans/analytics.md](plans/analytics.md)） |
@@ -359,6 +359,7 @@ apps/api  POST /billing/revenuecat/webhook ─▶ User.changePlan ─▶ D1 user
 | 5 | ~~ORM選定~~ | **[決定] Drizzle** | スキーマ実装済み（`apps/api`）。[開発ガイド/05](開発ガイド/05_APIアーキテクチャ.md) |
 | 6 | ~~カウンタ整合性の実装~~ | **[決定] 実装済み** | AnalysisStore=D1 batch で半荘/局/カウントを原子化 |
 | 7 | ~~認証の具体実装~~ | **[決定] 実装済み** | Google + Sign in with Apple。web は HttpOnly セッション、mobile は SecureStore を使用 |
+| 7-2 | **Android アプリで Apple ログインを出すか** | **[未確定]（2026-07-27 発見。Android リリース前に決める）** | Apple/Google は `appleSub`/`googleSub` で別々に引き当てるだけで **email 突き合わせも連携機能も無い**。Android アプリは Apple ボタンを出さない（`Platform.OS === "ios"` 分岐）ため、**iOS で Apple 登録した人が Android で Google ログインすると別アカウントが新規作成され、牌譜・★・App Store で買った有料プランに到達できない**。案: ①Android にも Apple ログイン（web フロー。純正ボタン必須は iOS の HIG 要件なので自前ボタン可）②案内だけ置く ③プロバイダ連携機能を作る。詳細: [plans/android.md](plans/android.md) §12-B |
 | 8 | ~~無料枠件数・月額価格~~ | **[決定] 実装済み** | free 0回/private5/draft5・Next¥480 100回・Pro¥1480 320回。Stripe + RevenueCat（要鍵・ストア設定） |
 | 9 | ~~Web集客方針~~ | **[決定] SEO対応する（実装済み）** | 公開ページ（/ /kifu /problems /k /p /u /terms）は title・description・canonical・OGP を持ち sitemap.xml に掲載。本人専用ページは noindex＋robots.txt で除外。タブ名はブランド修飾なしで内容どおり（一覧=みんなの牌譜/みんなの何切る、エディタ=「半荘名 — 編集」等）。共有ロジックは `apps/web/lib/og-meta.ts`・`lib/seo.ts` |
 

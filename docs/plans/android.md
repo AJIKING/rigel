@@ -1,7 +1,8 @@
 # Plan: Android 対応（Google Play 内部テストで動くものを最短で）
 
-> 状態: 2026-07-07 作成。ユーザー指示「実行計画を整理してから対応進めてください」により、
-> コード側タスクは本 Plan 提示後に着手する（外部コンソール作業は人間のチェックリストとして残す）。
+> 状態: 2026-07-07 作成。コード側タスク（1〜3）は完了。
+> **2026-07-27 リリース前点検で棚卸し**（下記 §12）。残りは外部コンソール作業と、
+> 新たに見つかった2件（targetSdkVersion の期限・Apple 登録者の Android での到達性）。
 
 ## 1. 目的（なぜ）
 
@@ -109,3 +110,82 @@ Play 内部テスト配布までつなげる。課金（Play Billing）は本 Pl
 - [ ] 受け入れ条件がすべて緑（実機分は検証結果を追記）
 - [ ] ゲート通過
 - [ ] `[未確定]` A/B を確定し、本ファイルと CLAUDE.md に反映
+
+---
+
+## 12. リリース前点検（2026-07-27）
+
+iOS 水準に達していない点の棚卸し。**優先順に並べる**。
+
+### 解消済み（本 Plan 起案時のリスクのうち）
+
+- **暫定 Stripe Checkout の Play ポリシー違反リスク** → 解消。課金は RevenueCat（`react-native-purchases`）の
+  アプリ内購入に移行し、mobile からの web 決済誘導も落とした（アンチステアリング対応。
+  `SettingsScreen.tsx:79`）。購読管理は RevenueCat の `managementURL` を開く**ストア非依存**の実装で、
+  `isStoreManagedSubscription` も `PLAY_STORE` を織り込み済み＝**Play 対応にコード変更はほぼ不要**。
+- コード側 Task 1〜3（`googleClientConfig` / LoginScreen / `scheme`）は実装・テスト済み。
+
+### A. targetSdkVersion が Play の下限を割っている（**リリースを止める**）
+
+Expo SDK 52 の `targetSdkVersion` は 34。Play の下限は現在 **35**、**2026-08-31 以降は 36**。
+このままではアップロードが弾かれる。
+→ **[expo-sdk-57.md](expo-sdk-57.md) で対応**（暫定で 35 に上げる案は、エッジトゥエッジ対応を
+2回やることになるので採らない）。本 Plan では扱わない。
+
+### B. Apple で登録した人が Android で自分のアカウントに入れない（**設計上の穴**）
+
+- `AuthenticateWithApple` は `appleSub` だけで引き当てる（`authenticate-with-apple.usecase.ts`）。
+  `AuthenticateWithGoogle` は `googleSub` だけ。**email での突き合わせも連携機能も無い。**
+- Android の `LoginScreen` は Apple ボタンを出さない（`Platform.OS === "ios"` 分岐）。
+  コメントの理由は「Play に同種の要件は無い」で、**アカウント到達性は考慮されていない**。
+- web には Apple ログインがある（`AppleSignInButton`。App Store 審査要件 4.8 の併設）。
+
+結果、**iOS で Apple 登録した人が Android 版で Google ログインすると別アカウントが新規作成される**。
+牌譜・何切る・お気に入り、そして **App Store で買った有料プランに到達できない**。
+
+対応案（**未決。オーナー判断待ち**）:
+
+1. **Android にも Apple ログインを出す** — Apple の web フローで可能。純正ボタン必須は iOS の
+   HIG 要件なので Android は自前ボタンでよい。api 側は `identity.aud` で web の Services ID を
+   すでに受けられる（`authenticate-with-apple.usecase.ts` のコメント）。**筋としてはこれ。**
+2. ログイン画面に「iOS で Apple で登録した方へ」の導線・案内を置く（暫定）
+3. 認証プロバイダの連携機能（既存アカウントに後から Google/Apple を紐づける）を作る（本格対応）
+
+### C. Play Billing（RevenueCat Android）が未設定
+
+`revenueCatApiKey()` は Android で `EXPO_PUBLIC_REVENUECAT_ANDROID_KEY` を読むが、
+codemagic.yaml のコメントが「Play 対応時に追加」のまま。未設定でも購入導線が無効になるだけで
+クラッシュはしないが、有料プランが売れない。**コンソール作業が主。**
+
+- [ ] RevenueCat の Android Public SDK キー（`goog_...`）を `rigel_mobile_env` に追加
+- [ ] Play Console で定期購入商品を作成。**価格は `PLAN_MONTHLY_PRICE_STORE`（¥700 / ¥1,800）と
+      必ず一致させる**（@rigel/ui のコメント参照。表示専用＝実際の請求はストア設定が正）
+- [ ] RevenueCat と Play の連携（サービスアカウント / Play Billing の権限付与）
+
+### D. OAuth の SHA-1 は2つ登録が要る（`[未確定] B`。**未確定のまま**）
+
+Play App Signing はアップロード鍵とは別に Google が再署名するため、**アップロード鍵の SHA-1 と
+Play アプリ署名鍵の SHA-1 の両方**を Android OAuth クライアントに登録しないと、
+内部テスト配布物で Google ログインだけが失敗する。ローカルビルドでは再現しないので
+原因に辿り着きにくい。あわせて api 本番の `GOOGLE_CLIENT_ID` に Android クライアント ID を
+カンマ追記する（コードは複数 aud 対応済み）。
+
+### E. Codemagic の `android-googleplay` は一度も実行実績がない
+
+`node-linker=hoisted` での Gradle 初回ビルドが通るかは未検証。**SDK 移行より先に現状のまま
+一度流しておく**と、後で「SDK 移行が原因か足場が原因か」の切り分けが効く。
+
+### iOS と差が無いことを確認した項目
+
+パッケージ名 `jp.co.plaria.rigel` は iOS のバンドル ID・`google-services.json`・codemagic の
+変数すべてで一致。アダプティブアイコン、Firebase 設定ファイル、キーストア／サービスアカウントの
+受け口、versionCode の連番付与、型チェック工程は iOS と同水準。退会は両 OS 共通の API で、
+公開の `/privacy` に削除方針の記載があり Play のデータ削除 URL 要件に使える。
+
+### 進める順番
+
+1. **E**（現状のまま Codemagic を1回流す。足場の確認だけ）
+2. **A**（[expo-sdk-57.md](expo-sdk-57.md)。期限が近いので最優先の実作業）
+3. **B**（方針決定 → 実装）
+4. **C**（コンソール作業）
+5. **D**（SHA-1 二重登録 → 実機で Google ログイン確認 → `[未確定] A/B` を確定）
