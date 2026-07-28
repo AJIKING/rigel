@@ -78,7 +78,10 @@ describe("MyProblemsScreen（マイ何切る）", () => {
       console.error(
         "DEBUG deleteProblem results:",
         JSON.stringify(
-          mockDeleteProblem.mock.results.map((r) => ({ type: r.type, isP: r.value instanceof Promise })),
+          mockDeleteProblem.mock.results.map((r) => ({
+            type: r.type,
+            isP: r.value instanceof Promise,
+          })),
         ),
       );
       console.error("DEBUG confirm calls:", mockConfirm.mock.calls.length);
