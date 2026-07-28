@@ -68,7 +68,23 @@ describe("MyProblemsScreen（マイ何切る）", () => {
     fireEvent.press((await screen.findAllByText("削除"))[0]!);
     expect(mockConfirm).toHaveBeenCalled();
     expect(mockDeleteProblem).toHaveBeenCalledWith("t", "p1");
-    await waitFor(() => expect(screen.queryByText("下書きの問題")).toBeNull());
+    // ---- CI 調査用（この branch 限り）: 5秒に延長し、失敗時は状態をダンプする ----
+    try {
+      await waitFor(() => expect(screen.queryByText("下書きの問題")).toBeNull(), {
+        timeout: 5000,
+      });
+    } catch (e) {
+      console.error("DEBUG deleteProblem calls:", JSON.stringify(mockDeleteProblem.mock.calls));
+      console.error(
+        "DEBUG deleteProblem results:",
+        JSON.stringify(
+          mockDeleteProblem.mock.results.map((r) => ({ type: r.type, isP: r.value instanceof Promise })),
+        ),
+      );
+      console.error("DEBUG confirm calls:", mockConfirm.mock.calls.length);
+      console.error("DEBUG tree:", JSON.stringify(screen.toJSON()).slice(0, 4000));
+      throw e;
+    }
   });
 
   it("「＋ 新規」で作成画面へ、「編集」でその問題の編集画面へ遷移する", async () => {
