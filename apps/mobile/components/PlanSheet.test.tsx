@@ -10,8 +10,13 @@ describe("PlanSheet（プラン選択ボトムシート）", () => {
     expect(screen.getByText("¥700 / 月")).toBeTruthy();
     expect(screen.getByText("¥1,800 / 月")).toBeTruthy();
     expect(screen.queryByText("¥480 / 月")).toBeNull();
-    // ストア手数料込みである旨の注記。
-    expect(screen.getByText(/App Store/)).toBeTruthy();
+  });
+
+  it("注記にストア固有の文言（App Store・手数料）を出さない（Android でも同じ画面を使うため）", () => {
+    render(<PlanSheet targets={["next", "pro"]} onSelect={jest.fn()} onClose={jest.fn()} />);
+    expect(screen.getByText(/サブスクリプションはいつでも解約できます/)).toBeTruthy();
+    expect(screen.queryByText(/App Store/)).toBeNull();
+    expect(screen.queryByText(/手数料/)).toBeNull();
   });
 
   it("提供内容に特訓の行が出る（有料=無制限。PLAN_FEATURES 経由の自動反映）", () => {

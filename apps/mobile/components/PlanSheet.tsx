@@ -53,9 +53,9 @@ export function PlanSheet({
         ))}
       </ScrollView>
 
-      <Text style={styles.note}>
-        価格は App Store 手数料を含みます。サブスクリプションはいつでも解約できます。
-      </Text>
+      {/* ストア名・手数料には触れない（iOS/Android で同じ画面を使う。価格はストア掲載価格
+          そのものなので、注記で仕組みを説明する必要も無い）。 */}
+      <Text style={styles.note}>サブスクリプションはいつでも解約できます。</Text>
       <SheetCloseButton onPress={onClose} />
     </BottomSheet>
   );
