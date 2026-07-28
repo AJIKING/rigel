@@ -42,12 +42,15 @@ jest.mock("./purchases", () => ({
 
 /** useAuth を叩くためのプローブ。 */
 function Probe() {
-  const { user, loading, signInWithGoogle, signOut } = useAuth();
+  const { user, loading, guest, signInWithGoogle, signOut, startGuest, endGuest } = useAuth();
   return (
     <>
       <Text>{loading ? "loading" : (user?.id ?? "none")}</Text>
+      <Text>{`guest:${guest}`}</Text>
       <Pressable accessibilityLabel="login" onPress={() => void signInWithGoogle("idtok")} />
       <Pressable accessibilityLabel="logout" onPress={() => signOut()} />
+      <Pressable accessibilityLabel="guest-start" onPress={() => startGuest()} />
+      <Pressable accessibilityLabel="guest-end" onPress={() => endGuest()} />
     </>
   );
 }
@@ -154,5 +157,62 @@ describe("AuthProvider と RevenueCat の紐づけ", () => {
 
     expect(await screen.findByText("none")).toBeTruthy();
     expect(mockLogOut).toHaveBeenCalled();
+  });
+});
+
+describe("ゲストモード（サインインしないではじめる）", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockStore.clear();
+  });
+
+  function renderProbe() {
+    render(
+      <AuthProvider>
+        <Probe />
+      </AuthProvider>,
+    );
+  }
+
+  it("startGuest で guest になり、次回起動のために永続化する", async () => {
+    renderProbe();
+    await screen.findByText("guest:false");
+
+    fireEvent.press(screen.getByLabelText("guest-start"));
+
+    expect(await screen.findByText("guest:true")).toBeTruthy();
+    await waitFor(() => expect(mockStore.get("rigel.guest")).toBe("1"));
+  });
+
+  it("起動時: ゲストフラグが保存済み（トークン無し）なら guest として復元する", async () => {
+    mockStore.set("rigel.guest", "1");
+    renderProbe();
+
+    expect(await screen.findByText("guest:true")).toBeTruthy();
+    expect(await screen.findByText("none")).toBeTruthy();
+  });
+
+  it("endGuest でゲストを終了し、保存値も消す（ログイン画面に戻すための口）", async () => {
+    mockStore.set("rigel.guest", "1");
+    renderProbe();
+    await screen.findByText("guest:true");
+
+    fireEvent.press(screen.getByLabelText("guest-end"));
+
+    expect(await screen.findByText("guest:false")).toBeTruthy();
+    await waitFor(() => expect(mockStore.has("rigel.guest")).toBe(false));
+  });
+
+  it("ゲスト中にログインが成立したらゲスト状態は解消される（フラグも消す）", async () => {
+    mockStore.set("rigel.guest", "1");
+    mockAuthWithGoogle.mockResolvedValue({ sessionToken: "tok", user: { id: "u1" } });
+    renderProbe();
+    await screen.findByText("guest:true");
+
+    fireEvent.press(screen.getByLabelText("login"));
+
+    await screen.findByText("u1");
+    expect(await screen.findByText("guest:false")).toBeTruthy();
+    await waitFor(() => expect(mockStore.has("rigel.guest")).toBe(false));
   });
 });

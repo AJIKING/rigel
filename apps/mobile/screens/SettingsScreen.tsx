@@ -15,7 +15,7 @@ import { colors, radius } from "../lib/theme";
 const BILLING_RETURN_URL = `${SITE_ORIGIN}/settings`;
 
 export function SettingsScreen() {
-  const { user, token, signOut, refresh } = useAuth();
+  const { user, token, signOut, refresh, endGuest } = useAuth();
   const [handle, setHandle] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [note, setNote] = useState<string | null>(null);
@@ -249,10 +249,22 @@ export function SettingsScreen() {
           </Pressable>
         </Group>
 
-        {!token ? <Text style={styles.loginNote}>設定の保存にはログインが必要です。</Text> : null}
+        {!token ? (
+          <>
+            <Text style={styles.loginNote}>設定の保存にはログインが必要です。</Text>
+            {/* ゲストからサインインへ戻る唯一の入口（App の入口ゲートへ戻す）。 */}
+            <Pressable
+              style={styles.signInBtn}
+              onPress={() => endGuest()}
+              accessibilityRole="button"
+            >
+              <Text style={styles.signInText}>サインインする</Text>
+            </Pressable>
+          </>
+        ) : null}
       </View>
 
-      {/* プラン変更: 下からのシートで選択（アプリは App Store 価格 = 手数料込み）。 */}
+      {/* プラン変更: 下からのシートで選択（アプリはストア掲載価格を表示）。 */}
       {planOpen ? (
         <PlanSheet
           targets={targets}
@@ -422,4 +434,14 @@ const styles = StyleSheet.create({
   planPrice: { color: colors.w45, fontSize: 11.5, marginTop: 2 },
   go: { color: colors.accent, fontSize: 12.5, fontWeight: "700" },
   loginNote: { color: colors.w45, fontSize: 12, textAlign: "center", marginTop: 12 },
+  // ゲスト向けのサインイン導線（設定画面の主ボタンと同系のアクセント）。
+  signInBtn: {
+    marginTop: 10,
+    alignSelf: "center",
+    backgroundColor: colors.accent,
+    borderRadius: radius.base,
+    paddingVertical: 10,
+    paddingHorizontal: 22,
+  },
+  signInText: { color: "#16181d", fontWeight: "800", fontSize: 13.5 },
 });

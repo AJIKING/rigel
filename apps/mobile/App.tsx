@@ -42,7 +42,7 @@ const headerOptions = {
 } as const;
 
 function Root() {
-  const { user, loading } = useAuth();
+  const { user, guest, loading } = useAuth();
 
   if (loading) {
     return (
@@ -51,7 +51,9 @@ function Root() {
       </View>
     );
   }
-  if (!user) return <LoginScreen />;
+  // サインイン必須にしない: ゲスト（サインインしないではじめる）でもホームへ入れる。
+  // 認証が要る画面は各自が案内を出す。設定の「サインインする」（endGuest）でここへ戻る。
+  if (!user && !guest) return <LoginScreen />;
 
   return (
     <NavigationContainer theme={navTheme}>

@@ -21,12 +21,8 @@ import { colors, radius } from "../lib/theme";
 
 WebBrowser.maybeCompleteAuthSession();
 
-// EXPO_PUBLIC_GOOGLE_CLIENT_ID は iOS 用、EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID は
-// Android 用の OAuth クライアントID（詳細は lib/google-login.ts）。未設定なら null = ログイン無効表示。
-const GOOGLE_CONFIG = googleClientConfig({
-  clientId: process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID,
-  androidClientId: process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID,
-});
+// 文言はこの画面内で「サインイン」に統一する（Apple 純正ボタン（iOS）の規定文言
+// 「Appleでサインイン」が変更不可のため、そちらに合わせる。[決定] 2026-07-29 オーナー）。
 
 function GoogleLogo() {
   return (
@@ -64,8 +60,16 @@ function AppleLogo() {
 }
 
 export function LoginScreen() {
-  const { signInWithGoogle, signInWithApple } = useAuth();
-  const [request, response, promptAsync] = Google.useIdTokenAuthRequest(GOOGLE_CONFIG ?? {});
+  const { signInWithGoogle, signInWithApple, startGuest } = useAuth();
+
+  // EXPO_PUBLIC_GOOGLE_CLIENT_ID は iOS 用、EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID は
+  // Android 用の OAuth クライアントID（詳細は lib/google-login.ts）。未設定なら null =
+  // サインイン無効表示。env は描画時に読む（appleWeb と同じ流儀。テストから差し替え可能に）。
+  const googleConfig = googleClientConfig({
+    clientId: process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID,
+    androidClientId: process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID,
+  });
+  const [request, response, promptAsync] = Google.useIdTokenAuthRequest(googleConfig ?? {});
 
   // Android のみ: web フローの Sign in with Apple（docs/plans/android.md §12-B。iOS で
   // Apple 登録した人が Android でも同じアカウントに入れるように）。env は描画時に読む
@@ -129,7 +133,7 @@ export function LoginScreen() {
         </View>
       </View>
       <View style={styles.foot}>
-        {GOOGLE_CONFIG ? (
+        {googleConfig ? (
           <Pressable
             style={({ pressed }) => [styles.gbtn, (!request || pressed) && styles.gbtnPressed]}
             disabled={!request}
@@ -137,11 +141,11 @@ export function LoginScreen() {
             accessibilityRole="button"
           >
             <GoogleLogo />
-            <Text style={styles.gbtnText}>Google でログイン</Text>
+            <Text style={styles.gbtnText}>Googleでサインイン</Text>
           </Pressable>
         ) : (
           <Text style={styles.note}>
-            Google ログインは未設定です（EXPO_PUBLIC_GOOGLE_CLIENT_ID を設定すると有効化）。
+            Google サインインは未設定です（EXPO_PUBLIC_GOOGLE_CLIENT_ID を設定すると有効化）。
           </Text>
         )}
         {/* Sign in with Apple。iOS は純正ボタン（HIG 要件）、Android は自前ボタン＋
@@ -165,9 +169,17 @@ export function LoginScreen() {
             <Text style={styles.gbtnText}>Appleでサインイン</Text>
           </Pressable>
         ) : null}
-        {!request && GOOGLE_CONFIG ? (
+        {!request && googleConfig ? (
           <ActivityIndicator color={colors.accent} style={{ marginTop: 12 }} />
         ) : null}
+        {/* サインイン必須のアプリではない（公開牌譜・何切るは見られる）。ゲスト開始の導線。 */}
+        <Pressable
+          style={({ pressed }) => [styles.guestBtn, pressed && styles.gbtnPressed]}
+          onPress={() => startGuest()}
+          accessibilityRole="button"
+        >
+          <Text style={styles.guestText}>サインインしないではじめる</Text>
+        </Pressable>
         <Text style={styles.legal}>
           続行すると利用規約とプライバシーに同意したものとみなされます。
         </Text>
@@ -197,5 +209,8 @@ const styles = StyleSheet.create({
   // Android の自前 Apple ボタン（Google ボタンと同じ白地・純正と同じ間隔）。
   abtnWeb: { marginTop: 10 },
   note: { color: colors.w45, fontSize: 12, textAlign: "center" },
+  // ゲスト開始はボタンの見た目を弱く（主導線はサインイン。テキストリンク相当）。
+  guestBtn: { marginTop: 14, alignItems: "center", paddingVertical: 6 },
+  guestText: { color: colors.w70, fontSize: 13, fontWeight: "700" },
   legal: { color: colors.w45, fontSize: 11, lineHeight: 19, textAlign: "center", marginTop: 16 },
 });

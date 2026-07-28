@@ -7,12 +7,20 @@ import { authWithApple, authWithGoogle, fetchMe, type AuthResult, type AuthUser 
 import { logInPurchases, logOutPurchases } from "./purchases";
 
 const TOKEN_KEY = "rigel.session";
+/** ゲスト開始（サインインしないではじめる）の永続フラグ。次回起動もログイン画面を挟まない。 */
+const GUEST_KEY = "rigel.guest";
 
 interface AuthState {
   user: AuthUser | null;
   /** セッショントークン（API 呼び出し用）。 */
   token: string | null;
   loading: boolean;
+  /** サインインせずに使い始めた状態（App の入口ゲートが参照。サインイン必須にしない）。 */
+  guest: boolean;
+  /** サインインしないではじめる（永続化して次回起動もゲストのまま）。 */
+  startGuest: () => void;
+  /** ゲストを終了してログイン画面へ戻す（設定画面のサインイン導線から）。 */
+  endGuest: () => void;
   signInWithGoogle: (idToken: string) => Promise<void>;
   /** Apple の identityToken でログイン（iOS。App Store 審査要件 4.8）。
    *  authorizationCode は退会時のトークン失効用（任意）。 */
@@ -28,11 +36,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [guest, setGuest] = useState(false);
 
-  // 起動時: SecureStore のトークンがあれば /me で復元。
+  // 起動時: SecureStore のトークンがあれば /me で復元。ゲストフラグも読む
+  // （復元に成功した場合は user が勝つので guest は入口ゲートに影響しない）。
   useEffect(() => {
     void (async () => {
-      const saved = await SecureStore.getItemAsync(TOKEN_KEY);
+      const [saved, guestFlag] = await Promise.all([
+        SecureStore.getItemAsync(TOKEN_KEY),
+        SecureStore.getItemAsync(GUEST_KEY),
+      ]);
+      if (guestFlag) setGuest(true);
       if (!saved) {
         setLoading(false);
         return;
@@ -58,11 +72,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       await SecureStore.setItemAsync(TOKEN_KEY, sessionToken);
       setToken(sessionToken);
       setUser(u);
+      // ゲストからのサインイン成立でゲスト状態は解消（フラグも消す）。
+      setGuest(false);
+      void SecureStore.deleteItemAsync(GUEST_KEY);
       void logInPurchases(u.id);
       void trackEvent(created ? ANALYTICS_EVENTS.signUp : ANALYTICS_EVENTS.login, { method });
     },
     [],
   );
+
+  const startGuest = useCallback(() => {
+    setGuest(true);
+    void SecureStore.setItemAsync(GUEST_KEY, "1");
+  }, []);
+
+  const endGuest = useCallback(() => {
+    setGuest(false);
+    void SecureStore.deleteItemAsync(GUEST_KEY);
+  }, []);
 
   const signInWithGoogle = useCallback(
     async (idToken: string) => establishSession("google", await authWithGoogle(idToken)),
@@ -99,7 +126,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   return (
     <AuthContext.Provider
-      value={{ user, token, loading, signInWithGoogle, signInWithApple, signOut, refresh }}
+      value={{
+        user,
+        token,
+        loading,
+        guest,
+        startGuest,
+        endGuest,
+        signInWithGoogle,
+        signInWithApple,
+        signOut,
+        refresh,
+      }}
     >
       {children}
     </AuthContext.Provider>

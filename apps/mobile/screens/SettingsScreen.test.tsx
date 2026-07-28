@@ -18,6 +18,7 @@ let mockAuth: {
   user: { plan: string; remainingCalls?: number; monthlyCallQuota?: number } | null;
   signOut: jest.Mock;
   refresh: jest.Mock;
+  endGuest: jest.Mock;
 };
 jest.mock("../lib/auth", () => ({ useAuth: () => mockAuth }));
 
@@ -31,7 +32,13 @@ jest.mock("../lib/api", () => ({
 describe("SettingsScreen（課金導線）", () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    mockAuth = { token: "t", user: { plan: "free" }, signOut: jest.fn(), refresh: jest.fn() };
+    mockAuth = {
+      token: "t",
+      user: { plan: "free" },
+      signOut: jest.fn(),
+      refresh: jest.fn(),
+      endGuest: jest.fn(),
+    };
     jest.replaceProperty(Platform, "OS", "ios");
   });
 
@@ -219,11 +226,32 @@ describe("SettingsScreen（課金導線）", () => {
   });
 
   it("未ログインはプラン変更導線を出さない", () => {
-    mockAuth = { token: null, user: null, signOut: jest.fn(), refresh: jest.fn() };
+    mockAuth = {
+      token: null,
+      user: null,
+      signOut: jest.fn(),
+      refresh: jest.fn(),
+      endGuest: jest.fn(),
+    };
     render(<SettingsScreen />);
 
     expect(screen.getByText("設定の保存にはログインが必要です。")).toBeTruthy();
     expect(screen.queryByLabelText("プランを変更")).toBeNull();
     expect(screen.queryByLabelText("プランを管理")).toBeNull();
+  });
+
+  it("ゲスト（未ログイン）にはサインイン導線を出し、押すとログイン画面へ戻す（endGuest）", () => {
+    mockAuth = {
+      token: null,
+      user: null,
+      signOut: jest.fn(),
+      refresh: jest.fn(),
+      endGuest: jest.fn(),
+    };
+    render(<SettingsScreen />);
+
+    fireEvent.press(screen.getByText("サインインする"));
+
+    expect(mockAuth.endGuest).toHaveBeenCalled();
   });
 });

@@ -24,10 +24,12 @@ jest.mock("expo-apple-authentication", () => {
 });
 
 const mockSignInWithApple = jest.fn((_idToken: string, _code?: string) => Promise.resolve());
+const mockStartGuest = jest.fn();
 jest.mock("../lib/auth", () => ({
   useAuth: () => ({
     signInWithGoogle: jest.fn(),
     signInWithApple: (...a: unknown[]) => mockSignInWithApple(...(a as [string, string?])),
+    startGuest: () => mockStartGuest(),
   }),
 }));
 
@@ -56,5 +58,34 @@ describe("LoginScreen の Sign in with Apple", () => {
 
     await waitFor(() => expect(mockSignInAsync).toHaveBeenCalled());
     expect(mockSignInWithApple).not.toHaveBeenCalled();
+  });
+});
+
+describe("LoginScreen の文言とゲスト開始", () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  it("「サインインしないではじめる」でゲストとして開始できる（サインイン必須のアプリではない）", () => {
+    render(<LoginScreen />);
+
+    fireEvent.press(screen.getByText("サインインしないではじめる"));
+
+    expect(mockStartGuest).toHaveBeenCalled();
+  });
+
+  it("画面内の文言は「サインイン」に統一する（Apple 純正ボタンの規定文言に合わせる）", () => {
+    // Google ボタンは env があるときだけ出る（設定は描画時に読む）。
+    process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID = "google-client-id";
+    try {
+      render(<LoginScreen />);
+      expect(screen.getByText("Googleでサインイン")).toBeTruthy();
+      expect(screen.queryByText(/でログイン/)).toBeNull();
+    } finally {
+      delete process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID;
+    }
+  });
+
+  it("Google 未設定時の案内も「サインイン」表記", () => {
+    render(<LoginScreen />);
+    expect(screen.getByText(/Google サインインは未設定です/)).toBeTruthy();
   });
 });
