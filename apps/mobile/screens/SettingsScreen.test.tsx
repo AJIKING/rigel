@@ -240,6 +240,20 @@ describe("SettingsScreen（課金導線）", () => {
     expect(screen.queryByLabelText("プランを管理")).toBeNull();
   });
 
+  it("未ログイン（ゲスト）にはログアウト/アカウント削除を出さない（アカウントが無いので無意味）", () => {
+    mockAuth = {
+      token: null,
+      user: null,
+      signOut: jest.fn(),
+      refresh: jest.fn(),
+      endGuest: jest.fn(),
+    };
+    render(<SettingsScreen />);
+
+    expect(screen.queryByText("ログアウト")).toBeNull();
+    expect(screen.queryByText("アカウントを削除")).toBeNull();
+  });
+
   it("ゲスト（未ログイン）にはサインイン導線を出し、押すとログイン画面へ戻す（endGuest）", () => {
     mockAuth = {
       token: null,

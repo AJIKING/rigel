@@ -17,6 +17,7 @@ import {
 } from "../lib/apple-login";
 import { useAuth } from "../lib/auth";
 import { googleClientConfig } from "../lib/google-login";
+import { SITE_ORIGIN } from "../lib/site";
 import { colors, radius } from "../lib/theme";
 
 WebBrowser.maybeCompleteAuthSession();
@@ -141,7 +142,7 @@ export function LoginScreen() {
             accessibilityRole="button"
           >
             <GoogleLogo />
-            <Text style={styles.gbtnText}>Googleでサインイン</Text>
+            <Text style={styles.gbtnText}>Google でサインイン</Text>
           </Pressable>
         ) : (
           <Text style={styles.note}>
@@ -163,10 +164,10 @@ export function LoginScreen() {
             style={({ pressed }) => [styles.gbtn, styles.abtnWeb, pressed && styles.gbtnPressed]}
             onPress={() => void onAppleWebPress(appleWeb)}
             accessibilityRole="button"
-            accessibilityLabel="Appleでサインイン"
+            accessibilityLabel="Apple でサインイン"
           >
             <AppleLogo />
-            <Text style={styles.gbtnText}>Appleでサインイン</Text>
+            <Text style={styles.gbtnText}>Apple でサインイン</Text>
           </Pressable>
         ) : null}
         {!request && googleConfig ? (
@@ -180,8 +181,17 @@ export function LoginScreen() {
         >
           <Text style={styles.guestText}>サインインしないではじめる</Text>
         </Pressable>
+        {/* 利用規約は web の規約ページをアプリ内ブラウザで開く（mobile に規約画面は持たない）。 */}
         <Text style={styles.legal}>
-          続行すると利用規約とプライバシーに同意したものとみなされます。
+          サインインすると
+          <Text
+            style={styles.legalLink}
+            onPress={() => void WebBrowser.openBrowserAsync(`${SITE_ORIGIN}/terms`)}
+            accessibilityRole="link"
+          >
+            利用規約
+          </Text>
+          に同意したものとみなされます。
         </Text>
       </View>
     </SafeAreaView>
@@ -213,4 +223,5 @@ const styles = StyleSheet.create({
   guestBtn: { marginTop: 14, alignItems: "center", paddingVertical: 6 },
   guestText: { color: colors.w70, fontSize: 13, fontWeight: "700" },
   legal: { color: colors.w45, fontSize: 11, lineHeight: 19, textAlign: "center", marginTop: 16 },
+  legalLink: { color: colors.w70, textDecorationLine: "underline" },
 });

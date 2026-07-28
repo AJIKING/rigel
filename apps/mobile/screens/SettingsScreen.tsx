@@ -221,33 +221,38 @@ export function SettingsScreen() {
           </Text>
         ) : null}
 
-        <SectionTitle>アカウント</SectionTitle>
-        <Group>
-          <Pressable onPress={() => signOut()}>
-            <Item icon={<IconLogout />}>
-              <Text style={styles.itemTitle}>ログアウト</Text>
-              <Chevron />
-            </Item>
-          </Pressable>
-          <Pressable onPress={() => void onDelete()} disabled={plan !== "free"}>
-            <Item icon={<IconTrash danger={plan === "free"} />} last>
-              <View style={{ flex: 1 }}>
-                <Text
-                  style={[
-                    styles.itemTitle,
-                    { color: plan === "free" ? colors.vermilion : colors.w45 },
-                  ]}
-                >
-                  {delArm ? "もう一度押すと削除されます" : "アカウントを削除"}
-                </Text>
-                {plan !== "free" ? (
-                  <Text style={styles.itemSub}>有料プラン契約中は削除できません</Text>
-                ) : null}
-              </View>
-              {plan === "free" ? <Chevron danger /> : null}
-            </Item>
-          </Pressable>
-        </Group>
+        {/* アカウント操作はログイン時のみ（ゲストにはアカウントが無いので無意味）。 */}
+        {token ? (
+          <>
+            <SectionTitle>アカウント</SectionTitle>
+            <Group>
+              <Pressable onPress={() => signOut()}>
+                <Item icon={<IconLogout />}>
+                  <Text style={styles.itemTitle}>ログアウト</Text>
+                  <Chevron />
+                </Item>
+              </Pressable>
+              <Pressable onPress={() => void onDelete()} disabled={plan !== "free"}>
+                <Item icon={<IconTrash danger={plan === "free"} />} last>
+                  <View style={{ flex: 1 }}>
+                    <Text
+                      style={[
+                        styles.itemTitle,
+                        { color: plan === "free" ? colors.vermilion : colors.w45 },
+                      ]}
+                    >
+                      {delArm ? "もう一度押すと削除されます" : "アカウントを削除"}
+                    </Text>
+                    {plan !== "free" ? (
+                      <Text style={styles.itemSub}>有料プラン契約中は削除できません</Text>
+                    ) : null}
+                  </View>
+                  {plan === "free" ? <Chevron danger /> : null}
+                </Item>
+              </Pressable>
+            </Group>
+          </>
+        ) : null}
 
         {!token ? (
           <>

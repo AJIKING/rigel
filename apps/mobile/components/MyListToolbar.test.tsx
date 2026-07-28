@@ -40,6 +40,21 @@ describe("MyListToolbar（再設計）", () => {
     expect(screen.queryByLabelText("お気に入りのみ表示")).toBeNull();
   });
 
+  it("並び替えシートはツールバー行の外に描画する（行内だと absolute overlay が行基準になり崩れる）", () => {
+    render(<MyListToolbar sort="new" onSort={jest.fn()} favOnly={false} onFavOnly={jest.fn()} />);
+
+    fireEvent.press(screen.getByLabelText("並び替え"));
+
+    // シートのカードから親を辿っても、ツールバーの行（testID）には行き着かないこと。
+    // 2026-07-29 実測: 行内に置くと overlay が行のサイズに閉じ込められて画面上部に潰れて出た。
+    let node: { parent: unknown; props?: { testID?: string } } | null =
+      screen.getByTestId("bottom-sheet-card");
+    while (node) {
+      expect(node.props?.testID).not.toBe("mylist-toolbar-row");
+      node = node.parent as typeof node;
+    }
+  });
+
   it("action スロット（＋新規など）を同じ行に描画する", () => {
     render(
       <MyListToolbar

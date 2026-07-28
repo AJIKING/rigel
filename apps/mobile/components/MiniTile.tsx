@@ -44,6 +44,9 @@ export function MiniTile({
     height: h,
     borderRadius: Math.max(1, w * 0.1),
     transform: riichi ? [{ rotate: "90deg" }] : undefined,
+    // RN の transform はレイアウト幅を変えないため、横向き（視覚幅 = h）は差分を
+    // 左右マージンで補償する（しないと隣の牌に (h-w)/2 ずつ重なる）。
+    marginHorizontal: riichi ? Math.max(0, (h - w) / 2) : undefined,
     opacity: called ? 0.38 : undefined,
   };
 

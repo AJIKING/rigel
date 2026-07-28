@@ -4,7 +4,11 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react-native";
 import { LoginScreen } from "./LoginScreen";
 
-jest.mock("expo-web-browser", () => ({ maybeCompleteAuthSession: jest.fn() }));
+const mockOpenBrowser = jest.fn((_url: string) => Promise.resolve());
+jest.mock("expo-web-browser", () => ({
+  maybeCompleteAuthSession: jest.fn(),
+  openBrowserAsync: (...a: unknown[]) => mockOpenBrowser(...(a as [string])),
+}));
 jest.mock("expo-auth-session/providers/google", () => ({
   useIdTokenAuthRequest: () => [null, null, jest.fn()],
 }));
@@ -72,16 +76,27 @@ describe("LoginScreen の文言とゲスト開始", () => {
     expect(mockStartGuest).toHaveBeenCalled();
   });
 
-  it("画面内の文言は「サインイン」に統一する（Apple 純正ボタンの規定文言に合わせる）", () => {
+  it("画面内の文言は「サインイン」に統一する（○○ とサインインの間は半角スペース）", () => {
     // Google ボタンは env があるときだけ出る（設定は描画時に読む）。
     process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID = "google-client-id";
     try {
       render(<LoginScreen />);
-      expect(screen.getByText("Googleでサインイン")).toBeTruthy();
+      expect(screen.getByText("Google でサインイン")).toBeTruthy();
       expect(screen.queryByText(/でログイン/)).toBeNull();
     } finally {
       delete process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID;
     }
+  });
+
+  it("規約文言は「サインインすると利用規約に同意」で、利用規約は web の規約ページを開くリンク", async () => {
+    render(<LoginScreen />);
+
+    expect(screen.getByText(/サインインすると/)).toBeTruthy();
+    fireEvent.press(screen.getByText("利用規約"));
+
+    await waitFor(() =>
+      expect(mockOpenBrowser).toHaveBeenCalledWith(expect.stringMatching(/\/terms$/)),
+    );
   });
 
   it("Google 未設定時の案内も「サインイン」表記", () => {

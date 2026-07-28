@@ -32,40 +32,44 @@ export function MyListToolbar({
   const current = MY_LIST_SORTS.find((s) => s.key === sort)?.label ?? "";
 
   return (
-    <View style={styles.row}>
-      <Pressable
-        style={styles.sortBtn}
-        onPress={() => setSortOpen(true)}
-        accessibilityRole="button"
-        accessibilityLabel="並び替え"
-      >
-        <Text style={styles.sortText} numberOfLines={1}>
-          {current} ▾
-        </Text>
-      </Pressable>
-
-      {onFavOnly ? (
+    // シートは行の「外」に置く（BottomSheet の overlay は absoluteFill = 親基準。
+    // 行内に置くと行のサイズに閉じ込められて崩れる。親は各画面のルート View 想定）。
+    <>
+      <View style={styles.row} testID="mylist-toolbar-row">
         <Pressable
-          style={[styles.fav, favOnly && styles.favOn]}
-          onPress={() => onFavOnly(!favOnly)}
+          style={styles.sortBtn}
+          onPress={() => setSortOpen(true)}
           accessibilityRole="button"
-          accessibilityLabel="お気に入りのみ表示"
-          accessibilityState={{ selected: !!favOnly }}
-          hitSlop={6}
+          accessibilityLabel="並び替え"
         >
-          <Svg width={12} height={12} viewBox="0 0 24 24" fill={favOnly ? colors.accent : "none"}>
-            <Path
-              d="M12 3.6l2.6 5.3 5.8.8-4.2 4.1 1 5.8-5.2-2.7-5.2 2.7 1-5.8L3.6 9.7l5.8-.8z"
-              stroke={favOnly ? colors.accent : colors.w70}
-              strokeWidth={1.8}
-              strokeLinejoin="round"
-            />
-          </Svg>
-          <Text style={[styles.favText, favOnly && styles.favTextOn]}>お気に入り</Text>
+          <Text style={styles.sortText} numberOfLines={1}>
+            {current} ▾
+          </Text>
         </Pressable>
-      ) : null}
 
-      {action ? <View style={styles.action}>{action}</View> : null}
+        {onFavOnly ? (
+          <Pressable
+            style={[styles.fav, favOnly && styles.favOn]}
+            onPress={() => onFavOnly(!favOnly)}
+            accessibilityRole="button"
+            accessibilityLabel="お気に入りのみ表示"
+            accessibilityState={{ selected: !!favOnly }}
+            hitSlop={6}
+          >
+            <Svg width={12} height={12} viewBox="0 0 24 24" fill={favOnly ? colors.accent : "none"}>
+              <Path
+                d="M12 3.6l2.6 5.3 5.8.8-4.2 4.1 1 5.8-5.2-2.7-5.2 2.7 1-5.8L3.6 9.7l5.8-.8z"
+                stroke={favOnly ? colors.accent : colors.w70}
+                strokeWidth={1.8}
+                strokeLinejoin="round"
+              />
+            </Svg>
+            <Text style={[styles.favText, favOnly && styles.favTextOn]}>お気に入り</Text>
+          </Pressable>
+        ) : null}
+
+        {action ? <View style={styles.action}>{action}</View> : null}
+      </View>
 
       {sortOpen ? (
         <BottomSheet onClose={() => setSortOpen(false)} maxHeight="60%">
@@ -88,7 +92,7 @@ export function MyListToolbar({
           <SheetCloseButton onPress={() => setSortOpen(false)} />
         </BottomSheet>
       ) : null}
-    </View>
+    </>
   );
 }
 
