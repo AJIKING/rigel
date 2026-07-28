@@ -79,10 +79,12 @@ describe("MyListScreen（マイ牌譜一覧）", () => {
     ).toBeTruthy();
   });
 
-  it("並べ替えは 新しい順/古い順/お気に入りが多い順（局数順は出さない。web と統一）", () => {
+  it("並べ替えの選択肢は 新しい順/古い順/お気に入りが多い順（局数順は出さない。web と統一）", () => {
     setGames([makeGame()]);
     render(<MyListScreen />);
 
+    // 並び順はシートから選ぶ（[決定] 2026-07-29。3択セグメントは幅を取るため廃止）。
+    fireEvent.press(screen.getByLabelText("並び替え"));
     expect(screen.getByText("新しい順")).toBeTruthy();
     expect(screen.getByText("古い順")).toBeTruthy();
     expect(screen.getByText("お気に入りが多い順")).toBeTruthy();
@@ -96,21 +98,23 @@ describe("MyListScreen（マイ牌譜一覧）", () => {
     ]);
     render(<MyListScreen />);
 
+    fireEvent.press(screen.getByLabelText("並び替え"));
     fireEvent.press(screen.getByText("お気に入りが多い順"));
-    // 並べ替えセグメントのラベルを拾わないよう、カードのタイトルだけを完全一致で集める。
+    // 並び順ボタンのラベルを拾わないよう、カードのタイトルだけを完全一致で集める。
     const titles = screen.getAllByText(/^(多い|少ない)$/).map((t) => t.props.children as string);
     expect(titles).toEqual(["多い", "少ない"]);
   });
 
   it("「お気に入りのみ表示」で自分が付けた半荘だけに絞れる", () => {
+    // タイトルはチップの見えるラベル「お気に入り」と衝突しない値にする。
     setGames([
-      makeGame({ id: "g1", title: "お気に入り", viewerFaved: true }),
+      makeGame({ id: "g1", title: "スター付き", viewerFaved: true }),
       makeGame({ id: "g2", title: "ふつう" }),
     ]);
     render(<MyListScreen />);
 
     fireEvent.press(screen.getByLabelText("お気に入りのみ表示"));
-    expect(screen.getByText("お気に入り")).toBeTruthy();
+    expect(screen.getByText("スター付き")).toBeTruthy();
     expect(screen.queryByText("ふつう")).toBeNull();
   });
 

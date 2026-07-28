@@ -50,25 +50,22 @@ export function MyFavoritesScreen({
   const [q, setQ] = useState("");
   const [kind, setKind] = useState<string>("all");
   const [sort, setSort] = useState<MyListSortKey>("new");
-  // このタブは常に「お気に入りのみ」。トグルは他タブと位置を揃えるため出すが固定表示にする。
-  const [favOnly, setFavOnly] = useState(true);
 
+  // このタブは常に「お気に入りのみ」（★を外したものはその場で消す）。トグルは出さない
+  // （[決定] 2026-07-29。全部お気に入りなので無意味。mobile と統一）。
   const games = useMemo(() => {
     if (kind === "problem") return [];
-    let arr = apply(initialGames);
-    // ★を外したものはこのタブから消す（一覧を取り直さずに反映する）。
-    if (favOnly) arr = arr.filter((g) => g.viewerFaved);
+    let arr = apply(initialGames).filter((g) => g.viewerFaved);
     if (q) arr = arr.filter((g) => g.title.includes(q));
     return sortMyList(arr, sort);
-  }, [initialGames, kind, favOnly, q, sort, apply]);
+  }, [initialGames, kind, q, sort, apply]);
 
   const problems = useMemo(() => {
     if (kind === "game") return [];
-    let arr = apply(initialProblems);
-    if (favOnly) arr = arr.filter((p) => p.viewerFaved);
+    let arr = apply(initialProblems).filter((p) => p.viewerFaved);
     if (q) arr = arr.filter((p) => p.title.includes(q));
     return sortMyList(arr, sort);
-  }, [initialProblems, kind, favOnly, q, sort, apply]);
+  }, [initialProblems, kind, q, sort, apply]);
 
   const empty = games.length === 0 && problems.length === 0;
 
@@ -108,8 +105,6 @@ export function MyFavoritesScreen({
             onStatus={setKind}
             sort={sort}
             onSort={setSort}
-            favOnly={favOnly}
-            onFavOnly={setFavOnly}
           />
 
           <div className={gc.feed}>

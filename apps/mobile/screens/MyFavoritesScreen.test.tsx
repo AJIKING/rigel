@@ -75,6 +75,16 @@ describe("MyFavoritesScreen（マイページ お気に入り）", () => {
     expect(screen.getByText("問題p1")).toBeTruthy();
   });
 
+  it("「お気に入りのみ」チップは出さない（このタブは常にお気に入りだけなので無意味）", async () => {
+    setFavorites([game("g1")], []);
+    render(<MyFavoritesScreen />);
+    await screen.findByText("半荘g1");
+
+    expect(screen.queryByLabelText("お気に入りのみ表示")).toBeNull();
+    // 並び替えは他タブと同じ位置・同じ形で出す。
+    expect(screen.getByLabelText("並び替え")).toBeTruthy();
+  });
+
   it("種別で絞り込める（牌譜だけ / 何切るだけ）", async () => {
     setFavorites([game("g1")], [problem("p1")]);
     render(<MyFavoritesScreen />);

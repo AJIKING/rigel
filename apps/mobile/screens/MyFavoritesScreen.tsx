@@ -52,8 +52,6 @@ export function MyFavoritesScreen() {
   const { apply, toggle: toggleFav, error: favError } = useFavorites();
   const [kind, setKind] = useState<KindKey>("all");
   const [sort, setSort] = useState<MyListSortKey>("new");
-  // このセグメントは常に「お気に入りのみ」。位置を他と揃えるためトグルは出す。
-  const [favOnly, setFavOnly] = useState(true);
 
   // 他の画面で付け外しした結果を反映するため、表示のたびに取り直す。
   useFocusEffect(
@@ -84,9 +82,14 @@ export function MyFavoritesScreen() {
   );
 
   const rows = useMemo<Row[]>(() => {
+    // このタブは常に「お気に入りのみ」（★を外したものはその場で消す）。
+    // 絞り込みチップは出さない（[決定] 2026-07-29。全部お気に入りなので無意味）。
     const pick = <T extends FeedCard>(cards: T[]): T[] => {
       const resolved = apply(cards);
-      return sortMyList(favOnly ? resolved.filter((c) => c.viewerFaved) : resolved, sort);
+      return sortMyList(
+        resolved.filter((c) => c.viewerFaved),
+        sort,
+      );
     };
     return [
       ...(kind === "problem" ? [] : pick(games).map((card) => ({ kind: "game" as const, card }))),
@@ -94,7 +97,7 @@ export function MyFavoritesScreen() {
         ? []
         : pick(problems).map((card) => ({ kind: "problem" as const, card }))),
     ];
-  }, [games, problems, kind, sort, favOnly, apply]);
+  }, [games, problems, kind, sort, apply]);
 
   if (!token) return <CenterState message="ログインするとお気に入りが使えます。" />;
 
@@ -103,7 +106,7 @@ export function MyFavoritesScreen() {
       <View style={styles.kindRow}>
         <Segment options={KINDS} value={kind} onChange={setKind} />
       </View>
-      <MyListToolbar sort={sort} onSort={setSort} favOnly={favOnly} onFavOnly={setFavOnly} />
+      <MyListToolbar sort={sort} onSort={setSort} />
       {favError ? <Text style={styles.err}>{favError}</Text> : null}
       {loading ? (
         <CenterState loading />

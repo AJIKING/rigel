@@ -66,7 +66,23 @@ export function MyListScreen() {
   return (
     <View style={styles.root}>
       <Toolbar />
-      <MyListToolbar sort={sort} onSort={setSort} favOnly={favOnly} onFavOnly={setFavOnly} />
+      {/* ＋新規はツールバー右端の action スロットへ（タブ間で位置を統一。[決定] 2026-07-29）。
+          クォータはツールバー直下の行に出す。 */}
+      <MyListToolbar
+        sort={sort}
+        onSort={setSort}
+        favOnly={favOnly}
+        onFavOnly={setFavOnly}
+        action={
+          <Pressable
+            style={styles.newBtn}
+            onPress={() => nav.navigate("Capture")}
+            accessibilityRole="button"
+          >
+            <Text style={styles.newBtnText}>＋ 新規</Text>
+          </Pressable>
+        }
+      />
       {favError ? <Text style={styles.favError}>{favError}</Text> : null}
       {!loading && (
         <View style={styles.head}>
@@ -87,13 +103,6 @@ export function MyListScreen() {
               </Text>
             </View>
           )}
-          <Pressable
-            style={styles.newBtn}
-            onPress={() => nav.navigate("Capture")}
-            accessibilityRole="button"
-          >
-            <Text style={styles.newBtnText}>＋ 新規</Text>
-          </Pressable>
         </View>
       )}
       {loading ? (

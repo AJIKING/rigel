@@ -97,6 +97,24 @@ export function MyProblemsScreen() {
 
   return (
     <View style={styles.root}>
+      {/* ＋新規はツールバー右端の action スロットへ（タブ間で位置を統一。[決定] 2026-07-29）。
+          クォータはツールバー直下の行に出す。 */}
+      <MyListToolbar
+        sort={sort}
+        onSort={setSort}
+        favOnly={favOnly}
+        onFavOnly={setFavOnly}
+        action={
+          <Pressable
+            style={[styles.newBtn, atLimit && styles.newBtnOff]}
+            disabled={atLimit}
+            onPress={() => nav.navigate("ProblemEdit")}
+            accessibilityRole="button"
+          >
+            <Text style={styles.newBtnText}>＋ 新規</Text>
+          </Pressable>
+        }
+      />
       <View style={styles.head}>
         {limit !== null ? (
           <Text style={[styles.quota, atLimit && styles.quotaWarn]}>
@@ -105,16 +123,7 @@ export function MyProblemsScreen() {
         ) : (
           <Text style={styles.quota}>{posts.length}問（無制限）</Text>
         )}
-        <Pressable
-          style={[styles.newBtn, atLimit && styles.newBtnOff]}
-          disabled={atLimit}
-          onPress={() => nav.navigate("ProblemEdit")}
-          accessibilityRole="button"
-        >
-          <Text style={styles.newBtnText}>＋ 新規</Text>
-        </Pressable>
       </View>
-      <MyListToolbar sort={sort} onSort={setSort} favOnly={favOnly} onFavOnly={setFavOnly} />
       {atLimit ? <Text style={styles.limitNote}>{LIMIT_MESSAGES.problems}</Text> : null}
       {err ? <Text style={styles.err}>{err}</Text> : null}
       {favError ? <Text style={styles.err}>{favError}</Text> : null}

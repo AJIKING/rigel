@@ -15,6 +15,8 @@ export interface StatusOption {
  * （[決定] 2026-07-26。タブごとに絞り込みの有無や並びが違うと、同じマイページなのに
  * 操作を覚え直すことになるため）。お気に入りは状態セレクトに混ぜず独立トグルにして、
  * 「公開かつお気に入り」のような掛け合わせができるようにする。
+ * お気に入りタブは onFavOnly を渡さない＝トグル自体を出さない
+ * （[決定] 2026-07-29。常にお気に入りのみのタブでは無意味。mobile と統一）。
  */
 export function MyListToolbar({
   q,
@@ -43,8 +45,9 @@ export function MyListToolbar({
   onStatus: (value: string) => void;
   sort: MyListSortKey;
   onSort: (value: MyListSortKey) => void;
-  favOnly: boolean;
-  onFavOnly: (value: boolean) => void;
+  /** お気に入りのみ表示。onFavOnly を省略するとトグル自体を出さない（お気に入りタブ）。 */
+  favOnly?: boolean;
+  onFavOnly?: (value: boolean) => void;
   /** ＋新規。省略すればボタンを出さない。 */
   onNew?: () => void;
   newDisabled?: boolean;
@@ -98,18 +101,20 @@ export function MyListToolbar({
       {/* お気に入りのみ（状態セレクトと掛け合わせられる独立トグル）。
           読み上げ名は「お気に入りのみ表示」。カードの★（名前は「お気に入り」）と
           区別できるようにしつつ、見えている文字を名前に含める（label in name）。 */}
-      <button
-        type="button"
-        className={s.favbtn}
-        aria-label="お気に入りのみ表示"
-        aria-pressed={favOnly}
-        onClick={() => onFavOnly(!favOnly)}
-      >
-        <svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true">
-          <path d="M12 3.6l2.6 5.3 5.8.8-4.2 4.1 1 5.8-5.2-2.7-5.2 2.7 1-5.8L3.6 9.7l5.8-.8z" />
-        </svg>
-        お気に入り
-      </button>
+      {onFavOnly ? (
+        <button
+          type="button"
+          className={s.favbtn}
+          aria-label="お気に入りのみ表示"
+          aria-pressed={favOnly}
+          onClick={() => onFavOnly(!favOnly)}
+        >
+          <svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true">
+            <path d="M12 3.6l2.6 5.3 5.8.8-4.2 4.1 1 5.8-5.2-2.7-5.2 2.7 1-5.8L3.6 9.7l5.8-.8z" />
+          </svg>
+          お気に入り
+        </button>
+      ) : null}
 
       {onNew && (
         <button className={s.newbtn} disabled={newDisabled} onClick={onNew}>
