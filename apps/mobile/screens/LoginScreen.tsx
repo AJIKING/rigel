@@ -181,7 +181,7 @@ export function LoginScreen() {
         >
           <Text style={styles.guestText}>サインインしないではじめる</Text>
         </Pressable>
-        {/* 利用規約は web の規約ページをアプリ内ブラウザで開く（mobile に規約画面は持たない）。 */}
+        {/* 規約・ポリシーは web のページをアプリ内ブラウザで開く（mobile に専用画面は持たない）。 */}
         <Text style={styles.legal}>
           サインインすると
           <Text
@@ -190,6 +190,14 @@ export function LoginScreen() {
             accessibilityRole="link"
           >
             利用規約
+          </Text>
+          と
+          <Text
+            style={styles.legalLink}
+            onPress={() => void WebBrowser.openBrowserAsync(`${SITE_ORIGIN}/privacy`)}
+            accessibilityRole="link"
+          >
+            プライバシーポリシー
           </Text>
           に同意したものとみなされます。
         </Text>

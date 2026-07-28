@@ -88,14 +88,19 @@ describe("LoginScreen の文言とゲスト開始", () => {
     }
   });
 
-  it("規約文言は「サインインすると利用規約に同意」で、利用規約は web の規約ページを開くリンク", async () => {
+  it("規約文言は「サインインすると〜同意」で、利用規約・プライバシーポリシーとも web を開くリンク", async () => {
     render(<LoginScreen />);
 
     expect(screen.getByText(/サインインすると/)).toBeTruthy();
-    fireEvent.press(screen.getByText("利用規約"));
 
+    fireEvent.press(screen.getByText("利用規約"));
     await waitFor(() =>
       expect(mockOpenBrowser).toHaveBeenCalledWith(expect.stringMatching(/\/terms$/)),
+    );
+
+    fireEvent.press(screen.getByText("プライバシーポリシー"));
+    await waitFor(() =>
+      expect(mockOpenBrowser).toHaveBeenCalledWith(expect.stringMatching(/\/privacy$/)),
     );
   });
 
