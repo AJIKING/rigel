@@ -6,6 +6,10 @@ import type { User } from "../../../domain/user/user";
 import { monthlyCallQuota } from "../../../domain/user/user";
 import { requireAuth, userProfileJson, withFavorites, type AppEnv } from "../shared";
 
+/** /auth/apple/callback の転送先（mobile の lib/apple-login.ts の APPLE_REDIRECT_URL と一致必須。
+ *  scheme は app.json の "scheme"）。 */
+const APPLE_CALLBACK_APP_URL = "jp.co.plaria.rigel://apple-callback";
+
 /** /auth/xxx 共通のレスポンス整形。成功=200/201（/me と同じプロフィール項目を同梱し、
  *  ログイン直後の設定画面が /me 再取得なしで handle/表示名を出せるように）。
  *  検証失敗は 401（プロバイダ名以外の詳細は返さない）。 */
@@ -35,6 +39,22 @@ export function registerAccountRoutes(app: Hono<AppEnv>): void {
     return respondAuth(c, "Google", () =>
       c.get("container").authenticateWithGoogle.execute({ idToken }),
     );
+  });
+
+  // Android の Sign in with Apple（web フロー）の中継。Apple は redirect_uri に HTTPS しか
+  // 許さず（カスタム scheme 不可）、scope 付きは response_mode=form_post 固定のため、
+  // Apple からの form POST をここで受けてアプリのカスタム scheme へ 302 で返す。
+  // トークンの検証はしない（従来どおり /auth/apple = ユースケースの責務）。state は
+  // アプリが発行しアプリが照合する（この中継は透過。転送先は固定でオープンリダイレクト無し）。
+  app.post("/auth/apple/callback", async (c) => {
+    const form = await c.req.parseBody().catch(() => ({}) as Record<string, unknown>);
+    const params = new URLSearchParams();
+    for (const key of ["id_token", "code", "state", "error"]) {
+      const value = form[key];
+      if (typeof value === "string" && value) params.set(key, value);
+    }
+    if (!params.has("id_token") && !params.has("error")) params.set("error", "invalid_response");
+    return c.redirect(`${APPLE_CALLBACK_APP_URL}?${params.toString()}`, 302);
   });
 
   // Apple ID トークンでログイン（App Store 審査要件 4.8。/auth/google と対称）。

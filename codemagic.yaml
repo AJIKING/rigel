@@ -19,6 +19,11 @@
 #       EXPO_PUBLIC_REVENUECAT_IOS_KEY       … RevenueCat の iOS Public SDK キー（appl_...。
 #                                              未設定ビルドはアプリ内購入が無効になるだけで動作する）
 #       EXPO_PUBLIC_REVENUECAT_ANDROID_KEY   … 同 Android（goog_...。Play 対応時に追加）
+#       EXPO_PUBLIC_APPLE_CLIENT_ID          … Sign in with Apple の Services ID（web と同じ
+#                                              jp.co.plaria.rigel.web。Android の Apple ログイン
+#                                              =webフロー用。未設定ビルドはボタンが出ないだけ。
+#                                              Apple Developer の Services ID 側に Return URL
+#                                              <EXPO_PUBLIC_API_URL>/auth/apple/callback の登録が必要）
 # 4. App Store Connect に App（Bundle ID: jp.co.plaria.rigel）を登録しておく
 #    （app.json の ios.bundleIdentifier と一致させる）。
 # 5. アプリ設定で「Switch to codemagic.yaml configuration」を選ぶ。

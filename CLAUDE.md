@@ -128,7 +128,7 @@ rigel/
 | UI共有手段 | **[未確定]** | Tamagui / RN Web / 自前SVG。牌は SVG 描画想定 |
 | バックエンド | **Cloudflare Workers (TS) + Hono** | HTTP は Hono。api は DDD レイヤード（[開発ガイド/05](docs/開発ガイド/05_APIアーキテクチャ.md)） |
 | DB / ORM | **Cloudflare D1 (SQLite) + Drizzle** | 撮影画像は保存しない。`Kifu` JSON のみ。スキーマ=`apps/api/src/infrastructure/db/schema.ts` |
-| 認証 | **Google + Sign in with Apple** | App Store 審査要件 4.8 で Apple 併設必須（2026-07-17 決定・実装済み）。退会時は Apple トークンを revoke |
+| 認証 | **Google + Sign in with Apple** | App Store 審査要件 4.8 で Apple 併設必須（2026-07-17 決定・実装済み）。Android の Apple ログインは web フロー（api の `/auth/apple/callback` が form_post をアプリ scheme へ中継。2026-07-28 決定・実装済み）。退会時は Apple トークンを revoke |
 | 課金 | **Web=Stripe / アプリ=IAP（RevenueCat SDK）** | **真実源=RevenueCat**（Webhook だけが plan を書く）。`users.plan` は D1 射影。設計7章・[docs/plans/billing-revenuecat.md](docs/plans/billing-revenuecat.md) |
 | AI | **Gemini API + Cloudflare AI Gateway** | モデル名はハードコードしない。河・手牌とも Flash 系（手牌の Lite は eval 実測で力不足 → Flash に変更・2026-07-24） |
 | 計測 | **GA4 に統一**（web=gtag 実装済み / アプリ=Firebase Analytics はビルド検証後） | 1プロパティ3ストリーム。イベント名は @rigel/ui の ANALYTICS_EVENTS が真実源。**PII は送らない・広告用途に使わない**。[docs/plans/analytics.md](docs/plans/analytics.md) |

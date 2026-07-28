@@ -134,7 +134,27 @@ too low」で拒否**された。残る障害はこれだけ＝パイプライ�
 → **[expo-sdk-57.md](expo-sdk-57.md) で対応**（暫定で 35 に上げる案は、エッジトゥエッジ対応を
 2回やることになるので採らない）。本 Plan では扱わない。
 
-### B. Apple で登録した人が Android で自分のアカウントに入れない（**設計上の穴**）
+### B. Apple で登録した人が Android で自分のアカウントに入れない → **[決定] 案1採用・実装済み（2026-07-28）**
+
+**Android にも Apple ログインを出す（案1）で確定し、実装済み。** 構成:
+
+- mobile: `lib/apple-login.ts`（authorize URL 組み立て / コールバック解析。state 照合）＋
+  `LoginScreen` の Android 分岐（自前ボタン。純正ボタン必須は iOS の HIG 要件なので Android は自前でよい）。
+  `EXPO_PUBLIC_APPLE_CLIENT_ID`（= web と同じ Services ID）と `EXPO_PUBLIC_API_URL` の両方が
+  あるときだけボタンを出す。
+- api: `POST /auth/apple/callback`（account.routes.ts）。Apple は redirect_uri に HTTPS しか
+  許さず（カスタム scheme 不可・scope 付きは form_post 固定）、この中継が Apple からの
+  form POST を受けてアプリの scheme `jp.co.plaria.rigel://apple-callback` へ 302 で返す。
+  トークン検証は従来どおり `/auth/apple`。aud=Services ID は `APPLE_CLIENT_ID` で許可済み。
+
+残作業（コンソール・要HITL）:
+
+- [ ] Apple Developer → Identifiers → Services ID `jp.co.plaria.rigel.web` → Sign in with Apple の
+      構成に api のドメインと Return URL `<api>/auth/apple/callback` を追加
+- [ ] Codemagic `rigel_mobile_env` に `EXPO_PUBLIC_APPLE_CLIENT_ID=jp.co.plaria.rigel.web` を追加 → 再ビルド
+- [ ] 内部テスト配布物で Apple ログイン疎通（iOS で Apple 登録済みアカウントが Android で同一アカウントに入れること）
+
+<details><summary>元の問題の記録（2026-07-27 時点）</summary>
 
 - `AuthenticateWithApple` は `appleSub` だけで引き当てる（`authenticate-with-apple.usecase.ts`）。
   `AuthenticateWithGoogle` は `googleSub` だけ。**email での突き合わせも連携機能も無い。**
@@ -152,6 +172,8 @@ too low」で拒否**された。残る障害はこれだけ＝パイプライ�
    すでに受けられる（`authenticate-with-apple.usecase.ts` のコメント）。**筋としてはこれ。**
 2. ログイン画面に「iOS で Apple で登録した方へ」の導線・案内を置く（暫定）
 3. 認証プロバイダの連携機能（既存アカウントに後から Google/Apple を紐づける）を作る（本格対応）
+
+</details>
 
 ### C. Play Billing（RevenueCat Android）が未設定
 
@@ -194,8 +216,9 @@ Play アプリ署名鍵の SHA-1 の両方**を Android OAuth クライアント
 
 ### 進める順番
 
-1. **E**（現状のまま Codemagic を1回流す。足場の確認だけ）
-2. **A**（[expo-sdk-57.md](expo-sdk-57.md)。期限が近いので最優先の実作業）
-3. **B**（方針決定 → 実装）
+1. ~~**E**（現状のまま Codemagic を1回流す。足場の確認だけ）~~ 済（2026-07-27）
+2. ~~**A**（[expo-sdk-57.md](expo-sdk-57.md)。期限が近いので最優先の実作業）~~ 済（SDK 57 / targetSdk 36。
+   2026-07-28 に version code 5 が内部テストへ公開）
+3. ~~**B**（方針決定 → 実装）~~ コード実装済（2026-07-28。コンソール作業は §12-B の残作業）
 4. **C**（コンソール作業）
-5. **D**（SHA-1 二重登録 → 実機で Google ログイン確認 → `[未確定] A/B` を確定）
+5. **D**（SHA-1 二重登録 → 実機/エミュレータで Google ログイン確認 → `[未確定] A/B` を確定）

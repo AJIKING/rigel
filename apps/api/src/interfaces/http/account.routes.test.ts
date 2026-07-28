@@ -46,6 +46,55 @@ describe("GET /me", () => {
   });
 });
 
+describe("POST /auth/apple/callback", () => {
+  // Android の Sign in with Apple（web フロー）の中継。Apple は redirect_uri に HTTPS しか
+  // 許さず、scope 付きは response_mode=form_post 固定のため、Apple からの form POST を
+  // ここで受けてアプリのカスタム scheme へ 302 で返す（トークン検証は /auth/apple の責務）。
+  async function postForm(form: Record<string, string>) {
+    const app = createApp({
+      container: billingTestContainer({ users: new InMemoryUserRepository() }),
+    });
+    return app.request(
+      "/auth/apple/callback",
+      {
+        method: "POST",
+        headers: { "content-type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams(form).toString(),
+      },
+      fakeEnv,
+    );
+  }
+
+  it("id_token/code/state をアプリの scheme へ 302 で中継する", async () => {
+    const res = await postForm({ id_token: "t-1", code: "c-1", state: "s-1" });
+
+    expect(res.status).toBe(302);
+    const loc = new URL(res.headers.get("location")!);
+    expect(loc.href.startsWith("jp.co.plaria.rigel://apple-callback?")).toBe(true);
+    expect(loc.searchParams.get("id_token")).toBe("t-1");
+    expect(loc.searchParams.get("code")).toBe("c-1");
+    expect(loc.searchParams.get("state")).toBe("s-1");
+  });
+
+  it("Apple からの error（キャンセル等）も error として中継する", async () => {
+    const res = await postForm({ error: "user_cancelled_authorize", state: "s-1" });
+
+    expect(res.status).toBe(302);
+    const loc = new URL(res.headers.get("location")!);
+    expect(loc.searchParams.get("error")).toBe("user_cancelled_authorize");
+    expect(loc.searchParams.get("state")).toBe("s-1");
+    expect(loc.searchParams.has("id_token")).toBe(false);
+  });
+
+  it("id_token も error も無い不正な POST は error=invalid_response で返す", async () => {
+    const res = await postForm({});
+
+    expect(res.status).toBe(302);
+    const loc = new URL(res.headers.get("location")!);
+    expect(loc.searchParams.get("error")).toBe("invalid_response");
+  });
+});
+
 describe("POST /auth/apple", () => {
   it("成功レスポンスは公開プロフィールのみ（email・appleSub・appleRefreshToken を含めない）", async () => {
     const users = new InMemoryUserRepository();

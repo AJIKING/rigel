@@ -1,5 +1,6 @@
 import * as AppleAuthentication from "expo-apple-authentication";
 import * as Google from "expo-auth-session/providers/google";
+import * as Crypto from "expo-crypto";
 import * as WebBrowser from "expo-web-browser";
 import { useEffect } from "react";
 import { ActivityIndicator, Platform, Pressable, StyleSheet, Text, View } from "react-native";
@@ -7,6 +8,13 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import Svg, { Path } from "react-native-svg";
 import { BrandMark } from "../components/BrandMark";
 import { TileChip } from "../components/TileChip";
+import {
+  APPLE_REDIRECT_URL,
+  appleWebLoginConfig,
+  buildAppleAuthorizeUrl,
+  parseAppleCallbackUrl,
+  type AppleWebLoginConfig,
+} from "../lib/apple-login";
 import { useAuth } from "../lib/auth";
 import { googleClientConfig } from "../lib/google-login";
 import { colors, radius } from "../lib/theme";
@@ -43,9 +51,32 @@ function GoogleLogo() {
   );
 }
 
+// Apple ロゴ（web の AppleSignInButton と同じパス。Android の自前ボタン用）。
+function AppleLogo() {
+  return (
+    <Svg width={17} height={17} viewBox="0 0 170 170">
+      <Path
+        fill="#1f1f1f"
+        d="M150.37 130.25c-2.45 5.66-5.35 10.87-8.71 15.66-4.58 6.53-8.33 11.05-11.22 13.56-4.48 4.12-9.28 6.23-14.42 6.35-3.69 0-8.14-1.05-13.32-3.18-5.2-2.12-9.98-3.17-14.34-3.17-4.58 0-9.49 1.05-14.75 3.17-5.27 2.13-9.51 3.24-12.76 3.35-4.93.21-9.84-1.96-14.75-6.52-3.13-2.73-7.05-7.41-11.75-14.04-5.04-7.09-9.18-15.32-12.43-24.7-3.48-10.13-5.23-19.94-5.23-29.44 0-10.88 2.35-20.26 7.06-28.12 3.7-6.32 8.62-11.3 14.78-14.96 6.16-3.65 12.82-5.51 19.99-5.63 3.91 0 9.05 1.21 15.43 3.59 6.36 2.39 10.45 3.6 12.24 3.6 1.34 0 5.87-1.42 13.57-4.24 7.28-2.61 13.42-3.7 18.44-3.27 13.63 1.1 23.87 6.47 30.68 16.15-12.19 7.39-18.22 17.73-18.1 31 .11 10.34 3.86 18.94 11.23 25.77 3.34 3.17 7.07 5.62 11.22 7.36-.9 2.61-1.85 5.11-2.86 7.51zM119.11 7.24c0 8.12-2.97 15.7-8.88 22.72-7.13 8.35-15.76 13.17-25.12 12.41a25.3 25.3 0 0 1-.19-3.07c0-7.8 3.39-16.14 9.42-22.96 3.01-3.45 6.84-6.32 11.48-8.61C110.44 5.47 114.82 4.22 119 4c.12 1.08.11 2.16.11 3.24z"
+      />
+    </Svg>
+  );
+}
+
 export function LoginScreen() {
   const { signInWithGoogle, signInWithApple } = useAuth();
   const [request, response, promptAsync] = Google.useIdTokenAuthRequest(GOOGLE_CONFIG ?? {});
+
+  // Android のみ: web フローの Sign in with Apple（docs/plans/android.md §12-B。iOS で
+  // Apple 登録した人が Android でも同じアカウントに入れるように）。env は描画時に読む
+  // （モジュール読込時だとテストから process.env を差し替えられない）。
+  const appleWeb =
+    Platform.OS === "android"
+      ? appleWebLoginConfig({
+          servicesId: process.env.EXPO_PUBLIC_APPLE_CLIENT_ID,
+          apiUrl: process.env.EXPO_PUBLIC_API_URL,
+        })
+      : null;
 
   // Google から id_token が返ったらサーバ認証へ。
   useEffect(() => {
@@ -68,6 +99,24 @@ export function LoginScreen() {
     } catch {
       // キャンセル（ERR_REQUEST_CANCELED）を含め黙って戻る（ボタンの再押下でやり直せる。
       // Google 側の .catch(() => undefined) と同じ流儀）。
+    }
+  }
+
+  // Android の Apple ログイン: authorize URL を Custom Tabs で開き、api の中継
+  // （/auth/apple/callback → アプリ scheme へ 302）から id_token を受け取る。
+  // state はここで発行してコールバックで照合（不一致・エラー・キャンセルは黙って戻る）。
+  async function onAppleWebPress(config: AppleWebLoginConfig) {
+    try {
+      const state = Crypto.randomUUID();
+      const result = await WebBrowser.openAuthSessionAsync(
+        buildAppleAuthorizeUrl(config, state),
+        APPLE_REDIRECT_URL,
+      );
+      if (result.type !== "success") return;
+      const parsed = parseAppleCallbackUrl(result.url, state);
+      if (parsed) await signInWithApple(parsed.idToken, parsed.authorizationCode);
+    } catch {
+      // onApplePress（iOS）と同じ流儀: キャンセル含め黙って戻る。
     }
   }
 
@@ -95,8 +144,8 @@ export function LoginScreen() {
             Google ログインは未設定です（EXPO_PUBLIC_GOOGLE_CLIENT_ID を設定すると有効化）。
           </Text>
         )}
-        {/* Sign in with Apple（iOS のみ・純正ボタン必須=HIG）。Android には出さない
-            （Play に同種の要件は無い）。 */}
+        {/* Sign in with Apple。iOS は純正ボタン（HIG 要件）、Android は自前ボタン＋
+            web フロー（EXPO_PUBLIC_APPLE_CLIENT_ID 未設定なら出さない）。 */}
         {Platform.OS === "ios" ? (
           <AppleAuthentication.AppleAuthenticationButton
             buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN}
@@ -105,6 +154,16 @@ export function LoginScreen() {
             style={styles.abtn}
             onPress={() => void onApplePress()}
           />
+        ) : appleWeb ? (
+          <Pressable
+            style={({ pressed }) => [styles.gbtn, styles.abtnWeb, pressed && styles.gbtnPressed]}
+            onPress={() => void onAppleWebPress(appleWeb)}
+            accessibilityRole="button"
+            accessibilityLabel="Appleでサインイン"
+          >
+            <AppleLogo />
+            <Text style={styles.gbtnText}>Appleでサインイン</Text>
+          </Pressable>
         ) : null}
         {!request && GOOGLE_CONFIG ? (
           <ActivityIndicator color={colors.accent} style={{ marginTop: 12 }} />
@@ -135,6 +194,8 @@ const styles = StyleSheet.create({
   gbtnText: { color: "#1f1f1f", fontWeight: "700", fontSize: 15 },
   // Apple 純正ボタン（高さは HIG の最小 44pt 以上・Google ボタンと幅を揃える）。
   abtn: { height: 48, marginTop: 10 },
+  // Android の自前 Apple ボタン（Google ボタンと同じ白地・純正と同じ間隔）。
+  abtnWeb: { marginTop: 10 },
   note: { color: colors.w45, fontSize: 12, textAlign: "center" },
   legal: { color: colors.w45, fontSize: 11, lineHeight: 19, textAlign: "center", marginTop: 16 },
 });
