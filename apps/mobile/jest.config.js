@@ -6,6 +6,7 @@
 module.exports = {
   preset: "jest-expo",
   setupFiles: ["./jest.setup.js"],
+  setupFilesAfterEnv: ["./jest.setup.after.js"],
   transformIgnorePatterns: [
     "node_modules/.pnpm/(?!(react-native|@react-native|expo|@expo|@react-navigation))",
   ],
