@@ -66,12 +66,14 @@ export function QuizLineChart({
         <Text style={styles.meta}>{meta}</Text>
       </View>
       {/* 高さは幅から縦横比で決める（固定 height だと端末幅によって上下に余白ができたり
-          図が縮んだりする）。並べて見るので1枚は低く保つ。 */}
+          図が縮んだりする）。並べて見るので1枚は低く保つ。
+          ⚠️ サイズは style（width + aspectRatio）だけで決め、width/height プロップは渡さない。
+          高さ制約の無い場所で height="100%" を渡すと、Android の react-native-svg が
+          レイアウト高さを解決できず巨大ビットマップを確保してクラッシュする
+          （Canvas: trying to draw too large bitmap。2026-07-29 実測）。 */}
       {!hasData ? null : (
         <Svg
           viewBox={`0 0 ${W} ${H}`}
-          width="100%"
-          height="100%"
           style={{ width: "100%", aspectRatio: W / H }}
           accessibilityLabel={accessibilityLabel}
         >
