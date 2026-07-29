@@ -680,15 +680,15 @@
   display: block;
 }
 .badgeApple img {
-  height: 52px;
+  height: 46px;
   width: auto;
 }
 /* 実測: PNG 646x250・バッジ本体 h=190px（上下に各30pxの透過余白）。
-   Apple の枠 52px に本体高を一致させる → 表示 250*(52/190)=68px、余白 30*(52/190)=8px を打ち消す。 */
+   Apple の枠 46px に本体高を一致させる → 表示 250*(46/190)=61px、余白 30*(46/190)=7px を打ち消す。 */
 .badgeGoogle img {
-  height: 68px;
+  height: 61px;
   width: auto;
-  margin: -8px 0;
+  margin: -7px 0;
 }
 /* 締めの CTA 帯（カードにしない）。 */
 .closing {
