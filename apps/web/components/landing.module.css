@@ -340,28 +340,59 @@
   }
 }
 
-/* ---- bento ---- */
-.bento {
-  padding: 92px 0;
+/* ---- 機能紹介（四風の縦積みセクション。カード・グリッドにしない） ---- */
+.features {
+  padding: 92px 0 40px;
 }
 @media (max-width: 760px) {
-  .bento {
-    padding: 56px 0;
+  .features {
+    padding: 56px 0 24px;
   }
 }
-.bentoIn {
+.featuresIn {
   max-width: 1140px;
   margin: 0 auto;
   padding: 0 24px;
 }
 .bhead {
   max-width: 34em;
-  margin-bottom: 40px;
+  margin-bottom: 24px;
 }
-.bhead p {
-  margin-top: 10px;
-  color: var(--w70);
-  font-size: 14px;
+.feature {
+  padding: 48px 0 56px;
+  border-top: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 16px;
+}
+.feature:first-of-type {
+  border-top: 0;
+}
+.feature h3 {
+  font-weight: 900;
+  font-size: clamp(20px, 2.6vw, 27px);
+  line-height: 1.45;
+  letter-spacing: -0.005em;
+  margin: 0;
+}
+.feature h3 em {
+  font-style: normal;
+  color: var(--accent);
+}
+.featureVis {
+  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  min-width: 0;
+  max-width: 640px;
+  width: 100%;
+}
+.featureVis .ltile {
+  width: 36px;
+  height: 49px;
+  border-radius: 4px;
 }
 .h2 {
   font-weight: 900;
@@ -375,62 +406,7 @@
   font-style: normal;
   color: var(--accent);
 }
-.grid {
-  display: grid;
-  grid-template-columns: repeat(6, 1fr);
-  gap: 14px;
-}
-.card {
-  background: var(--chrome);
-  border: 1px solid var(--line);
-  border-radius: 14px;
-  padding: 26px;
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-  min-width: 0;
-  transition:
-    border-color 0.25s var(--ease),
-    transform 0.25s var(--ease);
-}
-.card:hover {
-  border-color: var(--line-2);
-  transform: translateY(-2px);
-}
-.c2 {
-  grid-column: span 2;
-}
-.c3 {
-  grid-column: span 3;
-}
-.c4 {
-  grid-column: span 4;
-}
-@media (max-width: 900px) {
-  .c2,
-  .c3,
-  .c4 {
-    grid-column: span 6;
-  }
-}
-.card h3 {
-  font-weight: 900;
-  font-size: 19px;
-  line-height: 1.5;
-  letter-spacing: -0.005em;
-  margin: 0;
-}
-.card h3 em {
-  font-style: normal;
-  color: var(--accent);
-}
-.card p {
-  color: var(--w70);
-  font-size: 13px;
-  margin: 0;
-}
 .more {
-  margin-top: auto;
   font-size: 13px;
   font-weight: 700;
   color: var(--accent);
@@ -466,19 +442,6 @@
   font-weight: 700;
 }
 
-/* カード内ミニビジュアル（実UIの断片を置く）。本文を持たないカードでも下が
-   空洞にならないよう、残り高さいっぱいに伸ばして中身を中央に置く。 */
-.mini {
-  background: var(--chrome-2);
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  padding: 16px;
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  gap: 14px;
-}
 .tileRow {
   display: flex;
   gap: 4px;

@@ -262,95 +262,95 @@ export function LandingScreen() {
           </div>
         </section>
 
-        {/* bento: 四風の機能カード + 補助カード */}
-        <section className={s.bento} id="features">
-          <div className={s.bentoIn}>
+        {/* 機能紹介: 四風の縦積みセクション（カードにしない・横に詰め込まない）。
+            ビジュアルは実部品を枠なしで直接置く。 */}
+        <section className={s.features} id="features">
+          <div className={s.featuresIn}>
             <div className={`${s.bhead} ${s.rv}`}>
               <h2 className={s.h2}>
                 打ったあとは、<em>ぜんぶ</em>ここで
               </h2>
             </div>
-            <div className={s.grid}>
-              <div className={`${s.card} ${s.c4} ${s.rv}`}>
-                <WindTile code="1z" label="牌譜化" />
-                <h3>
-                  撮れば、<em>盤面になる</em>
-                </h3>
-                <div className={s.mini}>
-                  <TileRow
-                    tiles={["1m", "2m", "3m", "4p", "5p", "5p", "7s", "8s", "9s", "7z", "7z"]}
-                    unknownIndex={5}
-                  />
-                </div>
-              </div>
 
-              <div className={`${s.card} ${s.c2} ${s.rv}`}>
-                <WindTile code="2z" label="公開・共有" />
-                <h3>
-                  リンクひとつで<em>共有</em>
-                </h3>
-                {/* サービス実装の一覧カードそのもの（GameCard）。 */}
-                <div className={s.gcWrap}>
-                  <GameCard
-                    title="7/28 友人戦"
-                    meta={<span>南四局 ・ 8局</span>}
-                    faved
-                    favCount={12}
-                    onToggleFav={() => {}}
-                    onOpen={() => {}}
-                  />
-                </div>
-                <Link className={s.more} href="/kifu">
-                  公開牌譜を見る →
-                </Link>
+            <div className={`${s.feature} ${s.rv}`}>
+              <WindTile code="1z" label="牌譜化" />
+              <h3>
+                撮れば、<em>盤面になる</em>
+              </h3>
+              <div className={s.featureVis}>
+                <TileRow
+                  tiles={["1m", "2m", "3m", "4p", "5p", "5p", "7s", "8s", "9s", "7z", "7z"]}
+                  unknownIndex={5}
+                />
               </div>
+            </div>
 
-              <div className={`${s.card} ${s.c3} ${s.rv}`}>
-                <WindTile code="3z" label="何切る" />
-                <h3>
-                  その一打、<em>みんなの答え</em>と
-                </h3>
-                <div className={s.mini}>
-                  <TileRow tiles={NANIKIRU_HAND} pickIndex={11} />
-                  <div className={s.dist}>
-                    <div className={`${s.distRow} ${s.win}`}>
-                      <span className={s.ltileS}>
-                        <OssTileFace code="8m" />
-                      </span>
-                      <span className={s.bar}>
-                        <i style={{ width: "58%" }} />
-                      </span>
-                      <span className={s.pct}>58%</span>
-                    </div>
-                    <div className={s.distRow}>
-                      <span className={s.ltileS}>
-                        <OssTileFace code="6s" />
-                      </span>
-                      <span className={s.bar}>
-                        <i style={{ width: "27%" }} />
-                      </span>
-                      <span className={s.pct}>27%</span>
-                    </div>
+            <div className={`${s.feature} ${s.rv}`}>
+              <WindTile code="2z" label="公開・共有" />
+              <h3>
+                リンクひとつで<em>共有</em>
+              </h3>
+              {/* サービス実装の一覧カードそのもの（GameCard）。これは製品の実物なのでカードのまま。 */}
+              <div className={`${s.featureVis} ${s.gcWrap}`}>
+                <GameCard
+                  title="7/28 友人戦"
+                  meta={<span>南四局 ・ 8局</span>}
+                  faved
+                  favCount={12}
+                  onToggleFav={() => {}}
+                  onOpen={() => {}}
+                />
+              </div>
+              <Link className={s.more} href="/kifu">
+                公開牌譜を見る →
+              </Link>
+            </div>
+
+            <div className={`${s.feature} ${s.rv}`}>
+              <WindTile code="3z" label="何切る" />
+              <h3>
+                その一打、<em>みんなの答え</em>と
+              </h3>
+              <div className={s.featureVis}>
+                <TileRow tiles={NANIKIRU_HAND} pickIndex={11} />
+                <div className={s.dist}>
+                  <div className={`${s.distRow} ${s.win}`}>
+                    <span className={s.ltileS}>
+                      <OssTileFace code="8m" />
+                    </span>
+                    <span className={s.bar}>
+                      <i style={{ width: "58%" }} />
+                    </span>
+                    <span className={s.pct}>58%</span>
+                  </div>
+                  <div className={s.distRow}>
+                    <span className={s.ltileS}>
+                      <OssTileFace code="6s" />
+                    </span>
+                    <span className={s.bar}>
+                      <i style={{ width: "27%" }} />
+                    </span>
+                    <span className={s.pct}>27%</span>
                   </div>
                 </div>
-                <Link className={s.more} href="/problems">
-                  公開の何切るを解く →
-                </Link>
               </div>
+              <Link className={s.more} href="/problems">
+                公開の何切るを解く →
+              </Link>
+            </div>
 
-              <div className={`${s.card} ${s.c3} ${s.rv}`}>
-                <WindTile code="4z" label="特訓" />
-                <h3>
-                  60秒で、<em>手を速く</em>
-                </h3>
-                {/* サービス実装の特訓グラフそのもの（QuizLineChart）。 */}
-                <div className={s.chartWrap}>
-                  <QuizLineChart
-                    points={TRAINING_POINTS}
-                    title="清一色 何待ち"
-                    meta="8回 ・ ベスト 4.2 ・ 正答率 78%"
-                  />
-                </div>
+            <div className={`${s.feature} ${s.rv}`}>
+              <WindTile code="4z" label="特訓" />
+              <h3>
+                60秒で、<em>手を速く</em>
+              </h3>
+              {/* サービス実装の特訓グラフそのもの（QuizLineChart）。 */}
+              <div className={`${s.featureVis} ${s.chartWrap}`}>
+                <QuizLineChart
+                  points={TRAINING_POINTS}
+                  title="清一色 何待ち"
+                  meta="8回 ・ ベスト 4.2 ・ 正答率 78%"
+                />
               </div>
             </div>
           </div>
