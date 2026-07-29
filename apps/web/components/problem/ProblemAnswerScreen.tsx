@@ -80,11 +80,11 @@ export function ProblemAnswerScreen({ post }: { post: ProblemPost }) {
   const canSubmit = canSubmitProblemAnswer(sel);
 
   async function submit() {
+    // 回答はサインイン必須（[決定] 2026-07-29: 回答ログを残せない体験は提供しない）。
+    if (!user) return;
     const action = pending;
     if (!action) return;
     setAnswered(action);
-    // 集計はログイン時のみ（未ログインは分布に数えない＝そもそも呼ばない）。
-    if (!user) return;
     const res = await answerProblemAction(post.id, action).catch(() => ({
       ok: false,
       status: 0,
@@ -285,12 +285,17 @@ export function ProblemAnswerScreen({ post }: { post: ProblemPost }) {
             <button
               type="button"
               className={s.submit}
-              disabled={!canSubmit}
+              disabled={!canSubmit || !user}
               onClick={() => void submit()}
             >
               回答する
             </button>
-            {!user && <p className={s.hint}>※サインインすると回答が集計されます。</p>}
+            {/* 未サインインは回答不可（回答ログを残せないため）。 */}
+            {!user && (
+              <p className={s.hint}>
+                回答にはサインインが必要です — <Link href="/login">サインイン</Link>
+              </p>
+            )}
           </div>
         )}
 

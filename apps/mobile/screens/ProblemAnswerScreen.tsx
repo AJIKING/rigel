@@ -79,6 +79,8 @@ export function ProblemAnswerScreen() {
 }
 
 function AnswerBody({ post, token }: { post: ProblemPost; token: string | null }) {
+  // ゲストがサインインへ戻るための導線（回答はサインイン必須）。
+  const { endGuest } = useAuth();
   const problem = post.problem;
   const pov = problem.pov;
   const hand = useMemo(() => sortHandTiles(problem.seats[pov].hand), [problem, pov]);
@@ -129,11 +131,11 @@ function AnswerBody({ post, token }: { post: ProblemPost; token: string | null }
   const canSubmit = canSubmitProblemAnswer(sel);
 
   async function submit() {
+    // 回答はサインイン必須（[決定] 2026-07-29: 回答ログを残せない体験は提供しない）。
+    if (!token) return;
     const action = buildProblemAnswer(sel);
     if (!action) return;
     setAnswered(action);
-    // 集計はログイン時のみ（未ログインは分布に数えない＝そもそも呼ばない）。
-    if (!token) return;
     const res = await answerProblem(token, post.id, action).catch(() => ({
       ok: false,
       status: 0,
@@ -299,15 +301,19 @@ function AnswerBody({ post, token }: { post: ProblemPost; token: string | null }
           {/* 選択中の手を言葉でも確認できるようにする（押し間違い防止。web と同一文言）。 */}
           {pending ? <Text style={styles.pending}>選択中: {actionLabel(pending)}</Text> : null}
           <Pressable
-            style={[styles.submit, !canSubmit && styles.submitOff]}
-            disabled={!canSubmit}
+            style={[styles.submit, (!canSubmit || !token) && styles.submitOff]}
+            disabled={!canSubmit || !token}
             onPress={() => void submit()}
             accessibilityRole="button"
           >
             <Text style={styles.submitText}>回答する</Text>
           </Pressable>
-          {/* 未ログインでも回答体験はできるが、分布には数えないことを先に伝える。 */}
-          {!token ? <Text style={styles.hint}>※サインインすると回答が集計されます。</Text> : null}
+          {/* 未サインインは回答不可（回答ログを残せないため）。ログイン画面へ戻す導線を出す。 */}
+          {!token ? (
+            <Pressable onPress={() => endGuest()} accessibilityRole="button" hitSlop={6}>
+              <Text style={styles.loginCta}>回答にはサインインが必要です — サインインする</Text>
+            </Pressable>
+          ) : null}
         </View>
       ) : (
         <View style={styles.resultBox}>

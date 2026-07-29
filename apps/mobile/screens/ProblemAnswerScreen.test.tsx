@@ -10,7 +10,8 @@ jest.mock("@react-navigation/native", () => ({
   useRoute: () => ({ params: { problemId: "p1" } }),
 }));
 
-let mockAuth: { token: string | null; user: { plan: string } | null };
+const mockEndGuest = jest.fn();
+let mockAuth: { token: string | null; user: { plan: string } | null; endGuest: jest.Mock };
 jest.mock("../lib/auth", () => ({
   useAuth: () => mockAuth,
 }));
@@ -27,7 +28,7 @@ jest.mock("../lib/api", () => ({
 describe("ProblemAnswerScreen（何切る回答画面）", () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    mockAuth = { token: "t", user: { plan: "free" } };
+    mockAuth = { token: "t", user: { plan: "free" }, endGuest: mockEndGuest };
   });
 
   it.each([
@@ -249,35 +250,38 @@ describe("ProblemAnswerScreen（何切る回答画面）", () => {
     });
   });
 
-  it("未ログインは answerProblem を呼ばず、ログイン導線を出す", async () => {
-    mockAuth = { token: null, user: null };
+  // 未サインインは回答自体をさせない（[決定] 2026-07-29 オーナー: 回答ログを残せないため。
+  // 閲覧・牌の確認まではできる）。
+  it("未サインインは回答できない（answerProblem を呼ばず、回答結果も出さない）", async () => {
+    mockAuth = { token: null, user: null, endGuest: mockEndGuest };
     mockGetProblem.mockResolvedValue(makePost());
     render(<ProblemAnswerScreen />);
 
-    fireEvent.press(await screen.findByRole("button", { name: "5筒" })); // ツモ牌＝ツモ切り
-    fireEvent.press(screen.getByText("回答する"));
+    fireEvent.press(await screen.findByRole("button", { name: "5筒" })); // ツモ牌をタップしても
+    fireEvent.press(screen.getByText("回答する")); // ボタンは無効
 
-    expect(await screen.findByText("あなたの回答: 5筒ツモ切り")).toBeTruthy();
+    expect(screen.queryByText(/あなたの回答/)).toBeNull();
     expect(mockAnswerProblem).not.toHaveBeenCalled();
-    expect(screen.getByText(/サインインすると回答分布が見られます/)).toBeTruthy();
   });
 
   it.each([
-    { name: "未ログインでは出す", token: null, shown: true },
-    { name: "ログイン時は出さない", token: "t", shown: false },
-  ])(
-    "回答前の集計ヒント「※サインインすると回答が集計されます。」（$name）",
-    async ({ token, shown }) => {
-      mockAuth = { token, user: token ? { plan: "free" } : null };
-      mockGetProblem.mockResolvedValue(makePost());
-      render(<ProblemAnswerScreen />);
+    { name: "未サインインでは出す", token: null, shown: true },
+    { name: "サインイン時は出さない", token: "t", shown: false },
+  ])("サインイン導線「回答にはサインインが必要です」（$name）", async ({ token, shown }) => {
+    mockAuth = { token, user: token ? { plan: "free" } : null, endGuest: mockEndGuest };
+    mockGetProblem.mockResolvedValue(makePost());
+    render(<ProblemAnswerScreen />);
 
-      expect(await screen.findByText("テスト問題")).toBeTruthy();
-      const hint = screen.queryByText("※サインインすると回答が集計されます。");
-      if (shown) expect(hint).toBeTruthy();
-      else expect(hint).toBeNull();
-    },
-  );
+    expect(await screen.findByText("テスト問題")).toBeTruthy();
+    const cta = screen.queryByText(/回答にはサインインが必要です/);
+    if (shown) {
+      expect(cta).toBeTruthy();
+      fireEvent.press(cta!);
+      expect(mockEndGuest).toHaveBeenCalled(); // ゲストを終了してログイン画面へ
+    } else {
+      expect(cta).toBeNull();
+    }
+  });
 
   it.each([
     { name: "ツモ牌あり（discard）は出す", post: makePost(), shown: true },

@@ -1,5 +1,5 @@
 import { ProblemSchema, PROBLEM_SCHEMA_VERSION } from "@rigel/schema";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { type ProblemPost } from "../../lib/api";
 import { AuthProvider } from "../../lib/auth-context";
@@ -192,15 +192,19 @@ describe("ProblemAnswerScreen: 何切る", () => {
     expect(screen.getAllByText(/5筒ツモ切り/).length).toBeGreaterThan(0);
   });
 
-  it("未ログインでも回答体験はできるが、集計は呼ばずログイン導線を出す", async () => {
+  // 未サインインは回答自体をさせない（[決定] 2026-07-29 オーナー: 回答ログを残せないため）。
+  it("未サインインは回答できない（ボタン無効・answerProblemAction を呼ばない）。サインイン導線を出す", async () => {
     stubMe(null);
     renderScreen(discardPost());
     fireEvent.click(await screen.findByRole("button", { name: "5筒" })); // ツモ切り
     fireEvent.click(screen.getByRole("button", { name: "回答する" }));
 
-    expect(await screen.findByText(/あなたの回答/)).toBeTruthy();
+    expect(screen.queryByText(/あなたの回答/)).toBeNull();
     expect(h.answerProblemAction).not.toHaveBeenCalled();
-    expect(screen.getByText(/サインインすると回答分布/)).toBeTruthy();
+    // ヘッダーにも「サインイン」リンクがあるため、導線ヒントの中で特定する。
+    const hint = screen.getByText(/回答にはサインインが必要です/);
+    const cta = within(hint).getByRole("link", { name: "サインイン" });
+    expect(cta.getAttribute("href")).toBe("/login");
   });
 
   it("同じ牌が手牌に2枚あっても、選択枠はタップした1枚だけに付く", async () => {
