@@ -228,7 +228,7 @@ export function SettingsScreen() {
             <Group>
               <Pressable onPress={() => signOut()}>
                 <Item icon={<IconLogout />}>
-                  <Text style={styles.itemTitle}>ログアウト</Text>
+                  <Text style={styles.itemTitle}>サインアウト</Text>
                   <Chevron />
                 </Item>
               </Pressable>
@@ -256,7 +256,7 @@ export function SettingsScreen() {
 
         {!token ? (
           <>
-            <Text style={styles.loginNote}>設定の保存にはログインが必要です。</Text>
+            <Text style={styles.loginNote}>設定の保存にはサインインが必要です。</Text>
             {/* ゲストからサインインへ戻る唯一の入口（App の入口ゲートへ戻す）。 */}
             <Pressable
               style={styles.signInBtn}

@@ -96,7 +96,7 @@ describe("MyProblemsScreen（マイ何切る）", () => {
     mockAuth = { token: null, user: null };
     render(<MyProblemsScreen />);
 
-    expect(screen.getByText(/ログインすると/)).toBeTruthy();
+    expect(screen.getByText(/サインインすると/)).toBeTruthy();
     expect(mockGetMyProblems).not.toHaveBeenCalled();
   });
 });

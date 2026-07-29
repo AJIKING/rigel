@@ -50,9 +50,10 @@ function basePoints(
   rules: Rules,
   yakuman: number,
 ): { base: number; limit: string | null } {
-  // 真の役満（役満役）: multiYakuman ON なら個数ぶん倍加、OFF なら1倍。飜・符は無視。
+  // 真の役満（役満役）: 複合（compYakuman）ON なら個数ぶん倍加、OFF なら1倍。飜・符は無視。
+  // multiYakuman（四暗刻単騎等のダブル役満=役の格上げ）は待ち情報が無く未対応（表示・記録のみ）。
   if (yakuman > 0) {
-    const mult = rules.multiYakuman ? yakuman : 1;
+    const mult = rules.compYakuman ? yakuman : 1;
     return { base: 8000 * mult, limit: YAKUMAN_NAMES[Math.min(mult, 6)]! };
   }
   if (han >= 13)

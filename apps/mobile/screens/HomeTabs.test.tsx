@@ -9,15 +9,8 @@ jest.mock("./PublicListScreen", () => {
 });
 jest.mock("./ProblemsListScreen", () => {
   const React = jest.requireActual("react");
-  const { Pressable, Text } = jest.requireActual("react-native");
-  return {
-    ProblemsListScreen: ({ onOpenMine }: { onOpenMine: () => void }) =>
-      React.createElement(
-        Pressable,
-        { onPress: onOpenMine },
-        React.createElement(Text, null, "マイ何切るへ"),
-      ),
-  };
+  const { Text } = jest.requireActual("react-native");
+  return { ProblemsListScreen: () => React.createElement(Text, null, "何切る一覧画面") };
 });
 jest.mock("./MyPageScreen", () => {
   const React = jest.requireActual("react");
@@ -58,7 +51,7 @@ describe("HomeTabs（ボトムタブ）", () => {
   });
 
   it.each([
-    ["何切る", "マイ何切るへ"],
+    ["何切る", "何切る一覧画面"],
     ["特訓", "特訓画面"],
     ["マイページ", "マイページ画面:kifu"],
     ["設定", "設定画面"],
@@ -76,13 +69,5 @@ describe("HomeTabs（ボトムタブ）", () => {
     fireEvent.press(screen.getByText("特訓"));
     fireEvent.press(screen.getByText("特訓画面"));
     expect(screen.getByText("設定画面")).toBeTruthy();
-  });
-
-  it("何切る一覧の「マイ何切る」導線はマイページタブを何切るセグメントで開く", () => {
-    render(<HomeTabs />);
-
-    fireEvent.press(screen.getByText("何切る"));
-    fireEvent.press(screen.getByText("マイ何切るへ"));
-    expect(screen.getByText("マイページ画面:problems")).toBeTruthy();
   });
 });

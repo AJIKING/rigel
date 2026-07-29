@@ -42,7 +42,7 @@ import { useAuth } from "../lib/auth";
 import { colors, radius } from "../lib/theme";
 
 /** 再ログイン促し（token 失効時。mobile 固有の文言）。 */
-const RELOGIN_MESSAGE = "ログインが必要です。再度ログインしてください。";
+const RELOGIN_MESSAGE = "サインインが必要です。再度サインインしてください。";
 
 /**
  * 特訓画面（特訓タブ）。60秒タイムアタックで点数計算・牌効率・清一色（何待ち／牌効率）を反復する。
@@ -234,7 +234,7 @@ export function TrainingScreen({
   // 認証確認中はログイン導線をフラッシュさせない（文言は web と同じ「読み込み中…」）。
   if (loading) return <CenterState message="読み込み中…" />;
   // アプリはログイン必須（App がゲート）だが、画面単体でも防御的にログイン導線を出す。
-  if (!user) return <CenterState message="特訓するにはログインしてください。" />;
+  if (!user) return <CenterState message="特訓するにはサインインしてください。" />;
 
   return (
     <View style={styles.flex}>

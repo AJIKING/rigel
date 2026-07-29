@@ -405,6 +405,25 @@ describe("RULE_PRESETS（ルールプリセット）", () => {
     expect(RULE_PRESETS.free.doubleRon).toBe(true);
   });
 
+  it("数え役満: Mリーグは無し（13飜以上=三倍満）、天鳳/フリーはあり", () => {
+    // [決定] 2026-07-29 オーナー指摘: Mリーグ規定に数え役満は無い。
+    expect(RULE_PRESETS.mleague.kazoe).toBe(false);
+    expect(RULE_PRESETS.tenhou.kazoe).toBe(true);
+    expect(RULE_PRESETS.free.kazoe).toBe(true);
+  });
+
+  it("ダブル役満（四暗刻単騎・国士13面等の格上げ）: Mリーグ/天鳳は無し、フリーはあり", () => {
+    expect(RULE_PRESETS.mleague.multiYakuman).toBe(false);
+    expect(RULE_PRESETS.tenhou.multiYakuman).toBe(false);
+    expect(RULE_PRESETS.free.multiYakuman).toBe(true);
+  });
+
+  it("役満の複合はどのプリセットもあり", () => {
+    expect(RULE_PRESETS.mleague.compYakuman).toBe(true);
+    expect(RULE_PRESETS.tenhou.compYakuman).toBe(true);
+    expect(RULE_PRESETS.free.compYakuman).toBe(true);
+  });
+
   it("切り上げ満貫: Mリーグ/フリーはあり、天鳳はなし。既定（Mリーグ相当）もあり", () => {
     expect(RULE_PRESETS.mleague.kiriage).toBe(true);
     expect(RULE_PRESETS.free.kiriage).toBe(true);

@@ -72,7 +72,7 @@ export function useFavorites() {
   const toggle = useCallback(
     (targetType: FavoriteTargetType, card: FavoriteCard) => {
       if (!token) {
-        setError("お気に入りにはログインが必要です。");
+        setError("お気に入りにはサインインが必要です。");
         return;
       }
       setError(null);

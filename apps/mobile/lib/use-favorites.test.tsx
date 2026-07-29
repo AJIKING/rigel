@@ -83,7 +83,7 @@ describe("useFavorites（サーバー保存のお気に入り）", () => {
     act(() => result.current.toggle("game", card()));
 
     expect(mockSetFavorite).not.toHaveBeenCalled();
-    expect(result.current.error).toBe("お気に入りにはログインが必要です。");
+    expect(result.current.error).toBe("お気に入りにはサインインが必要です。");
   });
 
   it("端末ローカルの旧お気に入りをサーバーへ移し、保存値を消す（種別が分からないので両方に試す）", async () => {

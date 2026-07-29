@@ -208,7 +208,7 @@ describe("TrainingScreen: 種目選択", () => {
     mockAuth = { token: null, user: null };
     render(<TrainingScreen />);
 
-    expect(screen.getByText(/特訓するにはログイン/)).toBeTruthy();
+    expect(screen.getByText(/特訓するにはサインイン/)).toBeTruthy();
     expect(screen.queryByText(/清一色 何待ち/)).toBeNull();
   });
 
@@ -218,7 +218,7 @@ describe("TrainingScreen: 種目選択", () => {
 
     // 文言は web の TrainingScreen と同じ「読み込み中…」。
     expect(screen.getByText("読み込み中…")).toBeTruthy();
-    expect(screen.queryByText(/特訓するにはログイン/)).toBeNull();
+    expect(screen.queryByText(/特訓するにはサインイン/)).toBeNull();
     expect(screen.queryByText(/清一色 何待ち/)).toBeNull();
   });
 
@@ -375,7 +375,7 @@ describe("TrainingScreen: 開始ダイアログ（カードタップでは枠を
     fireEvent.press(screen.getByRole("button", { name: /清一色 何待ち/ }));
     await flush();
 
-    expect(screen.getByText("ログインが必要です。再度ログインしてください。")).toBeTruthy();
+    expect(screen.getByText("サインインが必要です。再度サインインしてください。")).toBeTruthy();
     expect(screen.queryByTestId("bottom-sheet-card")).toBeNull();
     expect(mockStartQuizSession).not.toHaveBeenCalled();
     expect(mockListQuizSessions).not.toHaveBeenCalled();

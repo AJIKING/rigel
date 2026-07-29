@@ -2,7 +2,7 @@ import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { filterPublicFeed, PUBLIC_FEED_FILTERS } from "@rigel/ui";
 import { useEffect, useMemo, useState } from "react";
-import { FlatList, Pressable, StyleSheet, Text, View } from "react-native";
+import { FlatList, StyleSheet, View } from "react-native";
 import { AppBar } from "../components/AppBar";
 import { CenterState } from "../components/CenterState";
 import { KifuCard } from "../components/KifuCard";
@@ -22,9 +22,9 @@ const SEGMENT_LABELS = PUBLIC_FEED_FILTERS.map((f) => f.label);
 /**
  * 何切る問題の公開一覧（published のみ、認証不要）。未接続時はエラーにせず空表示。
  * 絞り込み（新着/今週/お気に入り）とお気に入りは公開牌譜一覧（PublicListScreen）と同一のUX。
- * onOpenMine はマイページタブの何切るセグメントを開く導線（HomeTabs が配線する）。
+ * 右上の「マイ何切る」導線は廃止（マイページの何切るセグメントと重複。2026-07-29 オーナー）。
  */
-export function ProblemsListScreen({ onOpenMine }: { onOpenMine?: () => void }) {
+export function ProblemsListScreen() {
   const nav = useNavigation<Nav>();
   const [loading, setLoading] = useState(true);
   const [posts, setPosts] = useState<ProblemPost[]>([]);
@@ -53,16 +53,7 @@ export function ProblemsListScreen({ onOpenMine }: { onOpenMine?: () => void }) 
 
   return (
     <View style={styles.root}>
-      <AppBar
-        title="何切る"
-        right={
-          onOpenMine ? (
-            <Pressable onPress={onOpenMine} accessibilityRole="button" hitSlop={8}>
-              <Text style={styles.mineLink}>マイ何切る</Text>
-            </Pressable>
-          ) : undefined
-        }
-      />
+      <AppBar title="何切る" />
       <Toolbar segments={SEGMENT_LABELS} activeIndex={filter} onSegmentPress={setFilter} />
       {loading ? (
         <CenterState loading />
@@ -99,5 +90,4 @@ export function ProblemsListScreen({ onOpenMine }: { onOpenMine?: () => void }) 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.bg },
   feed: { paddingHorizontal: 16, paddingTop: 2, paddingBottom: 20, gap: 10 },
-  mineLink: { color: colors.accent, fontSize: 13, fontWeight: "700" },
 });

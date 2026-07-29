@@ -1,5 +1,5 @@
 // 認証と RevenueCat の紐づけ（横串一元管理の起点）のテスト。
-// ログイン成立（新規/起動復元）で logInPurchases(userId)、ログアウトで logOutPurchases が
+// ログイン成立（新規/起動復元）で logInPurchases(userId)、サインアウトで logOutPurchases が
 // 呼ばれることを固定する（これが無いと購入が別ユーザー扱いになり「どこで買っても解放」が壊れる）。
 
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react-native";
@@ -143,7 +143,7 @@ describe("AuthProvider と RevenueCat の紐づけ", () => {
     jest.restoreAllMocks();
   });
 
-  it("ログアウトで RevenueCat の紐づけを解除する", async () => {
+  it("サインアウトで RevenueCat の紐づけを解除する", async () => {
     mockStore.set("rigel.session", "saved-tok");
     mockFetchMe.mockResolvedValue({ id: "u2" });
     render(

@@ -115,7 +115,7 @@ describe("MyTrainingScreen（マイページ 特訓: 種目別グラフ・履歴
     mockToken = null;
     render(<MyTrainingScreen now={NOW} />);
 
-    expect(screen.getByText("ログインすると特訓の記録が見られます。")).toBeTruthy();
+    expect(screen.getByText("サインインすると特訓の記録が見られます。")).toBeTruthy();
     expect(mockListQuizSessions).not.toHaveBeenCalled();
   });
 });

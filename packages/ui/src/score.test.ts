@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { KifuSchema, RULE_PRESETS, type Agari, type Seat } from "@rigel/schema";
 import { handScore, kifuScore } from "./score";
 
-const R = RULE_PRESETS.mleague; // kiriage:true, kazoe:true
+const R = RULE_PRESETS.mleague; // kiriage:true, kazoe:false（Mリーグに数え役満は無い）
 
 function kifuWith(agari: Partial<Agari> | null, dealer: Seat | null) {
   return KifuSchema.parse({
@@ -60,14 +60,14 @@ describe("handScore（打点計算）", () => {
     expect(handScore({ han: 11, fu: 30, dealer: false, tsumo: false }, R).total).toBe(24000);
   });
 
-  it("数え役満: 13飜は kazoe on で役満(子ロン32000)、off で三倍満(24000)", () => {
-    expect(handScore({ han: 13, fu: 30, dealer: false, tsumo: false }, R)).toMatchObject({
-      limit: "役満",
-      total: 32000,
-    });
+  it("数え役満: 13飜は kazoe on で役満(子ロン32000)、off（Mリーグ既定）で三倍満(24000)", () => {
     expect(
-      handScore({ han: 13, fu: 30, dealer: false, tsumo: false }, { ...R, kazoe: false }),
-    ).toMatchObject({ limit: "三倍満", total: 24000 });
+      handScore({ han: 13, fu: 30, dealer: false, tsumo: false }, { ...R, kazoe: true }),
+    ).toMatchObject({ limit: "役満", total: 32000 });
+    expect(handScore({ han: 13, fu: 30, dealer: false, tsumo: false }, R)).toMatchObject({
+      limit: "三倍満",
+      total: 24000,
+    });
   });
 
   it("base>=2000 は満貫に切り詰める（子4飜40符ロン = 8000）", () => {
@@ -78,9 +78,13 @@ describe("handScore（打点計算）", () => {
     expect(handScore({ han: 6, fu: 30, dealer: true, tsumo: false }, R).total).toBe(18000);
     expect(handScore({ han: 8, fu: 30, dealer: true, tsumo: false }, R).total).toBe(24000);
     expect(handScore({ han: 11, fu: 30, dealer: true, tsumo: false }, R).total).toBe(36000);
+    // 13飜は R（Mリーグ相当）だと数え役満なし=三倍満。役満は kazoe on で。
+    expect(
+      handScore({ han: 13, fu: 30, dealer: true, tsumo: false }, { ...R, kazoe: true }),
+    ).toMatchObject({ total: 48000, limit: "役満" });
     expect(handScore({ han: 13, fu: 30, dealer: true, tsumo: false }, R)).toMatchObject({
-      total: 48000,
-      limit: "役満",
+      total: 36000,
+      limit: "三倍満",
     });
   });
 
@@ -110,7 +114,9 @@ describe("handScore（打点計算）", () => {
     );
   });
 
-  it("ダブル役満は倍加する（子ロン64000）／multiYakuman OFF なら単倍(32000)", () => {
+  it("役満2つの複合は倍加する（子ロン64000）／compYakuman OFF なら単倍(32000)", () => {
+    // 複合の倍加を握るのは compYakuman（役満の複合）。multiYakuman は
+    // 四暗刻単騎等の「ダブル役満（役の格上げ）」で、待ち情報が無いため未実装（表示・記録のみ）。
     expect(handScore({ han: 0, fu: 0, dealer: false, tsumo: false, yakuman: 2 }, R)).toMatchObject({
       total: 64000,
       limit: "ダブル役満",
@@ -118,7 +124,7 @@ describe("handScore（打点計算）", () => {
     expect(
       handScore(
         { han: 0, fu: 0, dealer: false, tsumo: false, yakuman: 2 },
-        { ...R, multiYakuman: false },
+        { ...R, compYakuman: false },
       ),
     ).toMatchObject({ total: 32000, limit: "役満" });
   });

@@ -99,7 +99,7 @@ export function MyFavoritesScreen() {
     ];
   }, [games, problems, kind, sort, apply]);
 
-  if (!token) return <CenterState message="ログインするとお気に入りが使えます。" />;
+  if (!token) return <CenterState message="サインインするとお気に入りが使えます。" />;
 
   return (
     <View style={styles.root}>

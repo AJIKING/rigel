@@ -61,7 +61,7 @@ export function MyTrainingScreen({ now }: { now?: Date }) {
   const history = useMemo(() => quizRecentHistory(sessions), [sessions]);
 
   if (!token) {
-    return <CenterState message="ログインすると特訓の記録が見られます。" />;
+    return <CenterState message="サインインすると特訓の記録が見られます。" />;
   }
   if (loading) {
     return <CenterState loading />;

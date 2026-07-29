@@ -57,7 +57,7 @@ export function MyProblemsScreen() {
   }, [token]);
 
   if (!token) {
-    return <CenterState message="ログインするとマイ何切るが使えます。" />;
+    return <CenterState message="サインインするとマイ何切るが使えます。" />;
   }
 
   const limit = PROBLEM_LIMIT[user?.plan ?? "free"];

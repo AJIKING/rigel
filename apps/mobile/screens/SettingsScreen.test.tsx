@@ -235,12 +235,12 @@ describe("SettingsScreen（課金導線）", () => {
     };
     render(<SettingsScreen />);
 
-    expect(screen.getByText("設定の保存にはログインが必要です。")).toBeTruthy();
+    expect(screen.getByText("設定の保存にはサインインが必要です。")).toBeTruthy();
     expect(screen.queryByLabelText("プランを変更")).toBeNull();
     expect(screen.queryByLabelText("プランを管理")).toBeNull();
   });
 
-  it("未ログイン（ゲスト）にはログアウト/アカウント削除を出さない（アカウントが無いので無意味）", () => {
+  it("未ログイン（ゲスト）にはサインアウト/アカウント削除を出さない（アカウントが無いので無意味）", () => {
     mockAuth = {
       token: null,
       user: null,
@@ -250,7 +250,7 @@ describe("SettingsScreen（課金導線）", () => {
     };
     render(<SettingsScreen />);
 
-    expect(screen.queryByText("ログアウト")).toBeNull();
+    expect(screen.queryByText("サインアウト")).toBeNull();
     expect(screen.queryByText("アカウントを削除")).toBeNull();
   });
 

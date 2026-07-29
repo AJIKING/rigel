@@ -197,7 +197,7 @@ function EditorBody({ initial, token }: { initial?: ProblemPost; token: string |
 
   async function onAnalyzePhotos() {
     if (!token) {
-      setErr("ログインが必要です。");
+      setErr("サインインが必要です。");
       return;
     }
     if (!handPhoto) {
@@ -329,7 +329,7 @@ function EditorBody({ initial, token }: { initial?: ProblemPost; token: string |
 
   async function save(status: "draft" | "published") {
     if (!token) {
-      setErr("ログインが必要です。");
+      setErr("サインインが必要です。");
       return;
     }
     const { problem, error } = build();

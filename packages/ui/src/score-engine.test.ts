@@ -551,13 +551,13 @@ describe("scoreAgariHand: 役カタログ（2翻〜6翻・喰い下がり・符�
     expect(scoreAgariHand(c, RulesSchema.parse({ kiriage: false, kuitan: false }))).toBeNull();
   });
 
-  it("数え役満: 13翻は kazoe on で役満32000 / off で三倍満24000", () => {
+  it("数え役満: 13翻は kazoe on で役満32000 / off（既定=Mリーグ相当）で三倍満24000", () => {
     // 三倍満の手 + ドラ2（表示1s→ドラ2s×2）で13翻。
     const c = ctx({ closed: "22334455667788s", win: "8s", dora: ["1s"] });
-    const on = scoreAgariHand(c, RULES);
+    const on = scoreAgariHand(c, RulesSchema.parse({ kiriage: false, kazoe: true }));
     expect(on!.han).toBe(13);
     expect(on!.score).toMatchObject({ total: 32000, limit: "役満" });
-    const off = scoreAgariHand(c, RulesSchema.parse({ kiriage: false, kazoe: false }));
+    const off = scoreAgariHand(c, RULES);
     expect(off!.score).toMatchObject({ total: 24000, limit: "三倍満" });
   });
 

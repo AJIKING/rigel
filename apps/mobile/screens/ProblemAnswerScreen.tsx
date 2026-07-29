@@ -307,7 +307,7 @@ function AnswerBody({ post, token }: { post: ProblemPost; token: string | null }
             <Text style={styles.submitText}>回答する</Text>
           </Pressable>
           {/* 未ログインでも回答体験はできるが、分布には数えないことを先に伝える。 */}
-          {!token ? <Text style={styles.hint}>※ログインすると回答が集計されます。</Text> : null}
+          {!token ? <Text style={styles.hint}>※サインインすると回答が集計されます。</Text> : null}
         </View>
       ) : (
         <View style={styles.resultBox}>
@@ -353,7 +353,7 @@ function AnswerBody({ post, token }: { post: ProblemPost; token: string | null }
               </>
             ) : null
           ) : (
-            <Text style={styles.loginCta}>ログインすると回答分布が見られます</Text>
+            <Text style={styles.loginCta}>サインインすると回答分布が見られます</Text>
           )}
         </View>
       )}

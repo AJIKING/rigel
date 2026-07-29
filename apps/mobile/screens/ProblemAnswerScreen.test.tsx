@@ -259,21 +259,21 @@ describe("ProblemAnswerScreen（何切る回答画面）", () => {
 
     expect(await screen.findByText("あなたの回答: 5筒ツモ切り")).toBeTruthy();
     expect(mockAnswerProblem).not.toHaveBeenCalled();
-    expect(screen.getByText(/ログインすると回答分布が見られます/)).toBeTruthy();
+    expect(screen.getByText(/サインインすると回答分布が見られます/)).toBeTruthy();
   });
 
   it.each([
     { name: "未ログインでは出す", token: null, shown: true },
     { name: "ログイン時は出さない", token: "t", shown: false },
   ])(
-    "回答前の集計ヒント「※ログインすると回答が集計されます。」（$name）",
+    "回答前の集計ヒント「※サインインすると回答が集計されます。」（$name）",
     async ({ token, shown }) => {
       mockAuth = { token, user: token ? { plan: "free" } : null };
       mockGetProblem.mockResolvedValue(makePost());
       render(<ProblemAnswerScreen />);
 
       expect(await screen.findByText("テスト問題")).toBeTruthy();
-      const hint = screen.queryByText("※ログインすると回答が集計されます。");
+      const hint = screen.queryByText("※サインインすると回答が集計されます。");
       if (shown) expect(hint).toBeTruthy();
       else expect(hint).toBeNull();
     },

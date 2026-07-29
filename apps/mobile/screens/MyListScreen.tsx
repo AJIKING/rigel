@@ -87,7 +87,7 @@ export function MyListScreen() {
       {!loading && (
         <View style={styles.head}>
           {sample ? (
-            <Text style={styles.sample}>サンプル表示中（ログインで自分の半荘が出ます）</Text>
+            <Text style={styles.sample}>サンプル表示中（サインインで自分の半荘が出ます）</Text>
           ) : (
             <View style={styles.quota}>
               <Text

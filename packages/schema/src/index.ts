@@ -215,11 +215,12 @@ export const RulesSchema = z.object({
   aka: AkaCountSchema.default("1"),
   /** 切り上げ満貫（4飜30符・3飜60符を満貫に）。既定は Mリーグ相当＝あり。 */
   kiriage: z.boolean().default(true),
-  /** 数え役満（13飜以上を役満扱い）。 */
-  kazoe: z.boolean().default(true),
-  /** ダブル役満（複数役満の倍加）。 */
-  multiYakuman: z.boolean().default(true),
-  /** 役満同士の複合を認める。 */
+  /** 数え役満（13飜以上を役満扱い）。既定は Mリーグ相当＝無し（13飜以上は三倍満）。 */
+  kazoe: z.boolean().default(false),
+  /** ダブル役満（四暗刻単騎・国士無双13面待ち等の格上げ）。既定は Mリーグ相当＝無し。
+   *  ⚠️ 待ち情報が無いため点数計算は未対応（表示・記録のみ）。複合の倍加は compYakuman。 */
+  multiYakuman: z.boolean().default(false),
+  /** 役満同士の複合（国士＋四暗刻など。個数ぶん倍加）を認める。 */
   compYakuman: z.boolean().default(true),
   /** 親の連荘条件（和了連荘 / 聴牌連荘）。 */
   renchan: RenchanSchema.default("tenpai"),
@@ -244,8 +245,9 @@ export type Rules = z.infer<typeof RulesSchema>;
 export const RULE_PRESETS = {
   mleague: RulesSchema.parse({ renchan: "tenpai", ryukyoku: false, uma: "10-30", tobi: false }),
   tenhou: RulesSchema.parse({
-    // 天鳳は切り上げ満貫なし（既定=Mリーグ相当のあり、を明示的に外す）。
+    // 天鳳は切り上げ満貫なし（既定=Mリーグ相当のあり、を明示的に外す）。数え役満はあり。
     kiriage: false,
+    kazoe: true,
     renchan: "agari",
     ryukyoku: true,
     uma: "10-20",
@@ -253,6 +255,9 @@ export const RULE_PRESETS = {
     doubleRon: true,
   }),
   free: RulesSchema.parse({
+    // 一般的なフリー/セット想定: 数え役満・ダブル役満（四暗刻単騎等）あり。
+    kazoe: true,
+    multiYakuman: true,
     renchan: "tenpai",
     ryukyoku: true,
     uma: "10-20",

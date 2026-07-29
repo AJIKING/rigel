@@ -36,7 +36,7 @@ export async function logInPurchases(userId: string): Promise<void> {
   }
 }
 
-/** ログアウト時に呼ぶ（匿名ユーザーへ戻す）。 */
+/** サインアウト時に呼ぶ（匿名ユーザーへ戻す）。 */
 export async function logOutPurchases(): Promise<void> {
   if (!purchasesEnabled()) return;
   try {

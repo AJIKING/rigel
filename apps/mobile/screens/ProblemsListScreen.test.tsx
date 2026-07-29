@@ -109,16 +109,7 @@ describe("ProblemsListScreen（何切る公開一覧）", () => {
     expect(mockNavigate).toHaveBeenCalledWith("ProblemAnswer", { problemId: "p1" });
   });
 
-  it("右上の「マイ何切る」で onOpenMine（マイページの何切るを開く導線）が呼ばれる", async () => {
-    mockGetPublicProblems.mockResolvedValue([]);
-    const onOpenMine = jest.fn();
-    render(<ProblemsListScreen onOpenMine={onOpenMine} />);
-
-    fireEvent.press(await screen.findByText("マイ何切る"));
-    expect(onOpenMine).toHaveBeenCalled();
-  });
-
-  it("onOpenMine が無い（配線されない）ときは「マイ何切る」リンクを出さない", async () => {
+  it("右上に「マイ何切る」リンクは出さない（マイページの何切るセグメントと重複するため廃止）", async () => {
     mockGetPublicProblems.mockResolvedValue([]);
     render(<ProblemsListScreen />);
 

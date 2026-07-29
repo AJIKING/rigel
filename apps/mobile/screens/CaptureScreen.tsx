@@ -45,7 +45,7 @@ export function CaptureScreen() {
   /** 写真なしの手入力作成。既存半荘には局を足し、無ければ新しい半荘を作って編集画面へ。 */
   async function onCreateManual() {
     if (!token) {
-      setError("ログインが必要です。");
+      setError("サインインが必要です。");
       return;
     }
     setError(null);
@@ -79,7 +79,7 @@ export function CaptureScreen() {
 
   async function onSubmit() {
     if (!token) {
-      setError("ログインが必要です。");
+      setError("サインインが必要です。");
       return;
     }
     if (!river) {
