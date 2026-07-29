@@ -73,14 +73,17 @@ export function MyListScreen() {
         onSort={setSort}
         favOnly={favOnly}
         onFavOnly={setFavOnly}
+        // 作成にはサインインが必要なので、ゲスト（サンプル表示）では新規ボタンを出さない。
         action={
-          <Pressable
-            style={styles.newBtn}
-            onPress={() => nav.navigate("Capture")}
-            accessibilityRole="button"
-          >
-            <Text style={styles.newBtnText}>＋ 新規</Text>
-          </Pressable>
+          token ? (
+            <Pressable
+              style={styles.newBtn}
+              onPress={() => nav.navigate("Capture")}
+              accessibilityRole="button"
+            >
+              <Text style={styles.newBtnText}>＋ 新規</Text>
+            </Pressable>
+          ) : undefined
         }
       />
       {favError ? <Text style={styles.favError}>{favError}</Text> : null}

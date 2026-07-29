@@ -9,8 +9,12 @@ jest.mock("@react-navigation/native", () => ({
   useFocusEffect: () => {},
 }));
 
+let mockAuth: { token: string | null; user: { plan: string } | null } = {
+  token: "t",
+  user: { plan: "free" },
+};
 jest.mock("../lib/auth", () => ({
-  useAuth: () => ({ token: "t", user: { plan: "free" } }),
+  useAuth: () => mockAuth,
 }));
 
 const mockUseMyGames = jest.fn();
@@ -51,7 +55,24 @@ function setGames(games: MyGameCard[]) {
 }
 
 describe("MyListScreen（マイ牌譜一覧）", () => {
-  beforeEach(() => jest.clearAllMocks());
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockAuth = { token: "t", user: { plan: "free" } };
+  });
+
+  it("未サインイン（ゲスト・サンプル表示）では「＋ 新規」を出さない（作成にはサインインが必要）", () => {
+    mockAuth = { token: null, user: null };
+    mockUseMyGames.mockReturnValue({
+      loading: false,
+      games: [makeGame()],
+      sample: true,
+      refetch: jest.fn(),
+    });
+    render(<MyListScreen />);
+
+    expect(screen.getByText(/サンプル表示中/)).toBeTruthy();
+    expect(screen.queryByText("＋ 新規")).toBeNull();
+  });
 
   it("下書きがある半荘のバッジは件数を出さず「下書き」表記になる", () => {
     setGames([makeGame({ draftCount: 2 })]);

@@ -124,7 +124,8 @@ export function MyKifuScreen() {
             onSort={setSort}
             favOnly={favOnly}
             onFavOnly={setFavOnly}
-            onNew={() => router.push("/kifu/new")}
+            // 作成にはサインインが必要なので、未サインインでは新規ボタン自体を出さない。
+            onNew={user ? () => router.push("/kifu/new") : undefined}
           />
 
           <div className={gc.feed}>

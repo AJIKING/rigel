@@ -47,6 +47,8 @@ describe("MyKifuScreen（マイページの牌譜タブ）", () => {
       </AuthProvider>,
     );
     expect(await screen.findByText(/自分の牌譜を見るには/)).toBeTruthy();
+    // 作成にはサインインが必要なので、新規ボタンは出さない（mobile と同じ決まり）。
+    expect(screen.queryByRole("button", { name: /新規/ })).toBeNull();
   });
 
   it("ログイン済みなら自分の半荘を出し、公開/非公開と編集状態のバッジを付ける", async () => {
