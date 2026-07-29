@@ -6,8 +6,8 @@ import Link from "next/link";
 import { useEffect, useRef } from "react";
 import { useBoardScale } from "../lib/use-board-scale";
 import { BrandMark } from "./BrandMark";
-import { GameCard } from "./GameCard";
 import { QuizLineChart } from "./mypage/QuizLineChart";
+import { STAR_COLOR, STAR_PATH } from "./StarMark";
 import { OssTileFace } from "./OssTileFace";
 import { ViewBoard } from "./view/ViewBoard";
 import s from "./landing.module.css";
@@ -277,11 +277,20 @@ export function LandingScreen() {
               <h3>
                 撮れば、<em>盤面になる</em>
               </h3>
+              {/* 「AI が読み取っている」絵: 検出ボックスのコーナーマーク＋スキャンライン。
+                  読めなかった1枚だけ「?」で残る（ヒーロー=結果、ここ=過程、の役割分担）。 */}
               <div className={s.featureVis}>
-                <TileRow
-                  tiles={["1m", "2m", "3m", "4p", "5p", "5p", "7s", "8s", "9s", "7z", "7z"]}
-                  unknownIndex={5}
-                />
+                <div className={s.scanFrame} aria-hidden="true">
+                  <i className={`${s.corner} ${s.cTL}`} />
+                  <i className={`${s.corner} ${s.cTR}`} />
+                  <i className={`${s.corner} ${s.cBL}`} />
+                  <i className={`${s.corner} ${s.cBR}`} />
+                  <div className={s.scanline} />
+                  <TileRow
+                    tiles={["1m", "2m", "3m", "4p", "5p", "5p", "7s", "8s", "9s", "7z", "7z"]}
+                    unknownIndex={5}
+                  />
+                </div>
               </div>
             </div>
 
@@ -290,16 +299,25 @@ export function LandingScreen() {
               <h3>
                 リンクひとつで<em>共有</em>
               </h3>
-              {/* サービス実装の一覧カードそのもの（GameCard）。これは製品の実物なのでカードのまま。 */}
-              <div className={`${s.featureVis} ${s.gcWrap}`}>
-                <GameCard
-                  title="7/28 友人戦"
-                  meta={<span>南四局 ・ 8局</span>}
-                  faved
-                  favCount={12}
-                  onToggleFav={() => {}}
-                  onOpen={() => {}}
-                />
+              {/* 「SNS に展開された姿」: 実際の OGP（/k の opengraph-image と同じ構図）を
+                  埋め込みカード風フレームで見せる。 */}
+              <div className={s.featureVis}>
+                <div className={s.embed} aria-hidden="true">
+                  <div className={s.embedImg}>
+                    <div className={s.embedBrand}>
+                      <svg width={18} height={18} viewBox="0 0 24 24" fill="none">
+                        <path d={STAR_PATH} fill={STAR_COLOR} />
+                      </svg>
+                      <span>RIGEL</span>
+                    </div>
+                    <div className={s.embedTitle}>7/28 友人戦</div>
+                    <div className={s.embedInfo}>南四局 ・ 8局</div>
+                  </div>
+                  <div className={s.embedMeta}>
+                    <span className={s.embedDomain}>rigel.plaria.co.jp</span>
+                    <span className={s.embedText}>7/28 友人戦 ・ 麻雀牌譜 | RIGEL</span>
+                  </div>
+                </div>
               </div>
               <Link className={s.more} href="/kifu">
                 公開牌譜を見る →
@@ -309,7 +327,7 @@ export function LandingScreen() {
             <div className={`${s.feature} ${s.rv}`}>
               <WindTile code="3z" label="何切る" />
               <h3>
-                その一打、<em>みんなの答え</em>と
+                その一打、<em>みんなの答え</em>と比べる
               </h3>
               <div className={s.featureVis}>
                 <TileRow tiles={NANIKIRU_HAND} pickIndex={11} />
@@ -342,7 +360,7 @@ export function LandingScreen() {
             <div className={`${s.feature} ${s.rv}`}>
               <WindTile code="4z" label="特訓" />
               <h3>
-                60秒で、<em>手を速く</em>
+                60秒で、<em>最速の判断</em>をする
               </h3>
               {/* サービス実装の特訓グラフそのもの（QuizLineChart）。 */}
               <div className={`${s.featureVis} ${s.chartWrap}`}>

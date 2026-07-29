@@ -39,8 +39,9 @@ describe("LandingScreen", () => {
     for (const label of ["牌譜化", "公開・共有", "何切る", "特訓"]) {
       expect(screen.getAllByText(label).length).toBeGreaterThan(0);
     }
-    // 南: 共有カードはサービス実装の GameCard（見出しレベル3のタイトルを持つ）。
-    expect(screen.getByRole("heading", { level: 3, name: "7/28 友人戦" })).toBeTruthy();
+    // 南: 共有は実 OGP デザイン（/k の opengraph-image と同じ構図）の SNS 埋め込み風。
+    expect(screen.getAllByText("7/28 友人戦").length).toBeGreaterThan(0);
+    expect(screen.getByText("rigel.plaria.co.jp")).toBeTruthy();
     // 北: 特訓グラフはサービス実装の QuizLineChart（種目名の見出しを持つ）。
     expect(screen.getByRole("group", { name: "清一色 何待ち" })).toBeTruthy();
   });
