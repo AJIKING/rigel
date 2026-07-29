@@ -660,43 +660,33 @@
   color: var(--em-light);
   font-weight: 900;
 }
+/* 特訓グラフは細長いカードなので、左上に「置かれた」感じにならないよう
+   コンテンツ幅いっぱいに広げてセクションの主役として据える。 */
 .chartWrap {
   min-width: 0;
+  max-width: 880px;
 }
 
+/* 公式ストアバッジ（Apple 公式 SVG / Google 公式 PNG）。Google の PNG は素材内に
+   余白を含むため、見た目の高さが揃うよう大きめに描画する（公式ガイドの流儀）。 */
 .stores {
   display: flex;
-  gap: 10px;
+  gap: 12px;
   justify-content: center;
+  align-items: center;
   flex-wrap: wrap;
 }
-/* TODO(store): 公開後に Apple / Google の公式バッジ素材へ差し替える（ここは近似）。 */
-.store {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  border: 1px solid rgba(255, 255, 255, 0.34);
-  border-radius: 8px;
-  padding: 6px 14px;
-  background: #000;
-}
-.storeIcon {
-  font-size: 17px;
-  color: #fff;
-}
-.storeText {
-  text-align: left;
-  line-height: 1.2;
-  color: #fff;
-}
-.storeText small {
+.storeBadge img {
   display: block;
-  font-size: 8px;
-  color: rgba(255, 255, 255, 0.72);
 }
-.storeText b {
-  font-size: 12.5px;
-  font-weight: 700;
+.badgeApple img {
+  height: 52px;
+  width: auto;
+}
+.badgeGoogle img {
+  height: 78px;
+  width: auto;
+  margin: -12px;
 }
 /* 締めの CTA 帯（カードにしない）。 */
 .closing {

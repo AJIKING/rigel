@@ -97,22 +97,36 @@ const NANIKIRU_HAND = [
   "6z",
 ] as const;
 
-/** 特訓カードのサンプル推移（QuizLineChart はサービス実装の実部品）。 */
+/** 特訓カードのサンプル推移（QuizLineChart はサービス実装の実部品）。
+ *  伸び一辺倒ではなく、落ち込み・休み（欠損日）・伸び直しのある2週間にして
+ *  「上達の実感」の物語をグラフに持たせる。 */
+const trainingDay = (
+  day: string,
+  cpm: number | null,
+  sessions = cpm === null ? 0 : 1,
+): QuizDayPoint => ({
+  day,
+  sessions,
+  correct: cpm === null ? 0 : Math.round(cpm * 2),
+  total: cpm === null ? 0 : Math.round(cpm * 2.5),
+  accuracy: cpm === null ? null : 0.8,
+  correctPerMinute: cpm,
+});
 const TRAINING_POINTS: QuizDayPoint[] = [
-  { day: "2026-07-22", sessions: 1, correct: 5, total: 9, accuracy: 5 / 9, correctPerMinute: 2.4 },
-  { day: "2026-07-23", sessions: 1, correct: 6, total: 9, accuracy: 6 / 9, correctPerMinute: 2.9 },
-  { day: "2026-07-24", sessions: 0, correct: 0, total: 0, accuracy: null, correctPerMinute: null },
-  { day: "2026-07-25", sessions: 2, correct: 7, total: 10, accuracy: 0.7, correctPerMinute: 3.4 },
-  { day: "2026-07-26", sessions: 1, correct: 7, total: 9, accuracy: 7 / 9, correctPerMinute: 3.6 },
-  { day: "2026-07-27", sessions: 1, correct: 8, total: 10, accuracy: 0.8, correctPerMinute: 3.9 },
-  {
-    day: "2026-07-28",
-    sessions: 2,
-    correct: 9,
-    total: 11,
-    accuracy: 9 / 11,
-    correctPerMinute: 4.2,
-  },
+  trainingDay("2026-07-15", 2.1),
+  trainingDay("2026-07-16", 2.8),
+  trainingDay("2026-07-17", 2.3),
+  trainingDay("2026-07-18", null),
+  trainingDay("2026-07-19", 3.1, 2),
+  trainingDay("2026-07-20", 3.5),
+  trainingDay("2026-07-21", 3.2),
+  trainingDay("2026-07-22", null),
+  trainingDay("2026-07-23", 3.9, 2),
+  trainingDay("2026-07-24", 3.6),
+  trainingDay("2026-07-25", 4.4),
+  trainingDay("2026-07-26", 4.1),
+  trainingDay("2026-07-27", 4.8, 2),
+  trainingDay("2026-07-28", 5.2, 2),
 ];
 
 /** 風牌の見出しチップ（実牌アセット）。 */
@@ -343,12 +357,12 @@ export function LandingScreen() {
                   </div>
                   <div className={s.distRow}>
                     <span className={s.ltileS}>
-                      <OssTileFace code="6s" />
+                      <OssTileFace code="6z" />
                     </span>
                     <span className={s.bar}>
-                      <i style={{ width: "27%" }} />
+                      <i style={{ width: "34%" }} />
                     </span>
-                    <span className={s.pct}>27%</span>
+                    <span className={s.pct}>34%</span>
                   </div>
                 </div>
               </div>
@@ -367,7 +381,7 @@ export function LandingScreen() {
                 <QuizLineChart
                   points={TRAINING_POINTS}
                   title="清一色 何待ち"
-                  meta="8回 ・ ベスト 4.2 ・ 正答率 78%"
+                  meta="16回 ・ ベスト 5.2 ・ 正答率 80%"
                 />
               </div>
             </div>
@@ -432,21 +446,14 @@ export function LandingScreen() {
             <p className={s.appsCap}>
               撮影はアプリから — 卓のそばで撮って、そのまま牌譜に。アカウントは web と共通
             </p>
-            {/* TODO(store): 公開後に Apple / Google の公式バッジ素材とストアURLへ差し替える。 */}
+            {/* 公式バッジ素材（Apple: marketingtools 公式SVG / Google: play.google.com 公式PNG）。
+                TODO(store): アプリ公開後にストアURLへリンクする。 */}
             <div className={s.stores}>
-              <span className={s.store}>
-                <span className={s.storeIcon}></span>
-                <span className={s.storeText}>
-                  <small>Download on the</small>
-                  <b>App Store</b>
-                </span>
+              <span className={`${s.storeBadge} ${s.badgeApple}`}>
+                <img src="/badges/app-store-ja.svg" alt="App Store からダウンロード" />
               </span>
-              <span className={s.store}>
-                <span className={s.storeIcon}>▷</span>
-                <span className={s.storeText}>
-                  <small>GET IT ON</small>
-                  <b>Google Play</b>
-                </span>
+              <span className={`${s.storeBadge} ${s.badgeGoogle}`}>
+                <img src="/badges/google-play-ja.png" alt="Google Play で手に入れよう" />
               </span>
             </div>
           </div>
