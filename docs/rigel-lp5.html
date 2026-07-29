@@ -1,14 +1,17 @@
 <!doctype html>
 <html lang="ja">
-<head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>RIGEL — 麻雀の記録を、撮るだけで。（LP案 v6）</title>
-<link rel="preconnect" href="https://fonts.googleapis.com" />
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;900&display=swap" rel="stylesheet" />
-<style>
-/* ============================================================
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>RIGEL — 麻雀の記録を、撮るだけで。（LP案 v6）</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;900&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      /* ============================================================
    rigel LP v6 — 2026-07-29 実サイト調査を反映（docs プロトタイプ）
    調査所見:
    - Linear/Notion 系: 左寄せ特大見出し + 「実プロダクトUI」をヒーローに（product-led hero）
@@ -19,436 +22,1330 @@
    構成: nav / hero(左寄せ+実UI風ボード) / trust / bento(四風4枚+補助2枚) / プラン / footer
    トークンは apps/web/app/theme.css と同値。
    ============================================================ */
-:root{
-  --bg:#0f1115; --chrome:#16181d; --chrome2:#1d2027; --chrome3:#23262e;
-  --line:#2a2e37; --line2:#343943;
-  --white:#f5f6f7; --w85:rgba(245,246,247,.86); --w70:rgba(245,246,247,.66); --w45:rgba(245,246,247,.55);
-  --em:#0c7a57; --em-deep:#0a5f44; --em-light:#3ec487;
-  --accent:#ff9e45; --accent2:#ff7d33; --vermilion:#e24b3a;
-  --bone:#f5eee0; --bone-edge:#dccdab; --man:#2a2a26; --pin:#2f6fb0; --sou:#2f7d4f;
-  --body:"Noto Sans JP",system-ui,sans-serif;
-  --r:6px; --r-lg:14px; --ease:cubic-bezier(.2,.7,.2,1);
-}
-*{box-sizing:border-box;margin:0;padding:0}
-html{scroll-behavior:smooth}
-body{background:var(--bg);color:var(--white);font-family:var(--body);line-height:1.8;-webkit-font-smoothing:antialiased}
-a{color:inherit;text-decoration:none}
-::selection{background:rgba(255,158,69,.28)}
-.wrap{max-width:1140px;margin:0 auto;padding:0 24px}
+      :root {
+        --bg: #0f1115;
+        --chrome: #16181d;
+        --chrome2: #1d2027;
+        --chrome3: #23262e;
+        --line: #2a2e37;
+        --line2: #343943;
+        --white: #f5f6f7;
+        --w85: rgba(245, 246, 247, 0.86);
+        --w70: rgba(245, 246, 247, 0.66);
+        --w45: rgba(245, 246, 247, 0.55);
+        --em: #0c7a57;
+        --em-deep: #0a5f44;
+        --em-light: #3ec487;
+        --accent: #ff9e45;
+        --accent2: #ff7d33;
+        --vermilion: #e24b3a;
+        --bone: #f5eee0;
+        --bone-edge: #dccdab;
+        --man: #2a2a26;
+        --pin: #2f6fb0;
+        --sou: #2f7d4f;
+        --body: "Noto Sans JP", system-ui, sans-serif;
+        --r: 6px;
+        --r-lg: 14px;
+        --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+      }
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+      html {
+        scroll-behavior: smooth;
+      }
+      body {
+        background: var(--bg);
+        color: var(--white);
+        font-family: var(--body);
+        line-height: 1.8;
+        -webkit-font-smoothing: antialiased;
+      }
+      a {
+        color: inherit;
+        text-decoration: none;
+      }
+      ::selection {
+        background: rgba(255, 158, 69, 0.28);
+      }
+      .wrap {
+        max-width: 1140px;
+        margin: 0 auto;
+        padding: 0 24px;
+      }
 
-/* ---- nav ---- */
-.nav{position:sticky;top:0;z-index:50;background:rgba(15,17,21,.86);backdrop-filter:blur(12px);border-bottom:1px solid var(--line)}
-.nav .wrap{display:flex;align-items:center;gap:28px;height:60px}
-.brand{display:flex;align-items:center;gap:9px;font-weight:900;letter-spacing:.3em;font-size:15px}
-.brand .star{color:var(--accent);letter-spacing:0;font-size:16px;transform:translateY(-1px)}
-.navlinks{display:flex;gap:22px;font-size:12.5px;color:var(--w70);font-weight:500}
-.navlinks a:hover{color:var(--white)}
-.nav .sp{flex:1}
-.navsign{font-size:12.5px;font-weight:700;border:1px solid var(--line2);border-radius:var(--r);padding:6px 15px;transition:border-color .2s var(--ease),background .2s var(--ease)}
-.navsign:hover{border-color:var(--accent);background:rgba(255,158,69,.06)}
-@media (max-width:760px){.navlinks{display:none}}
+      /* ---- nav ---- */
+      .nav {
+        position: sticky;
+        top: 0;
+        z-index: 50;
+        background: rgba(15, 17, 21, 0.86);
+        backdrop-filter: blur(12px);
+        border-bottom: 1px solid var(--line);
+      }
+      .nav .wrap {
+        display: flex;
+        align-items: center;
+        gap: 28px;
+        height: 60px;
+      }
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        font-weight: 900;
+        letter-spacing: 0.3em;
+        font-size: 15px;
+      }
+      .brand .star {
+        color: var(--accent);
+        letter-spacing: 0;
+        font-size: 16px;
+        transform: translateY(-1px);
+      }
+      .navlinks {
+        display: flex;
+        gap: 22px;
+        font-size: 12.5px;
+        color: var(--w70);
+        font-weight: 500;
+      }
+      .navlinks a:hover {
+        color: var(--white);
+      }
+      .nav .sp {
+        flex: 1;
+      }
+      .navsign {
+        font-size: 12.5px;
+        font-weight: 700;
+        border: 1px solid var(--line2);
+        border-radius: var(--r);
+        padding: 6px 15px;
+        transition:
+          border-color 0.2s var(--ease),
+          background 0.2s var(--ease);
+      }
+      .navsign:hover {
+        border-color: var(--accent);
+        background: rgba(255, 158, 69, 0.06);
+      }
+      @media (max-width: 760px) {
+        .navlinks {
+          display: none;
+        }
+      }
 
-/* ---- hero: 左寄せ見出し + 右に実プロダクトUI（product-led）---- */
-.hero{position:relative;overflow:hidden;border-bottom:1px solid var(--line)}
-.hero::before{content:"";position:absolute;inset:auto -30% -60% 20%;height:100%;
-  background:radial-gradient(50% 70% at 70% 100%, rgba(12,122,87,.26), transparent 72%);pointer-events:none}
-.hero .wrap{position:relative;display:grid;grid-template-columns:1.02fr .98fr;gap:56px;align-items:center;padding-top:92px;padding-bottom:96px}
-@media (max-width:920px){.hero .wrap{grid-template-columns:1fr;padding-top:56px;padding-bottom:64px;gap:40px}}
-.kicker{display:inline-block;font-size:12px;font-weight:700;letter-spacing:.2em;color:var(--em-light);margin-bottom:20px}
-.h1{font-weight:900;font-size:clamp(34px,5.2vw,58px);line-height:1.24;letter-spacing:-.01em;text-wrap:balance}
-.h1 em{font-style:normal;color:var(--accent)}
-.lead{margin-top:22px;color:var(--w70);font-size:15.5px;max-width:30em}
-.lead b{color:var(--w85);font-weight:700}
-.cta{display:flex;flex-wrap:wrap;gap:12px;margin-top:32px}
-.btn{display:inline-flex;align-items:center;gap:9px;font-weight:700;font-size:14px;border-radius:var(--r);padding:10px 24px;transition:transform .18s var(--ease),background .18s var(--ease),border-color .18s var(--ease)}
-.btn:hover{transform:translateY(-1px)}
-.btn.primary{background:var(--accent);color:#16181d;box-shadow:0 10px 30px rgba(255,158,69,.2)}
-.btn.primary:hover{background:var(--accent2)}
-.btn.ghost{border:1px solid var(--line2);color:var(--w85)}
-.btn.ghost:hover{border-color:var(--w45)}
-.fine{margin-top:14px;font-size:11.5px;color:var(--w45)}
+      /* ---- hero: 左寄せ見出し + 右に実プロダクトUI（product-led）---- */
+      .hero {
+        position: relative;
+        overflow: hidden;
+        border-bottom: 1px solid var(--line);
+      }
+      .hero::before {
+        content: "";
+        position: absolute;
+        inset: auto -30% -60% 20%;
+        height: 100%;
+        background: radial-gradient(50% 70% at 70% 100%, rgba(12, 122, 87, 0.26), transparent 72%);
+        pointer-events: none;
+      }
+      .hero .wrap {
+        position: relative;
+        display: grid;
+        grid-template-columns: 1.02fr 0.98fr;
+        gap: 56px;
+        align-items: center;
+        padding-top: 92px;
+        padding-bottom: 96px;
+      }
+      @media (max-width: 920px) {
+        .hero .wrap {
+          grid-template-columns: 1fr;
+          padding-top: 56px;
+          padding-bottom: 64px;
+          gap: 40px;
+        }
+      }
+      .kicker {
+        display: inline-block;
+        font-size: 12px;
+        font-weight: 700;
+        letter-spacing: 0.2em;
+        color: var(--em-light);
+        margin-bottom: 20px;
+      }
+      .h1 {
+        font-weight: 900;
+        font-size: clamp(34px, 5.2vw, 58px);
+        line-height: 1.24;
+        letter-spacing: -0.01em;
+        text-wrap: balance;
+      }
+      .h1 em {
+        font-style: normal;
+        color: var(--accent);
+      }
+      .lead {
+        margin-top: 22px;
+        color: var(--w70);
+        font-size: 15.5px;
+        max-width: 30em;
+      }
+      .lead b {
+        color: var(--w85);
+        font-weight: 700;
+      }
+      .cta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        margin-top: 32px;
+      }
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 9px;
+        font-weight: 700;
+        font-size: 14px;
+        border-radius: var(--r);
+        padding: 10px 24px;
+        transition:
+          transform 0.18s var(--ease),
+          background 0.18s var(--ease),
+          border-color 0.18s var(--ease);
+      }
+      .btn:hover {
+        transform: translateY(-1px);
+      }
+      .btn.primary {
+        background: var(--accent);
+        color: #16181d;
+        box-shadow: 0 10px 30px rgba(255, 158, 69, 0.2);
+      }
+      .btn.primary:hover {
+        background: var(--accent2);
+      }
+      .btn.ghost {
+        border: 1px solid var(--line2);
+        color: var(--w85);
+      }
+      .btn.ghost:hover {
+        border-color: var(--w45);
+      }
+      .fine {
+        margin-top: 14px;
+        font-size: 11.5px;
+        color: var(--w45);
+      }
 
-/* 実プロダクトUI風のボードカード（牌譜ビューアのスクリーンショット的に見せる） */
-.shot{position:relative;background:var(--chrome);border:1px solid var(--line2);border-radius:var(--r-lg);box-shadow:0 34px 90px rgba(0,0,0,.55);overflow:hidden}
-.shot .bar{display:flex;align-items:center;gap:10px;padding:11px 16px;border-bottom:1px solid var(--line);font-size:11.5px;color:var(--w45)}
-.shot .bar b{color:var(--w85);font-weight:700}
-.shot .bar .live{margin-left:auto;color:var(--em-light);font-weight:700;letter-spacing:.1em;font-size:10px}
-.shot .feltwrap{padding:20px;display:flex;justify-content:center;background:linear-gradient(180deg,var(--chrome),#14161b)}
-.felt{position:relative;width:min(380px,88%);aspect-ratio:1;border-radius:12px;background:radial-gradient(120% 120% at 30% 20%, #0e8a63, var(--em-deep));border:1px solid rgba(255,255,255,.14);overflow:hidden}
-.felt .scan{position:absolute;inset:0;background:linear-gradient(180deg,transparent 30%,rgba(62,196,135,.18) 50%,transparent 70%);animation:scan 3.6s var(--ease) infinite}
-@keyframes scan{0%{transform:translateY(-100%)}62%,100%{transform:translateY(100%)}}
-.t{display:inline-block;width:17px;height:24px;border-radius:2.5px;background:linear-gradient(180deg,#fbf6ea,var(--bone));box-shadow:0 1px 0 var(--bone-edge),0 2px 3px rgba(0,0,0,.35)}
-.t b{display:flex;align-items:center;justify-content:center;height:100%;font-weight:900;font-size:11.5px;font-style:normal}
-.t.man b{color:var(--man)} .t.red b{color:var(--vermilion)} .t.sou b{color:var(--sou)} .t.pin b{color:var(--pin)}
-.rowH{position:absolute;left:50%;transform:translateX(-50%);display:flex;gap:2.5px}
-.rowH.top{top:14px}.rowH.bottom{bottom:14px}
-.rowV{position:absolute;top:50%;display:flex;flex-direction:column;gap:2.5px}
-.rowV.left{left:14px;transform:translateY(-50%)}
-.rowV.right{right:14px;transform:translateY(-50%)}
-.rowV .t{width:24px;height:17px}
-.riv{position:absolute;top:57%;left:50%;transform:translate(-50%,-46%);display:flex;gap:2.5px}
-.fc{position:absolute;top:36%;left:50%;transform:translate(-50%,-50%);display:flex;align-items:center;gap:7px;font-size:10.5px;color:rgba(255,255,255,.85);letter-spacing:.12em;font-weight:700}
-.shot .foot{display:flex;align-items:center;gap:8px;padding:12px 16px;border-top:1px solid var(--line);font-size:11.5px;color:var(--w70)}
-.shot .foot .pillbtn{border:1px solid var(--line2);border-radius:var(--r);padding:4px 12px;font-weight:700;font-size:11px;color:var(--w85)}
-.shot .foot .warn{margin-left:auto;color:var(--vermilion);font-weight:700}
-.srccap{display:flex;align-items:center;gap:10px;justify-content:center;margin-top:14px;font-size:12px;color:var(--w45)}
-.srccap .cam{font-weight:700;color:var(--w70)}
-.srccap svg{width:26px;stroke:var(--w45);stroke-width:1.6;fill:none;flex:none}
+      /* 実プロダクトUI風のボードカード（牌譜ビューアのスクリーンショット的に見せる） */
+      .shot {
+        position: relative;
+        background: var(--chrome);
+        border: 1px solid var(--line2);
+        border-radius: var(--r-lg);
+        box-shadow: 0 34px 90px rgba(0, 0, 0, 0.55);
+        overflow: hidden;
+      }
+      .shot .bar {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 11px 16px;
+        border-bottom: 1px solid var(--line);
+        font-size: 11.5px;
+        color: var(--w45);
+      }
+      .shot .bar b {
+        color: var(--w85);
+        font-weight: 700;
+      }
+      .shot .bar .live {
+        margin-left: auto;
+        color: var(--em-light);
+        font-weight: 700;
+        letter-spacing: 0.1em;
+        font-size: 10px;
+      }
+      .shot .feltwrap {
+        padding: 20px;
+        display: flex;
+        justify-content: center;
+        background: linear-gradient(180deg, var(--chrome), #14161b);
+      }
+      .felt {
+        position: relative;
+        width: min(380px, 88%);
+        aspect-ratio: 1;
+        border-radius: 12px;
+        background: radial-gradient(120% 120% at 30% 20%, #0e8a63, var(--em-deep));
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        overflow: hidden;
+      }
+      .felt .scan {
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(
+          180deg,
+          transparent 30%,
+          rgba(62, 196, 135, 0.18) 50%,
+          transparent 70%
+        );
+        animation: scan 3.6s var(--ease) infinite;
+      }
+      @keyframes scan {
+        0% {
+          transform: translateY(-100%);
+        }
+        62%,
+        100% {
+          transform: translateY(100%);
+        }
+      }
+      .t {
+        display: inline-block;
+        width: 17px;
+        height: 24px;
+        border-radius: 2.5px;
+        background: linear-gradient(180deg, #fbf6ea, var(--bone));
+        box-shadow:
+          0 1px 0 var(--bone-edge),
+          0 2px 3px rgba(0, 0, 0, 0.35);
+      }
+      .t b {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        height: 100%;
+        font-weight: 900;
+        font-size: 11.5px;
+        font-style: normal;
+      }
+      .t.man b {
+        color: var(--man);
+      }
+      .t.red b {
+        color: var(--vermilion);
+      }
+      .t.sou b {
+        color: var(--sou);
+      }
+      .t.pin b {
+        color: var(--pin);
+      }
+      .rowH {
+        position: absolute;
+        left: 50%;
+        transform: translateX(-50%);
+        display: flex;
+        gap: 2.5px;
+      }
+      .rowH.top {
+        top: 14px;
+      }
+      .rowH.bottom {
+        bottom: 14px;
+      }
+      .rowV {
+        position: absolute;
+        top: 50%;
+        display: flex;
+        flex-direction: column;
+        gap: 2.5px;
+      }
+      .rowV.left {
+        left: 14px;
+        transform: translateY(-50%);
+      }
+      .rowV.right {
+        right: 14px;
+        transform: translateY(-50%);
+      }
+      .rowV .t {
+        width: 24px;
+        height: 17px;
+      }
+      .riv {
+        position: absolute;
+        top: 57%;
+        left: 50%;
+        transform: translate(-50%, -46%);
+        display: flex;
+        gap: 2.5px;
+      }
+      .fc {
+        position: absolute;
+        top: 36%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        font-size: 10.5px;
+        color: rgba(255, 255, 255, 0.85);
+        letter-spacing: 0.12em;
+        font-weight: 700;
+      }
+      .shot .foot {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 12px 16px;
+        border-top: 1px solid var(--line);
+        font-size: 11.5px;
+        color: var(--w70);
+      }
+      .shot .foot .pillbtn {
+        border: 1px solid var(--line2);
+        border-radius: var(--r);
+        padding: 4px 12px;
+        font-weight: 700;
+        font-size: 11px;
+        color: var(--w85);
+      }
+      .shot .foot .warn {
+        margin-left: auto;
+        color: var(--vermilion);
+        font-weight: 700;
+      }
+      .srccap {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        justify-content: center;
+        margin-top: 14px;
+        font-size: 12px;
+        color: var(--w45);
+      }
+      .srccap .cam {
+        font-weight: 700;
+        color: var(--w70);
+      }
+      .srccap svg {
+        width: 26px;
+        stroke: var(--w45);
+        stroke-width: 1.6;
+        fill: none;
+        flex: none;
+      }
 
-/* ---- trust ---- */
-.trust{border-bottom:1px solid var(--line)}
-.trust .wrap{display:grid;grid-template-columns:repeat(3,1fr);padding:0}
-.trust .ti{padding:18px 24px;text-align:center;font-size:12px;color:var(--w45);border-left:1px solid var(--line)}
-.trust .ti:first-child{border-left:0}
-.trust .ti b{display:block;color:var(--w85);font-weight:700;font-size:13px}
-@media (max-width:640px){.trust .wrap{grid-template-columns:1fr}.trust .ti{border-left:0;border-top:1px solid var(--line);text-align:left}.trust .ti:first-child{border-top:0}}
+      /* ---- trust ---- */
+      .trust {
+        border-bottom: 1px solid var(--line);
+      }
+      .trust .wrap {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        padding: 0;
+      }
+      .trust .ti {
+        padding: 18px 24px;
+        text-align: center;
+        font-size: 12px;
+        color: var(--w45);
+        border-left: 1px solid var(--line);
+      }
+      .trust .ti:first-child {
+        border-left: 0;
+      }
+      .trust .ti b {
+        display: block;
+        color: var(--w85);
+        font-weight: 700;
+        font-size: 13px;
+      }
+      @media (max-width: 640px) {
+        .trust .wrap {
+          grid-template-columns: 1fr;
+        }
+        .trust .ti {
+          border-left: 0;
+          border-top: 1px solid var(--line);
+          text-align: left;
+        }
+        .trust .ti:first-child {
+          border-top: 0;
+        }
+      }
 
-/* ---- bento: 機能は四風カード + 補助カードのグリッド ---- */
-.bento{padding:96px 0}
-@media (max-width:760px){.bento{padding:56px 0}}
-.bhead{max-width:34em;margin-bottom:44px}
-.h2{font-weight:900;font-size:clamp(24px,3.2vw,34px);line-height:1.4;letter-spacing:-.005em;text-wrap:balance}
-.h2 em{font-style:normal;color:var(--accent)}
-.bhead p{margin-top:12px;color:var(--w70);font-size:14px}
-.grid{display:grid;grid-template-columns:repeat(6,1fr);gap:14px}
-.card{background:var(--chrome);border:1px solid var(--line);border-radius:var(--r-lg);padding:26px;display:flex;flex-direction:column;gap:16px;transition:border-color .25s var(--ease),transform .25s var(--ease)}
-.card:hover{border-color:var(--line2);transform:translateY(-2px)}
-.card.c3{grid-column:span 3}
-.card.c2{grid-column:span 2}
-.card.c4{grid-column:span 4}
-@media (max-width:900px){.card.c3,.card.c2,.card.c4{grid-column:span 6}}
-.wind{display:inline-flex;align-items:center;gap:10px}
-.wtile{width:24px;height:33px;border-radius:3px;background:linear-gradient(180deg,#fbf6ea,var(--bone));box-shadow:0 1.5px 0 var(--bone-edge),0 3px 5px rgba(0,0,0,.4);display:flex;align-items:center;justify-content:center;font-weight:900;font-size:14px;color:var(--man)}
-.wl{font-size:11px;letter-spacing:.24em;color:var(--w45);font-weight:700}
-.card h3{font-weight:900;font-size:19px;line-height:1.5;letter-spacing:-.005em}
-.card h3 em{font-style:normal;color:var(--accent)}
-.card p{color:var(--w70);font-size:13px}
-.card .more{margin-top:auto;font-size:13px;font-weight:700;color:var(--accent)}
-.card .more:hover{color:var(--accent2)}
-/* カード内ミニビジュアル（アイコンではなく実UIの断片を置く=2026 bento の作法） */
-.mini{background:var(--chrome2);border:1px solid var(--line);border-radius:10px;padding:16px}
-.readrow{display:flex;gap:4px;align-items:center;flex-wrap:wrap}
-.readrow .t{width:26px;height:36px;border-radius:3px}
-.readrow .t b{font-size:14px}
-.readrow .t.unk{background:repeating-linear-gradient(45deg,#2a2e37,#2a2e37 4px,#23262e 4px,#23262e 8px);box-shadow:inset 0 0 0 1.5px var(--accent)}
-.readrow .t.unk b{color:var(--accent);font-size:12.5px}
-.readnote{margin-top:12px;display:flex;align-items:center;gap:8px;font-size:11.5px;color:var(--w70)}
-.badge{font-size:10px;font-weight:900;color:var(--vermilion);border:1px solid rgba(226,75,58,.5);border-radius:var(--r);padding:1px 8px;background:rgba(226,75,58,.08)}
-.linkrow{display:flex;align-items:center;gap:8px;font-size:11.5px;color:var(--w70);background:var(--chrome3);border-radius:var(--r);padding:8px 12px}
-.linkrow b{color:var(--em-light);font-weight:700}
-.ogm{margin-top:10px;display:flex;justify-content:space-between;align-items:center;font-size:11.5px;color:var(--w70)}
-.ogm b{color:var(--w85)}
-.favc{color:var(--accent);font-weight:700}
-.hand{display:flex;gap:3px;flex-wrap:wrap}
-.hand .t{width:22px;height:30px}
-.hand .t b{font-size:12px}
-.hand .t.pick{outline:2px solid var(--accent);outline-offset:1.5px;transform:translateY(-4px)}
-.dist{margin-top:14px;display:flex;flex-direction:column;gap:7px}
-.dist .row{display:grid;grid-template-columns:26px 1fr 40px;gap:9px;align-items:center;font-size:11px}
-.dist .row .t{width:17px;height:23px}
-.dist .row .t b{font-size:9.5px}
-.dist .bar{height:8px;border-radius:var(--r);background:var(--chrome3);overflow:hidden}
-.dist .bar i{display:block;height:100%;border-radius:var(--r);background:linear-gradient(90deg,var(--em),var(--em-light))}
-.dist .pc{color:var(--w70);text-align:right;font-variant-numeric:tabular-nums}
-.dist .row.win .pc{color:var(--em-light);font-weight:900}
-.tr{display:flex;gap:18px;align-items:center}
-.ring{position:relative;width:78px;height:78px;flex:none}
-.ring svg{width:78px;height:78px;transform:rotate(-90deg)}
-.ring .rl{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
-.ring .rl b{font-size:20px;font-weight:900;font-variant-numeric:tabular-nums}
-.ring .rl span{font-size:8.5px;color:var(--w45);letter-spacing:.16em;font-weight:700}
-.chart{flex:1;min-width:0}
-.chart svg{width:100%;height:78px;display:block}
-.chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:12px}
-.chip{font-size:10.5px;font-weight:700;color:var(--w70);border:1px solid var(--line2);border-radius:var(--r);padding:3px 10px}
-.chip.on{color:var(--accent);border-color:rgba(255,158,69,.5);background:rgba(255,158,69,.08)}
-/* 補助カード（アプリ / はじめる） */
-.card.appcard{justify-content:center;text-align:center;gap:14px}
-.stores{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
-.store{display:inline-flex;align-items:center;gap:8px;border:1px solid rgba(255,255,255,.34);border-radius:8px;padding:6px 14px;background:#000;transition:transform .18s var(--ease),border-color .2s var(--ease)}
-.store:hover{transform:translateY(-1px);border-color:rgba(255,255,255,.6)}
-.store .si{font-size:17px;color:#fff}
-.store .st{text-align:left;line-height:1.2;color:#fff}
-.store .st small{display:block;font-size:8px;color:rgba(255,255,255,.72)}
-.store .st b{font-size:12.5px;font-weight:700}
-.card.startcard{background:linear-gradient(150deg,rgba(12,122,87,.24),var(--chrome) 58%);justify-content:center;text-align:center;gap:14px}
+      /* ---- bento: 機能は四風カード + 補助カードのグリッド ---- */
+      .bento {
+        padding: 96px 0;
+      }
+      @media (max-width: 760px) {
+        .bento {
+          padding: 56px 0;
+        }
+      }
+      .bhead {
+        max-width: 34em;
+        margin-bottom: 44px;
+      }
+      .h2 {
+        font-weight: 900;
+        font-size: clamp(24px, 3.2vw, 34px);
+        line-height: 1.4;
+        letter-spacing: -0.005em;
+        text-wrap: balance;
+      }
+      .h2 em {
+        font-style: normal;
+        color: var(--accent);
+      }
+      .bhead p {
+        margin-top: 12px;
+        color: var(--w70);
+        font-size: 14px;
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(6, 1fr);
+        gap: 14px;
+      }
+      .card {
+        background: var(--chrome);
+        border: 1px solid var(--line);
+        border-radius: var(--r-lg);
+        padding: 26px;
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+        transition:
+          border-color 0.25s var(--ease),
+          transform 0.25s var(--ease);
+      }
+      .card:hover {
+        border-color: var(--line2);
+        transform: translateY(-2px);
+      }
+      .card.c3 {
+        grid-column: span 3;
+      }
+      .card.c2 {
+        grid-column: span 2;
+      }
+      .card.c4 {
+        grid-column: span 4;
+      }
+      @media (max-width: 900px) {
+        .card.c3,
+        .card.c2,
+        .card.c4 {
+          grid-column: span 6;
+        }
+      }
+      .wind {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .wtile {
+        width: 24px;
+        height: 33px;
+        border-radius: 3px;
+        background: linear-gradient(180deg, #fbf6ea, var(--bone));
+        box-shadow:
+          0 1.5px 0 var(--bone-edge),
+          0 3px 5px rgba(0, 0, 0, 0.4);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 900;
+        font-size: 14px;
+        color: var(--man);
+      }
+      .wl {
+        font-size: 11px;
+        letter-spacing: 0.24em;
+        color: var(--w45);
+        font-weight: 700;
+      }
+      .card h3 {
+        font-weight: 900;
+        font-size: 19px;
+        line-height: 1.5;
+        letter-spacing: -0.005em;
+      }
+      .card h3 em {
+        font-style: normal;
+        color: var(--accent);
+      }
+      .card p {
+        color: var(--w70);
+        font-size: 13px;
+      }
+      .card .more {
+        margin-top: auto;
+        font-size: 13px;
+        font-weight: 700;
+        color: var(--accent);
+      }
+      .card .more:hover {
+        color: var(--accent2);
+      }
+      /* カード内ミニビジュアル（アイコンではなく実UIの断片を置く=2026 bento の作法） */
+      .mini {
+        background: var(--chrome2);
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        padding: 16px;
+      }
+      .readrow {
+        display: flex;
+        gap: 4px;
+        align-items: center;
+        flex-wrap: wrap;
+      }
+      .readrow .t {
+        width: 26px;
+        height: 36px;
+        border-radius: 3px;
+      }
+      .readrow .t b {
+        font-size: 14px;
+      }
+      .readrow .t.unk {
+        background: repeating-linear-gradient(
+          45deg,
+          #2a2e37,
+          #2a2e37 4px,
+          #23262e 4px,
+          #23262e 8px
+        );
+        box-shadow: inset 0 0 0 1.5px var(--accent);
+      }
+      .readrow .t.unk b {
+        color: var(--accent);
+        font-size: 12.5px;
+      }
+      .readnote {
+        margin-top: 12px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 11.5px;
+        color: var(--w70);
+      }
+      .badge {
+        font-size: 10px;
+        font-weight: 900;
+        color: var(--vermilion);
+        border: 1px solid rgba(226, 75, 58, 0.5);
+        border-radius: var(--r);
+        padding: 1px 8px;
+        background: rgba(226, 75, 58, 0.08);
+      }
+      .linkrow {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 11.5px;
+        color: var(--w70);
+        background: var(--chrome3);
+        border-radius: var(--r);
+        padding: 8px 12px;
+      }
+      .linkrow b {
+        color: var(--em-light);
+        font-weight: 700;
+      }
+      .ogm {
+        margin-top: 10px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-size: 11.5px;
+        color: var(--w70);
+      }
+      .ogm b {
+        color: var(--w85);
+      }
+      .favc {
+        color: var(--accent);
+        font-weight: 700;
+      }
+      .hand {
+        display: flex;
+        gap: 3px;
+        flex-wrap: wrap;
+      }
+      .hand .t {
+        width: 22px;
+        height: 30px;
+      }
+      .hand .t b {
+        font-size: 12px;
+      }
+      .hand .t.pick {
+        outline: 2px solid var(--accent);
+        outline-offset: 1.5px;
+        transform: translateY(-4px);
+      }
+      .dist {
+        margin-top: 14px;
+        display: flex;
+        flex-direction: column;
+        gap: 7px;
+      }
+      .dist .row {
+        display: grid;
+        grid-template-columns: 26px 1fr 40px;
+        gap: 9px;
+        align-items: center;
+        font-size: 11px;
+      }
+      .dist .row .t {
+        width: 17px;
+        height: 23px;
+      }
+      .dist .row .t b {
+        font-size: 9.5px;
+      }
+      .dist .bar {
+        height: 8px;
+        border-radius: var(--r);
+        background: var(--chrome3);
+        overflow: hidden;
+      }
+      .dist .bar i {
+        display: block;
+        height: 100%;
+        border-radius: var(--r);
+        background: linear-gradient(90deg, var(--em), var(--em-light));
+      }
+      .dist .pc {
+        color: var(--w70);
+        text-align: right;
+        font-variant-numeric: tabular-nums;
+      }
+      .dist .row.win .pc {
+        color: var(--em-light);
+        font-weight: 900;
+      }
+      .tr {
+        display: flex;
+        gap: 18px;
+        align-items: center;
+      }
+      .ring {
+        position: relative;
+        width: 78px;
+        height: 78px;
+        flex: none;
+      }
+      .ring svg {
+        width: 78px;
+        height: 78px;
+        transform: rotate(-90deg);
+      }
+      .ring .rl {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+      }
+      .ring .rl b {
+        font-size: 20px;
+        font-weight: 900;
+        font-variant-numeric: tabular-nums;
+      }
+      .ring .rl span {
+        font-size: 8.5px;
+        color: var(--w45);
+        letter-spacing: 0.16em;
+        font-weight: 700;
+      }
+      .chart {
+        flex: 1;
+        min-width: 0;
+      }
+      .chart svg {
+        width: 100%;
+        height: 78px;
+        display: block;
+      }
+      .chips {
+        display: flex;
+        gap: 6px;
+        flex-wrap: wrap;
+        margin-top: 12px;
+      }
+      .chip {
+        font-size: 10.5px;
+        font-weight: 700;
+        color: var(--w70);
+        border: 1px solid var(--line2);
+        border-radius: var(--r);
+        padding: 3px 10px;
+      }
+      .chip.on {
+        color: var(--accent);
+        border-color: rgba(255, 158, 69, 0.5);
+        background: rgba(255, 158, 69, 0.08);
+      }
+      /* 補助カード（アプリ / はじめる） */
+      .card.appcard {
+        justify-content: center;
+        text-align: center;
+        gap: 14px;
+      }
+      .stores {
+        display: flex;
+        gap: 10px;
+        justify-content: center;
+        flex-wrap: wrap;
+      }
+      .store {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        border: 1px solid rgba(255, 255, 255, 0.34);
+        border-radius: 8px;
+        padding: 6px 14px;
+        background: #000;
+        transition:
+          transform 0.18s var(--ease),
+          border-color 0.2s var(--ease);
+      }
+      .store:hover {
+        transform: translateY(-1px);
+        border-color: rgba(255, 255, 255, 0.6);
+      }
+      .store .si {
+        font-size: 17px;
+        color: #fff;
+      }
+      .store .st {
+        text-align: left;
+        line-height: 1.2;
+        color: #fff;
+      }
+      .store .st small {
+        display: block;
+        font-size: 8px;
+        color: rgba(255, 255, 255, 0.72);
+      }
+      .store .st b {
+        font-size: 12.5px;
+        font-weight: 700;
+      }
+      .card.startcard {
+        background: linear-gradient(150deg, rgba(12, 122, 87, 0.24), var(--chrome) 58%);
+        justify-content: center;
+        text-align: center;
+        gap: 14px;
+      }
 
-/* ---- プラン ---- */
-.plans{padding:96px 0;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
-@media (max-width:760px){.plans{padding:56px 0}}
-.plans .h2{text-align:center}
-.plans .sub{text-align:center;color:var(--w45);font-size:12.5px;margin-top:12px}
-.pgrid{margin-top:40px;display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
-@media (max-width:760px){.pgrid{grid-template-columns:1fr}}
-.plan{background:var(--chrome);border:1px solid var(--line);border-radius:var(--r-lg);padding:26px 24px;display:flex;flex-direction:column;gap:14px}
-.plan.hot{border-color:rgba(255,158,69,.55);position:relative}
-.plan.hot::before{content:"人気";position:absolute;top:-10px;left:22px;font-size:10.5px;font-weight:900;color:#16181d;background:var(--accent);border-radius:var(--r);padding:1px 10px;letter-spacing:.14em}
-.plan .pn{font-weight:900;font-size:15.5px}
-.plan .pp{font-weight:900;font-size:29px;font-variant-numeric:tabular-nums;letter-spacing:-.01em}
-.plan .pp small{font-size:12px;color:var(--w45);font-weight:700}
-.plan ul{display:flex;flex-direction:column;gap:8px;font-size:12.5px;color:var(--w85)}
-.plan li{list-style:none;display:flex;gap:9px;align-items:baseline}
-.plan li::before{content:"✓";color:var(--em-light);font-weight:900;flex:none}
-.plan li.mute{color:var(--w45)}
-.plan li.mute::before{content:"—";color:var(--w45)}
-.plan .note{font-size:10.5px;color:var(--w45);margin-top:auto}
+      /* ---- プラン ---- */
+      .plans {
+        padding: 96px 0;
+        border-top: 1px solid var(--line);
+        border-bottom: 1px solid var(--line);
+      }
+      @media (max-width: 760px) {
+        .plans {
+          padding: 56px 0;
+        }
+      }
+      .plans .h2 {
+        text-align: center;
+      }
+      .plans .sub {
+        text-align: center;
+        color: var(--w45);
+        font-size: 12.5px;
+        margin-top: 12px;
+      }
+      .pgrid {
+        margin-top: 40px;
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 14px;
+      }
+      @media (max-width: 760px) {
+        .pgrid {
+          grid-template-columns: 1fr;
+        }
+      }
+      .plan {
+        background: var(--chrome);
+        border: 1px solid var(--line);
+        border-radius: var(--r-lg);
+        padding: 26px 24px;
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+      }
+      .plan.hot {
+        border-color: rgba(255, 158, 69, 0.55);
+        position: relative;
+      }
+      .plan.hot::before {
+        content: "人気";
+        position: absolute;
+        top: -10px;
+        left: 22px;
+        font-size: 10.5px;
+        font-weight: 900;
+        color: #16181d;
+        background: var(--accent);
+        border-radius: var(--r);
+        padding: 1px 10px;
+        letter-spacing: 0.14em;
+      }
+      .plan .pn {
+        font-weight: 900;
+        font-size: 15.5px;
+      }
+      .plan .pp {
+        font-weight: 900;
+        font-size: 29px;
+        font-variant-numeric: tabular-nums;
+        letter-spacing: -0.01em;
+      }
+      .plan .pp small {
+        font-size: 12px;
+        color: var(--w45);
+        font-weight: 700;
+      }
+      .plan ul {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        font-size: 12.5px;
+        color: var(--w85);
+      }
+      .plan li {
+        list-style: none;
+        display: flex;
+        gap: 9px;
+        align-items: baseline;
+      }
+      .plan li::before {
+        content: "✓";
+        color: var(--em-light);
+        font-weight: 900;
+        flex: none;
+      }
+      .plan li.mute {
+        color: var(--w45);
+      }
+      .plan li.mute::before {
+        content: "—";
+        color: var(--w45);
+      }
+      .plan .note {
+        font-size: 10.5px;
+        color: var(--w45);
+        margin-top: auto;
+      }
 
-/* ---- footer ---- */
-.foot{padding:40px 0 60px}
-.foot .wrap{display:flex;flex-wrap:wrap;gap:20px;align-items:center;justify-content:space-between;font-size:12px;color:var(--w45)}
-.foot nav{display:flex;gap:20px;flex-wrap:wrap}
-.foot a:hover{color:var(--w85)}
+      /* ---- footer ---- */
+      .foot {
+        padding: 40px 0 60px;
+      }
+      .foot .wrap {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 20px;
+        align-items: center;
+        justify-content: space-between;
+        font-size: 12px;
+        color: var(--w45);
+      }
+      .foot nav {
+        display: flex;
+        gap: 20px;
+        flex-wrap: wrap;
+      }
+      .foot a:hover {
+        color: var(--w85);
+      }
 
-/* ---- motion ---- */
-.enter{opacity:0;transform:translateY(12px);animation:in .8s var(--ease) forwards}
-.d1{animation-delay:.05s}.d2{animation-delay:.16s}.d3{animation-delay:.27s}.d4{animation-delay:.4s}
-@keyframes in{to{opacity:1;transform:none}}
-.rv{opacity:0;transform:translateY(16px);transition:opacity .65s var(--ease),transform .65s var(--ease)}
-.rv.on{opacity:1;transform:none}
-@media (prefers-reduced-motion:reduce){
-  .enter,.rv{opacity:1;transform:none;animation:none;transition:none}
-  .felt .scan{animation:none;display:none}
-  html{scroll-behavior:auto}
-}
-</style>
-</head>
-<body>
-
-<header class="nav">
-  <div class="wrap">
-    <a class="brand" href="#"><span class="star">★</span>RIGEL</a>
-    <nav class="navlinks">
-      <a href="#features">できること</a>
-      <a href="#plans">プラン</a>
-      <a href="/kifu">公開牌譜</a>
-      <a href="/problems">何切る</a>
-    </nav>
-    <span class="sp"></span>
-    <a class="navsign" href="/login">サインイン</a>
-  </div>
-</header>
-
-<!-- hero: 左寄せ見出し + 実プロダクトUI（Linear 型の product-led hero） -->
-<section class="hero">
-  <div class="wrap">
-    <div>
-      <span class="kicker enter d1">雀力を高める — 麻雀をさらに奥深く</span>
-      <h1 class="h1 enter d1">麻雀の記録を、<br /><em>撮るだけ</em>で。</h1>
-      <p class="lead enter d2">
-        実卓の写真から、AI が盤面を牌譜に再現。<b>残す・振り返る・出題する・鍛える</b>まで、これひとつ
-      </p>
-      <div class="cta enter d3">
-        <a class="btn primary" href="/login">無料ではじめる</a>
-        <a class="btn ghost" href="/kifu">サインインせずに見る</a>
+      /* ---- motion ---- */
+      .enter {
+        opacity: 0;
+        transform: translateY(12px);
+        animation: in 0.8s var(--ease) forwards;
+      }
+      .d1 {
+        animation-delay: 0.05s;
+      }
+      .d2 {
+        animation-delay: 0.16s;
+      }
+      .d3 {
+        animation-delay: 0.27s;
+      }
+      .d4 {
+        animation-delay: 0.4s;
+      }
+      @keyframes in {
+        to {
+          opacity: 1;
+          transform: none;
+        }
+      }
+      .rv {
+        opacity: 0;
+        transform: translateY(16px);
+        transition:
+          opacity 0.65s var(--ease),
+          transform 0.65s var(--ease);
+      }
+      .rv.on {
+        opacity: 1;
+        transform: none;
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .enter,
+        .rv {
+          opacity: 1;
+          transform: none;
+          animation: none;
+          transition: none;
+        }
+        .felt .scan {
+          animation: none;
+          display: none;
+        }
+        html {
+          scroll-behavior: auto;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header class="nav">
+      <div class="wrap">
+        <a class="brand" href="#"><span class="star">★</span>RIGEL</a>
+        <nav class="navlinks">
+          <a href="#features">できること</a>
+          <a href="#plans">プラン</a>
+          <a href="/kifu">公開牌譜</a>
+          <a href="/problems">何切る</a>
+        </nav>
+        <span class="sp"></span>
+        <a class="navsign" href="/login">サインイン</a>
       </div>
-      <p class="fine enter d3">Google / Apple でサインイン ・ 閲覧は登録なしでも OK</p>
-    </div>
+    </header>
 
-    <!-- 実際の牌譜ビューアのスクリーンショット風（実装時は本物のUI/実データで） -->
-    <div class="enter d4">
-      <div class="shot" aria-hidden="true">
-        <div class="bar"><b>7/28 友人戦</b><span>東一局 0本場</span><span class="live">AI 再現</span></div>
-        <div class="feltwrap">
-          <div class="felt">
-            <div class="scan"></div>
-            <div class="rowH top"><span class="t"></span><span class="t"></span><span class="t"></span><span class="t"></span><span class="t"></span><span class="t"></span><span class="t"></span><span class="t"></span></div>
-            <div class="rowH bottom"><span class="t"></span><span class="t"></span><span class="t"></span><span class="t"></span><span class="t"></span><span class="t"></span><span class="t"></span><span class="t"></span></div>
-            <div class="rowV left"><span class="t"></span><span class="t"></span><span class="t"></span><span class="t"></span><span class="t"></span></div>
-            <div class="rowV right"><span class="t"></span><span class="t"></span><span class="t"></span><span class="t"></span><span class="t"></span></div>
-            <div class="fc"><span>東一局</span><span class="t man" style="width:18px;height:25px"><b>東</b></span></div>
-            <div class="riv">
-              <span class="t man"><b>三</b></span>
-              <span class="t red"><b>中</b></span>
-              <span class="t sou"><b>發</b></span>
-              <span class="t man"><b>七</b></span>
-              <span class="t pin"><b>②</b></span>
+    <!-- hero: 左寄せ見出し + 実プロダクトUI（Linear 型の product-led hero） -->
+    <section class="hero">
+      <div class="wrap">
+        <div>
+          <span class="kicker enter d1">雀力を高める — 麻雀をさらに奥深く</span>
+          <h1 class="h1 enter d1">麻雀の記録を、<br /><em>撮るだけ</em>で。</h1>
+          <p class="lead enter d2">
+            実卓の写真から、AI
+            が盤面を牌譜に再現。<b>残す・振り返る・出題する・鍛える</b>まで、これひとつ
+          </p>
+          <div class="cta enter d3">
+            <a class="btn primary" href="/login">無料ではじめる</a>
+            <a class="btn ghost" href="/kifu">サインインせずに見る</a>
+          </div>
+          <p class="fine enter d3">Google / Apple でサインイン ・ 閲覧は登録なしでも OK</p>
+        </div>
+
+        <!-- 実際の牌譜ビューアのスクリーンショット風（実装時は本物のUI/実データで） -->
+        <div class="enter d4">
+          <div class="shot" aria-hidden="true">
+            <div class="bar">
+              <b>7/28 友人戦</b><span>東一局 0本場</span><span class="live">AI 再現</span>
+            </div>
+            <div class="feltwrap">
+              <div class="felt">
+                <div class="scan"></div>
+                <div class="rowH top">
+                  <span class="t"></span><span class="t"></span><span class="t"></span
+                  ><span class="t"></span><span class="t"></span><span class="t"></span
+                  ><span class="t"></span><span class="t"></span>
+                </div>
+                <div class="rowH bottom">
+                  <span class="t"></span><span class="t"></span><span class="t"></span
+                  ><span class="t"></span><span class="t"></span><span class="t"></span
+                  ><span class="t"></span><span class="t"></span>
+                </div>
+                <div class="rowV left">
+                  <span class="t"></span><span class="t"></span><span class="t"></span
+                  ><span class="t"></span><span class="t"></span>
+                </div>
+                <div class="rowV right">
+                  <span class="t"></span><span class="t"></span><span class="t"></span
+                  ><span class="t"></span><span class="t"></span>
+                </div>
+                <div class="fc">
+                  <span>東一局</span
+                  ><span class="t man" style="width: 18px; height: 25px"><b>東</b></span>
+                </div>
+                <div class="riv">
+                  <span class="t man"><b>三</b></span>
+                  <span class="t red"><b>中</b></span>
+                  <span class="t sou"><b>發</b></span>
+                  <span class="t man"><b>七</b></span>
+                  <span class="t pin"><b>②</b></span>
+                </div>
+              </div>
+            </div>
+            <div class="foot">
+              <span class="pillbtn">手順再生 ▸</span><span class="pillbtn">局送り ›</span
+              ><span class="warn">要確認 1</span>
+            </div>
+          </div>
+          <p class="srccap">
+            <span class="cam">📷 卓の写真</span
+            ><svg viewBox="0 0 34 12"><path d="M1 6h30M26 2l5 4-5 4" /></svg>この盤面に
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- 事実ベースの信頼ストリップ -->
+    <section class="trust">
+      <div class="wrap">
+        <div class="ti"><b>撮影画像は保存しません</b>残るのは牌譜データだけ</div>
+        <div class="ti"><b>Mリーグ・天鳳ルール対応</b>点数計算までプリセットで</div>
+        <div class="ti"><b>iOS・Android・Web</b>アカウントとプランは共通</div>
+      </div>
+    </section>
+
+    <!-- bento: 四風の機能カード + 補助カード -->
+    <section class="bento" id="features">
+      <div class="wrap">
+        <div class="bhead rv">
+          <h2 class="h2">打ったあとは、<em>ぜんぶ</em>ここで</h2>
+          <p>記録・共有・出題・特訓の4本柱 — 東・南・西・北</p>
+        </div>
+        <div class="grid">
+          <div class="card c4 rv">
+            <span class="wind"><span class="wtile">東</span><span class="wl">牌譜化</span></span>
+            <h3>撮れば、<em>盤面になる</em></h3>
+            <p>
+              配牌・河・鳴きまで AI
+              がドラフト化。迷った牌は「要確認」で残るから、直すのは怪しい所だけ。点数計算まで自動
+            </p>
+            <div class="mini">
+              <div class="readrow">
+                <span class="t man"><b>一</b></span
+                ><span class="t man"><b>二</b></span
+                ><span class="t man"><b>三</b></span> <span class="t pin"><b>④</b></span
+                ><span class="t pin"><b>⑤</b></span
+                ><span class="t unk"><b>?</b></span> <span class="t sou"><b>７</b></span
+                ><span class="t sou"><b>８</b></span
+                ><span class="t sou"><b>９</b></span> <span class="t red"><b>中</b></span
+                ><span class="t red"><b>中</b></span>
+              </div>
+              <p class="readnote"><span class="badge">要確認 1</span>読めなかった牌だけ直す</p>
+            </div>
+          </div>
+
+          <div class="card c2 rv">
+            <span class="wind"
+              ><span class="wtile">南</span><span class="wl">公開・共有</span></span
+            >
+            <h3>リンクひとつで<em>共有</em></h3>
+            <p>URL で誰でも閲覧、SNS には盤面サムネ付き。非公開も選べる</p>
+            <div class="mini">
+              <div class="linkrow">🔗 <b>rigel.plaria.co.jp</b>/k/9x2…</div>
+              <div class="ogm">
+                <span><b>7/28 友人戦</b> ・ 南四局</span><span class="favc">★ 12</span>
+              </div>
+            </div>
+            <a class="more" href="/kifu">公開牌譜を見る →</a>
+          </div>
+
+          <div class="card c3 rv">
+            <span class="wind"><span class="wtile">西</span><span class="wl">何切る</span></span>
+            <h3>その一打、<em>みんなの答え</em>と</h3>
+            <p>
+              牌譜から数タップで出題。回答すると分布が開き、感覚の立ち位置が分かる。回答ログは雀力の記録に
+            </p>
+            <div class="mini">
+              <div class="hand">
+                <span class="t man"><b>二</b></span
+                ><span class="t man"><b>三</b></span
+                ><span class="t man"><b>四</b></span> <span class="t pin"><b>④</b></span
+                ><span class="t pin"><b>⑤</b></span
+                ><span class="t pin"><b>⑥</b></span> <span class="t sou"><b>３</b></span
+                ><span class="t sou"><b>４</b></span
+                ><span class="t sou"><b>６</b></span
+                ><span class="t sou"><b>７</b></span> <span class="t man"><b>八</b></span
+                ><span class="t man pick"><b>八</b></span
+                ><span class="t red"><b>發</b></span
+                ><span class="t red"><b>發</b></span>
+              </div>
+              <div class="dist">
+                <div class="row win">
+                  <span class="t man"><b>八</b></span
+                  ><span class="bar"><i style="width: 58%"></i></span><span class="pc">58%</span>
+                </div>
+                <div class="row">
+                  <span class="t sou"><b>６</b></span
+                  ><span class="bar"><i style="width: 27%"></i></span><span class="pc">27%</span>
+                </div>
+              </div>
+            </div>
+            <a class="more" href="/problems">公開の何切るを解く →</a>
+          </div>
+
+          <div class="card c3 rv">
+            <span class="wind"><span class="wtile">北</span><span class="wl">特訓</span></span>
+            <h3>60秒で、<em>手を速く</em></h3>
+            <p>清一色の待ち当て・牌効率をタイムアタックで反復。種目別グラフで伸びが見える</p>
+            <div class="mini">
+              <div class="tr">
+                <div class="ring">
+                  <svg viewBox="0 0 78 78">
+                    <circle cx="39" cy="39" r="33" fill="none" stroke="#23262e" stroke-width="6" />
+                    <circle
+                      cx="39"
+                      cy="39"
+                      r="33"
+                      fill="none"
+                      stroke="#ff9e45"
+                      stroke-width="6"
+                      stroke-linecap="round"
+                      stroke-dasharray="207"
+                      stroke-dashoffset="66"
+                    />
+                  </svg>
+                  <div class="rl"><b>42</b><span>SEC</span></div>
+                </div>
+                <div class="chart" aria-hidden="true">
+                  <svg viewBox="0 0 220 78" preserveAspectRatio="none">
+                    <line x1="0" y1="20" x2="220" y2="20" stroke="rgba(245,246,247,.08)" />
+                    <line x1="0" y1="44" x2="220" y2="44" stroke="rgba(245,246,247,.08)" />
+                    <line x1="0" y1="68" x2="220" y2="68" stroke="rgba(245,246,247,.08)" />
+                    <path
+                      d="M0 78 L0 60 L36 57 L72 62 L108 46 L144 40 L180 28 L208 17 L208 78 Z"
+                      fill="rgba(62,196,135,.14)"
+                    />
+                    <polyline
+                      points="0,60 36,57 72,62 108,46 144,40 180,28 208,17"
+                      fill="none"
+                      stroke="#3ec487"
+                      stroke-width="2.5"
+                      stroke-linejoin="round"
+                      stroke-linecap="round"
+                    />
+                    <circle
+                      cx="208"
+                      cy="17"
+                      r="4"
+                      fill="#3ec487"
+                      stroke="#16181d"
+                      stroke-width="2.5"
+                    />
+                  </svg>
+                </div>
+              </div>
+              <div class="chips">
+                <span class="chip on">清一色 何待ち</span>
+                <span class="chip">牌効率</span>
+                <span class="chip">点数計算</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="card c3 appcard rv">
+            <h3>撮影はアプリから</h3>
+            <p>卓のそばで撮って、そのまま牌譜に。アカウントは web と共通</p>
+            <!-- 実装時は Apple / Google 公式バッジ素材に差し替える -->
+            <div class="stores">
+              <a class="store" href="#"
+                ><span class="si"></span
+                ><span class="st"><small>Download on the</small><b>App Store</b></span></a
+              >
+              <a class="store" href="#"
+                ><span class="si">▷</span
+                ><span class="st"><small>GET IT ON</small><b>Google Play</b></span></a
+              >
+            </div>
+          </div>
+
+          <div class="card c3 startcard rv">
+            <h3>まずは、見てみる</h3>
+            <p>公開牌譜と何切るはサインインなしで閲覧 OK</p>
+            <div class="cta" style="justify-content: center; margin-top: 4px">
+              <a class="btn primary" href="/login">無料ではじめる</a>
+              <a class="btn ghost" href="/kifu">公開牌譜を見る</a>
             </div>
           </div>
         </div>
-        <div class="foot"><span class="pillbtn">手順再生 ▸</span><span class="pillbtn">局送り ›</span><span class="warn">要確認 1</span></div>
       </div>
-      <p class="srccap"><span class="cam">📷 卓の写真</span><svg viewBox="0 0 34 12"><path d="M1 6h30M26 2l5 4-5 4"/></svg>この盤面に</p>
-    </div>
-  </div>
-</section>
+    </section>
 
-<!-- 事実ベースの信頼ストリップ -->
-<section class="trust">
-  <div class="wrap">
-    <div class="ti"><b>撮影画像は保存しません</b>残るのは牌譜データだけ</div>
-    <div class="ti"><b>Mリーグ・天鳳ルール対応</b>点数計算までプリセットで</div>
-    <div class="ti"><b>iOS・Android・Web</b>アカウントとプランは共通</div>
-  </div>
-</section>
-
-<!-- bento: 四風の機能カード + 補助カード -->
-<section class="bento" id="features">
-  <div class="wrap">
-    <div class="bhead rv">
-      <h2 class="h2">打ったあとは、<em>ぜんぶ</em>ここで</h2>
-      <p>記録・共有・出題・特訓の4本柱 — 東・南・西・北</p>
-    </div>
-    <div class="grid">
-
-      <div class="card c4 rv">
-        <span class="wind"><span class="wtile">東</span><span class="wl">牌譜化</span></span>
-        <h3>撮れば、<em>盤面になる</em></h3>
-        <p>配牌・河・鳴きまで AI がドラフト化。迷った牌は「要確認」で残るから、直すのは怪しい所だけ。点数計算まで自動</p>
-        <div class="mini">
-          <div class="readrow">
-            <span class="t man"><b>一</b></span><span class="t man"><b>二</b></span><span class="t man"><b>三</b></span>
-            <span class="t pin"><b>④</b></span><span class="t pin"><b>⑤</b></span><span class="t unk"><b>?</b></span>
-            <span class="t sou"><b>７</b></span><span class="t sou"><b>８</b></span><span class="t sou"><b>９</b></span>
-            <span class="t red"><b>中</b></span><span class="t red"><b>中</b></span>
+    <!-- プラン -->
+    <section class="plans rv" id="plans">
+      <div class="wrap">
+        <h2 class="h2">見る・解く・鍛えるは、ずっと無料</h2>
+        <p class="sub">AI 再現（写真からの牌譜化）は有料プランで ・ 価格は web のもの</p>
+        <div class="pgrid">
+          <div class="plan">
+            <span class="pn">Free</span>
+            <span class="pp">¥0<small> / 月</small></span>
+            <ul>
+              <li>公開牌譜・何切るの閲覧と回答</li>
+              <li>特訓（60秒タイムアタック）</li>
+              <li>手入力での牌譜作成・保存（非公開5・下書き5半荘）</li>
+              <li class="mute">写真からの AI 再現</li>
+            </ul>
           </div>
-          <p class="readnote"><span class="badge">要確認 1</span>読めなかった牌だけ直す</p>
-        </div>
-      </div>
-
-      <div class="card c2 rv">
-        <span class="wind"><span class="wtile">南</span><span class="wl">公開・共有</span></span>
-        <h3>リンクひとつで<em>共有</em></h3>
-        <p>URL で誰でも閲覧、SNS には盤面サムネ付き。非公開も選べる</p>
-        <div class="mini">
-          <div class="linkrow">🔗 <b>rigel.plaria.co.jp</b>/k/9x2…</div>
-          <div class="ogm"><span><b>7/28 友人戦</b> ・ 南四局</span><span class="favc">★ 12</span></div>
-        </div>
-        <a class="more" href="/kifu">公開牌譜を見る →</a>
-      </div>
-
-      <div class="card c3 rv">
-        <span class="wind"><span class="wtile">西</span><span class="wl">何切る</span></span>
-        <h3>その一打、<em>みんなの答え</em>と</h3>
-        <p>牌譜から数タップで出題。回答すると分布が開き、感覚の立ち位置が分かる。回答ログは雀力の記録に</p>
-        <div class="mini">
-          <div class="hand">
-            <span class="t man"><b>二</b></span><span class="t man"><b>三</b></span><span class="t man"><b>四</b></span>
-            <span class="t pin"><b>④</b></span><span class="t pin"><b>⑤</b></span><span class="t pin"><b>⑥</b></span>
-            <span class="t sou"><b>３</b></span><span class="t sou"><b>４</b></span><span class="t sou"><b>６</b></span><span class="t sou"><b>７</b></span>
-            <span class="t man"><b>八</b></span><span class="t man pick"><b>八</b></span><span class="t red"><b>發</b></span><span class="t red"><b>發</b></span>
+          <div class="plan hot">
+            <span class="pn">RIGEL Next</span>
+            <span class="pp">¥480<small> / 月</small></span>
+            <ul>
+              <li>AI 再現 月100回</li>
+              <li>保存無制限（非公開・下書き）</li>
+              <li>Free の全機能</li>
+            </ul>
+            <span class="note">セット卓なら月2〜3回の麻雀会ぶん</span>
           </div>
-          <div class="dist">
-            <div class="row win"><span class="t man"><b>八</b></span><span class="bar"><i style="width:58%"></i></span><span class="pc">58%</span></div>
-            <div class="row"><span class="t sou"><b>６</b></span><span class="bar"><i style="width:27%"></i></span><span class="pc">27%</span></div>
-          </div>
-        </div>
-        <a class="more" href="/problems">公開の何切るを解く →</a>
-      </div>
-
-      <div class="card c3 rv">
-        <span class="wind"><span class="wtile">北</span><span class="wl">特訓</span></span>
-        <h3>60秒で、<em>手を速く</em></h3>
-        <p>清一色の待ち当て・牌効率をタイムアタックで反復。種目別グラフで伸びが見える</p>
-        <div class="mini">
-          <div class="tr">
-            <div class="ring">
-              <svg viewBox="0 0 78 78">
-                <circle cx="39" cy="39" r="33" fill="none" stroke="#23262e" stroke-width="6"/>
-                <circle cx="39" cy="39" r="33" fill="none" stroke="#ff9e45" stroke-width="6" stroke-linecap="round" stroke-dasharray="207" stroke-dashoffset="66"/>
-              </svg>
-              <div class="rl"><b>42</b><span>SEC</span></div>
-            </div>
-            <div class="chart" aria-hidden="true">
-              <svg viewBox="0 0 220 78" preserveAspectRatio="none">
-                <line x1="0" y1="20" x2="220" y2="20" stroke="rgba(245,246,247,.08)"/>
-                <line x1="0" y1="44" x2="220" y2="44" stroke="rgba(245,246,247,.08)"/>
-                <line x1="0" y1="68" x2="220" y2="68" stroke="rgba(245,246,247,.08)"/>
-                <path d="M0 78 L0 60 L36 57 L72 62 L108 46 L144 40 L180 28 L208 17 L208 78 Z" fill="rgba(62,196,135,.14)"/>
-                <polyline points="0,60 36,57 72,62 108,46 144,40 180,28 208,17" fill="none" stroke="#3ec487" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
-                <circle cx="208" cy="17" r="4" fill="#3ec487" stroke="#16181d" stroke-width="2.5"/>
-              </svg>
-            </div>
-          </div>
-          <div class="chips">
-            <span class="chip on">清一色 何待ち</span>
-            <span class="chip">牌効率</span>
-            <span class="chip">点数計算</span>
+          <div class="plan">
+            <span class="pn">RIGEL Pro</span>
+            <span class="pp">¥1,480<small> / 月</small></span>
+            <ul>
+              <li>AI 再現 月320回</li>
+              <li>保存無制限（非公開・下書き）</li>
+              <li>Free の全機能</li>
+            </ul>
+            <span class="note">毎週打つ人・記録係のあなたへ</span>
           </div>
         </div>
       </div>
+    </section>
 
-      <div class="card c3 appcard rv">
-        <h3>撮影はアプリから</h3>
-        <p>卓のそばで撮って、そのまま牌譜に。アカウントは web と共通</p>
-        <!-- 実装時は Apple / Google 公式バッジ素材に差し替える -->
-        <div class="stores">
-          <a class="store" href="#"><span class="si"></span><span class="st"><small>Download on the</small><b>App Store</b></span></a>
-          <a class="store" href="#"><span class="si">▷</span><span class="st"><small>GET IT ON</small><b>Google Play</b></span></a>
-        </div>
+    <footer class="foot">
+      <div class="wrap">
+        <a class="brand" href="#"><span class="star">★</span>RIGEL</a>
+        <nav>
+          <a href="/kifu">公開牌譜</a>
+          <a href="/problems">何切る</a>
+          <a href="/terms">利用規約</a>
+          <a href="/privacy">プライバシーポリシー</a>
+        </nav>
+        <span>© 2026 Plaria</span>
       </div>
+    </footer>
 
-      <div class="card c3 startcard rv">
-        <h3>まずは、見てみる</h3>
-        <p>公開牌譜と何切るはサインインなしで閲覧 OK</p>
-        <div class="cta" style="justify-content:center;margin-top:4px">
-          <a class="btn primary" href="/login">無料ではじめる</a>
-          <a class="btn ghost" href="/kifu">公開牌譜を見る</a>
-        </div>
-      </div>
-
-    </div>
-  </div>
-</section>
-
-<!-- プラン -->
-<section class="plans rv" id="plans">
-  <div class="wrap">
-    <h2 class="h2">見る・解く・鍛えるは、ずっと無料</h2>
-    <p class="sub">AI 再現（写真からの牌譜化）は有料プランで ・ 価格は web のもの</p>
-    <div class="pgrid">
-      <div class="plan">
-        <span class="pn">Free</span>
-        <span class="pp">¥0<small> / 月</small></span>
-        <ul>
-          <li>公開牌譜・何切るの閲覧と回答</li>
-          <li>特訓（60秒タイムアタック）</li>
-          <li>手入力での牌譜作成・保存（非公開5・下書き5半荘）</li>
-          <li class="mute">写真からの AI 再現</li>
-        </ul>
-      </div>
-      <div class="plan hot">
-        <span class="pn">RIGEL Next</span>
-        <span class="pp">¥480<small> / 月</small></span>
-        <ul>
-          <li>AI 再現 月100回</li>
-          <li>保存無制限（非公開・下書き）</li>
-          <li>Free の全機能</li>
-        </ul>
-        <span class="note">セット卓なら月2〜3回の麻雀会ぶん</span>
-      </div>
-      <div class="plan">
-        <span class="pn">RIGEL Pro</span>
-        <span class="pp">¥1,480<small> / 月</small></span>
-        <ul>
-          <li>AI 再現 月320回</li>
-          <li>保存無制限（非公開・下書き）</li>
-          <li>Free の全機能</li>
-        </ul>
-        <span class="note">毎週打つ人・記録係のあなたへ</span>
-      </div>
-    </div>
-  </div>
-</section>
-
-<footer class="foot">
-  <div class="wrap">
-    <a class="brand" href="#"><span class="star">★</span>RIGEL</a>
-    <nav>
-      <a href="/kifu">公開牌譜</a>
-      <a href="/problems">何切る</a>
-      <a href="/terms">利用規約</a>
-      <a href="/privacy">プライバシーポリシー</a>
-    </nav>
-    <span>© 2026 Plaria</span>
-  </div>
-</footer>
-
-<script>
-const io = new IntersectionObserver((es) => {
-  for (const e of es) if (e.isIntersecting) { e.target.classList.add("on"); io.unobserve(e.target); }
-}, { threshold: 0.12 });
-document.querySelectorAll(".rv").forEach((el) => io.observe(el));
-</script>
-
-</body>
+    <script>
+      const io = new IntersectionObserver(
+        (es) => {
+          for (const e of es)
+            if (e.isIntersecting) {
+              e.target.classList.add("on");
+              io.unobserve(e.target);
+            }
+        },
+        { threshold: 0.12 },
+      );
+      document.querySelectorAll(".rv").forEach((el) => io.observe(el));
+    </script>
+  </body>
 </html>
