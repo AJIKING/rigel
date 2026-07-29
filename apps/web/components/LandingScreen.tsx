@@ -1,7 +1,7 @@
 "use client";
 
 import { KifuSchema } from "@rigel/schema";
-import { collectReviewItems, type QuizDayPoint } from "@rigel/ui";
+import { type QuizDayPoint } from "@rigel/ui";
 import Link from "next/link";
 import { useEffect, useRef } from "react";
 import { useBoardScale } from "../lib/use-board-scale";
@@ -78,7 +78,6 @@ const HERO_KIFU = KifuSchema.parse({
     },
   },
 });
-const HERO_REVIEWS = collectReviewItems(HERO_KIFU).length;
 
 /** 何切るカードの手牌（実牌アセットで描く。八萬（ツモ）が選択中）。 */
 const NANIKIRU_HAND = [
@@ -229,11 +228,6 @@ export function LandingScreen() {
             {/* 実部品 ViewBoard（テーマ変数はボード用をローカル供給）。 */}
             <div className={`${s.enter} ${s.d4}`}>
               <div className={s.shot}>
-                <div className={s.shotBar}>
-                  <b>7/28 友人戦</b>
-                  <span>東一局 0本場</span>
-                  <span className={s.shotAi}>AI 再現</span>
-                </div>
                 <div className={`${s.boardVars} ${s.boardWrap}`} ref={boardRef}>
                   <ViewBoard
                     kifu={HERO_KIFU}
@@ -247,11 +241,6 @@ export function LandingScreen() {
                       </div>
                     }
                   />
-                </div>
-                <div className={s.shotFoot}>
-                  <span className={s.shotBtn}>手順再生 ▸</span>
-                  <span className={s.shotBtn}>局送り ›</span>
-                  <span className={s.shotWarn}>要確認 {HERO_REVIEWS}</span>
                 </div>
               </div>
               <p className={s.srcCap}>
@@ -370,41 +359,6 @@ export function LandingScreen() {
                   />
                 </div>
               </div>
-
-              <div className={`${s.card} ${s.c3} ${s.appCard} ${s.rv}`}>
-                <h3>撮影はアプリから</h3>
-                <p>卓のそばで撮って、そのまま牌譜に。アカウントは web と共通</p>
-                {/* TODO(store): 公開後に Apple / Google の公式バッジ素材とストアURLへ差し替える。 */}
-                <div className={s.stores}>
-                  <span className={s.store}>
-                    <span className={s.storeIcon}></span>
-                    <span className={s.storeText}>
-                      <small>Download on the</small>
-                      <b>App Store</b>
-                    </span>
-                  </span>
-                  <span className={s.store}>
-                    <span className={s.storeIcon}>▷</span>
-                    <span className={s.storeText}>
-                      <small>GET IT ON</small>
-                      <b>Google Play</b>
-                    </span>
-                  </span>
-                </div>
-              </div>
-
-              <div className={`${s.card} ${s.c3} ${s.startCard} ${s.rv}`}>
-                <h3>まずは、見てみる</h3>
-                <p>公開牌譜と何切るはサインインなしで閲覧 OK</p>
-                <div className={s.ctaCenter}>
-                  <Link className={s.btnPrimary} href="/login">
-                    無料ではじめる
-                  </Link>
-                  <Link className={s.btnGhost} href="/kifu">
-                    公開牌譜を見る
-                  </Link>
-                </div>
-              </div>
             </div>
           </div>
         </section>
@@ -447,6 +401,42 @@ export function LandingScreen() {
                   <li>Free の全機能</li>
                 </ul>
               </div>
+            </div>
+          </div>
+        </section>
+
+        {/* 締めの CTA とアプリ導線（カードにはしない）。 */}
+        <section className={`${s.closing} ${s.rv}`}>
+          <div className={s.closingIn}>
+            <h2 className={s.h2}>まずは、見てみる</h2>
+            <p className={s.closingSub}>公開牌譜と何切るはサインインなしで閲覧 OK</p>
+            <div className={s.ctaCenter}>
+              <Link className={s.btnPrimary} href="/login">
+                無料ではじめる
+              </Link>
+              <Link className={s.btnGhost} href="/kifu">
+                公開牌譜を見る
+              </Link>
+            </div>
+            <p className={s.appsCap}>
+              撮影はアプリから — 卓のそばで撮って、そのまま牌譜に。アカウントは web と共通
+            </p>
+            {/* TODO(store): 公開後に Apple / Google の公式バッジ素材とストアURLへ差し替える。 */}
+            <div className={s.stores}>
+              <span className={s.store}>
+                <span className={s.storeIcon}></span>
+                <span className={s.storeText}>
+                  <small>Download on the</small>
+                  <b>App Store</b>
+                </span>
+              </span>
+              <span className={s.store}>
+                <span className={s.storeIcon}>▷</span>
+                <span className={s.storeText}>
+                  <small>GET IT ON</small>
+                  <b>Google Play</b>
+                </span>
+              </span>
             </div>
           </div>
         </section>
