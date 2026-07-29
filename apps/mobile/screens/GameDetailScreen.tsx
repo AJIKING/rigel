@@ -11,6 +11,7 @@ import {
 import { useCallback, useState } from "react";
 import { FlatList, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { CenterState } from "../components/CenterState";
+import { Chip } from "../components/Chip";
 import { DangerButton } from "../components/DangerButton";
 import { PlayersSheet } from "../components/editor/PlayersSheet";
 import { RulesSheet } from "../components/editor/RulesSheet";
@@ -27,7 +28,7 @@ import {
 import { useAuth } from "../lib/auth";
 import { confirmDestructive } from "../lib/confirm";
 import { fmtDate } from "../lib/format";
-import { colors } from "../lib/theme";
+import { colors, radius } from "../lib/theme";
 import type { RootStackParamList } from "../lib/navigation";
 import { useGame } from "../lib/use-kifu-data";
 
@@ -42,6 +43,9 @@ export function GameDetailScreen() {
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleDraft, setTitleDraft] = useState("");
   const [savingTitle, setSavingTitle] = useState(false);
+  const [editingDate, setEditingDate] = useState(false);
+  const [dateDraft, setDateDraft] = useState("");
+  const [savingDate, setSavingDate] = useState(false);
   const [rulesOpen, setRulesOpen] = useState(false);
   const [playersOpen, setPlayersOpen] = useState(false);
   // 公開範囲・編集状態は半荘単位。楽観更新（失敗で戻す）。null のうちは局の値を使う。
@@ -108,6 +112,26 @@ export function GameDetailScreen() {
       setEditingTitle(false);
       refetch();
     } else setNote("名称の変更に失敗しました");
+  }
+
+  /** 対局日（createdAt）の変更を保存する（YYYY-MM-DD。所有者のみ。一覧の並びにも反映）。 */
+  async function onSaveDate() {
+    if (!token) return;
+    setNote(null);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(dateDraft) || Number.isNaN(Date.parse(dateDraft))) {
+      setNote("日付は YYYY-MM-DD 形式で入力してください");
+      return;
+    }
+    setSavingDate(true);
+    const res = await updateGame(token, gameId, { createdAt: dateDraft }).catch(() => ({
+      ok: false,
+      status: 0,
+    }));
+    setSavingDate(false);
+    if (res.ok) {
+      setEditingDate(false);
+      refetch();
+    } else setNote("対局日の変更に失敗しました");
   }
 
   /** 半荘のルールを保存する（配下の全局に反映。局ごとには持たない）。 */
@@ -204,11 +228,50 @@ export function GameDetailScreen() {
             </Text>
           </Pressable>
         )}
-        <Text style={styles.date}>
-          {fmtDate(detail.game.createdAt)} ／ {detail.logs.length} 局
-        </Text>
-        {/* 公開/非公開・下書き/編集済は半荘単位（配下の全局に反映）。 */}
-        <View style={styles.visRow}>
+        {/* 対局日はタップで編集（YYYY-MM-DD。[決定] 2026-07-29 オーナー要望）。 */}
+        {editingDate ? (
+          <View style={styles.dateEdit}>
+            <TextInput
+              style={styles.dateInput}
+              value={dateDraft}
+              onChangeText={setDateDraft}
+              placeholder="YYYY-MM-DD"
+              placeholderTextColor={colors.w45}
+              autoFocus
+              maxLength={10}
+              keyboardType="numbers-and-punctuation"
+              accessibilityLabel="対局日"
+            />
+            <Pressable
+              onPress={() => void onSaveDate()}
+              disabled={savingDate}
+              accessibilityRole="button"
+              accessibilityLabel="対局日を保存"
+              hitSlop={8}
+            >
+              <Text style={styles.titleSave}>{savingDate ? "…" : "保存"}</Text>
+            </Pressable>
+            <Pressable onPress={() => setEditingDate(false)} accessibilityRole="button" hitSlop={8}>
+              <Text style={styles.titleCancel}>取消</Text>
+            </Pressable>
+          </View>
+        ) : (
+          <Pressable
+            onPress={() => {
+              setDateDraft(detail.game.createdAt.slice(0, 10));
+              setEditingDate(true);
+            }}
+            accessibilityRole="button"
+            accessibilityLabel="対局日を変更"
+          >
+            <Text style={styles.date}>
+              {fmtDate(detail.game.createdAt)} ／ {detail.logs.length} 局{" "}
+              <Text style={styles.editHintSmall}>✎</Text>
+            </Text>
+          </Pressable>
+        )}
+        {/* 公開/非公開・下書き/編集済は半荘単位（配下の全局に反映）。2軸を1行に並べる。 */}
+        <View style={styles.segRow}>
           <Segment
             options={
               [
@@ -219,8 +282,6 @@ export function GameDetailScreen() {
             value={visibility}
             onChange={(v) => void onToggleVis(v)}
           />
-        </View>
-        <View style={styles.visRow}>
           <Segment
             options={
               [
@@ -232,6 +293,8 @@ export function GameDetailScreen() {
             onChange={(v) => void onToggleStatus(v)}
           />
         </View>
+        {/* 操作は1行に統一: 主要アクション（局を追加=アクセント）→ チップ（Chip 共用）→
+            右端に破壊的操作（DangerButton）。radius・高さは他画面のボタンと同じ部品/値。 */}
         <View style={styles.headActions}>
           <Pressable
             style={styles.addBtn}
@@ -241,22 +304,8 @@ export function GameDetailScreen() {
           >
             <Text style={styles.addBtnText}>＋ 局を追加</Text>
           </Pressable>
-          <Pressable
-            style={styles.rulesBtn}
-            onPress={() => setRulesOpen(true)}
-            accessibilityRole="button"
-            accessibilityLabel="ルール設定"
-          >
-            <Text style={styles.rulesBtnText}>⚙ ルール設定</Text>
-          </Pressable>
-          <Pressable
-            style={styles.rulesBtn}
-            onPress={() => setPlayersOpen(true)}
-            accessibilityRole="button"
-            accessibilityLabel="選手情報"
-          >
-            <Text style={styles.rulesBtnText}>👤 選手情報</Text>
-          </Pressable>
+          <Chip label="ルール設定" a11ySelected={false} onPress={() => setRulesOpen(true)} />
+          <Chip label="選手情報" a11ySelected={false} onPress={() => setPlayersOpen(true)} />
           <View style={styles.delWrap}>
             <DangerButton label="半荘を削除" onPress={onDeleteGame} />
           </View>
@@ -343,10 +392,20 @@ const styles = StyleSheet.create({
   titleSave: { color: colors.accent, fontWeight: "800", fontSize: 13 },
   titleCancel: { color: colors.w45, fontWeight: "700", fontSize: 13 },
   date: { color: colors.w45, fontSize: 12, marginTop: 2 },
-  // Segment はボタンが flex:1 で「親の幅」に広がる設計。alignSelf:"flex-start"（内容幅に
-  // 縮むラッパー）に入れると幅がゼロに潰れて表示が崩れるため、幅を確保した行にする。
-  visRow: { marginTop: 10, flexDirection: "row", maxWidth: 240 },
-  // ボタン3つは狭い画面・大きめ文字で1行に収まらないことがあるため折返しを許可する。
+  editHintSmall: { color: colors.accent, fontSize: 11 },
+  dateEdit: { flexDirection: "row", alignItems: "center", gap: 12, marginTop: 2 },
+  dateInput: {
+    color: colors.white,
+    fontSize: 13,
+    fontVariant: ["tabular-nums"],
+    borderBottomWidth: 1,
+    borderBottomColor: colors.accent,
+    paddingVertical: 2,
+    minWidth: 120,
+  },
+  // Segment はボタンが flex:1 で「親の幅」に広がる設計。2軸（公開/編集状態）を1行で半々に。
+  segRow: { marginTop: 10, flexDirection: "row", gap: 8 },
+  // ボタンは狭い画面・大きめ文字で1行に収まらないことがあるため折返しを許可する。
   headActions: {
     flexDirection: "row",
     flexWrap: "wrap",
@@ -354,24 +413,14 @@ const styles = StyleSheet.create({
     gap: 8,
     marginTop: 10,
   },
+  // 主要アクション（アクセント塗り）。radius・高さはマイページの＋新規と同じ流儀。
   addBtn: {
-    paddingVertical: 9,
-    paddingHorizontal: 16,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: colors.accent,
-    backgroundColor: colors.accentSoft,
-  },
-  addBtnText: { color: colors.accent, fontWeight: "800", fontSize: 13 },
-  rulesBtn: {
-    paddingVertical: 9,
+    paddingVertical: 8,
     paddingHorizontal: 14,
-    borderRadius: 8,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.line,
-    backgroundColor: colors.chrome2,
+    borderRadius: radius.base,
+    backgroundColor: colors.accent,
   },
-  rulesBtnText: { color: colors.w70, fontWeight: "700", fontSize: 12.5 },
+  addBtnText: { color: "#16181d", fontWeight: "800", fontSize: 13 },
   delWrap: { marginLeft: "auto" },
   note: { color: colors.vermilion, fontSize: 12, marginTop: 8 },
   card: {

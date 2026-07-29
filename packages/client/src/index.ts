@@ -262,11 +262,12 @@ export interface ApiClient {
   deleteKifu(token: string, logId: string): Promise<{ ok: boolean; status: number }>;
   /** 半荘を配下の全局ごと削除する（所有者のみ）。成否を返す。 */
   deleteGame(token: string, gameId: string): Promise<{ ok: boolean; status: number }>;
-  /** 半荘名を変更する（所有者のみ）。成否を返す。 */
+  /** 半荘名・対局日を変更する（所有者のみ・少なくとも一方）。
+   *  createdAt は "YYYY-MM-DD" か ISO 日時。成否を返す。 */
   updateGame(
     token: string,
     gameId: string,
-    input: { title: string },
+    input: { title?: string; createdAt?: string },
   ): Promise<{ ok: boolean; status: number }>;
   /** 半荘のルールを変更する（配下の全局に反映。所有者のみ）。成否を返す。 */
   updateGameRules(

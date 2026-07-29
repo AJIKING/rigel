@@ -1,5 +1,5 @@
 import { KifuSchema, type Kifu } from "@rigel/schema";
-import { render, screen } from "@testing-library/react-native";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react-native";
 import type { GameDetail } from "../lib/api";
 import { GameDetailScreen } from "./GameDetailScreen";
 
@@ -81,5 +81,60 @@ describe("GameDetailScreen（半荘詳細の局一覧）", () => {
     mockUseGame.mockReturnValue({ loading: false, detail, refetch: jest.fn() });
     render(<GameDetailScreen />);
     expect(screen.getByText("要確認 1")).toBeTruthy();
+  });
+});
+
+describe("GameDetailScreen（対局日の編集）", () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  function renderWith() {
+    const refetch = jest.fn();
+    mockUseGame.mockReturnValue({
+      loading: false,
+      detail: makeDetail([{ id: "l1", seq: 1 }]),
+      refetch,
+    });
+    render(<GameDetailScreen />);
+    return refetch;
+  }
+
+  it("日付をタップすると YYYY-MM-DD で編集でき、保存で updateGame(createdAt) が呼ばれる", async () => {
+    const api = jest.requireMock("../lib/api") as { updateGame: jest.Mock };
+    api.updateGame.mockResolvedValue({ ok: true, status: 200 });
+    const refetch = renderWith();
+
+    fireEvent.press(screen.getByLabelText("対局日を変更"));
+    const input = screen.getByLabelText("対局日");
+    expect(input.props.value).toBe("2026-07-01");
+
+    fireEvent.changeText(input, "2026-06-28");
+    fireEvent.press(screen.getByLabelText("対局日を保存"));
+
+    await waitFor(() =>
+      expect(api.updateGame).toHaveBeenCalledWith("t", "g1", { createdAt: "2026-06-28" }),
+    );
+    await waitFor(() => expect(refetch).toHaveBeenCalled());
+  });
+
+  it("YYYY-MM-DD 形式でない入力は保存せずエラーを出す", async () => {
+    const api = jest.requireMock("../lib/api") as { updateGame: jest.Mock };
+    renderWith();
+
+    fireEvent.press(screen.getByLabelText("対局日を変更"));
+    fireEvent.changeText(screen.getByLabelText("対局日"), "6/28");
+    fireEvent.press(screen.getByLabelText("対局日を保存"));
+
+    expect(api.updateGame).not.toHaveBeenCalled();
+    expect(await screen.findByText(/YYYY-MM-DD/)).toBeTruthy();
+  });
+
+  it("操作ボタンは絵文字なしの統一ラベルで並ぶ（局を追加/ルール設定/選手情報/半荘を削除）", () => {
+    renderWith();
+
+    expect(screen.getByText("＋ 局を追加")).toBeTruthy();
+    expect(screen.getByText("ルール設定")).toBeTruthy();
+    expect(screen.getByText("選手情報")).toBeTruthy();
+    expect(screen.getByText("半荘を削除")).toBeTruthy();
+    expect(screen.queryByText(/⚙|👤/)).toBeNull();
   });
 });
