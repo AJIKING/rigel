@@ -3,7 +3,8 @@
 import { KifuSchema } from "@rigel/schema";
 import { collectReviewItems, type QuizDayPoint } from "@rigel/ui";
 import Link from "next/link";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
+import { useBoardScale } from "../lib/use-board-scale";
 import { BrandMark } from "./BrandMark";
 import { GameCard } from "./GameCard";
 import { QuizLineChart } from "./mypage/QuizLineChart";
@@ -152,6 +153,10 @@ function TileRow({
 }
 
 export function LandingScreen() {
+  // 盤面はビューアと同じ流儀でコンテナ幅にフィットさせる（固定 scale だと左右が切れる）。
+  const boardRef = useRef<HTMLDivElement>(null);
+  const boardScale = useBoardScale(boardRef, 32);
+
   // 章のスクロール出現（reduced-motion では即時表示）。
   // matchMedia / IntersectionObserver が無い環境（jsdom・古いブラウザ）は即時表示に倒す。
   useEffect(() => {
@@ -209,8 +214,7 @@ export function LandingScreen() {
                 <em>撮るだけ</em>で。
               </h1>
               <p className={`${s.lead} ${s.enter} ${s.d2}`}>
-                実卓の写真から、AI が盤面を牌譜に再現。<b>残す・振り返る・出題する・鍛える</b>
-                まで、これひとつ
+                <b>残す・振り返る・出題する・鍛える</b>まで、これひとつ
               </p>
               <div className={`${s.cta} ${s.enter} ${s.d3}`}>
                 <Link className={s.btnPrimary} href="/login">
@@ -220,9 +224,6 @@ export function LandingScreen() {
                   サインインせずに見る
                 </Link>
               </div>
-              <p className={`${s.fine} ${s.enter} ${s.d3}`}>
-                Google / Apple でサインイン ・ 閲覧は登録なしでも OK
-              </p>
             </div>
 
             {/* 実部品 ViewBoard（テーマ変数はボード用をローカル供給）。 */}
@@ -233,12 +234,12 @@ export function LandingScreen() {
                   <span>東一局 0本場</span>
                   <span className={s.shotAi}>AI 再現</span>
                 </div>
-                <div className={`${s.boardVars} ${s.boardWrap}`}>
+                <div className={`${s.boardVars} ${s.boardWrap}`} ref={boardRef}>
                   <ViewBoard
                     kifu={HERO_KIFU}
                     bottomSeat="east"
                     dealer="east"
-                    scale={0.5}
+                    scale={boardScale}
                     hideOpp
                     center={
                       <div className={s.boardCenter}>
@@ -286,7 +287,6 @@ export function LandingScreen() {
               <h2 className={s.h2}>
                 打ったあとは、<em>ぜんぶ</em>ここで
               </h2>
-              <p>記録・共有・出題・特訓の4本柱 — 東・南・西・北</p>
             </div>
             <div className={s.grid}>
               <div className={`${s.card} ${s.c4} ${s.rv}`}>
@@ -294,18 +294,11 @@ export function LandingScreen() {
                 <h3>
                   撮れば、<em>盤面になる</em>
                 </h3>
-                <p>
-                  配牌・河・鳴きまで AI
-                  がドラフト化。迷った牌は「要確認」で残るから、直すのは怪しい所だけ。点数計算まで自動
-                </p>
                 <div className={s.mini}>
                   <TileRow
                     tiles={["1m", "2m", "3m", "4p", "5p", "5p", "7s", "8s", "9s", "7z", "7z"]}
                     unknownIndex={5}
                   />
-                  <p className={s.readNote}>
-                    <span className={s.reviewBadge}>要確認 1</span>読めなかった牌だけ直す
-                  </p>
                 </div>
               </div>
 
@@ -314,7 +307,6 @@ export function LandingScreen() {
                 <h3>
                   リンクひとつで<em>共有</em>
                 </h3>
-                <p>URL で誰でも閲覧、SNS には盤面サムネ付き。非公開も選べる</p>
                 {/* サービス実装の一覧カードそのもの（GameCard）。 */}
                 <div className={s.gcWrap}>
                   <GameCard
@@ -336,7 +328,6 @@ export function LandingScreen() {
                 <h3>
                   その一打、<em>みんなの答え</em>と
                 </h3>
-                <p>牌譜から数タップで出題。回答すると分布が開き、感覚の立ち位置が分かる</p>
                 <div className={s.mini}>
                   <TileRow tiles={NANIKIRU_HAND} pickIndex={11} />
                   <div className={s.dist}>
@@ -370,7 +361,6 @@ export function LandingScreen() {
                 <h3>
                   60秒で、<em>手を速く</em>
                 </h3>
-                <p>清一色の待ち当て・牌効率をタイムアタックで反復。種目別グラフで伸びが見える</p>
                 {/* サービス実装の特訓グラフそのもの（QuizLineChart）。 */}
                 <div className={s.chartWrap}>
                   <QuizLineChart
@@ -423,9 +413,6 @@ export function LandingScreen() {
         <section className={`${s.plans} ${s.rv}`} id="plans">
           <div className={s.plansIn}>
             <h2 className={s.h2}>見る・解く・鍛えるは、ずっと無料</h2>
-            <p className={s.plansSub}>
-              AI 再現（写真からの牌譜化）は有料プランで ・ 価格は web のもの
-            </p>
             <div className={s.pgrid}>
               <div className={s.plan}>
                 <span className={s.planName}>Free</span>
@@ -436,7 +423,6 @@ export function LandingScreen() {
                   <li>公開牌譜・何切るの閲覧と回答</li>
                   <li>特訓（60秒タイムアタック）</li>
                   <li>手入力での牌譜作成・保存（非公開5・下書き5半荘）</li>
-                  <li className={s.mute}>写真からの AI 再現</li>
                 </ul>
               </div>
               <div className={`${s.plan} ${s.hot}`}>
@@ -449,7 +435,6 @@ export function LandingScreen() {
                   <li>保存無制限（非公開・下書き）</li>
                   <li>Free の全機能</li>
                 </ul>
-                <span className={s.planNote}>セット卓なら月2〜3回の麻雀会ぶん</span>
               </div>
               <div className={s.plan}>
                 <span className={s.planName}>RIGEL Pro</span>
@@ -461,7 +446,6 @@ export function LandingScreen() {
                   <li>保存無制限（非公開・下書き）</li>
                   <li>Free の全機能</li>
                 </ul>
-                <span className={s.planNote}>毎週打つ人・記録係のあなたへ</span>
               </div>
             </div>
           </div>

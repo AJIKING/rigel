@@ -261,8 +261,9 @@
   --seat-lr-pull: 112px;
 }
 .boardWrap {
-  display: grid;
-  place-items: center;
+  /* ⚠️ grid + place-items にすると .stage の width:100% がコンテンツ幅(760px)に解決され
+     右へあふれる（2026-07-29 実測）。block のまま .stage（flex 中央寄せ）に任せる。 */
+  display: block;
   overflow: hidden;
   padding: 10px 0 4px;
   background: linear-gradient(180deg, var(--chrome), #14161b);
