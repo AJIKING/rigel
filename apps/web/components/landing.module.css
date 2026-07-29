@@ -299,22 +299,6 @@
   color: var(--vermilion);
   font-weight: 700;
 }
-.srcCap {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  justify-content: center;
-  margin-top: 14px;
-  font-size: 12px;
-  color: var(--w45);
-}
-.srcCap svg {
-  width: 26px;
-  stroke: var(--w45);
-  stroke-width: 1.6;
-  fill: none;
-  flex: none;
-}
 
 /* ---- trust ---- */
 .trust {

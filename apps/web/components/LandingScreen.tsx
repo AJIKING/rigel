@@ -243,13 +243,6 @@ export function LandingScreen() {
                   />
                 </div>
               </div>
-              <p className={s.srcCap}>
-                <span>📷 卓の写真</span>
-                <svg viewBox="0 0 34 12" aria-hidden="true">
-                  <path d="M1 6h30M26 2l5 4-5 4" />
-                </svg>
-                この盤面に
-              </p>
             </div>
           </div>
         </section>
