@@ -683,10 +683,12 @@
   height: 52px;
   width: auto;
 }
+/* 実測: PNG 646x250・バッジ本体 h=190px（上下に各30pxの透過余白）。
+   Apple の枠 52px に本体高を一致させる → 表示 250*(52/190)=68px、余白 30*(52/190)=8px を打ち消す。 */
 .badgeGoogle img {
-  height: 78px;
+  height: 68px;
   width: auto;
-  margin: -12px;
+  margin: -8px 0;
 }
 /* 締めの CTA 帯（カードにしない）。 */
 .closing {
