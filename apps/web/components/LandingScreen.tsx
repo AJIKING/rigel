@@ -13,7 +13,7 @@ export function LandingScreen() {
         </Link>
         <div className={s.spacer} />
         <Link className={s.navLogin} href="/login">
-          ログイン
+          サインイン
         </Link>
       </nav>
 

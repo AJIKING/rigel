@@ -79,7 +79,7 @@ export function AppHeader({
         </button>
       ) : (
         <Link href="/login" className={s.loginBtn}>
-          ログイン
+          サインイン
         </Link>
       )}
     </header>

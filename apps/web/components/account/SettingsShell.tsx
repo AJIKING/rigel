@@ -57,7 +57,7 @@ export function SettingsShell() {
     return (
       <Shell>
         <p className={s.loginNote}>
-          設定を開くには <Link href="/login">ログイン</Link> してください。
+          設定を開くには <Link href="/login">サインイン</Link> してください。
         </p>
       </Shell>
     );
@@ -209,7 +209,7 @@ export function SettingsShell() {
               className={`${s.btn} ${s.ghost}`}
               onClick={() => void signOut().then(() => router.push("/login"))}
             >
-              ログアウト
+              サインアウト
             </button>
             <button
               className={`${s.btn} ${s.danger}`}

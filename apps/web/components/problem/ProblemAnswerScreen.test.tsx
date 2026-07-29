@@ -200,7 +200,7 @@ describe("ProblemAnswerScreen: 何切る", () => {
 
     expect(await screen.findByText(/あなたの回答/)).toBeTruthy();
     expect(h.answerProblemAction).not.toHaveBeenCalled();
-    expect(screen.getByText(/ログインすると回答分布/)).toBeTruthy();
+    expect(screen.getByText(/サインインすると回答分布/)).toBeTruthy();
   });
 
   it("同じ牌が手牌に2枚あっても、選択枠はタップした1枚だけに付く", async () => {

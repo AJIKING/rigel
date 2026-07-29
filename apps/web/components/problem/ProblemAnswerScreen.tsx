@@ -290,7 +290,7 @@ export function ProblemAnswerScreen({ post }: { post: ProblemPost }) {
             >
               回答する
             </button>
-            {!user && <p className={s.hint}>※ログインすると回答が集計されます。</p>}
+            {!user && <p className={s.hint}>※サインインすると回答が集計されます。</p>}
           </div>
         )}
 
@@ -341,7 +341,7 @@ export function ProblemAnswerScreen({ post }: { post: ProblemPost }) {
               )
             ) : (
               <p className={s.loginCta}>
-                <Link href="/login">ログインすると回答分布が見られます →</Link>
+                <Link href="/login">サインインすると回答分布が見られます →</Link>
               </p>
             )}
           </div>

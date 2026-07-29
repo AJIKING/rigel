@@ -60,7 +60,7 @@ export function AppleSignInButton() {
       // ポップアップを閉じた（キャンセル）はエラー表示しない。
       const code = (e as { error?: string } | null)?.error ?? "";
       if (code !== "popup_closed_by_user" && code !== "user_cancelled_authorize") {
-        setError("ログインに失敗しました");
+        setError("サインインに失敗しました");
       }
     }
   }

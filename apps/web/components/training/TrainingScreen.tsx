@@ -249,7 +249,7 @@ export function TrainingScreen({
           </p>
         ) : !user ? (
           <p className={s.loginNote}>
-            特訓するには <Link href="/login">ログイン</Link> してください。
+            特訓するには <Link href="/login">サインイン</Link> してください。
           </p>
         ) : phase === "select" ? (
           <section>

@@ -12,7 +12,7 @@ describe("LandingScreen", () => {
 
   it("主要導線のリンク先が正しい", () => {
     render(<LandingScreen />);
-    expect(screen.getByRole("link", { name: "ログイン" }).getAttribute("href")).toBe("/login");
+    expect(screen.getByRole("link", { name: "サインイン" }).getAttribute("href")).toBe("/login");
     expect(screen.getByRole("link", { name: /Google ではじめる/ }).getAttribute("href")).toBe(
       "/login",
     );

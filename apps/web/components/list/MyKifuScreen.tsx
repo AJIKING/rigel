@@ -130,7 +130,7 @@ export function MyKifuScreen() {
           <div className={gc.feed}>
             {!user ? (
               <p className={s.loginNote}>
-                自分の牌譜を見るには <Link href="/login">ログイン</Link> してください。
+                自分の牌譜を見るには <Link href="/login">サインイン</Link> してください。
               </p>
             ) : games === null ? (
               <div className={gc.empty}>読み込み中…</div>

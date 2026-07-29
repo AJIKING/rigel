@@ -40,7 +40,7 @@ export function GoogleSignInButton() {
     window.google.accounts.id.initialize({
       client_id: CLIENT_ID,
       callback: (res) => {
-        signInWithGoogle(res.credential).catch(() => setError("ログインに失敗しました"));
+        signInWithGoogle(res.credential).catch(() => setError("サインインに失敗しました"));
       },
     });
     window.google.accounts.id.renderButton(ref.current, {
@@ -56,7 +56,7 @@ export function GoogleSignInButton() {
   }, [ready, signInWithGoogle]);
 
   if (!CLIENT_ID) {
-    return <p className={s.notice}>ただいまログインをご利用いただけません。</p>;
+    return <p className={s.notice}>ただいまサインインをご利用いただけません。</p>;
   }
 
   return (

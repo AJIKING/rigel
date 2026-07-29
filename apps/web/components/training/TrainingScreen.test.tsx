@@ -231,7 +231,7 @@ describe("TrainingScreen: 種目選択", () => {
     renderScreen();
     await flush();
     const note = screen.getByText(/特訓するには/);
-    expect(within(note).getByRole("link", { name: "ログイン" })).toBeTruthy();
+    expect(within(note).getByRole("link", { name: "サインイン" })).toBeTruthy();
     expect(screen.queryByRole("button", { name: /清一色 何待ち/ })).toBeNull();
   });
 

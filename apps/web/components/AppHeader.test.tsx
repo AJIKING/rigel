@@ -18,7 +18,7 @@ describe("AppHeader（ナビは 牌譜・何切る・特訓・マイページ）
     expect(screen.getByRole("link", { name: "何切る" })).toBeTruthy();
     expect(screen.getByRole("link", { name: "特訓" })).toBeTruthy();
     expect(screen.queryByRole("link", { name: "マイページ" })).toBeNull();
-    expect(screen.getByRole("link", { name: "ログイン" })).toBeTruthy();
+    expect(screen.getByRole("link", { name: "サインイン" })).toBeTruthy();
     expect(screen.queryByRole("button", { name: "設定" })).toBeNull();
   });
 
@@ -31,7 +31,7 @@ describe("AppHeader（ナビは 牌譜・何切る・特訓・マイページ）
     const mypage = screen.getByRole("link", { name: "マイページ" });
     expect(mypage.getAttribute("href")).toBe("/mypage");
     expect(screen.getByRole("button", { name: "設定" })).toBeTruthy();
-    expect(screen.queryByRole("link", { name: "ログイン" })).toBeNull();
+    expect(screen.queryByRole("link", { name: "サインイン" })).toBeNull();
   });
 
   it("リンク先: 牌譜=/kifu（公開一覧）・何切る=/problems・特訓=/training", () => {

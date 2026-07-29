@@ -36,11 +36,11 @@ export function LoginScreen() {
           {loading ? (
             <p className={s.status}>読み込み中…</p>
           ) : user ? (
-            <p className={`${s.status} ${s.statusOk}`}>ログイン済みです。移動します…</p>
+            <p className={`${s.status} ${s.statusOk}`}>サインイン済みです。移動します…</p>
           ) : (
             <>
               <p className={s.tagline}>
-                牌譜の保存・共有にはログインが必要です。
+                牌譜の保存・共有にはサインインが必要です。
                 <br />
                 公開牌譜の閲覧はどなたでも可能です。
               </p>
