@@ -1,6 +1,10 @@
-import { render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { render, screen, within } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
 import { LandingScreen } from "./LandingScreen";
+
+// ヘッダーはアプリ共通の AppHeader（useAuth / useRouter 依存）なのでモックする。
+vi.mock("../lib/auth-context", () => ({ useAuth: () => ({ user: null, loading: false }) }));
+vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
 
 // LP v6（2026-07-29 オーナー合意）: product-led hero + 四風の bento。
 // 牌・盤面・グラフ・共有カードはサービス実装の実部品を使う（CSS の見立てにしない）。
@@ -12,6 +16,19 @@ describe("LandingScreen", () => {
     expect(screen.getByText(/雀力を高める/)).toBeTruthy();
     // ブランドはヘッダーとフッターの2箇所。
     expect(screen.getAllByText("RIGEL").length).toBeGreaterThan(0);
+  });
+
+  it("ヘッダーはアプリ共通（AppHeader）＋ LP アンカーで統一する", () => {
+    render(<LandingScreen />);
+    const nav = within(screen.getByRole("banner"));
+    // LP 固有のページ内アンカー。
+    expect(nav.getByRole("link", { name: "できること" }).getAttribute("href")).toBe("#features");
+    expect(nav.getByRole("link", { name: "プラン" }).getAttribute("href")).toBe("#plans");
+    // アプリ共通ナビ（牌譜・何切る・特訓）。
+    expect(nav.getByRole("link", { name: "牌譜" }).getAttribute("href")).toBe("/kifu");
+    expect(nav.getByRole("link", { name: "何切る" }).getAttribute("href")).toBe("/problems");
+    expect(nav.getByRole("link", { name: "特訓" }).getAttribute("href")).toBe("/training");
+    expect(nav.getByRole("link", { name: "サインイン" }).getAttribute("href")).toBe("/login");
   });
 
   it("主要導線のリンク先が正しい", () => {

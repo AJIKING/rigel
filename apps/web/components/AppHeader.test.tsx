@@ -60,6 +60,23 @@ describe("AppHeader（ナビは 牌譜・何切る・特訓・マイページ）
     },
   );
 
+  // LP（トップ）もこの共通ヘッダーを使う。ページ内アンカーは anchors で差し込む。
+  it("anchors: ページ内アンカーをナビの先頭に出す（LP 用）", () => {
+    auth.user = null;
+    render(
+      <AppHeader
+        anchors={[
+          { href: "#features", label: "できること" },
+          { href: "#plans", label: "プラン" },
+        ]}
+      />,
+    );
+    expect(screen.getByRole("link", { name: "できること" }).getAttribute("href")).toBe("#features");
+    expect(screen.getByRole("link", { name: "プラン" }).getAttribute("href")).toBe("#plans");
+    // アンカーがあっても通常ナビは出たまま。
+    expect(screen.getByRole("link", { name: "牌譜" })).toBeTruthy();
+  });
+
   it("active 未指定なら aria-current はどのナビにも付かない", () => {
     auth.user = { id: "u1", plan: "free" };
     render(<AppHeader />);

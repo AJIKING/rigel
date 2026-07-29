@@ -11,11 +11,14 @@ import s from "./app-header.module.css";
  *  - 未ログイン: 牌譜・何切る・特訓のみ。右肩は「ログイン」ボタン（マイページ・アバターは出さない）。
  *  - ログイン中: マイページが加わり、右肩は設定へ飛ぶアバター。
  * `active` で現在地のタブをハイライトする。
+ * `anchors` はページ内アンカー（LP の できること/プラン）。ナビの先頭に並べ、狭幅では隠す。
  */
 export function AppHeader({
   active,
+  anchors,
 }: {
   active?: "kifu" | "problems" | "training" | "mypage" | "settings";
+  anchors?: readonly { href: string; label: string }[];
 }) {
   const { user, loading } = useAuth();
   const router = useRouter();
@@ -29,6 +32,11 @@ export function AppHeader({
       </Link>
 
       <nav className={s.topnav}>
+        {anchors?.map((a) => (
+          <a key={a.href} href={a.href} className={`${s.navItem} ${s.anchor}`}>
+            {a.label}
+          </a>
+        ))}
         {/* 現在地は色（s.on）に加えて aria-current="page" で支援技術にも伝える。 */}
         <Link
           href="/kifu"

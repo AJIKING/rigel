@@ -5,6 +5,7 @@ import { type QuizDayPoint } from "@rigel/ui";
 import Link from "next/link";
 import { useEffect, useRef } from "react";
 import { useBoardScale } from "../lib/use-board-scale";
+import { AppHeader } from "./AppHeader";
 import { BrandMark } from "./BrandMark";
 import { QuizLineChart } from "./mypage/QuizLineChart";
 import { STAR_COLOR, STAR_PATH } from "./StarMark";
@@ -197,23 +198,13 @@ export function LandingScreen() {
 
   return (
     <div className={`${s.shell} themeApp`}>
-      <nav className={s.nav}>
-        <div className={s.navIn}>
-          <Link className={s.brand} href="/">
-            <BrandMark starClassName={s.star} wordmarkClassName={s.wm} />
-          </Link>
-          <div className={s.navLinks}>
-            <a href="#features">できること</a>
-            <a href="#plans">プラン</a>
-            <Link href="/kifu">公開牌譜</Link>
-            <Link href="/problems">何切る</Link>
-          </div>
-          <div className={s.spacer} />
-          <Link className={s.navSign} href="/login">
-            サインイン
-          </Link>
-        </div>
-      </nav>
+      {/* ヘッダーはアプリ共通（/kifu 等と同一）。LP 固有のアンカーだけ差し込む。 */}
+      <AppHeader
+        anchors={[
+          { href: "#features", label: "できること" },
+          { href: "#plans", label: "プラン" },
+        ]}
+      />
 
       <main>
         {/* hero: 左寄せ見出し + 実部品の盤面（product-led） */}

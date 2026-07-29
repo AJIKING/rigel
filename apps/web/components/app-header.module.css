@@ -113,6 +113,13 @@
   border-color: var(--w45);
 }
 
+/* ページ内アンカー（LP の できること/プラン）。狭幅ではナビ本線を優先して隠す。 */
+@media (max-width: 760px) {
+  .anchor {
+    display: none;
+  }
+}
+
 /* 狭幅では詰めて、ワードマーク文字は隠して星のみにする。 */
 @media (max-width: 520px) {
   .header {
