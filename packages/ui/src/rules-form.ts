@@ -67,7 +67,7 @@ export const RULES_FORM: RuleGroup[] = [
         kind: "toggle",
         key: "multiYakuman",
         title: "ダブル役満",
-        desc: "四暗刻単騎・国士無双13面待ちなどを2倍に",
+        desc: "四暗刻単騎・国士無双13面待ちなどをダブル役満に",
       },
       {
         kind: "toggle",
