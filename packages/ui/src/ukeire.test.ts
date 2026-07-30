@@ -363,7 +363,8 @@ describe("discardUkeires と shanten の整合（性質テスト・シード固�
       }
     }
     expect(mismatches).toEqual([]);
-  });
+    // CI（GitHub 4vCPU）では既定5秒を超えることがある（実測5.1秒）。446行の性質テストと同じ緩い上限。
+  }, 30_000);
 
   it("性能: 14枚1手の discardUkeires が実用時間（1秒以内・CI 揺らぎ込みの緩い上限）", () => {
     const rand = createQuizRng(1);

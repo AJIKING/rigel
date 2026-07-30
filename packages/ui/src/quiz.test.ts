@@ -187,7 +187,8 @@ describe("牌効率問題の品質（シード20260725で20問）", () => {
       }
     }
     expect(mismatches).toEqual([]);
-  });
+    // CI（GitHub 4vCPU）では実測3秒弱と既定5秒に余裕がない。ukeire.test の性質テストと同じ緩い上限。
+  }, 30_000);
 });
 
 describe("特訓の共有定数・文言（web/mobile の画面と api のサーバ強制で共有）", () => {
@@ -673,7 +674,8 @@ describe("清一色 何切る問題の品質（シード20260726で20問）", ()
       }
     }
     expect(mismatches).toEqual([]);
-  });
+    // CI（GitHub 4vCPU）では実測4秒強と既定5秒に余裕がない。同上の緩い上限。
+  }, 30_000);
 
   it("テンパイ問題はテンパイを保つ打牌が4種以上（総当たりで解けてしまわない難度）", () => {
     const mismatches: string[] = [];
