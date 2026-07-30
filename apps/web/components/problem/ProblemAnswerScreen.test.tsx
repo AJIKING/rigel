@@ -26,14 +26,23 @@ function renderScreen(post: ProblemPost) {
   );
 }
 
+/** 未回答（初期ロード）の stats。回答の復元は myAction 非 null のときだけ起きる。 */
+const NO_ANSWER_STATS = { counts: {}, total: 0, myChoiceKey: null, myAction: null };
+/** 回答済みの stats（分布・「（あなた）」表示が参照する値）。 */
+const ANSWERED_STATS = {
+  counts: { "discard:1m:riichi": 2, "discard:5p": 1, "discard:5p:tsumogiri": 1 },
+  total: 4,
+  myChoiceKey: "discard:1m:riichi",
+  myAction: { type: "discard", tile: "1m", riichi: true, tsumogiri: false },
+};
+
 beforeEach(() => {
   h.answerProblemAction.mockReset().mockResolvedValue({ ok: true, status: 200 });
-  h.getProblemStatsAction.mockReset().mockResolvedValue({
-    counts: { "discard:1m:riichi": 2, "discard:5p": 1, "discard:5p:tsumogiri": 1 },
-    total: 4,
-    myChoiceKey: "discard:1m:riichi",
-    myAction: { type: "discard", tile: "1m", riichi: true, tsumogiri: false },
-  });
+  // 初期ロードの1回は未回答（復元なし）・以降（回答後の再取得）は回答済み stats を返す。
+  h.getProblemStatsAction
+    .mockReset()
+    .mockResolvedValueOnce(NO_ANSWER_STATS)
+    .mockResolvedValue(ANSWERED_STATS);
 });
 
 afterEach(() => {
@@ -205,6 +214,17 @@ describe("ProblemAnswerScreen: 何切る", () => {
     const hint = screen.getByText(/回答にはサインインが必要です/);
     const cta = within(hint).getByRole("link", { name: "サインイン" });
     expect(cta.getAttribute("href")).toBe("/login");
+  });
+
+  it("回答済みで開き直すと自分の回答と分布を復元する（再回答は「やり直す」から）", async () => {
+    stubMe("free");
+    // 初期ロードから回答済み（myAction あり）の stats を返す＝過去に回答したユーザーの開き直し。
+    h.getProblemStatsAction.mockReset().mockResolvedValue(ANSWERED_STATS);
+    renderScreen(discardPost());
+
+    expect(await screen.findByText(/あなたの回答/)).toBeTruthy();
+    expect(screen.getByText(/（あなた）/)).toBeTruthy(); // 分布に自分の行の印
+    expect(h.answerProblemAction).not.toHaveBeenCalled(); // 表示しただけでは再送信しない
   });
 
   it("同じ牌が手牌に2枚あっても、選択枠はタップした1枚だけに付く", async () => {

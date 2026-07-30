@@ -112,6 +112,25 @@ function AnswerBody({ post, token }: { post: ProblemPost; token: string | null }
   const [answered, setAnswered] = useState<ProblemAction | null>(null);
   const [stats, setStats] = useState<ProblemStats | null>(null);
 
+  // 回答済みならサーバの自分の回答（stats.myAction）で復元する（開き直しを再回答に見せない。
+  // 保存は1人1行 upsert なので再回答自体は「やり直す」から可能）。
+  useEffect(() => {
+    if (!token) return;
+    let active = true;
+    getProblemStats(token, post.id)
+      .catch(() => null)
+      .then((s) => {
+        if (!active || !s?.myAction) return;
+        const mine = s.myAction;
+        // ローカルで回答済み（復元より先に回答した）場合は上書きしない。
+        setAnswered((prev) => prev ?? mine);
+        setStats((prev) => prev ?? s);
+      });
+    return () => {
+      active = false;
+    };
+  }, [token, post.id]);
+
   // リーチは「選択中の牌を切ってテンパイが維持される（門前）」ときだけ宣言できる。
   const riichiOk = canRiichiAfterDiscard(problem, picked);
 

@@ -26,10 +26,14 @@ jest.mock("../lib/api", () => ({
   getProblemStats: (...args: unknown[]) => mockGetProblemStats(...args),
 }));
 
+/** 未回答（初期ロード）の stats。回答の復元は myAction 非 null のときだけ起きる。 */
+const NO_ANSWER_STATS = { counts: {}, total: 0, myChoiceKey: null, myAction: null };
+
 describe("ProblemAnswerScreen（何切る回答画面）", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockAuth = { token: "t", user: { plan: "free" }, endGuest: mockEndGuest };
+    mockGetProblemStats.mockResolvedValue(NO_ANSWER_STATS);
   });
 
   it.each([
@@ -83,7 +87,7 @@ describe("ProblemAnswerScreen（何切る回答画面）", () => {
   it("ツモ牌タップ+リーチ→回答するとツモ切りとして送信され、分布も別キーで出る", async () => {
     mockGetProblem.mockResolvedValue(makePost());
     mockAnswerProblem.mockResolvedValue({ ok: true, status: 200 });
-    mockGetProblemStats.mockResolvedValue({
+    mockGetProblemStats.mockResolvedValueOnce(NO_ANSWER_STATS).mockResolvedValue({
       counts: { "discard:5p:riichi:tsumogiri": 2, "discard:1m": 1 },
       total: 3,
       myChoiceKey: "discard:5p:riichi:tsumogiri",
@@ -112,6 +116,23 @@ describe("ProblemAnswerScreen（何切る回答画面）", () => {
     expect(screen.getByText("5筒ツモ切り・リーチ（あなた）")).toBeTruthy();
     expect(screen.getByText("67%")).toBeTruthy();
     expect(screen.getByText("1萬切り")).toBeTruthy();
+  });
+
+  it("回答済みで開き直すと自分の回答と分布を復元する（answerProblem は呼ばない）", async () => {
+    mockGetProblem.mockResolvedValue(makePost());
+    // 初期ロードから回答済み（myAction あり）の stats を返す＝過去に回答したユーザーの開き直し。
+    mockGetProblemStats.mockResolvedValue({
+      counts: { "discard:5p:riichi:tsumogiri": 2, "discard:1m": 1 },
+      total: 3,
+      myChoiceKey: "discard:5p:riichi:tsumogiri",
+      myAction: { type: "discard", tile: "5p", riichi: true, tsumogiri: true },
+    });
+    render(<ProblemAnswerScreen />);
+
+    expect(await screen.findByText("あなたの回答: 5筒ツモ切り・リーチ")).toBeTruthy();
+    expect(await screen.findByText("回答分布（3人）")).toBeTruthy();
+    expect(screen.getByText("5筒ツモ切り・リーチ（あなた）")).toBeTruthy();
+    expect(mockAnswerProblem).not.toHaveBeenCalled(); // 表示しただけでは再送信しない
   });
 
   it("同じ牌が手牌に2枚あっても、選択枠はタップした1枚だけに付く", async () => {
@@ -195,7 +216,7 @@ describe("ProblemAnswerScreen（何切る回答画面）", () => {
   it("回答分布で自分の回答のバーだけアクセント色で強調される", async () => {
     mockGetProblem.mockResolvedValue(makePost());
     mockAnswerProblem.mockResolvedValue({ ok: true, status: 200 });
-    mockGetProblemStats.mockResolvedValue({
+    mockGetProblemStats.mockResolvedValueOnce(NO_ANSWER_STATS).mockResolvedValue({
       counts: { "discard:5p:riichi:tsumogiri": 2, "discard:1m": 1 },
       total: 3,
       myChoiceKey: "discard:5p:riichi:tsumogiri",
@@ -220,7 +241,7 @@ describe("ProblemAnswerScreen（何切る回答画面）", () => {
   it("「回答をやり直す」で再選択でき、answerProblem は2回目の内容で上書き送信される", async () => {
     mockGetProblem.mockResolvedValue(makePost());
     mockAnswerProblem.mockResolvedValue({ ok: true, status: 200 });
-    mockGetProblemStats.mockResolvedValue({
+    mockGetProblemStats.mockResolvedValueOnce(NO_ANSWER_STATS).mockResolvedValue({
       counts: { "discard:5p": 1 },
       total: 1,
       myChoiceKey: "discard:5p:tsumogiri",
@@ -304,7 +325,7 @@ describe("ProblemAnswerScreen（何切る回答画面）", () => {
   it("鳴き判断はスルー・ポン・チー・カンの選択式（スルーで回答できる）", async () => {
     mockGetProblem.mockResolvedValue(makePost({ problem: makeCallProblem() }));
     mockAnswerProblem.mockResolvedValue({ ok: true, status: 200 });
-    mockGetProblemStats.mockResolvedValue({
+    mockGetProblemStats.mockResolvedValueOnce(NO_ANSWER_STATS).mockResolvedValue({
       counts: { pass: 1 },
       total: 1,
       myChoiceKey: "pass",
@@ -355,7 +376,7 @@ describe("ProblemAnswerScreen（何切る回答画面）", () => {
       }),
     );
     mockAnswerProblem.mockResolvedValue({ ok: true, status: 200 });
-    mockGetProblemStats.mockResolvedValue({
+    mockGetProblemStats.mockResolvedValueOnce(NO_ANSWER_STATS).mockResolvedValue({
       counts: {},
       total: 0,
       myChoiceKey: null,
