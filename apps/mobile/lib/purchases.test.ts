@@ -68,6 +68,20 @@ describe("purchases（RevenueCat ラッパ）", () => {
     });
   });
 
+  it("purchasePlan: Play は identifier が「サブスクID:基本プランID」形式でも一致する（iOS は素のID）", async () => {
+    // RevenueCat v6+ の Google 商品は `rigel.next.monthly:rigel-next-monthly` の形式で返る。
+    mockSdk.getOfferings.mockResolvedValue(
+      offeringsWith([
+        `${IAP_PRODUCT_IDS.next}:rigel-next-monthly`,
+        `${IAP_PRODUCT_IDS.pro}:rigel-pro-monthly`,
+      ]),
+    );
+    expect(await purchasePlan("next")).toBe("purchased");
+    expect(mockSdk.purchasePackage).toHaveBeenCalledWith({
+      product: { identifier: `${IAP_PRODUCT_IDS.next}:rigel-next-monthly` },
+    });
+  });
+
   it("purchasePlan: ユーザーキャンセルは cancelled、該当パッケージ無し/例外は failed", async () => {
     mockSdk.getOfferings.mockResolvedValue(offeringsWith([IAP_PRODUCT_IDS.next]));
     mockSdk.purchasePackage.mockRejectedValueOnce({ userCancelled: true });

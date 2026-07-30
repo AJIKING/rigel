@@ -53,8 +53,10 @@ export async function purchasePlan(plan: PaidPlan): Promise<PurchaseOutcome> {
   if (!purchasesEnabled()) return "unavailable";
   try {
     const offerings = await Purchases.getOfferings();
+    // Google の商品 identifier は「サブスクID:基本プランID」形式で返る（iOS は素のID）。
+    // 基本ID部分で一致させる。基本プランは各サブスク1つ（monthly）の前提。
     const pkg = offerings.current?.availablePackages.find(
-      (p) => p.product.identifier === IAP_PRODUCT_IDS[plan],
+      (p) => p.product.identifier.split(":")[0] === IAP_PRODUCT_IDS[plan],
     );
     if (!pkg) return "failed"; // ダッシュボードの Offerings 設定漏れ。
     await Purchases.purchasePackage(pkg);
