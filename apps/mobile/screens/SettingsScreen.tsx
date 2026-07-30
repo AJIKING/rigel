@@ -238,7 +238,8 @@ export function SettingsScreen() {
                     <Text
                       style={[
                         styles.itemTitle,
-                        { color: plan === "free" ? colors.vermilion : colors.w45 },
+                        // 注記との縦積み（列コンテナ）では flex:1 が縦に効いて高さが潰れるため打ち消す。
+                        { flex: 0, color: plan === "free" ? colors.vermilion : colors.w45 },
                       ]}
                     >
                       {delArm ? "もう一度押すと削除されます" : "アカウントを削除"}

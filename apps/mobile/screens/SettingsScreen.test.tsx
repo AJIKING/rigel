@@ -223,6 +223,9 @@ describe("SettingsScreen（課金導線）", () => {
     render(<SettingsScreen />);
 
     expect(screen.getByText("有料プラン契約中は削除できません")).toBeTruthy();
+    // 注記との縦積み（列コンテナ）では itemTitle の flex:1 が縦方向に効いて
+    // タイトルの高さが潰れる（実機で確認）。打ち消しをスタイルで固定する。
+    expect(screen.getByText("アカウントを削除")).toHaveStyle({ flex: 0 });
   });
 
   it("未ログインはプラン変更導線を出さない", () => {
