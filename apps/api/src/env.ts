@@ -30,7 +30,7 @@ export interface Env {
   APPLE_KEY_ID?: string;
   /** Sign in with Apple キー .p8 の中身（Secret。revoke 用）。 */
   APPLE_PRIVATE_KEY?: string;
-  /** CORS 許可オリジン（カンマ区切り。例: "https://rigel.plaria.co.jp"）。
+  /** CORS 許可オリジン（カンマ区切り。例: "https://raisha.jp"）。
    *  localhost 開発オリジンは既定で常に許可するので本番ドメインだけ列挙すればよい。 */
   ALLOWED_ORIGINS?: string;
   /** セッショントークンの署名鍵（Secret）。 */
@@ -39,9 +39,9 @@ export interface Env {
   STRIPE_SECRET_KEY?: string;
   /** Stripe Webhook 署名シークレット（Secret）。 */
   STRIPE_WEBHOOK_SECRET?: string;
-  /** RIGEL Next の価格ID（price_...）。 */
+  /** RAISHA Next の価格ID（price_...）。 */
   STRIPE_PRICE_NEXT?: string;
-  /** RIGEL Pro の価格ID（price_...）。 */
+  /** RAISHA Pro の価格ID（price_...）。 */
   STRIPE_PRICE_PRO?: string;
   /** RevenueCat Webhook の Authorization ヘッダ照合値（Secret。ダッシュボードの
    *  Webhooks 設定と同じ文字列。未設定なら受け口は 501）。 */

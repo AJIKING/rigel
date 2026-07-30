@@ -51,7 +51,7 @@
 1. GA4 プロパティ作成（Firebase プロジェクト作成 → GA4 リンク → web ストリーム追加が二度手間なし）。
 2. GitHub Variables に `NEXT_PUBLIC_GA_MEASUREMENT_ID` を登録 → deploy.web を promote。
 3. プロパティ設定: Google シグナル OFF・データ保持期間（14か月推奨）。
-4. **外部送信規律（電気通信事業法）**: `rigel.plaria.co.jp/privacy` を実装済み（2026-07-17。
+4. **外部送信規律（電気通信事業法）**: `/privacy` を実装済み（2026-07-17。
    /terms と同じ文書スタイル。7章に GA4/Firebase・Cloudflare・Stripe・RevenueCat・認証の
    外部送信を開示。sukikoe の /privacy を構成の参考にし、rigel の実態＝アカウント有り・
    画像非保存・退会有りに合わせて書き下ろし）。**文言の最終確認は事業者側で行うこと**。

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { COPYRIGHT } from "../lib/brand";
 import s from "./terms.module.css";
 
 // 法的文書（利用規約 / プライバシーポリシー）の共通レイアウト。
@@ -123,7 +124,7 @@ export function LegalDoc({
         <div className={s.meta}>
           <p>{enacted}</p>
           <p>株式会社PLARIA</p>
-          <p className={s.copy}>© 2026 RIGEL</p>
+          <p className={s.copy}>{COPYRIGHT}</p>
         </div>
       </main>
     </div>

@@ -14,7 +14,7 @@ Cloudflare Workers（Hono + D1）への本番デプロイ。GitHub Actions の
 3. **Secrets を登録**（リポジトリ or environment `production`）:
    | Secret | 用途 |
    |---|---|
-   | `CLOUDFLARE_API_TOKEN` | Workers/D1 デプロイ権限のある API トークン |
+   | `CLOUDFLARE_API_TOKEN` | Workers/D1 デプロイ権限＋ **raisha.jp ゾーン権限**のある API トークン（wrangler.toml が routes でカスタムドメインを宣言管理するため。無いと deploy が Auth エラーで落ちる） |
    | `CLOUDFLARE_ACCOUNT_ID` | Cloudflare アカウントID |
    | `SESSION_SECRET` | セッションJWT署名鍵 |
    | `GEMINI_API_KEY` | Gemini API キー |
@@ -42,11 +42,11 @@ GitHub → Actions → **Deploy rigel-api** → Run workflow → `ref` に検証
 ## 確認
 
 ```bash
-curl https://rigel-api.plaria.workers.dev/health   # {"ok":true}
+curl https://api.raisha.jp/health   # {"ok":true}
 ```
 
 本番デプロイ先（= web/mobile の `EXPO_PUBLIC_API_URL` / `NEXT_PUBLIC_API_URL`）:
-**https://rigel-api.plaria.workers.dev**
+**https://api.raisha.jp**
 
 ローカルでの手元確認・個別の `wrangler secret put` 等は
 リポジトリ直下の運用メモ（CLAUDE.md / 過去手順）も参照。
@@ -63,7 +63,7 @@ curl https://rigel-api.plaria.workers.dev/health   # {"ok":true}
    ※ `wrangler.toml` と `apps/mobile/lib/iap.ts` の PRODUCT_IDS と完全一致させる。
 2. **Server Notifications V2 の URL 設定**: App Store Connect → App → App 情報 →
    「App Store サーバ通知」→ Production/Sandbox とも
-   `https://rigel-api.plaria.workers.dev/billing/appstore/notifications`（V2 を選択）。
+   `https://api.raisha.jp/billing/appstore/notifications`（V2 を選択）。
 3. **Sandbox テスター**でエンドツーエンド確認:
    購入 → `/me` の plan 反映 →（Sandbox の高速更新で）DID_RENEW / EXPIRED の反映。
 4. mobile は **EAS dev build 必須**（expo-iap はネイティブモジュール。Expo Go では動かない）。

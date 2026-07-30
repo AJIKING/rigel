@@ -1,9 +1,9 @@
+import { BRAND } from "../lib/brand";
 import { StarMark } from "./StarMark";
 
 /**
- * ブランド表示（オレンジ5角星 + ワードマーク "RIGEL"）。
- * 寸法・字間は画面ごとに異なるため、ラッパ（.brand）と各 className は
- * 呼び出し側で与える（このコンポーネントは構造とワードマーク文字列を一元化する）。
+ * ブランド表示（オレンジ5角星 + ワードマーク）。文字列は lib/brand の BRAND が単一ソース。
+ * 寸法・字間は画面ごとに異なるため、ラッパ（.brand）と各 className は呼び出し側で与える。
  */
 export function BrandMark({
   starClassName,
@@ -15,7 +15,7 @@ export function BrandMark({
   return (
     <>
       <StarMark className={starClassName} />
-      <span className={wordmarkClassName}>RIGEL</span>
+      <span className={wordmarkClassName}>{BRAND}</span>
     </>
   );
 }

@@ -1,6 +1,7 @@
 import { ImageResponse } from "next/og";
 import { STAR_COLOR, STAR_PATH } from "../../../components/StarMark";
 import { getPublicGameDetail } from "../../../lib/api-server";
+import { BRAND } from "../../../lib/brand";
 import { loadOgFonts } from "../../../lib/og-assets";
 import { ogCard } from "../../../lib/og-meta";
 
@@ -10,13 +11,14 @@ import { ogCard } from "../../../lib/og-meta";
 
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
-export const alt = "麻雀牌譜 | Rigel";
+export const alt = `麻雀牌譜 | ${BRAND}`;
 
 export default async function OgImage({ params }: { params: Promise<{ gameId: string }> }) {
   const { gameId } = await params;
   const card = ogCard(await getPublicGameDetail(gameId).catch(() => null));
   const byline = card.author ? `by ${card.author}` : "";
-  const fonts = await loadOgFonts(card.title, `${card.info}${byline}RIGEL`);
+  // 第2引数はフォントサブセットの字種列。カードに描く全テキスト（ワードマーク含む）を渡す。
+  const fonts = await loadOgFonts(card.title, `${card.info}${byline}${BRAND}`);
 
   return new ImageResponse(
     <div
@@ -36,7 +38,7 @@ export default async function OgImage({ params }: { params: Promise<{ gameId: st
         <svg width={46} height={46} viewBox="0 0 24 24" fill="none">
           <path d={STAR_PATH} fill={STAR_COLOR} />
         </svg>
-        <div style={{ fontSize: 38, letterSpacing: 10 }}>RIGEL</div>
+        <div style={{ fontSize: 38, letterSpacing: 10 }}>{BRAND}</div>
       </div>
       <div style={{ fontSize: 68, fontWeight: 700, lineHeight: 1.3, lineClamp: 3 }}>
         {card.title}

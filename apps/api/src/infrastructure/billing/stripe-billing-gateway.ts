@@ -18,9 +18,9 @@ import type {
 export interface StripeBillingConfig {
   secretKey: string;
   webhookSecret: string;
-  /** RIGEL Next の価格ID（price_...）。 */
+  /** RAISHA Next の価格ID（price_...）。 */
   priceNext: string;
-  /** RIGEL Pro の価格ID（price_...）。 */
+  /** RAISHA Pro の価格ID（price_...）。 */
   pricePro: string;
 }
 

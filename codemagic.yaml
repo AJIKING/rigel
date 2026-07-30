@@ -51,10 +51,10 @@ workflows:
       cocoapods: default
       vars:
         BUNDLE_ID: "jp.co.plaria.rigel" # app.json の ios.bundleIdentifier と一致
-        # workspace/scheme は expo prebuild が app.json の name（"Rigel"）から生成する。
+        # workspace/scheme は expo prebuild が app.json の name（"RAISHA"）から生成する。
         # name を変えたらここも追随させること（合わないと build-ipa が exit 65）。
-        XCODE_WORKSPACE: "apps/mobile/ios/Rigel.xcworkspace"
-        XCODE_SCHEME: "Rigel"
+        XCODE_WORKSPACE: "apps/mobile/ios/RAISHA.xcworkspace"
+        XCODE_SCHEME: "RAISHA"
     scripts:
       - name: pnpm を有効化
         script: corepack enable && corepack prepare pnpm@10.13.1 --activate

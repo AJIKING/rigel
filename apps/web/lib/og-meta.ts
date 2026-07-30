@@ -4,6 +4,7 @@
 
 import { ProblemSchema, type Tile } from "@rigel/schema";
 import { PROBLEM_KIND_LABELS, problemHandTiles, problemRoundLabel } from "@rigel/ui";
+import { BRAND } from "./brand";
 import { fmtDateSlash } from "./format";
 
 /** メタデータに必要な最小限の公開半荘情報（PublicGameDetail のサブセット）。 */
@@ -39,7 +40,13 @@ export const DEFAULT_DESCRIPTION = "実物の麻雀卓を撮った写真から�
 /** メタデータの絶対URL解決に使うサイトの基準URL。
  *  api-server.ts と同じ流儀で env（空文字は未設定扱い）→ 本番ドメインの順に解決する。 */
 export function siteBaseUrl(): string {
-  return process.env.NEXT_PUBLIC_SITE_URL || "https://rigel.plaria.co.jp";
+  return process.env.NEXT_PUBLIC_SITE_URL || "https://raisha.jp";
+}
+
+/** 表示用のサイトホスト名（例: "raisha.jp"）。LP の OGP モック等、ドメインを
+ *  文字として見せる場所はここから導出し、siteBaseUrl との乖離を防ぐ。 */
+export function siteHost(): string {
+  return new URL(siteBaseUrl()).host;
 }
 
 /** 非公開・不存在（null）のフォールバック。対象の情報を一切含めない。 */
@@ -61,7 +68,7 @@ function shareMeta(
     title,
     description,
     alternates: { canonical: url },
-    openGraph: { title, description, siteName: "Rigel", url, type: opts.type },
+    openGraph: { title, description, siteName: BRAND, url, type: opts.type },
     twitter: { card: opts.card, title, description },
   };
 }

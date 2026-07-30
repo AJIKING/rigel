@@ -207,7 +207,7 @@ export function checkoutErrorMessage(status: number): string {
 }
 
 // ------------------------------------------------------------
-// プラン表示（free / RIGEL Next / RIGEL Pro）
+// プラン表示（free / RAISHA Next / RAISHA Pro）
 // ------------------------------------------------------------
 // プラン型と上限ポリシー定数は背骨（@rigel/schema の plan.ts）が単一真実源。
 // web/mobile の既存 import を壊さないよう、従来の名前のまま re-export する。

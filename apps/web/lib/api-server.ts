@@ -12,9 +12,7 @@ import "server-only";
 import { createApiClient } from "@rigel/client";
 
 export function serverApiBaseUrl(): string {
-  return (
-    process.env.API_URL || process.env.NEXT_PUBLIC_API_URL || "https://rigel-api.plaria.workers.dev"
-  );
+  return process.env.API_URL || process.env.NEXT_PUBLIC_API_URL || "https://api.raisha.jp";
 }
 
 const serverClient = createApiClient(serverApiBaseUrl());

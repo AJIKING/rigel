@@ -2,6 +2,7 @@ import { tileAssetName } from "@rigel/ui";
 import { ImageResponse } from "next/og";
 import { STAR_COLOR, STAR_PATH } from "../../../components/StarMark";
 import { getProblem } from "../../../lib/api-server";
+import { BRAND } from "../../../lib/brand";
 import { loadOgFonts, loadTileImages } from "../../../lib/og-assets";
 import { problemOgCard, siteBaseUrl } from "../../../lib/og-meta";
 
@@ -13,7 +14,7 @@ import { problemOgCard, siteBaseUrl } from "../../../lib/og-meta";
 
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
-export const alt = "何切る | Rigel";
+export const alt = `何切る | ${BRAND}`;
 
 const TILE_W = 68;
 const TILE_H = 92;
@@ -29,7 +30,8 @@ export default async function OgImage({ params }: { params: Promise<{ id: string
       ? await loadTileImages(tiles.map((t) => `${siteBaseUrl()}/tiles/${tileAssetName(t)}.svg`))
       : null;
 
-  const fonts = await loadOgFonts(card.title, `${card.info}あなたなら何を切る？RIGEL`);
+  // 第2引数はフォントサブセットの字種列。カードに描く全テキスト（ワードマーク含む）を渡す。
+  const fonts = await loadOgFonts(card.title, `${card.info}あなたなら何を切る？${BRAND}`);
 
   return new ImageResponse(
     <div
@@ -49,7 +51,7 @@ export default async function OgImage({ params }: { params: Promise<{ id: string
         <svg width={46} height={46} viewBox="0 0 24 24" fill="none">
           <path d={STAR_PATH} fill={STAR_COLOR} />
         </svg>
-        <div style={{ fontSize: 38, letterSpacing: 10 }}>RIGEL</div>
+        <div style={{ fontSize: 38, letterSpacing: 10 }}>{BRAND}</div>
       </div>
       <div style={{ fontSize: 56, fontWeight: 700, lineHeight: 1.3, lineClamp: 2 }}>
         {card.title}

@@ -14,7 +14,7 @@ export function StarMark({ size = 24, color = colors.accent }: { size?: number; 
   );
 }
 
-/** ブランド表示（星 + ワードマーク "RIGEL"）。字間・寸法は呼び出し側から与える。 */
+/** ブランド表示（星 + ワードマーク "RAISHA"）。字間・寸法は呼び出し側から与える。 */
 export function BrandMark({
   size = 24,
   fontSize = 15,
@@ -29,7 +29,7 @@ export function BrandMark({
   return (
     <View style={[styles.row, { gap: size * 0.4 }]}>
       <StarMark size={size} />
-      <Text style={[styles.wm, { fontSize, letterSpacing }, wordmarkStyle]}>RIGEL</Text>
+      <Text style={[styles.wm, { fontSize, letterSpacing }, wordmarkStyle]}>RAISHA</Text>
     </View>
   );
 }

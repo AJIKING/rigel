@@ -4,6 +4,8 @@ import { KifuSchema } from "@rigel/schema";
 import { type QuizDayPoint } from "@rigel/ui";
 import Link from "next/link";
 import { useEffect, useRef } from "react";
+import { BRAND } from "../lib/brand";
+import { siteHost } from "../lib/og-meta";
 import { useBoardScale } from "../lib/use-board-scale";
 import { AppHeader } from "./AppHeader";
 import { BrandMark } from "./BrandMark";
@@ -313,14 +315,14 @@ export function LandingScreen() {
                       <svg width={18} height={18} viewBox="0 0 24 24" fill="none">
                         <path d={STAR_PATH} fill={STAR_COLOR} />
                       </svg>
-                      <span>RIGEL</span>
+                      <span>{BRAND}</span>
                     </div>
                     <div className={s.embedTitle}>7/28 友人戦</div>
                     <div className={s.embedInfo}>南四局 ・ 8局</div>
                   </div>
                   <div className={s.embedMeta}>
-                    <span className={s.embedDomain}>rigel.plaria.co.jp</span>
-                    <span className={s.embedText}>7/28 友人戦 ・ 麻雀牌譜 | RIGEL</span>
+                    <span className={s.embedDomain}>{siteHost()}</span>
+                    <span className={s.embedText}>{`7/28 友人戦 ・ 麻雀牌譜 | ${BRAND}`}</span>
                   </div>
                 </div>
               </div>
@@ -396,7 +398,7 @@ export function LandingScreen() {
                 </ul>
               </div>
               <div className={`${s.plan} ${s.hot}`}>
-                <span className={s.planName}>RIGEL Next</span>
+                <span className={s.planName}>{`${BRAND} Next`}</span>
                 <span className={s.planPrice}>
                   ¥480<small> / 月</small>
                 </span>
@@ -407,7 +409,7 @@ export function LandingScreen() {
                 </ul>
               </div>
               <div className={s.plan}>
-                <span className={s.planName}>RIGEL Pro</span>
+                <span className={s.planName}>{`${BRAND} Pro`}</span>
                 <span className={s.planPrice}>
                   ¥1,480<small> / 月</small>
                 </span>

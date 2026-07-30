@@ -1,12 +1,13 @@
 import type { MetadataRoute } from "next";
+import { BRAND } from "../lib/brand";
 
 // PWA マニフェスト（/manifest.webmanifest として配信される）。
 // アイコンの実体は public/icons/ 以下。favicon.ico / icon.svg / apple-icon.png は
 // App Router のファイル規約（app/ 直下）でヘッダに自動注入される。
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "Rigel — 麻雀牌譜",
-    short_name: "Rigel",
+    name: `${BRAND} — 麻雀牌譜`,
+    short_name: BRAND,
     description: "実物の麻雀卓を撮った写真から牌譜ドラフトを生成する",
     lang: "ja",
     start_url: "/",

@@ -97,7 +97,9 @@ jobs:
         working-directory: apps/web
         run: pnpm cf:build
         env:
-          NEXT_PUBLIC_API_URL: ${{ vars.NEXT_PUBLIC_API_URL || 'https://rigel-api.plaria.workers.dev' }}
+          NEXT_PUBLIC_API_URL: ${{ vars.NEXT_PUBLIC_API_URL || 'https://api.raisha.jp' }}
+          # OGP・sitemap・robots の絶対URL基準（og-meta.ts の siteBaseUrl が参照）。
+          NEXT_PUBLIC_SITE_URL: ${{ vars.NEXT_PUBLIC_SITE_URL || 'https://raisha.jp' }}
           NEXT_PUBLIC_GOOGLE_CLIENT_ID: ${{ vars.NEXT_PUBLIC_GOOGLE_CLIENT_ID }}
           # Sign in with Apple の Services ID（公開値。未設定なら web の Apple ボタンは出ない）。
           NEXT_PUBLIC_APPLE_CLIENT_ID: ${{ vars.NEXT_PUBLIC_APPLE_CLIENT_ID }}

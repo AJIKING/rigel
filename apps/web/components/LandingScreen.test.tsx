@@ -15,7 +15,7 @@ describe("LandingScreen", () => {
     expect(h1.textContent?.replace(/\s/g, "")).toContain("麻雀の記録を、撮るだけで。");
     expect(screen.getByText(/雀力を高める/)).toBeTruthy();
     // ブランドはヘッダーとフッターの2箇所。
-    expect(screen.getAllByText("RIGEL").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("RAISHA").length).toBeGreaterThan(0);
   });
 
   it("ヘッダーはアプリ共通（AppHeader）＋ LP アンカーで統一する", () => {
@@ -58,7 +58,7 @@ describe("LandingScreen", () => {
     }
     // 南: 共有は実 OGP デザイン（/k の opengraph-image と同じ構図）の SNS 埋め込み風。
     expect(screen.getAllByText("7/28 友人戦").length).toBeGreaterThan(0);
-    expect(screen.getByText("rigel.plaria.co.jp")).toBeTruthy();
+    expect(screen.getByText("raisha.jp")).toBeTruthy();
     // 北: 特訓グラフはサービス実装の QuizLineChart（種目名の見出しを持つ）。
     expect(screen.getByRole("group", { name: "清一色 何待ち" })).toBeTruthy();
   });

@@ -28,7 +28,7 @@ describe("buildGameMetadata", () => {
     expect(meta.description).toContain("全3局");
     expect(meta.description).toContain("2026/07/05");
     expect(meta.openGraph?.title).toBe("金曜ナイト半荘");
-    expect(meta.openGraph?.siteName).toBe("Rigel");
+    expect(meta.openGraph?.siteName).toBe("RAISHA");
     expect(meta.openGraph?.url).toBe("/k/g1");
     expect(meta.twitter?.card).toBe("summary_large_image");
   });
@@ -65,7 +65,7 @@ describe("buildProblemMetadata", () => {
     expect(meta.title).toBe("南3局の押し引き");
     expect(meta.description).toContain("何切る");
     expect(meta.openGraph?.title).toBe("南3局の押し引き");
-    expect(meta.openGraph?.siteName).toBe("Rigel");
+    expect(meta.openGraph?.siteName).toBe("RAISHA");
     expect(meta.openGraph?.url).toBe("/p/p1");
     expect(meta.alternates?.canonical).toBe("/p/p1");
     // /p は opengraph-image で手牌カードを動的生成する（/k と同じ流儀）。

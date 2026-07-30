@@ -38,7 +38,7 @@ export function createApp(options: CreateAppOptions = {}): Hono<AppEnv> {
   const app = new Hono<AppEnv>();
   const makeContainer = options.container ?? buildContainer;
 
-  // CORS。web は別オリジン（rigel.plaria.co.jp）から API を叩くため、
+  // CORS。web は別オリジン（raisha.jp）から API を叩くため、
   // 許可オリジンのプリフライト/レスポンスに ACAO を返す。認証は Bearer
   // トークン方式（Cookie 不使用）なので credentials は不要。最初に置いて
   // OPTIONS プリフライトを DB 無しで処理する。

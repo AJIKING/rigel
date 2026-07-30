@@ -7,6 +7,11 @@ main = "src/index.ts"
 compatibility_date = "2025-01-01"
 compatibility_flags = ["nodejs_compat"]
 
+# 本番は独自ドメインのみ公開（workers.dev の URL は無効化）。
+workers_dev = false
+# カスタムドメイン。CI トークンに raisha.jp ゾーン権限が必要（DEPLOY.md 参照）。
+routes = [{ pattern = "api.raisha.jp", custom_domain = true }]
+
 [[d1_databases]]
 binding = "DB"                 # env.DB（src/env.ts）に対応
 database_name = "rigel"
@@ -60,8 +65,8 @@ GOOGLE_CLIENT_ID = "561655423126-1r9luc1tveq2ruhkc6a23dp7ems868cq.apps.googleuse
 # APPLE_TEAM_ID / APPLE_KEY_ID / APPLE_PRIVATE_KEY(.p8 の中身) を設定すると有効になる。
 APPLE_CLIENT_ID = "jp.co.plaria.rigel,jp.co.plaria.rigel.web"
 # CORS 許可オリジン（カンマ区切り。web の本番ドメイン。localhost は既定で許可）。
-ALLOWED_ORIGINS = "https://rigel.plaria.co.jp"
-# サブスクの価格ID（公開値・秘密ではない）。RIGEL Next=¥480 / RIGEL Pro=¥1480。
+ALLOWED_ORIGINS = "https://raisha.jp"
+# サブスクの価格ID（公開値・秘密ではない）。RAISHA Next=¥480 / RAISHA Pro=¥1480。
 STRIPE_PRICE_NEXT = "price_1TnGLeLYWvIdYJVUk7f9jGUk"
 STRIPE_PRICE_PRO = "price_1TnGN3LYWvIdYJVUvg6fCymx"
 # RevenueCat（アプリの IAP と web=Stripe のエンタイトルメントを横串一元管理）。

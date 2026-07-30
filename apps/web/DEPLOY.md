@@ -19,11 +19,14 @@ Next.js(App Router) を **Cloudflare Workers** へ SSR 配信する。アダプ�
 
 1. **environment `production`**（api と共用）。`CLOUDFLARE_API_TOKEN` /
    `CLOUDFLARE_ACCOUNT_ID` を使う（api 用に登録済みのものを流用）。
+   トークンには **raisha.jp ゾーン権限**が必要（wrangler.jsonc が routes で
+   カスタムドメインを宣言管理するため。無いと deploy が Auth エラーで落ちる）。
 2. **GitHub Variables（公開ビルド値）** を登録（Secrets ではなく Variables でよい
    ＝バンドルに焼かれる公開値）:
    | Variable | 用途 | 既定 |
    |---|---|---|
-   | `NEXT_PUBLIC_API_URL` | 本番 API のベースURL | `https://rigel-api.plaria.workers.dev` |
+   | `NEXT_PUBLIC_API_URL` | 本番 API のベースURL | `https://api.raisha.jp` |
+   | `NEXT_PUBLIC_SITE_URL` | サイトのベースURL（OGP/sitemap の絶対URL基準） | `https://raisha.jp` |
    | `NEXT_PUBLIC_GOOGLE_CLIENT_ID` | Google OAuth Web クライアントID | （必須） |
 3. 初回 `cf:deploy` で Worker `rigel-web` は自動作成される。
 

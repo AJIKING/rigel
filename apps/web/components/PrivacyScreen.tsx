@@ -7,7 +7,7 @@ import { LegalDoc, type LegalSection } from "./LegalDoc";
 
 const INTRO =
   "株式会社PLARIA（以下「当社」といいます。）は、当社が提供する麻雀牌譜サービス" +
-  "「RIGEL」（ウェブサイトおよびモバイルアプリケーション。以下「本サービス」といいます。）に" +
+  "「RAISHA」（ウェブサイトおよびモバイルアプリケーション。以下「本サービス」といいます。）に" +
   "おける利用者情報の取り扱いについて、以下のとおりプライバシーポリシーを定めます。";
 
 const SECTIONS: LegalSection[] = [

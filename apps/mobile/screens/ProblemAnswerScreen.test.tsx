@@ -1,5 +1,6 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react-native";
 import { Share, StyleSheet } from "react-native";
+import { SITE_ORIGIN } from "../lib/site";
 import { colors } from "../lib/theme";
 import { makeCallProblem, makePost } from "./problem-test-helpers";
 import { ProblemAnswerScreen } from "./ProblemAnswerScreen";
@@ -398,9 +399,7 @@ describe("ProblemAnswerScreen（何切る回答画面）", () => {
 
     fireEvent.press(await screen.findByLabelText("共有"));
     await waitFor(() =>
-      expect(share).toHaveBeenCalledWith(
-        expect.objectContaining({ url: "https://rigel.plaria.co.jp/p/p1" }),
-      ),
+      expect(share).toHaveBeenCalledWith(expect.objectContaining({ url: `${SITE_ORIGIN}/p/p1` })),
     );
     share.mockRestore();
   });

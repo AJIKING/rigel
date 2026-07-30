@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { useAuth } from "../lib/auth-context";
+import { COPYRIGHT } from "../lib/brand";
 import { AppleSignInButton } from "./AppleSignInButton";
 import { GoogleSignInButton } from "./GoogleSignInButton";
 import { BrandMark } from "./BrandMark";
@@ -59,7 +60,7 @@ export function LoginScreen() {
           )}
         </div>
       </main>
-      <div className={s.foot}>© 2026 RIGEL</div>
+      <div className={s.foot}>{COPYRIGHT}</div>
     </div>
   );
 }

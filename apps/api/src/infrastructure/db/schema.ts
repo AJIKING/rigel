@@ -25,7 +25,7 @@ export const users = sqliteTable("users", {
   /** アカウントのメール。緊急時・不正アカウント調査の運用のためだけに保存する。
    *  API では絶対にレスポンスしない（アプリ層の JSON 整形に含めない）。 */
   email: text("email"),
-  /** 課金プラン（free / next=RIGEL Next / pro=RIGEL Pro）。 */
+  /** 課金プラン（free / next=RAISHA Next / pro=RAISHA Pro）。 */
   plan: text("plan", { enum: ["free", "next", "pro"] })
     .notNull()
     .default("free"),

@@ -12,9 +12,8 @@
     "binding": "ASSETS",
     "directory": ".open-next/assets",
   },
-  // カスタムドメイン rigel.plaria.co.jp は初回 deploy で発行済み（Worker に紐付く）。
-  // ここで routes を宣言し続けると毎回 /zones/.../workers/routes を照合しに行き、
-  // API トークンに Zone Workers Routes 権限が無いと Auth エラーで deploy が落ちる。
-  // ドメインは発行済みで再宣言不要のため routes は持たせない（コード更新のみ反映）。
-  // ドメイン構成を変える時だけ、Zone 権限付きトークンで一時的に routes を復活させる。
+  // 本番は独自ドメインのみ公開（workers.dev の URL は無効化）。
+  "workers_dev": false,
+  // カスタムドメイン。CI トークンに raisha.jp ゾーン権限が必要（DEPLOY.md 参照）。
+  "routes": [{ "pattern": "raisha.jp", "custom_domain": true }],
 }

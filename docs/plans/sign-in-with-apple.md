@@ -117,8 +117,8 @@
 
 残作業（コード外の設定。ストア提出前に必須）:
 1. Apple Developer: App ID `jp.co.plaria.rigel` に Sign in with Apple capability を付与。
-2. Services ID `jp.co.plaria.rigel.web` を作成し、ドメイン `rigel.plaria.co.jp` と
-   Return URL `https://rigel.plaria.co.jp/login` を登録（web ポップアップの redirectURI）。
+2. Services ID `jp.co.plaria.rigel.web` を作成し、ドメイン `raisha.jp` と
+   Return URL `https://raisha.jp/login` を登録（web ポップアップの redirectURI）。
 3. Keys で Sign in with Apple 用の .p8 を発行（Key ID を控える）。
 4. **GitHub（environment "production"）の Secrets**: `APPLE_TEAM_ID` / `APPLE_KEY_ID` /
    `APPLE_PRIVATE_KEY`（.p8 の中身を改行込みで登録）。deploy.api.yml が Worker Secrets へ
