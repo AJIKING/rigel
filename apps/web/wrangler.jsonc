@@ -12,6 +12,10 @@
     "binding": "ASSETS",
     "directory": ".open-next/assets",
   },
+  // Workers Logs（ダッシュボードの Observability タブ。api 側と同じく有効化）。
+  "observability": {
+    "enabled": true,
+  },
   // 本番は独自ドメインのみ公開（workers.dev の URL は無効化）。
   "workers_dev": false,
   // カスタムドメイン。CI トークンに raisha.jp ゾーン権限が必要（DEPLOY.md 参照）。
