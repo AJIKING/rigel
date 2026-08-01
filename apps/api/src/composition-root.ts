@@ -149,6 +149,7 @@ export function buildContainer(env: Env): AppContainer {
     client: new HttpGeminiClient({
       apiKey: env.GEMINI_API_KEY,
       baseUrl: env.CLOUDFLARE_AI_GATEWAY_URL,
+      gatewayToken: env.CLOUDFLARE_AI_GATEWAY_TOKEN,
     }),
     // 河1枚 → 4分割＋正立（Photon/WASM）。
     preprocessor: new ImageRiverPreprocessor(new PhotonImageProcessor()),

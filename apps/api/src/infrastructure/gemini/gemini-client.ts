@@ -18,6 +18,9 @@ export interface HttpGeminiClientConfig {
   apiKey: string;
   /** AI Gateway の google-ai-studio ベースURL（`/v1beta/...` の手前まで）。 */
   baseUrl: string;
+  /** Authenticated Gateway のトークン（cf-aig-authorization。Cloudflare 発行の
+   *  「AI Gateway - Run」権限 API トークン）。未設定ならヘッダを送らない（直叩き・テスト用）。 */
+  gatewayToken?: string;
   /** テスト用に差し替え可能。未指定ならグローバル fetch。 */
   fetchImpl?: typeof fetch;
   /** Agentic Vision（Code Execution）。モデルが画像をコードで切り出し・拡大しながら読む。
@@ -72,6 +75,9 @@ export class HttpGeminiClient implements GeminiClient {
       headers: {
         "content-type": "application/json",
         "x-goog-api-key": this.cfg.apiKey,
+        ...(this.cfg.gatewayToken
+          ? { "cf-aig-authorization": `Bearer ${this.cfg.gatewayToken}` }
+          : {}),
       },
       body: JSON.stringify(body),
     });

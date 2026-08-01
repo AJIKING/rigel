@@ -12,6 +12,8 @@ name: Deploy rigel-api
 #       SESSION_SECRET         … セッションJWTの署名鍵
 #       GEMINI_API_KEY         … Gemini API キー
 #       CLOUDFLARE_AI_GATEWAY_URL … AI Gateway の google-ai-studio ベースURL
+#       CLOUDFLARE_AI_GATEWAY_TOKEN … Authenticated Gateway のトークン
+#                                     （「AI Gateway - Run」権限の API トークン。認証 ON の必須対）
 #       STRIPE_SECRET_KEY      … Stripe シークレット（rk_/sk_。未設定なら /billing/* は 501）
 #       STRIPE_WEBHOOK_SECRET  … Stripe Webhook 署名シークレット（whsec_...）
 #       REVENUECAT_WEBHOOK_AUTH        … RevenueCat Webhook の Authorization 照合値
@@ -151,6 +153,7 @@ jobs:
             SESSION_SECRET
             GEMINI_API_KEY
             CLOUDFLARE_AI_GATEWAY_URL
+            CLOUDFLARE_AI_GATEWAY_TOKEN
             STRIPE_SECRET_KEY
             STRIPE_WEBHOOK_SECRET
             REVENUECAT_WEBHOOK_AUTH
@@ -159,6 +162,7 @@ jobs:
           SESSION_SECRET: ${{ secrets.SESSION_SECRET }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           CLOUDFLARE_AI_GATEWAY_URL: ${{ secrets.CLOUDFLARE_AI_GATEWAY_URL }}
+          CLOUDFLARE_AI_GATEWAY_TOKEN: ${{ secrets.CLOUDFLARE_AI_GATEWAY_TOKEN }}
           STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
           STRIPE_WEBHOOK_SECRET: ${{ secrets.STRIPE_WEBHOOK_SECRET }}
           # RevenueCat（課金の横串一元管理）: Webhook の Authorization 照合値 と

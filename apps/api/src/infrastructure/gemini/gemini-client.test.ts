@@ -70,6 +70,29 @@ describe("HttpGeminiClient", () => {
     expect(capturedBody.tools).toBeUndefined();
   });
 
+  it("gatewayToken 設定時は cf-aig-authorization を送る（Authenticated Gateway 対応）", async () => {
+    let capturedHeaders: Record<string, string> = {};
+    const fetchImpl = (async (_url: string, init?: RequestInit) => {
+      capturedHeaders = (init?.headers ?? {}) as Record<string, string>;
+      return new Response(JSON.stringify(geminiResponse([{ text: "{}" }])), { status: 200 });
+    }) as unknown as typeof fetch;
+
+    const withToken = new HttpGeminiClient({
+      apiKey: "k",
+      baseUrl: "https://gw.example",
+      fetchImpl,
+      gatewayToken: "aig-token",
+    });
+    await withToken.generateText({ model: "m", prompt: "p", images: [] });
+    expect(capturedHeaders["cf-aig-authorization"]).toBe("Bearer aig-token");
+    expect(capturedHeaders["x-goog-api-key"]).toBe("k"); // Google の鍵は従来どおり併送
+
+    // 未設定（ローカルの直叩き等）ではヘッダ自体を送らない。
+    const without = new HttpGeminiClient({ apiKey: "k", baseUrl: "https://gw.example", fetchImpl });
+    await without.generateText({ model: "m", prompt: "p", images: [] });
+    expect("cf-aig-authorization" in capturedHeaders).toBe(false);
+  });
+
   it("非200応答はエラーにする", async () => {
     const fetchImpl = (async () =>
       new Response("nope", { status: 500 })) as unknown as typeof fetch;

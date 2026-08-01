@@ -14,6 +14,9 @@ export interface Env {
   GEMINI_API_KEY: string;
   /** Cloudflare AI Gateway の google-ai-studio ベースURL（`/v1beta/...` の手前まで）。 */
   CLOUDFLARE_AI_GATEWAY_URL: string;
+  /** Authenticated Gateway のトークン（Secret。Cloudflare 発行の「AI Gateway - Run」権限
+   *  API トークン。ゲートウェイの認証が ON の本番では必須＝無いと Gemini 呼び出しが 401）。 */
+  CLOUDFLARE_AI_GATEWAY_TOKEN?: string;
   /** 河読み取りモデル名（任意。未指定なら既定値）。ハードコードせず AI Studio の現行モデルを設定。 */
   GEMINI_RIVER_MODEL?: string;
   /** 手牌読み取りモデル名（任意。未指定なら既定値。素直なタスクなので Flash-Lite 系）。 */

@@ -19,3 +19,5 @@ ALLOWED_ORIGINS=http://localhost:3000
 # --- ここから下は「AI解析(/analyze)」を試すときだけ必要。ログイン/編集/採点/公開だけなら未設定でよい。 ---
 # GEMINI_API_KEY=
 # CLOUDFLARE_AI_GATEWAY_URL=
+# Authenticated Gateway のトークン（本番ゲートウェイ経由で試すときのみ。Cloudflare 発行）。
+# CLOUDFLARE_AI_GATEWAY_TOKEN=
