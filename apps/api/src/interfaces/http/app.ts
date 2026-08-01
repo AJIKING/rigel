@@ -19,6 +19,7 @@ import { registerBillingRoutes } from "./routes/billing.routes";
 import { registerFavoriteRoutes } from "./routes/favorites.routes";
 import { registerGameRoutes } from "./routes/games.routes";
 import { registerKifuRoutes } from "./routes/kifu.routes";
+import { registerProbeRoutes } from "./routes/probe.routes";
 import { registerProblemRoutes } from "./routes/problems.routes";
 import { registerQuizRoutes } from "./routes/quiz.routes";
 import type { AppEnv } from "./shared";
@@ -98,6 +99,8 @@ export function createApp(options: CreateAppOptions = {}): Hono<AppEnv> {
   app.get("/health", (c) => c.json({ ok: true }));
 
   registerAccountRoutes(app);
+  registerProbeRoutes(app); // 一時検証（async-analysis Task 1。済んだら削除）
+
   registerGameRoutes(app);
   registerKifuRoutes(app);
   registerProblemRoutes(app);

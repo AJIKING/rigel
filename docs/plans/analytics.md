@@ -1,6 +1,8 @@
 # Plan: 利用計測（GA4 / Firebase Analytics）
 
 > 状態: **フェーズ1（web=GA4）実装済み／フェーズ2（mobile）コード実装済み・ビルド検証待ち（2026-07-17）**。
+> フェーズ2の完遂（ビルド検証・残イベント結線）は [crashlytics.md](crashlytics.md)（2026-08-01 提案）に
+> 統合した — Crashlytics 追加と同じ Codemagic ビルド検証で一度に済ませる。
 > 方針合意: 「別々の2製品」ではなく **1つの GA4 プロパティに web / iOS / Android の3ストリーム**。
 > Firebase Analytics の実体は GA4 なので、Firebase プロジェクトを GA4 プロパティにリンクして
 > アプリとブラウザを同じイベント体系で横断分析する。
