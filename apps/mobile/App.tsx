@@ -5,6 +5,7 @@ import { ActivityIndicator, StyleSheet, View } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { AuthProvider, useAuth } from "./lib/auth";
 import type { RootStackParamList } from "./lib/navigation";
+import { AnalysisJobProvider } from "./lib/use-analysis-job";
 import { configurePurchases } from "./lib/purchases";
 import { colors } from "./lib/theme";
 import { BoardScreen } from "./screens/BoardScreen";
@@ -91,8 +92,11 @@ export default function App() {
   return (
     <SafeAreaProvider>
       <AuthProvider>
-        <Root />
-        <StatusBar style="light" />
+        {/* 解析ジョブのポーリングはアプリ全体で一本（開き直しの復元もここ。plan 8-2）。 */}
+        <AnalysisJobProvider>
+          <Root />
+          <StatusBar style="light" />
+        </AnalysisJobProvider>
       </AuthProvider>
     </SafeAreaProvider>
   );

@@ -7,8 +7,9 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react-nativ
 import { CaptureScreen } from "./CaptureScreen";
 
 const mockNavigate = jest.fn();
+const mockGoBack = jest.fn();
 jest.mock("@react-navigation/native", () => ({
-  useNavigation: () => ({ navigate: mockNavigate }),
+  useNavigation: () => ({ navigate: mockNavigate, goBack: mockGoBack }),
   useRoute: () => ({ params: undefined }),
 }));
 
@@ -28,22 +29,14 @@ const mockPickImage = jest.fn<Promise<unknown>, []>();
 jest.mock("../lib/pick-image", () => ({ pickImage: () => mockPickImage() }));
 jest.mock("../lib/upload", () => ({ toUploadFile: (p: unknown) => p }));
 
-const mockPoll = jest.fn<Promise<unknown>, unknown[]>();
-const mockSave = jest.fn(() => Promise.resolve());
-const mockClear = jest.fn(() => Promise.resolve());
-let mockPending: { jobId: string; startedAt: number } | null = null;
-jest.mock("../lib/analysis-job", () => ({
-  pollAnalysisJob: (...a: unknown[]) => mockPoll(...a),
-  savePendingAnalysis: (...a: unknown[]) => mockSave(...(a as [])),
-  loadPendingAnalysis: () => Promise.resolve(mockPending),
-  clearPendingAnalysis: () => mockClear(),
+// ポーリングはグローバル（use-analysis-job の Provider）の責務。画面は start に渡すだけ。
+const mockStart = jest.fn(() => Promise.resolve());
+jest.mock("../lib/use-analysis-job", () => ({
+  useAnalysisJob: () => ({ card: null, completedCount: 0, start: mockStart, dismiss: jest.fn() }),
 }));
 
 describe("CaptureScreen（解析枠の表示）", () => {
-  beforeEach(() => {
-    jest.clearAllMocks();
-    mockPending = null;
-  });
+  beforeEach(() => jest.clearAllMocks());
 
   it("有料プランには当月の残り解析枠を表示する", () => {
     mockAuth = { token: "t", user: { plan: "next", remainingCalls: 92, monthlyCallQuota: 100 } };
@@ -60,10 +53,9 @@ describe("CaptureScreen（解析枠の表示）", () => {
   });
 });
 
-describe("CaptureScreen（非同期ジョブの解析フロー）", () => {
+describe("CaptureScreen（非同期ジョブの解析フロー。案B=送信したら一覧へ）", () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    mockPending = null;
     mockAuth = { token: "tok", user: { plan: "pro", remainingCalls: 320, monthlyCallQuota: 320 } };
     mockPickImage.mockResolvedValue({
       status: "picked",
@@ -77,56 +69,24 @@ describe("CaptureScreen（非同期ジョブの解析フロー）", () => {
     fireEvent.press(screen.getByText("解析して保存"));
   }
 
-  it("送信 → ジョブ保存 → ポーリング完了で結果画面へ（ジョブは後始末）", async () => {
+  it("202 が返ったらジョブを Provider に渡し、元の画面（一覧）へ戻る", async () => {
     mockAnalyze.mockResolvedValue({ ok: true, jobId: "job-1" });
-    mockPoll.mockResolvedValue({ kind: "done", gameId: "g1", logId: "l1" });
     render(<CaptureScreen />);
 
     await pickRiverAndSubmit();
 
-    await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith("GameDetail", { gameId: "g1" }));
-    expect(mockSave).toHaveBeenCalledWith(expect.objectContaining({ jobId: "job-1" }));
-    expect(mockClear).toHaveBeenCalled();
+    await waitFor(() => expect(mockGoBack).toHaveBeenCalled());
+    expect(mockStart).toHaveBeenCalledWith(expect.objectContaining({ jobId: "job-1", seq: 1 }));
   });
 
-  it("ジョブ失敗は理由の文言をインライン表示し、遷移しない", async () => {
-    mockAnalyze.mockResolvedValue({ ok: true, jobId: "job-1" });
-    mockPoll.mockResolvedValue({ kind: "failed", message: "この半荘はこれ以上局を追加できません" });
-    render(<CaptureScreen />);
-
-    await pickRiverAndSubmit();
-
-    await waitFor(() => expect(screen.getByText(/これ以上局を追加できません/)).toBeTruthy());
-    expect(mockNavigate).not.toHaveBeenCalled();
-    expect(mockClear).toHaveBeenCalled();
-  });
-
-  it("打ち切り（timeout）は「完了すると牌譜一覧に載る」旨を案内する", async () => {
-    mockAnalyze.mockResolvedValue({ ok: true, jobId: "job-1" });
-    mockPoll.mockResolvedValue({ kind: "timeout" });
-    render(<CaptureScreen />);
-
-    await pickRiverAndSubmit();
-
-    await waitFor(() => expect(screen.getByText(/牌譜一覧/)).toBeTruthy());
-  });
-
-  it("送信自体の失敗（枠切れ等）は従来のステータス文言を出す", async () => {
+  it("送信自体の失敗（枠切れ等）はその場でステータス文言を出し、遷移しない", async () => {
     mockAnalyze.mockResolvedValue({ ok: false, status: 402, reason: "quota_exceeded" });
     render(<CaptureScreen />);
 
     await pickRiverAndSubmit();
 
     await waitFor(() => expect(screen.getByText(/上限/)).toBeTruthy());
-    expect(mockPoll).not.toHaveBeenCalled();
-  });
-
-  it("開き直しで pending ジョブがあればポーリングを再開し、完了で結果画面へ", async () => {
-    mockPending = { jobId: "job-9", startedAt: 100 };
-    mockPoll.mockResolvedValue({ kind: "done", gameId: "g9", logId: "l9" });
-    render(<CaptureScreen />);
-
-    await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith("GameDetail", { gameId: "g9" }));
-    expect(mockPoll).toHaveBeenCalledWith("tok", { jobId: "job-9", startedAt: 100 });
+    expect(mockStart).not.toHaveBeenCalled();
+    expect(mockGoBack).not.toHaveBeenCalled();
   });
 });

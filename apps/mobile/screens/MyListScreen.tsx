@@ -1,8 +1,9 @@
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { planKifuLimits, sortMyList, type MyListSortKey } from "@rigel/ui";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { FlatList, Pressable, StyleSheet, Text, View } from "react-native";
+import { AnalysisJobCard } from "../components/AnalysisJobCard";
 import { CenterState } from "../components/CenterState";
 import { KifuCard } from "../components/KifuCard";
 import { MyListToolbar } from "../components/MyListToolbar";
@@ -13,6 +14,7 @@ import { confirmDestructive } from "../lib/confirm";
 import { relativeTime } from "../lib/format";
 import type { RootStackParamList } from "../lib/navigation";
 import { colors, radius } from "../lib/theme";
+import { useAnalysisJob } from "../lib/use-analysis-job";
 import { useFavorites } from "../lib/use-favorites";
 import { useMyGames } from "../lib/use-kifu-data";
 
@@ -39,6 +41,13 @@ export function MyListScreen() {
       refetch();
     }, [refetch]),
   );
+
+  // 解析ジョブ（非同期解析。docs/plans/async-analysis.md 8-2）: 進行/失敗カードを一覧の
+  // 上に出し、完了（completedCount の変化）で再取得して実カードを出す。
+  const { card: analysisCard, completedCount, dismiss } = useAnalysisJob();
+  useEffect(() => {
+    refetch();
+  }, [completedCount, refetch]);
 
   /** 半荘を長押しで削除（確認つき。成功で一覧を再取得）。 */
   function onDelete(gameId: string, title: string) {
@@ -108,6 +117,8 @@ export function MyListScreen() {
           )}
         </View>
       )}
+      {/* 解析中カードは 0 件・ロード中でも出す（初めての解析で空画面に置き去りにしない）。 */}
+      {analysisCard ? <AnalysisJobCard card={analysisCard} onDismiss={dismiss} /> : null}
       {loading ? (
         <CenterState loading />
       ) : shown.length === 0 ? (

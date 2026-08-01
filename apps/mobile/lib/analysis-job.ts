@@ -16,6 +16,8 @@ export interface PendingAnalysis {
   jobId: string;
   /** 送信時刻（epoch ms）。ポーリング予算の起点（復元しても総予算は変わらない）。 */
   startedAt: number;
+  /** 作成する局（東一局=1〜）。解析中カードの「◯◯局を作成しています」表示用（任意）。 */
+  seq?: number;
 }
 
 export async function savePendingAnalysis(pending: PendingAnalysis): Promise<void> {
@@ -28,7 +30,11 @@ export async function loadPendingAnalysis(): Promise<PendingAnalysis | null> {
   try {
     const parsed = JSON.parse(raw) as Partial<PendingAnalysis>;
     if (typeof parsed.jobId !== "string" || typeof parsed.startedAt !== "number") return null;
-    return { jobId: parsed.jobId, startedAt: parsed.startedAt };
+    return {
+      jobId: parsed.jobId,
+      startedAt: parsed.startedAt,
+      ...(typeof parsed.seq === "number" ? { seq: parsed.seq } : {}),
+    };
   } catch {
     return null;
   }

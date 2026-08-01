@@ -36,6 +36,16 @@ jest.mock("../lib/use-favorites", () => ({
   }),
 }));
 
+// 解析ジョブ（非同期解析の進行カード。docs/plans/async-analysis.md 8-2）。
+const mockDismiss = jest.fn();
+let mockJob: {
+  card: { kind: string; seq?: number; message?: string } | null;
+  completedCount: number;
+} = { card: null, completedCount: 0 };
+jest.mock("../lib/use-analysis-job", () => ({
+  useAnalysisJob: () => ({ ...mockJob, start: jest.fn(), dismiss: mockDismiss }),
+}));
+
 function makeGame(overrides: Partial<MyGameCard> = {}): MyGameCard {
   return {
     id: "g1",
@@ -58,6 +68,40 @@ describe("MyListScreen（マイ牌譜一覧）", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockAuth = { token: "t", user: { plan: "free" } };
+    mockJob = { card: null, completedCount: 0 };
+  });
+
+  it("解析中カードを一覧の上に出す（局名＋閉じてもOKの案内。半荘0件でも出る）", () => {
+    mockJob = { card: { kind: "processing", seq: 1 }, completedCount: 0 };
+    setGames([]);
+    render(<MyListScreen />);
+
+    expect(screen.getByText("AI解析中…")).toBeTruthy();
+    expect(screen.getByText(/東一局を作成しています/)).toBeTruthy();
+    expect(screen.getByText(/アプリを閉じてもOK/)).toBeTruthy();
+  });
+
+  it("解析失敗カードは理由と✕を出し、✕で dismiss する", () => {
+    mockJob = {
+      card: { kind: "failed", message: "今月の解析回数の上限に達しました。" },
+      completedCount: 0,
+    };
+    setGames([makeGame()]);
+    render(<MyListScreen />);
+
+    expect(screen.getByText("解析に失敗しました")).toBeTruthy();
+    expect(screen.getByText(/上限に達しました/)).toBeTruthy();
+    fireEvent.press(screen.getByLabelText("解析の通知を閉じる"));
+    expect(mockDismiss).toHaveBeenCalled();
+  });
+
+  it("解析完了（completedCount の変化）で一覧を再取得する", () => {
+    const refetch = jest.fn();
+    mockJob = { card: null, completedCount: 1 };
+    mockUseMyGames.mockReturnValue({ loading: false, games: [], sample: false, refetch });
+    render(<MyListScreen />);
+
+    expect(refetch).toHaveBeenCalled();
   });
 
   it("未サインイン（ゲスト・サンプル表示）では「＋ 新規」を出さない（作成にはサインインが必要）", () => {
