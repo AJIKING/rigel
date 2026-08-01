@@ -1,6 +1,6 @@
 // domain/analysis — 解析ジョブ（非同期化のジョブ状態。docs/plans/async-analysis.md）。
-// POST /analyze は 202 + jobId を即返し、waitUntil で解析を継続、完了/失敗をここに書く。
-// 画像・牌譜本体は持たない（画像非保存。結果は games/game_logs への参照だけ）。
+// POST /analyze は 202 + jobId を即返し、解析本体はキュー consumer（RunAnalysisJob）が実行、
+// 完了/失敗をここに書く。画像・牌譜本体は持たない（結果は games/game_logs への参照だけ）。
 
 export type AnalysisJobStatus = "processing" | "done" | "failed";
 

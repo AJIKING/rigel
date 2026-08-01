@@ -114,7 +114,12 @@ export function CaptureScreen() {
         setError(analyzeErrorMessage(result.status, result.reason));
         return;
       }
-      await startAnalysis({ jobId: result.jobId, startedAt: Date.now(), seq });
+      const started = await startAnalysis({ jobId: result.jobId, startedAt: Date.now(), seq });
+      if (!started) {
+        // 進行中のジョブがあるときは開始しない（保存枠を潰して1件目を行方不明にしない）。
+        setError("解析はひとつずつ実行できます。進行中の解析が終わってからお試しください。");
+        return;
+      }
       nav.goBack();
     } catch {
       setError("通信に失敗しました。");
@@ -172,6 +177,8 @@ export function CaptureScreen() {
             }}
             accessibilityRole="switch"
             accessibilityState={{ checked: handFromRiver }}
+            accessibilityLabel="この写真に自分の手牌も写っている"
+            accessibilityHint="手前の手牌もこの1枚から読み取ります。解析回数を1回分多く使います"
           >
             <View style={[styles.tglBox, handFromRiver && styles.tglBoxOn]}>
               {handFromRiver ? <Text style={styles.tglTick}>✓</Text> : null}
@@ -212,9 +219,8 @@ export function CaptureScreen() {
             style={[styles.submit, (busy || !river) && styles.submitDisabled]}
             accessibilityRole="button"
           >
-            <Text style={styles.submitText}>
-              {submitting ? "解析中…（少し時間がかかります）" : "解析して保存"}
-            </Text>
+            {/* 非同期化後は待つのは送信（アップロード）だけ。解析の進行は一覧のカードが示す。 */}
+            <Text style={styles.submitText}>{submitting ? "送信中…" : "解析して保存"}</Text>
           </Pressable>
 
           {/* 解析とは別導線。区切りを置いて誤タップ・状態の取り違えを防ぐ。 */}

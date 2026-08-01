@@ -106,6 +106,21 @@ describe("HTTP app (Hono)", () => {
       expect(res.status).toBe(413);
     });
 
+    it("/problems/analyze（multipart）は 256KB の JSON 上限で弾かない（実写真は数MB。413 で全滅させない）", async () => {
+      const form = new FormData();
+      // 画像上限（ルート側）の検査より前に、グローバル bodyLimit で落ちないことだけ確認する。
+      form.set(
+        "hand",
+        new File([new Uint8Array(BODY_LIMIT_BYTES + 1)], "hand.jpg", { type: "image/jpeg" }),
+      );
+      const res = await app.request(
+        "/problems/analyze",
+        { method: "POST", headers: { authorization: `Bearer ${await auth()}` }, body: form },
+        fakeEnv,
+      );
+      expect(res.status).not.toBe(413);
+    });
+
     it("/analyze は画像以外の MIME を 400（任意バイト列を画像として Gemini に送らない）", async () => {
       const form = new FormData();
       form.set("river", new File(["not-an-image"], "x.txt", { type: "text/plain" }));

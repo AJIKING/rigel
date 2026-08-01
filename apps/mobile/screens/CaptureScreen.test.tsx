@@ -30,7 +30,7 @@ jest.mock("../lib/pick-image", () => ({ pickImage: () => mockPickImage() }));
 jest.mock("../lib/upload", () => ({ toUploadFile: (p: unknown) => p }));
 
 // ポーリングはグローバル（use-analysis-job の Provider）の責務。画面は start に渡すだけ。
-const mockStart = jest.fn(() => Promise.resolve());
+const mockStart = jest.fn<Promise<boolean>, unknown[]>(() => Promise.resolve(true));
 jest.mock("../lib/use-analysis-job", () => ({
   useAnalysisJob: () => ({ card: null, completedCount: 0, start: mockStart, dismiss: jest.fn() }),
 }));
@@ -120,6 +120,17 @@ describe("CaptureScreen（非同期ジョブの解析フロー。案B=送信し�
 
     await waitFor(() => expect(mockAnalyze).toHaveBeenCalled());
     expect(formField(mockAnalyze.mock.calls[0]![1], "handFromRiver")).toBeUndefined();
+  });
+
+  it("進行中の解析がある（start=false）ときは案内を出し、遷移しない", async () => {
+    mockAnalyze.mockResolvedValue({ ok: true, jobId: "job-2" });
+    mockStart.mockResolvedValueOnce(false);
+    render(<CaptureScreen />);
+
+    await pickRiverAndSubmit();
+
+    await waitFor(() => expect(screen.getByText(/解析はひとつずつ/)).toBeTruthy());
+    expect(mockGoBack).not.toHaveBeenCalled();
   });
 
   it("送信自体の失敗（枠切れ等）はその場でステータス文言を出し、遷移しない", async () => {

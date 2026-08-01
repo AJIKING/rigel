@@ -19,7 +19,6 @@ import { registerBillingRoutes } from "./routes/billing.routes";
 import { registerFavoriteRoutes } from "./routes/favorites.routes";
 import { registerGameRoutes } from "./routes/games.routes";
 import { registerKifuRoutes } from "./routes/kifu.routes";
-import { registerProbeRoutes } from "./routes/probe.routes";
 import { registerProblemRoutes } from "./routes/problems.routes";
 import { registerQuizRoutes } from "./routes/quiz.routes";
 import type { AppEnv } from "./shared";
@@ -61,10 +60,12 @@ export function createApp(options: CreateAppOptions = {}): Hono<AppEnv> {
     })(c, next),
   );
 
-  // JSON ボディの上限（413）。/analyze（multipart）は画像ごとの上限を各ルートで見るため除外する。
+  // JSON ボディの上限（413）。multipart の解析ルートは画像ごとの上限を各ルートで見るため除外する
+  // （/problems/analyze を除外し損ねて実写真が全滅していた回帰あり・2026-08-01）。
   // Workers 既定（~100MB）任せだと、認証済みユーザーが D1 の行や CPU を安価に焼ける。
+  const MULTIPART_ROUTES = new Set(["/analyze", "/problems/analyze"]);
   app.use("*", async (c, next) => {
-    if (c.req.path === "/analyze") return next();
+    if (MULTIPART_ROUTES.has(c.req.path)) return next();
     return bodyLimit({
       maxSize: BODY_LIMIT_BYTES,
       onError: (ctx) => ctx.json({ error: "payload too large" }, 413),
@@ -99,7 +100,6 @@ export function createApp(options: CreateAppOptions = {}): Hono<AppEnv> {
   app.get("/health", (c) => c.json({ ok: true }));
 
   registerAccountRoutes(app);
-  registerProbeRoutes(app); // 一時検証（async-analysis Task 1。済んだら削除）
 
   registerGameRoutes(app);
   registerKifuRoutes(app);

@@ -149,6 +149,6 @@ describe("LoginScreen の審査用ログイン（ストア審査員向けの合�
     fireEvent.changeText(screen.getByLabelText("審査コード"), "wrong");
     fireEvent.press(screen.getByText("コードでサインイン"));
 
-    await waitFor(() => expect(screen.getByText("コードを確認できませんでした")).toBeTruthy());
+    await waitFor(() => expect(screen.getByText(/コードを確認できませんでした/)).toBeTruthy());
   });
 });

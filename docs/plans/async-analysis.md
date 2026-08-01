@@ -20,8 +20,8 @@
 ## 3. スコープ
 
 - やること:
-  - `POST /analyze` を **202 + jobId 即時応答**に変更。解析本体は同一リクエストの
-    `ctx.waitUntil` で応答後も継続（**画像はメモリ内のみ＝画像非保存ルール堅持**）
+  - `POST /analyze` を **202 + jobId 即時応答**に変更。解析本体はキュー consumer が実行
+    （当初案の waitUntil は検証で不成立 → §4 参照。画像は R2 一時保存＝ルール7改定）
   - D1 に `analysis_jobs`（id / userId / status: processing・done・failed / 結果 gameId・logId /
     失敗 reason / createdAt・updatedAt）。**画像・牌譜本体は持たない**（結果は従来どおり
     games/game_logs へ。ジョブ行は参照だけ）
@@ -33,7 +33,8 @@
   - 滞留ジョブの扱い: 一定時間（例 10 分）更新が無い processing は failed 扱いで表示・
     再実行導線（waitUntil が途中で死ぬ可能性への備え）
 - やらないこと（非対象）:
-  - Cloudflare Queues / R2 への画像退避（**画像非保存ルールに抵触**。採るなら別途オーナー判断）
+  - ~~Cloudflare Queues / R2 への画像退避~~ → **採用に転じた**（オーナー判断 2026-08-01 で
+    ルール7を「恒久保存しない」に改定。§4 の決定参照）
   - プッシュ通知での完了通知（将来。まずはポーリング＋復元）
   - Gemini 側の速度改善（モデル変更・thinkingBudget 調整は eval の領分 →
     [ai-model-selection 保留メモ]と接続。本 Plan は「遅くても完走する形」を作る）
@@ -93,7 +94,8 @@
 
 ## 6. 信頼まわり
 
-- 画像非保存: waitUntil 方式の核。ジョブ行にも画像・画像由来データを入れない
+- 画像の一時保存（R2）: ジョブ終端（done/failed）で必ず削除（RunAnalysisJob）。保険は
+  バケットのライフサイクル1日。ジョブ行（D1）には画像・画像由来データを入れない
 - 課金: 解析成功時のみ recordGeminiCalls（現行ロジックを waitUntil 内でそのまま使う）。
   ジョブ失敗時は非加算（従来どおり）
 - Zod 検証・null 白旗: 解析パイプライン自体は不変
@@ -101,26 +103,31 @@
 
 ## 7. 受け入れ条件（= 最初に書く失敗テストの集合）
 
-- [ ] `POST /analyze` は検証（認証・枠・上限）通過後、即 202 と jobId を返す
-- [ ] 枠不足・上限超過は従来どおり同期の 4xx（ジョブを作らない）
-- [ ] ジョブ完了で status=done・gameId/logId が取得でき、牌譜が保存されている
-- [ ] 解析失敗で status=failed・reason が取得でき、課金カウントされない
-- [ ] `GET /analyze/jobs/:id` は他人のジョブに 404
-- [ ] mobile: 送信→アプリ再起動→jobId 復元→done で結果画面へ遷移できる
-- [ ] 一定時間更新の無い processing はクライアントで失敗扱い＋再実行導線
-- [ ] （検証）本番 waitUntil で 3分超の疑似処理が完走し D1 に書ける
+- [x] `POST /analyze` は検証（認証・枠・上限）通過後、即 202 と jobId を返す
+- [x] 枠不足・上限超過は従来どおり同期の 4xx（ジョブを作らない）
+- [x] ジョブ完了で status=done・gameId/logId が取得でき、牌譜が保存されている
+      （本番 E2E 2026-08-01: 202 → 15秒で done・課金4回・R2 削除確認）
+- [x] 解析失敗で status=failed・reason が取得でき、課金カウントされない
+- [x] `GET /analyze/jobs/:id` は他人のジョブに 404
+- [x] mobile: 送信→開き直しで復元（Provider が SecureStore から。userId 不一致は掃除）
+- [x] ポーリング打ち切り（10分）でクライアントは案内表示（analysisTimeoutMessage）
+- [x] ~~本番 waitUntil 検証~~ → 不成立を確認し R2+Queues へ差し替え（§4 [決定]）
 
 ## 8. Task 分解（1つ＝1つの振る舞い）
 
-1. [ ] **[未確定検証] waitUntil 長時間実行**: 一時エンドポイントで実測 → 結論を本 Plan に反映
-2. [ ] migration + `analysis_jobs` リポジトリ（作成・更新・取得） → Red
-3. [ ] application: ジョブ開始（検証→202相当の結果）と完了/失敗の状態遷移 → Red
-4. [ ] route: `POST /analyze`（202化・waitUntil 結線）/ `GET /analyze/jobs/:id` → Red
-5. [ ] client: `analyze` 契約変更＋ `getAnalysisJob` → Red
-6. [ ] mobile: ポーリング＋jobId 永続化＋復元＋失敗/再実行 UI → Red
-7. [ ] web: 同上（解析を使う画面） → Red
-8. [ ] /problems/analyze の同経路化 → Red
-9. [ ] 滞留ジョブのクライアント側タイムアウト → Red
+1. [x] **[未確定検証] waitUntil 長時間実行**: 不成立を実測（§4 [決定]）→ R2+Queues に差し替え
+2. [x] migration 0016 + `analysis_jobs` リポジトリ（所有者ガード付き）
+3. [x] application: StartAnalysisJob（画像→R2→ジョブ→キュー投入）/ RunAnalysisJob（consumer。
+       終端書き込み失敗は再送に乗せない＝二重課金防止 2026-08-01 追補）
+4. [x] route: `POST /analyze`（202）/ `GET /analyze/jobs/:id` / queue consumer エントリ
+5. [x] client: `analyze` 契約変更＋ `getAnalysisJob`
+6. [x] mobile: AnalysisJobProvider（一本化ポーリング・復元・userId ガード・サインアウト中断・
+       多重 start 拒否）＋解析中カード（8-2）
+7. [x] web: AddKyokuModal のポーリング化（モーダル破棄で中断）
+8. [ ] /problems/analyze の同経路化 → Red（**未着手の負債**。何切る写真AI再現は同期のままで、
+       実写真では同じタイムアウト問題が残る。ジョブ結果が「保存されないドラフト Kifu」のため
+       結果の置き場（R2 or 新カラム）の設計判断が要る）
+9. [x] 滞留ジョブのクライアント側タイムアウト（10分打ち切り＋案内）
 10. [ ] 実機（Codemagic ビルド）でスマホを閉じる→開くの完走確認
 
 ## 8-2. UX 設計（[決定 2026-08-01 オーナー] 案B「送信したら一覧へ」）
@@ -149,7 +156,10 @@
 
 - waitUntil の実行保証は「ベストエフォート」（Worker の再起動・分離で消える可能性）→
   滞留検知＋再実行導線で人が回収できる形にする（保証が要る規模になったら Durable Objects）
-- ポーリングのレート制限（RL_READ は IP 単位）と 2〜3 秒間隔の整合を確認
+- ポーリングのレート制限: RL_READ=120回/60秒（IP）に対し最短2秒間隔=30回/分。
+  **単独利用では整合を確認済み（許容リスクとして受容 2026-08-01）**。ただし同一 IP
+  （キャリア NAT・オフィス）に複数ユーザーが載ると 429 が透過的リトライになり
+  「終わらないジョブ」に見える。利用者が増えたら userId キーの RL_POLL バケット追加を検討
 - 旧アプリ（同期版 /analyze を叩く既存ビルド）との互換: ストア未公開のため利用者は
   実質オーナーのみ → 互換レイヤは持たない（[決定してよいか要確認]）
 

@@ -426,7 +426,8 @@ const styles = StyleSheet.create({
   },
   addBtnText: { color: "#16181d", fontWeight: "800", fontSize: 13 },
   delWrap: { marginLeft: "auto" },
-  note: { color: colors.vermilion, fontSize: 12, marginTop: 8 },
+  // 本文エラーは danger（theme の規約。vermilion は塗り・記号用）。
+  note: { color: colors.danger, fontSize: 12, marginTop: 8 },
   card: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -444,5 +445,6 @@ const styles = StyleSheet.create({
   cardRight: { flexDirection: "row", alignItems: "center", gap: 14 },
   edit: { color: colors.accent, fontSize: 12.5, fontWeight: "700" },
   del: { color: colors.vermilion, fontSize: 14, fontWeight: "800" },
-  delOff: { color: colors.line },
+  // 無効時は「消えたボタン」ではなく「押せないボタン」に見せる（colors.line は文字には薄すぎる）。
+  delOff: { color: colors.w45, opacity: 0.6 },
 });

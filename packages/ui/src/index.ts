@@ -223,7 +223,9 @@ export interface AnalysisJobLike {
 export type AnalysisOutcome =
   | { kind: "done"; gameId: string; logId: string }
   | { kind: "failed"; message: string }
-  | { kind: "timeout" };
+  | { kind: "timeout" }
+  /** shouldStop による中断（サインアウト・画面破棄）。ジョブ自体はサーバー側で進む。 */
+  | { kind: "cancelled" };
 
 interface PollClock {
   now: () => number;
@@ -246,8 +248,11 @@ export async function pollAnalysisOutcome(
   fetchJob: () => Promise<AnalysisJobLike | null>,
   startedAt: number,
   clock: PollClock = realPollClock,
+  /** true を返したら中断（サインアウト・画面破棄）。各周期の先頭で見る。 */
+  shouldStop?: () => boolean,
 ): Promise<AnalysisOutcome> {
   for (;;) {
+    if (shouldStop?.()) return { kind: "cancelled" };
     const job = await fetchJob().catch(() => undefined);
     if (job === null) return { kind: "failed", message: analysisJobFailureMessage(null) };
     if (job) {
@@ -262,6 +267,11 @@ export async function pollAnalysisOutcome(
     if (delay === null) return { kind: "timeout" };
     await clock.sleep(delay);
   }
+}
+
+/** ポーリング打ち切り時の案内（web/mobile 共通。ジョブはサーバー側で進み続ける）。 */
+export function analysisTimeoutMessage(): string {
+  return "完了すると自動で牌譜一覧に追加されます。後ほどご確認ください。";
 }
 
 /** 解析ジョブの失敗理由（AnalysisJob.reason）の日本語メッセージ。 */

@@ -108,11 +108,12 @@ rigel/
 │   ├── ui/      @rigel/ui         # 表示・修正ロジック（tileFace/tileAssetName/collectReviewItems/applyTileEdit）
 │   └── client/  @rigel/client     # api クライアント + DTO（createApiClient(baseUrl)。web/mobile 共有）
 └── apps/
-    ├── api/     api               # Cloudflare Workers。Hono + Drizzle + D1。DDD レイヤード
-    │   ├── src/domain/            #   user / game / kifu(GameLog,Analyzer) / auth / analysis(原子化ポート) / favorite
-    │   ├── src/application/       #   Analyze/Update/Get/List Kifu, Games, Authenticate…
-    │   ├── src/infrastructure/    #   drizzle 各repo / gemini パイプライン / auth(jose) / analysis(D1 batch)
+    ├── api/     api               # Cloudflare Workers。Hono + Drizzle + D1 + Queues + R2。DDD レイヤード
+    │   ├── src/domain/            #   user / game / kifu(GameLog,Analyzer) / auth / analysis(原子化・ジョブ・搬送ポート) / favorite
+    │   ├── src/application/       #   Analyze/Update/Get/List Kifu, Games, Authenticate, Start/Run AnalysisJob…
+    │   ├── src/infrastructure/    #   drizzle 各repo / gemini パイプライン / auth(jose) / analysis(D1 batch・R2 一時画像)
     │   ├── src/interfaces/http/   #   Hono アプリ（app.ts=横断MW、routes/=account/games/kifu/problems/quiz/favorites/billing）
+    │   ├── src/interfaces/queue/  #   解析ジョブの consumer（Worker の第2エントリ。fetch と並ぶ queue ハンドラ）
     │   ├── src/eval/              #   AI精度の指標（accuracy.ts）
     │   └── drizzle.config.ts / migrations/  #   D1 マイグレーション
     ├── web/     web               # Next.js (App Router)。/kifu(公開牌譜一覧) /problems(公開何切る一覧) /mypage(マイページ=牌譜/何切る/お気に入り/特訓タブ) /kifu/[gameId]/[logId](盤面エディタ) /k/[gameId](公開ビューア・動的OGP=lib/og-meta+opengraph-image) /p/[id](何切る回答) /problems/new・/problems/[id]/edit(何切る編集) /settings /u/[handle] /login
@@ -133,7 +134,8 @@ rigel/
 | ブラウザ | **Next.js** | 共有URLのSEO対応も可 |
 | UI共有手段 | **[未確定]** | Tamagui / RN Web / 自前SVG。牌は SVG 描画想定 |
 | バックエンド | **Cloudflare Workers (TS) + Hono** | HTTP は Hono。api は DDD レイヤード（[開発ガイド/05](docs/開発ガイド/05_APIアーキテクチャ.md)） |
-| DB / ORM | **Cloudflare D1 (SQLite) + Drizzle** | 撮影画像は保存しない。`Kifu` JSON のみ。スキーマ=`apps/api/src/infrastructure/db/schema.ts` |
+| DB / ORM | **Cloudflare D1 (SQLite) + Drizzle** | 永続化は `Kifu` JSON のみ（画像はルール7＝R2一時のみ）。スキーマ=`apps/api/src/infrastructure/db/schema.ts` |
+| 非同期解析 | **Cloudflare Queues + R2**（[決定] 2026-08-01） | /analyze は 202+jobId。R2=解析ジョブ間の一時画像（処理後削除＋TTL1日）、Queues=consumer 実行（最長15分）。[docs/plans/async-analysis.md](docs/plans/async-analysis.md) |
 | 認証 | **Google + Sign in with Apple** | App Store 審査要件 4.8 で Apple 併設必須（2026-07-17 決定・実装済み）。Android の Apple ログインは web フロー（api の `/auth/apple/callback` が form_post をアプリ scheme へ中継。2026-07-28 決定・実装済み）。退会時は Apple トークンを revoke |
 | 課金 | **Web=Stripe / アプリ=IAP（RevenueCat SDK）** | **真実源=RevenueCat**（Webhook だけが plan を書く）。`users.plan` は D1 射影。設計7章・[docs/plans/billing-revenuecat.md](docs/plans/billing-revenuecat.md) |
 | AI | **Gemini API + Cloudflare AI Gateway** | モデル名はハードコードしない。河・手牌とも Flash 系（手牌の Lite は eval 実測で力不足 → Flash に変更・2026-07-24） |

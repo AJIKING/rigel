@@ -99,8 +99,15 @@ function ReviewLoginPanel({ signIn }: { signIn: (code: string) => Promise<void> 
         placeholderTextColor={colors.w45}
         autoCapitalize="none"
         autoCorrect={false}
+        autoComplete="off"
+        returnKeyType="go"
+        onSubmitEditing={() => void onSubmit()}
       />
-      {failed ? <Text style={styles.reviewError}>コードを確認できませんでした</Text> : null}
+      {failed ? (
+        <Text style={styles.reviewError} accessibilityLiveRegion="assertive">
+          コードを確認できませんでした。
+        </Text>
+      ) : null}
       <Pressable
         style={({ pressed }) => [styles.gbtn, pressed && styles.gbtnPressed]}
         onPress={() => void onSubmit()}

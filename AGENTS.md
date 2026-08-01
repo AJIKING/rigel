@@ -43,7 +43,11 @@ an app when they belong in a shared package.
    update the decision document when they become `[決定]`.
 5. Count Gemini calls only according to the shared plan policy and only after successful
    analysis. Inspect `packages/schema/src/plan.ts` instead of copying numeric limits.
-6. Never persist captured source images. Persist only validated game-record JSON.
+6. Never persist captured source images **permanently**. Persist only validated game-record
+   JSON. Amendment (decided 2026-08-01, owner): temporary R2 storage scoped to one analysis
+   job is allowed — objects must be deleted at the job's terminal state (done/failed), with a
+   1-day bucket lifecycle rule as backstop. Do not add other uses of the temp bucket.
+   See docs/plans/async-analysis.md and CLAUDE.md rule 7.
 7. Never expose email or other private identity data through public API responses or
    analytics. Do not use Google profile data to initialize public profiles. For problem
    answers and favorites, return only aggregates plus the viewer's own state — never who

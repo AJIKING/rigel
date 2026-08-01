@@ -65,16 +65,24 @@ export class RunAnalysisJob {
         ...(message.gameId ? { gameId: message.gameId } : {}),
       });
 
-      if (result.ok) {
-        await jobs.markDone(message.jobId, {
-          gameId: result.gameId,
-          logId: result.gameLog.id,
-          now: now(),
-        });
-      } else {
-        await jobs.markFailed(message.jobId, { reason: result.reason, now: now() });
+      // 終端書き込みは再送に乗せない: execute は成功済み（保存・課金加算済み）なので、
+      // ここで例外を投げ返すと再送がガード（status=processing）を素通りして解析ごと
+      // やり直し＝二重保存・二重課金になる。書けなければ processing のまま残す
+      // （クライアントはタイムアウト表示。課金整合 > 完了通知の即時性）。
+      try {
+        if (result.ok) {
+          await jobs.markDone(message.jobId, {
+            gameId: result.gameId,
+            logId: result.gameLog.id,
+            now: now(),
+          });
+        } else {
+          await jobs.markFailed(message.jobId, { reason: result.reason, now: now() });
+        }
+        await images.deletePrefix(prefix);
+      } catch (e) {
+        console.error("analysis job terminal write failed", message.jobId, e);
       }
-      await images.deletePrefix(prefix);
     } catch (e) {
       if (attempts < MAX_ANALYSIS_ATTEMPTS) throw e; // Queues が再送（画像は残す）
       console.error("analysis job failed permanently", message.jobId, e);

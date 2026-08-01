@@ -2,6 +2,7 @@
 
 import {
   analysisQuotaLabel,
+  analysisTimeoutMessage,
   analyzeErrorMessage,
   cameraLabel,
   planCanAnalyze,
@@ -12,7 +13,7 @@ import {
   MAX_SEQ,
 } from "@rigel/ui";
 import { SeatSchema, type CameraSeat, type Seat, type Tile } from "@rigel/schema";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   analyzeAction,
   createEmptyKifuAction,
@@ -67,6 +68,15 @@ export function AddKyokuModal({
   const [dora, setDora] = useState<Tile | null>(null);
   // 作成する局（東一局=1〜北四局=16）。半荘内の好きな局を1つだけ作れる。
   const [seq, setSeq] = useState(1);
+  // モーダルを閉じたらポーリングを中断する（アンマウント後の setState と無駄なリクエストを防ぐ。
+  // ジョブ自体はサーバー側で進み、完了すると一覧に現れる）。
+  const alive = useRef(true);
+  useEffect(() => {
+    alive.current = true;
+    return () => {
+      alive.current = false;
+    };
+  }, []);
 
   async function onAnalyze() {
     if (!river) {
@@ -88,7 +98,10 @@ export function AddKyokuModal({
       const outcome = await pollAnalysisOutcome(
         () => getAnalysisJobAction(result.jobId),
         Date.now(),
+        undefined,
+        () => !alive.current,
       );
+      if (outcome.kind === "cancelled") return; // モーダルが閉じられた
       if (outcome.kind === "done") {
         await onDone(outcome.logId, outcome.gameId);
         return;
@@ -96,12 +109,12 @@ export function AddKyokuModal({
       setError(
         outcome.kind === "failed"
           ? outcome.message
-          : "解析に時間がかかっています。完了すると牌譜一覧に追加されるので、後ほどご確認ください。",
+          : `解析に時間がかかっています。${analysisTimeoutMessage()}`,
       );
     } catch {
-      setError("通信に失敗しました。");
+      if (alive.current) setError("通信に失敗しました。");
     } finally {
-      setBusy(false);
+      if (alive.current) setBusy(false);
     }
   }
 

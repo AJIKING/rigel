@@ -18,16 +18,28 @@ Cloudflare Workers（Hono + D1）への本番デプロイ。GitHub Actions の
    | `CLOUDFLARE_ACCOUNT_ID` | Cloudflare アカウントID |
    | `SESSION_SECRET` | セッションJWT署名鍵 |
    | `GEMINI_API_KEY` | Gemini API キー |
-   | `CLOUDFLARE_AI_GATEWAY_URL` | AI Gateway の google-ai-studio ベースURL |
+   | `CLOUDFLARE_AI_GATEWAY_URL` | AI Gateway の **google-ai-studio** ベースURL（`…/compat/...` は不可。2026-08-01 の障害参照） |
+   | `CLOUDFLARE_AI_GATEWAY_TOKEN` | Authenticated Gateway のトークン（「AI Gateway - Run」権限。無いと Gemini が 401） |
    | `STRIPE_SECRET_KEY` | Stripe シークレット（未設定なら `/billing/*` は 501） |
    | `STRIPE_WEBHOOK_SECRET` | Stripe Webhook 署名シークレット（`whsec_...`） |
+   | `REVENUECAT_WEBHOOK_AUTH` | RevenueCat Webhook の Authorization 照合値（未設定なら受け口 501） |
+   | `REVENUECAT_STRIPE_PUBLIC_KEY` | RevenueCat の Stripe config Public API key（`strp_...`） |
+   | `APPLE_TEAM_ID` / `APPLE_KEY_ID` / `APPLE_PRIVATE_KEY` | 退会時の Apple トークン失効（3つ未登録なら投入スキップ＝revoke だけ無効） |
 
    公開値（`GOOGLE_CLIENT_ID` / `STRIPE_PRICE_NEXT|PRO` / `GEMINI_*_MODEL`）は
    `wrangler.toml` の `[vars]` にコミット済み（Secrets 不要）。
-4. **Stripe ダッシュボード**で Webhook を登録：`https://<デプロイ先>/billing/webhook`、
+4. **非同期解析の基盤（R2 + Queues。docs/plans/async-analysis.md）**（作成済み 2026-08-01）:
+   ```bash
+   wrangler r2 bucket create rigel-analysis-tmp
+   wrangler r2 bucket lifecycle add rigel-analysis-tmp --name expire-1d --expire-days 1
+   wrangler queues create rigel-analysis-jobs
+   ```
+   ライフサイクル1日は「一時画像の消し漏れ」の保険（本線は consumer が処理後に即削除。
+   CLAUDE.md ルール7）。バインディングは `wrangler.toml` にコミット済み。
+5. **Stripe ダッシュボード**で Webhook を登録：`https://<デプロイ先>/billing/webhook`、
    イベント `checkout.session.completed` / `customer.subscription.deleted`。
    表示された `whsec_...` を `STRIPE_WEBHOOK_SECRET` に設定。
-5. **Google OAuth** のクライアントID（公開値）は `wrangler.toml` 済み。web/mobile の
+6. **Google OAuth** のクライアントID（公開値）は `wrangler.toml` 済み。web/mobile の
    `NEXT_PUBLIC_GOOGLE_CLIENT_ID` / `EXPO_PUBLIC_GOOGLE_CLIENT_ID` は各配信側で設定。
 
 ## デプロイ（promote）
@@ -51,22 +63,16 @@ curl https://api.raisha.jp/health   # {"ok":true}
 ローカルでの手元確認・個別の `wrangler secret put` 等は
 リポジトリ直下の運用メモ（CLAUDE.md / 過去手順）も参照。
 
-## IAP（App Store / iOS 課金）の外部設定
+## IAP（アプリ内課金）の外部設定
 
-コード側は実装済み（`/billing/appstore/redeem`・`/billing/appstore/notifications`、
-検証は Apple Root CA G3 固定 + x5c チェーン検証。設定は `wrangler.toml` の
-`APPLE_BUNDLE_ID` / `APPSTORE_PRODUCT_NEXT` / `APPSTORE_PRODUCT_PRO`）。
-公開前に App Store Connect で以下の手作業が必要:
+> 旧記述（自前の `/billing/appstore/*` エンドポイント・`APPSTORE_PRODUCT_*` 設定）は
+> **RevenueCat 移行で廃止済み**（該当コード・設定はリポジトリに存在しない）。
+> 現行の真実源は RevenueCat（Webhook だけが plan を書く。docs/plans/billing-revenuecat.md）。
 
-1. **サブスク商品の登録**: 自動更新サブスクリプションを2つ作成。
-   productId は **`rigel.next.monthly`（¥624 相当 Tier）/ `rigel.pro.monthly`（¥1,924 相当 Tier）**。
-   ※ `wrangler.toml` と `apps/mobile/lib/iap.ts` の PRODUCT_IDS と完全一致させる。
-2. **Server Notifications V2 の URL 設定**: App Store Connect → App → App 情報 →
-   「App Store サーバ通知」→ Production/Sandbox とも
-   `https://api.raisha.jp/billing/appstore/notifications`（V2 を選択）。
-3. **Sandbox テスター**でエンドツーエンド確認:
-   購入 → `/me` の plan 反映 →（Sandbox の高速更新で）DID_RENEW / EXPIRED の反映。
-4. mobile は **EAS dev build 必須**（expo-iap はネイティブモジュール。Expo Go では動かない）。
-
-注意: D1 マイグレーション `0005`（users.appstore_original_transaction_id）が
-デプロイ時に適用される（Actions の migrate ステップ）。
+1. **RevenueCat ダッシュボード**: プロジェクトに App Store / Play アプリを登録し、
+   Entitlement `next` / `pro` と商品をマッピング。
+2. **Webhook**: RevenueCat → `https://api.raisha.jp/billing/revenuecat/webhook`。
+   Authorization ヘッダの値を Secret `REVENUECAT_WEBHOOK_AUTH` と一致させる。
+3. **ストアの商品登録**: App Store Connect / Play Console でサブスク商品を作成し、
+   RevenueCat の商品設定・`apps/mobile/lib/purchases-keys.ts` の API キーと整合させる。
+4. mobile は **dev build / Codemagic 必須**（RevenueCat SDK はネイティブモジュール）。

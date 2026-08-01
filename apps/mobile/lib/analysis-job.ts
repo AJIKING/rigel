@@ -18,6 +18,8 @@ export interface PendingAnalysis {
   startedAt: number;
   /** 作成する局（東一局=1〜）。解析中カードの「◯◯局を作成しています」表示用（任意）。 */
   seq?: number;
+  /** 送信したユーザー。別アカウントでの復元（前ユーザーのジョブが化けて出る）を防ぐ。 */
+  userId?: string;
 }
 
 export async function savePendingAnalysis(pending: PendingAnalysis): Promise<void> {
@@ -34,6 +36,7 @@ export async function loadPendingAnalysis(): Promise<PendingAnalysis | null> {
       jobId: parsed.jobId,
       startedAt: parsed.startedAt,
       ...(typeof parsed.seq === "number" ? { seq: parsed.seq } : {}),
+      ...(typeof parsed.userId === "string" ? { userId: parsed.userId } : {}),
     };
   } catch {
     return null;
@@ -60,6 +63,13 @@ export async function pollAnalysisJob(
   token: string,
   pending: PendingAnalysis,
   clock: Clock = realClock,
+  /** true で中断（サインアウト等）。ジョブ自体はサーバー側で進む。 */
+  shouldStop?: () => boolean,
 ): Promise<AnalysisOutcome> {
-  return pollAnalysisOutcome(() => getAnalysisJob(token, pending.jobId), pending.startedAt, clock);
+  return pollAnalysisOutcome(
+    () => getAnalysisJob(token, pending.jobId),
+    pending.startedAt,
+    clock,
+    shouldStop,
+  );
 }

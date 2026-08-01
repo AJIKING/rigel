@@ -24,7 +24,7 @@ infrastructure (Drizzle/Gemini) ─┘            ▲                         �
 | **domain** | エンティティ・不変条件・ポート（IF） | `@rigel/schema` のみ | `User`, `GameLog`, `*.repository`, `Analyzer` |
 | **application** | ユースケース（手順の調整） | domain | `AnalyzeAndSaveKifu`, `GetKifu`, `ListKifu` |
 | **infrastructure** | ポートの実体（DB/AI/外部） | domain, 外部ライブラリ | `Drizzle*Repository`, `GeminiAnalyzer`, `db/schema` |
-| **interfaces** | 入口（HTTP ルーティング） | application（コンテナ経由） | `http/app.ts`(Hono), `http/validate.ts` |
+| **interfaces** | 入口（HTTP ルーティング＋キュー consumer） | application（コンテナ経由） | `http/app.ts`(Hono), `queue/analysis-consumer.ts` |
 | **composition-root** | DI の組み立て（唯一「具体」を知る） | 全層 | `buildContainer(env)` |
 
 > **鉄則**: domain / application は Drizzle・Hono・Gemini を import しない。差し替え可能にし、AI(非決定的)や DB を**境界でモック**してテストできるようにするため（ハーネス: 検証ループ）。
@@ -39,19 +39,23 @@ apps/api/
 ├── wrangler.toml                # Workers / D1 バインディング / migrations_dir
 ├── migrations/                  # drizzle-kit generate の出力（生成物）
 └── src/
-    ├── index.ts                 # Worker エントリ（Hono アプリを公開するだけ）
-    ├── env.ts                   # Env（DB / Gemini / AI Gateway バインディング）
+    ├── index.ts                 # Worker エントリ（fetch=Hono と queue=解析 consumer の2つを公開）
+    ├── env.ts                   # Env（DB / Gemini / AI Gateway / R2 / Queues バインディング）
     ├── composition-root.ts      # buildContainer(env): DI 窓口
     ├── domain/
     │   ├── user/                # User 集約 + UserRepository(ポート)
-    │   └── kifu/                # GameLog + GameLogRepository + Analyzer(ポート)
-    ├── application/             # AnalyzeAndSaveKifu / GetKifu / ListKifu
+    │   ├── kifu/                # GameLog + GameLogRepository + Analyzer(ポート)
+    │   └── analysis/            # 原子化(AnalysisStore) / ジョブ(AnalysisJob*) / 搬送(ImageStore・Queue)の各ポート
+    ├── application/             # AnalyzeAndSaveKifu / StartAnalysisJob / RunAnalysisJob / GetKifu / ListKifu…
     ├── infrastructure/
     │   ├── db/                  # schema.ts(Drizzle) / client.ts(drizzle(d1))
     │   ├── user/               # DrizzleUserRepository
     │   ├── kifu/               # DrizzleGameLogRepository
+    │   ├── analysis/           # D1 batch(原子化) / DrizzleAnalysisJobRepository / R2AnalysisImageStore
     │   └── gemini/             # Gemini 連携（client / extract-json / read-river / assemble / analyzer）
-    └── interfaces/http/         # app.ts(Hono) / validate.ts
+    └── interfaces/
+        ├── http/                # app.ts(Hono) / validate.ts / routes/
+        └── queue/               # analysis-consumer.ts（解析ジョブの dispatch）
 ```
 
 ---
@@ -59,22 +63,24 @@ apps/api/
 ## リクエストの流れ（例: 解析→保存）
 
 ```
-POST /analyze（要認証 / multipart: river, cameraBottomSeat, hand_*?, gameId?）
+POST /analyze（要認証 / multipart: river, cameraBottomSeat, hand_*?, gameId?, handFromRiver?）
   → 認証ミドルウェアで userId、無ければ 401
-  → Hono(app.ts) が File→ImageRef 変換して container.analyzeAndSaveKifu を呼ぶ
-  → AnalyzeAndSaveKifu.execute:
-      1. users.findById           （ポート / 実体=DrizzleUserRepository）
-      2. user.canAnalyze(now)      （ドメイン: 無料枠の判定。超過は 402）
-      3. 既存 gameId 指定なら所有確認（他人/不在は 404。解析前に弾く）
-      4. analyzer.analyze(input)   （ポート / 実体=GeminiAnalyzer。Zod検証済みKifuを返す契約）
-      5. 新規なら半荘を作成（解析成功後。失敗時に空半荘を残さない）
-      6. gameLogs.save(log, seq)   （半荘内の seq を採番。保存が成功してから…）
-      7. user.recordSuccessfulAnalysis / users.save  （…カウント+1。成功時のみ）
-  → 201 { gameId, logId }（解析失敗は 502）
-```
+  → Hono(app.ts) が File→ImageRef 変換して container.startAnalysisJob.start を呼ぶ
+  → StartAnalysisJob.start（同期部分。ここまでで応答を返す）:
+      1. AnalyzeAndSaveKifu.preflight（枠・半荘の所有/上限。NG は 402/404/409）
+      2. 画像を R2 一時ストアへ（jobs/{jobId}/…。恒久保存ではない＝ルール7）
+      3. analysis_jobs に processing のジョブ行を作成
+      4. Queues へ {jobId, 画像キー…} を送信
+  → 202 { jobId }（クライアントは GET /analyze/jobs/:id をポーリング）
 
-> `/analyze` は **配線済み**（認証・multipart・半荘への局保存）。実際に通すには
-> 河の4分割＋正立(Photon/WASM)・Gemini 呼び出しが実行時に動くこと（鍵/ランタイム）が前提。
+queue consumer（interfaces/queue → RunAnalysisJob。実写真の Gemini は 10〜150秒/回のため非同期）:
+      1. ジョブが processing でなければ何もしない（再送との競合で二重実行しない）
+      2. R2 から画像を取得（無ければ failed: images_missing）
+      3. AnalyzeAndSaveKifu.execute（Zod 検証・原子的保存・成功時のみ課金は従来どおり）
+      4. done/failed をジョブへ書き、一時画像を必ず削除
+         （終端書き込みの失敗は再送に乗せない＝二重課金防止。processing のまま残り
+          クライアントはタイムアウト表示）
+```
 
 ---
 
@@ -116,7 +122,7 @@ GeminiAnalyzer.analyze(input):
 | AI出力を使う前に Zod 検証 | `read-river` が `AiRiverResponseSchema.parse`、`assemble` が `KifuSchema.parse` / `interfaces/http/validate.ts` |
 | 推測で埋めない（null 白旗） | `@rigel/schema`（`ReadTile`/`Discard`）+ 河プロンプトの指示 |
 | 課金は成功時のみ加算 | `domain/user`（`recordSuccessfulAnalysis`）+ `AnalyzeAndSaveKifu` の手順 |
-| 画像を保存しない | `GameLog`/`game_logs` に画像列を持たない（`kifu` JSON のみ）。`ImageRef` は解析中のみ |
+| 画像を恒久保存しない | `GameLog`/`game_logs` に画像列を持たない（`kifu` JSON のみ）。[決定] 2026-08-01: 非同期解析のための **R2 一時保存のみ可**（ジョブ期間だけ。終端で `deletePrefix` 必須＝`RunAnalysisJob`・保険はバケットのライフサイクル1日。`domain/analysis/analysis-transport.ts`） |
 
 ---
 

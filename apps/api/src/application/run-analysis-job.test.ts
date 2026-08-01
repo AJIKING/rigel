@@ -106,6 +106,17 @@ describe("RunAnalysisJob", () => {
     expect(images.size).toBe(0);
   });
 
+  it("解析成功後の終端書き込み失敗は投げ返さない（再送で解析やり直し＝二重保存・二重課金にしない）", async () => {
+    const { usecase, jobs } = await makeFixture(() =>
+      Promise.resolve({ ok: true, gameLog, gameId: "g1" }),
+    );
+    jobs.markDone = () => Promise.reject(new Error("D1 write failed"));
+
+    // 例外を投げ返すと Queues が再送し、ガードは processing のままなので解析ごと再実行される。
+    // 課金整合を優先し、ここは ack（ジョブは processing のまま＝クライアントはタイムアウト表示）。
+    await expect(usecase.execute(message, 1)).resolves.toBeUndefined();
+  });
+
   it("processing でないジョブ・不明なジョブは何もしない（再送との競合で二重実行しない）", async () => {
     const { usecase, jobs, captured } = await makeFixture(() =>
       Promise.resolve({ ok: true, gameLog, gameId: "g1" }),

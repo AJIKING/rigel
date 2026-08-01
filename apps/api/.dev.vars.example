@@ -17,7 +17,22 @@ ALLOWED_ORIGINS=http://localhost:3000
 # REVIEW_LOGIN_SECRET=
 
 # --- ここから下は「AI解析(/analyze)」を試すときだけ必要。ログイン/編集/採点/公開だけなら未設定でよい。 ---
+# 注意: /analyze は非同期（202 + jobId → キュー consumer が実行。docs/plans/async-analysis.md）。
+# ローカルで完走させるには wrangler dev が producer/consumer 両方を担う（R2/Queues は
+# wrangler のローカルシミュレーション）。ジョブが processing のまま進まない場合は
+# consumer 側のログ（wrangler dev のコンソール）を見る。
 # GEMINI_API_KEY=
 # CLOUDFLARE_AI_GATEWAY_URL=
 # Authenticated Gateway のトークン（本番ゲートウェイ経由で試すときのみ。Cloudflare 発行）。
 # CLOUDFLARE_AI_GATEWAY_TOKEN=
+
+# --- 課金（試すときだけ）。真実源は RevenueCat（Webhook だけが plan を書く）。 ---
+# STRIPE_SECRET_KEY=
+# STRIPE_WEBHOOK_SECRET=
+# REVENUECAT_WEBHOOK_AUTH=
+# REVENUECAT_STRIPE_PUBLIC_KEY=
+# 開発のみ: SANDBOX イベントも plan に適用（本番では絶対に設定しない）。
+# REVENUECAT_ALLOW_SANDBOX=true
+
+# --- Sign in with Apple（試すときだけ。未設定なら /auth/apple は 501） ---
+# APPLE_CLIENT_ID=

@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   analysisJobFailureMessage,
   analysisPollDelayMs,
+  analysisTimeoutMessage,
   pollAnalysisOutcome,
   analysisQuotaLabel,
   ANALYTICS_EVENTS,
@@ -290,6 +291,24 @@ describe("プラン表示", () => {
       clock(),
     );
     expect(timeout).toEqual({ kind: "timeout" });
+
+    // shouldStop（サインアウト・画面破棄）で cancelled を返し、それ以上リクエストしない
+    let calls = 0;
+    const cancelled = await pollAnalysisOutcome(
+      () => {
+        calls += 1;
+        return Promise.resolve({ status: "processing", gameId: null, logId: null, reason: null });
+      },
+      0,
+      clock(),
+      () => calls >= 1,
+    );
+    expect(cancelled).toEqual({ kind: "cancelled" });
+    expect(calls).toBe(1);
+  });
+
+  it("analysisTimeoutMessage: 打ち切り案内は web/mobile 共通の一文（一覧に載る旨）", () => {
+    expect(analysisTimeoutMessage()).toMatch(/牌譜一覧/);
   });
 
   it("analysisJobFailureMessage: ジョブの失敗理由を日本語にする（未知理由・null は汎用文言）", () => {

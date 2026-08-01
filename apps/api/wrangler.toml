@@ -59,12 +59,17 @@ type = "ratelimit"
 namespace_id = "1003"
 simple = { limit = 6, period = 60 }
 
-# Secret で渡す（コミットしない）:
+# Secret で渡す（コミットしない。一覧の真実源は src/env.ts）:
 #   wrangler secret put GEMINI_API_KEY
-#   wrangler secret put CLOUDFLARE_AI_GATEWAY_URL   # google-ai-studio ベースURL（/v1beta の手前まで）
+#   wrangler secret put CLOUDFLARE_AI_GATEWAY_URL   # google-ai-studio ベースURL（/v1beta の手前まで。/compat は不可）
+#   wrangler secret put CLOUDFLARE_AI_GATEWAY_TOKEN # Authenticated Gateway のトークン（無いと Gemini が 401）
 #   wrangler secret put SESSION_SECRET              # セッション署名鍵
 #   wrangler secret put STRIPE_SECRET_KEY           # 課金（未設定なら /billing/* は 501）
 #   wrangler secret put STRIPE_WEBHOOK_SECRET       # Stripe Webhook 署名シークレット（whsec_...）
+#   wrangler secret put REVENUECAT_WEBHOOK_AUTH     # RevenueCat Webhook 照合値（未設定なら受け口 501）
+#   wrangler secret put REVENUECAT_STRIPE_PUBLIC_KEY# strp_...（Checkout 完了時の RevenueCat 登録）
+#   wrangler secret put APPLE_TEAM_ID / APPLE_KEY_ID / APPLE_PRIVATE_KEY  # 退会時の Apple revoke（任意）
+#   wrangler secret put REVIEW_LOGIN_SECRET         # ストア審査用（審査期間のみ。終わったら delete）
 
 [vars]
 # 読み取りモデル。⚠️ AI Studio で現行の対応モデルを確認して差し替える（ハードコードしない）。

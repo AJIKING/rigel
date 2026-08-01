@@ -6,6 +6,7 @@
   "main": "src/index.ts",
   "scripts": {
     "typecheck": "tsc --noEmit -p tsconfig.json",
+    "build": "wrangler deploy --dry-run --outdir dist",
     "test": "vitest run",
     "eval": "vitest run --config vitest.eval.config.ts",
     "lint": "eslint src",
