@@ -137,7 +137,12 @@
       公開範囲は半荘の visibility に従う。OGP（共有カード）には載せない。名前は schema で 20 文字上限。
 - **手出し / 自摸切りを AI では判定しない**（河に痕跡が残らず写真から復元不可能）。ただし**人が編集画面で手入力**でき、`Discard.tsumogiri` に保存する（自摸切りは盤面で少しグレー表示）。
 - **局の完全な進行再現（全ツモ・全打のターン単位）をしない**（1枚はスナップショット）
-- **撮影画像を保存しない**（解析後のJSONのみ保存。プライバシー・ストレージ両面で有利）
+- **撮影画像を恒久保存しない**（解析後のJSONのみ保存。プライバシー・ストレージ両面で有利）。
+  [決定] 2026-08-01 変更: **解析ジョブの間だけの一時保存（R2）は許可**する（実写真の Gemini
+  読み取りは数分に達し、接続を握ったままの同期解析が成立しないため非同期化が必要。
+  Workers の waitUntil は応答後 ~30 秒で打ち切られることを本番実測で確認し、メモリ内
+  完結を断念）。一時画像は処理完了・失敗時に即削除し、バケットの TTL（1日）を保険にする。
+  ユーザー向けの画像ストレージ機能ではない（docs/plans/async-analysis.md）。
 - ゲーム画面（雀魂・天鳳など）のスクショは対象外。**実物卓のみ**
 
 ---
@@ -228,7 +233,8 @@
 ### [決定] D1 テーブル（概要）
 - `users`: `id`, `google_sub`(Google認証のsub), `plan`(free/paid), `analysis_count_this_month`, `count_reset_at`, ...
 - `game_logs`: `id`, `user_id`, `kifu`(Kifu の JSON を丸ごと), `created_at`, ...
-- 撮影画像は保存しない。`game_logs` に入るのは解析後の `Kifu` JSON のみ。
+- 撮影画像は恒久保存しない。`game_logs` に入るのは解析後の `Kifu` JSON のみ
+  （[決定] 2026-08-01: 非同期解析のための R2 一時保存のみ許可。処理後に即削除＋TTL保険）。
 - **[決定] ORM = Drizzle**（軽量・D1相性良・型連動）。スキーマ実体は `apps/api/src/infrastructure/db/schema.ts`、マイグレーションは drizzle-kit + `wrangler d1`。詳細は [開発ガイド/05_APIアーキテクチャ.md](開発ガイド/05_APIアーキテクチャ.md)。
 - **[決定] カウンタの整合性**: 半荘・局・カウント加算を `AnalysisStore`（実体=D1 batch）で**1トランザクションに原子化**（`apps/api/src/infrastructure/analysis/drizzle-analysis-store.ts`）。途中失敗・競合での不整合を防ぐ。手順は「保存成功時のみ加算」。
 - **[決定]（2026-07-26）お気に入り（★）はサーバー保存**。`favorites`（`user_id` + `target_type`(game/problem) + `target_id` の複合PK）。
@@ -255,7 +261,7 @@
 | DB | Cloudflare D1 (SQLite) + **Drizzle ORM** | [決定] |
 | 認証 | Google + **Sign in with Apple**（web/アプリ両対応） | [決定]（2026-07-17 更新。App Store 審査要件 4.8 で Apple 併設が必須。実装済み: `/auth/google`・`/auth/apple`。退会時は Apple トークンを revoke（TN3194）。計画: [plans/sign-in-with-apple.md](plans/sign-in-with-apple.md)）／**[未確定] Android アプリで Apple ログインを出すか**（下記） |
 | AI | Gemini API + AI Gateway | [決定] |
-| 画像保存 | しない | [決定] |
+| 画像保存 | 恒久保存はしない（解析ジョブ間の R2 一時保存のみ・処理後削除＋TTL） | [決定]（2026-08-01 変更。[plans/async-analysis.md](plans/async-analysis.md)） |
 | 利用計測 | GA4 に統一（1プロパティに web/iOS/Android の3ストリーム。web=gtag、アプリ=Firebase Analytics） | [決定]（2026-07-17。web 実装済み・アプリはビルド検証後=[未確定]。PII 非送信・広告用途不使用。計画: [plans/analytics.md](plans/analytics.md)） |
 
 ### [決定] 構成方針

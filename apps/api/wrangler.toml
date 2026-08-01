@@ -21,6 +21,23 @@ migrations_dir = "migrations"
 [observability]
 enabled = true
 
+# 非同期解析（docs/plans/async-analysis.md）: 画像の一時置き場（R2）と解析ジョブのキュー。
+# バケットには「作成から1日で削除」のライフサイクルルールを設定済み（消し漏れの保険。
+# 本線は consumer が処理後に即削除する）。
+[[r2_buckets]]
+binding = "ANALYSIS_TMP"               # env.ANALYSIS_TMP（src/env.ts）に対応
+bucket_name = "rigel-analysis-tmp"
+
+[[queues.producers]]
+binding = "ANALYSIS_QUEUE"             # env.ANALYSIS_QUEUE（src/env.ts）に対応
+queue = "rigel-analysis-jobs"
+
+[[queues.consumers]]
+queue = "rigel-analysis-jobs"
+max_batch_size = 1                     # 1メッセージ=1解析（画像メモリを1件分に抑える）
+max_retries = 2                        # 一過性障害のみ再送。恒久失敗は consumer が failed に落として ack
+max_concurrency = 4                    # Gemini 同時実行の暴れ抑制（枠・コスト）
+
 # レート制限（乱用・DoS 耐性）。src/interfaces/http/rate-limit.ts の RateLimiter ポートに対応。
 # 未設定だと制限なし（ローカル開発・テストはそれで通す）が、本番では必ず束ねること。
 # namespace_id はアカウント内で一意なら任意。period は 10 か 60 のみ。

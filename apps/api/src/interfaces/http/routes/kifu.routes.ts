@@ -3,7 +3,7 @@
 
 import { CameraSeatSchema, SeatSchema } from "@rigel/schema";
 import type { Hono } from "hono";
-import type { AnalysisInput, ImageRef } from "../../../domain/kifu/analyzer";
+import type { ImageRef } from "../../../domain/kifu/analyzer";
 import { reasonStatus, requireAuth, type AppEnv } from "../shared";
 import { asFile, isValidImageFile, toImageRef, MAX_IMAGE_COUNT } from "../limits";
 import { parseKifu } from "../validate";
@@ -104,24 +104,35 @@ export function registerKifuRoutes(app: Hono<AppEnv>): void {
 
     const hands: Partial<Record<(typeof CameraSeatSchema.options)[number], ImageRef>> = {};
     for (const [cam, f] of handFiles) hands[cam] = await toImageRef(f);
+    const riverImage = await toImageRef(river);
 
-    const input: AnalysisInput = {
-      riverImage: await toImageRef(river),
-      hands,
-      cameraBottomSeat: seat.data,
-    };
     const gameIdRaw = form?.get("gameId");
     const gameId = typeof gameIdRaw === "string" && gameIdRaw ? gameIdRaw : undefined;
 
-    try {
-      const result = await analyze.execute({ userId, input, gameId });
-      if (!result.ok) {
-        return c.json({ ok: false, reason: result.reason }, reasonStatus(result.reason));
-      }
-      return c.json({ ok: true, gameId: result.gameId, logId: result.gameLog.id }, 201);
-    } catch (e) {
-      console.error("POST /kifu/analyze failed", e);
-      return c.json({ ok: false, error: "解析に失敗しました" }, 502);
+    // 非同期ジョブ化（docs/plans/async-analysis.md）: 実写真の Gemini 読み取りは数分に
+    // 達しうるため、接続を握ったまま解析しない。画像を R2 に一時保存（[決定] 2026-08-01
+    // ハードルール変更・処理後に即削除）してキューへ投入し、202 + jobId を即返す。
+    // 結果はポーリング（GET /analyze/jobs/:id）で取る。
+    const started = await c.get("container").startAnalysisJob.start({
+      userId,
+      ...(gameId ? { gameId } : {}),
+      cameraBottomSeat: seat.data,
+      riverImage,
+      hands,
+    });
+    if (!started.ok) {
+      return c.json({ ok: false, reason: started.reason }, reasonStatus(started.reason));
     }
+    return c.json({ ok: true, jobId: started.jobId }, 202);
+  });
+
+  // 解析ジョブの状態（所有者のみ。ポーリング用 = RL_READ の対象）。
+  // 他人・不存在は 404（存在を漏らさない）。
+  app.get("/analyze/jobs/:id", requireAuth, async (c) => {
+    const job = await c
+      .get("container")
+      .getAnalysisJob.execute(c.req.param("id"), c.get("userId")!);
+    if (!job) return c.json({ error: "not found" }, 404);
+    return c.json(job);
   });
 }

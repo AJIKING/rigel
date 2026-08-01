@@ -7,6 +7,7 @@ import { describe, expect, it } from "vitest";
 import { User } from "../../domain/user/user";
 import { makeProblemData } from "../../test-support/problem";
 import { makeTestDb } from "../../test-support/sqlite";
+import { DrizzleAnalysisJobRepository } from "../analysis/drizzle-analysis-job.repository";
 import { DrizzleFavoriteRepository } from "../favorite/drizzle-favorite.repository";
 import { DrizzleGameRepository } from "../game/drizzle-game.repository";
 import { DrizzleProblemRepository } from "../problem/drizzle-problem.repository";
@@ -65,6 +66,25 @@ describe("DrizzleAccountStore（実 SQLite）", () => {
     // 他人（u2）のアカウントと成績は無傷。
     expect(await users.findById("u2")).not.toBeNull();
     expect(await quiz.findById("q3")).not.toBeNull();
+  });
+
+  it("deleteAll: 解析ジョブ（analysis_jobs）も消える（users への FK の消し漏れで退会を落とさない）", async () => {
+    const db = makeTestDb();
+    const users = new DrizzleUserRepository(db);
+    const jobs = new DrizzleAnalysisJobRepository(db);
+    for (const id of ["u1", "u2"]) {
+      await users.save(User.create({ id, googleSub: `sub-${id}`, now: NOW }));
+    }
+    await jobs.create({ id: "j1", userId: "u1", now: NOW });
+    await jobs.create({ id: "j2", userId: "u2", now: NOW });
+
+    const store = new DrizzleAccountStore(db);
+    await store.deleteAll("u1");
+
+    expect(await users.findById("u1")).toBeNull();
+    expect(await jobs.findForUser("j1", "u1")).toBeNull();
+    // 他人（u2）のジョブは無傷。
+    expect(await jobs.findForUser("j2", "u2")).not.toBeNull();
   });
 
   it("deleteAll: 自分が付けたお気に入りも、自分の投稿に他人が付けたお気に入りも消える", async () => {

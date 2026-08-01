@@ -1,10 +1,16 @@
 // Worker のバインディング/環境変数。wrangler.toml と対応させる。
 // 秘匿値は .dev.vars / Secrets で渡す（コミットしない）。
 
+import type { AnalysisJobMessage } from "./domain/analysis/analysis-transport";
 import type { RateLimiter } from "./interfaces/http/rate-limit";
 export interface Env {
   /** D1 データベース（wrangler.toml の binding = "DB"）。 */
   DB: D1Database;
+  /** 解析画像の一時置き場（R2。処理後に即削除＋ライフサイクル1日。
+   *  docs/plans/async-analysis.md）。 */
+  ANALYSIS_TMP: R2Bucket;
+  /** 解析ジョブのキュー（producer binding）。 */
+  ANALYSIS_QUEUE: Queue<AnalysisJobMessage>;
   /** レート制限（Cloudflare Rate Limiting binding）。未設定なら制限しない＝ローカル開発。
    *  読み取り=IP / 書き込み=userId / 解析=userId（厳しめ）。rate-limit.ts を参照。 */
   RL_READ?: RateLimiter;

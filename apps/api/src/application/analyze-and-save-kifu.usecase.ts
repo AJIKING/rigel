@@ -51,14 +51,26 @@ export class AnalyzeAndSaveKifu {
   constructor(private readonly deps: AnalyzeDeps) {}
 
   /**
-   * 解析枠のプリフライト（画像バイトを読む前に呼ぶ）。
+   * 解析枠・半荘のプリフライト（画像バイトを読む前に呼ぶ）。
    * 枠0（free）や上限到達のユーザーに、画像を Worker のメモリへ載せさせないための入口。
-   * execute 側でも同じ判定をするため、ここを通っても最終的な整合は崩れない。
+   * gameId 指定時は所有・局数上限も同期で弾く（非同期ジョブ化で 202 を返す前の検証。
+   * docs/plans/async-analysis.md）。execute 側でも同じ判定をするため、ここを通っても
+   * 最終的な整合は崩れない。
    */
-  async preflight(userId: string): Promise<{ ok: true } | { ok: false; reason: AnalyzeReason }> {
+  async preflight(
+    userId: string,
+    gameId?: string,
+  ): Promise<{ ok: true } | { ok: false; reason: AnalyzeReason }> {
     const user = await this.deps.users.findById(userId);
     if (!user) return { ok: false, reason: "user_not_found" };
     if (!user.canAnalyze(this.deps.now())) return { ok: false, reason: "quota_exceeded" };
+    if (gameId) {
+      const game = await this.deps.games.findById(gameId);
+      if (!game || game.userId !== userId) return { ok: false, reason: "game_not_found" };
+      if ((await this.deps.gameLogs.listByGame(gameId)).length >= MAX_LOGS_PER_GAME) {
+        return { ok: false, reason: "game_full" };
+      }
+    }
     return { ok: true };
   }
 

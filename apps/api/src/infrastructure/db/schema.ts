@@ -211,6 +211,31 @@ export const favorites = sqliteTable(
   ],
 );
 
+/** 解析の非同期ジョブ（docs/plans/async-analysis.md）。POST /analyze が 202 で返す jobId の
+ *  状態置き場。画像・牌譜本体は持たない（画像非保存。結果は games/game_logs への参照だけ）。
+ *  users への FK があるため、退会カスケード（DrizzleAccountStore）で必ず掃除する。 */
+export const analysisJobs = sqliteTable(
+  "analysis_jobs",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id),
+    status: text("status", { enum: ["processing", "done", "failed"] })
+      .notNull()
+      .default("processing"),
+    /** 完了時のみ（done で必ず入る）。games/game_logs への参照（FK は張らない:
+     *  半荘・局の削除でジョブ履歴まで消したくないため。参照先が消えたら 404 扱い）。 */
+    gameId: text("game_id"),
+    logId: text("log_id"),
+    /** 失敗時の分類（固定語彙想定）。 */
+    reason: text("reason"),
+    createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
+    updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull(),
+  },
+  (t) => [index("analysis_jobs_user_idx").on(t.userId)],
+);
+
 /** 処理済みの RevenueCat Webhook イベント（冪等キー = event.id）。
  *  失効後に古い購入イベントが再送されてもプランが復活しないよう記録する。 */
 export const revenuecatEvents = sqliteTable("revenuecat_events", {

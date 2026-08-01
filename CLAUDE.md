@@ -49,7 +49,8 @@ Gemini が正しく読むための**前処理（4分割＋正立）・出力ス�
 4. **AI に推測させない。** 読めない・迷う牌は推測で埋めず `tile: null` でスロットを残す（枚数・`order` 連番を壊さない）。**数値 confidence は廃止（[決定] 2026-07-24。モデルの自己申告数値は較正が保証できない）**。AI 出力は常に**目検必須のドラフト**として扱い、null 牌は必ず人が埋める。精度の最重要指標は「null で白旗を揚げずに誤読した率（misreadRate）」。
 5. **`[決定]` と `[未確定]` を取り違えない。** 設計ドキュメントの `[未確定]`（例: `toAbsoluteSeat` の回転方向、Agentic Vision の要否）を勝手に確定して実装を進めない。要実機検証は検証してから本実装し、結論を設計ドキュメントに反映する。
 6. **課金は成功時のみ。** 枠は **Gemini 呼び出し回数**で数え、解析が**成功したときだけ実呼び出し数ぶん加算**（`recordGeminiCalls`）。失敗時は消費させない。プラン別枠（free0/next100/pro320）と保存上限（**半荘単位**: 非公開 free5・下書き free5・有料無制限、1半荘30局まで）を壊さない。
-7. **画像を保存しない。** 撮影画像は永続化しない（保存するのは解析後の `Kifu` JSON のみ）。プライバシー・ストレージ両面の前提。**公開範囲（public/private・既定 private）・ルール・選手情報（players）は半荘単位**（局ごとに持たず、変更は配下の全局へ一括反映・新局は引き継ぎ・局単位の PUT では書き換え不可）。private は所有者のみ閲覧可。
+7. **画像を恒久保存しない。** 撮影画像はユーザーデータとして永続化しない（保存するのは解析後の `Kifu` JSON のみ）。プライバシー・ストレージ両面の前提。
+   **[決定] 2026-08-01 変更**: 非同期解析（[docs/plans/async-analysis.md](docs/plans/async-analysis.md)）のための **R2 一時保存のみ許可**。処理完了・失敗時に即削除し、バケット TTL（1日）を保険にする。一時画像を他の用途に使う口を増やさない。**公開範囲（public/private・既定 private）・ルール・選手情報（players）は半荘単位**（局ごとに持たず、変更は配下の全局へ一括反映・新局は引き継ぎ・局単位の PUT では書き換え不可）。private は所有者のみ閲覧可。
 7-2. **個人情報は外に出さない。** 初回登録のプロフィール（handle/表示名）は **Google 情報を使わずランダム生成**。email は緊急・不正調査の運用のためだけに DB 保存し、**API レスポンスには絶対に含めない**。プロフィールの非公開機能は無い（常に公開）。
 7-3. **「誰が」は返さない。** 何切るの回答（`problem_answers`）とお気に入り（`favorites`）は、API が外に出すのを
    **集計値と「自分の状態」だけ**に限る（回答=choiceKey ごとの件数／★=`favoriteCount` と `viewerFaved`）。
@@ -100,6 +101,7 @@ rigel/
 │   ├── mahjong-kifu-app-design.md # 構想・スコープの単一真実源（why/what / [決定][未確定]）
 │   ├── river_reader_prompt.md     # 河読み取りプロンプト（単方向版は api 内に実装）
 │   ├── 開発ガイド/                 # 進め方（01ハーネス〜05APIアーキ / 06牌デザイン）
+│   ├── store-assets/              # ストア用プロモ画像（apps/web の /dev/promo を pnpm shots で撮影・再生成可能）
 │   └── templates/                 # Plan / Task テンプレ
 ├── packages/
 │   ├── schema/  @rigel/schema     # Zod スキーマ（全層共有の背骨。Kifu/Ai*Response/toAbsoluteSeat）
@@ -136,7 +138,7 @@ rigel/
 | 課金 | **Web=Stripe / アプリ=IAP（RevenueCat SDK）** | **真実源=RevenueCat**（Webhook だけが plan を書く）。`users.plan` は D1 射影。設計7章・[docs/plans/billing-revenuecat.md](docs/plans/billing-revenuecat.md) |
 | AI | **Gemini API + Cloudflare AI Gateway** | モデル名はハードコードしない。河・手牌とも Flash 系（手牌の Lite は eval 実測で力不足 → Flash に変更・2026-07-24） |
 | 計測 | **GA4 に統一**（web=gtag 実装済み / アプリ=Firebase Analytics はビルド検証後） | 1プロパティ3ストリーム。イベント名は @rigel/ui の ANALYTICS_EVENTS が真実源。**PII は送らない・広告用途に使わない**。[docs/plans/analytics.md](docs/plans/analytics.md) |
-| 画像保存 | **しない** | 解析後 JSON のみ |
+| 画像保存 | **恒久保存はしない**（解析ジョブ間の R2 一時保存のみ） | 解析後 JSON のみ永続化。一時画像は処理後削除＋TTL（[決定] 2026-08-01） |
 | モノレポ | turborepo / pnpm workspace | `packages/schema`,`packages/ui`,`apps/{mobile,web,api}` |
 
 `[未確定]` の主要項目（設計ドキュメント 9章 TODO一覧）：`toAbsoluteSeat` の回転方向 / Agentic Vision の要否 /

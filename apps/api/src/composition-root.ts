@@ -30,6 +30,9 @@ import { OpenBillingPortal } from "./application/open-billing-portal.usecase";
 import { ListGames } from "./application/list-games.usecase";
 import { ListMyGamesWithCounts, ListPublicGames } from "./application/list-game-cards.usecase";
 import { DeleteAccount, GetPublicProfile, UpdateProfile } from "./application/profile.usecase";
+import { RunAnalysisJob } from "./application/run-analysis-job.usecase";
+import { GetAnalysisJob, StartAnalysisJob } from "./application/start-analysis-job.usecase";
+import type { AnalysisJobMessage } from "./domain/analysis/analysis-transport";
 import { ListKifu } from "./application/list-kifu.usecase";
 import { AnswerProblem, GetProblemStats } from "./application/problem-answer.usecase";
 import {
@@ -53,7 +56,9 @@ import { parseAudiences } from "./infrastructure/auth/oidc";
 import { DrizzleRevenueCatEventRepository } from "./infrastructure/billing/drizzle-revenuecat-event.repository";
 import { HttpRevenueCatGateway } from "./infrastructure/billing/http-revenuecat-gateway";
 import { StripeBillingGateway } from "./infrastructure/billing/stripe-billing-gateway";
+import { DrizzleAnalysisJobRepository } from "./infrastructure/analysis/drizzle-analysis-job.repository";
 import { DrizzleAnalysisStore } from "./infrastructure/analysis/drizzle-analysis-store";
+import { R2AnalysisImageStore } from "./infrastructure/analysis/r2-analysis-image-store";
 import { createDb } from "./infrastructure/db/client";
 import { DrizzleFavoriteRepository } from "./infrastructure/favorite/drizzle-favorite.repository";
 import { DrizzleGameRepository } from "./infrastructure/game/drizzle-game.repository";
@@ -73,6 +78,10 @@ import { DrizzleUserRepository } from "./infrastructure/user/drizzle-user.reposi
 
 export interface AppContainer {
   analyzeAndSaveKifu: AnalyzeAndSaveKifu;
+  /** 解析の非同期ジョブ化（202 + ポーリング + キュー consumer。docs/plans/async-analysis.md）。 */
+  startAnalysisJob: StartAnalysisJob;
+  getAnalysisJob: GetAnalysisJob;
+  runAnalysisJob: RunAnalysisJob;
   analyzeProblemDraft: AnalyzeProblemDraft;
   getKifu: GetKifu;
   listKifu: ListKifu;
@@ -199,15 +208,39 @@ export function buildContainer(env: Env): AppContainer {
         })
       : null;
 
+  const analyzeAndSaveKifu = new AnalyzeAndSaveKifu({
+    users,
+    games: gamesRepo,
+    gameLogs,
+    analyzer,
+    store: analysisStore,
+    now,
+    newId,
+  });
+  const analysisJobs = new DrizzleAnalysisJobRepository(db);
+  const analysisImages = new R2AnalysisImageStore(env.ANALYSIS_TMP);
+  const analysisQueue = {
+    send: async (message: AnalysisJobMessage) => {
+      await env.ANALYSIS_QUEUE.send(message);
+    },
+  };
+
   return {
-    analyzeAndSaveKifu: new AnalyzeAndSaveKifu({
-      users,
-      games: gamesRepo,
-      gameLogs,
-      analyzer,
-      store: analysisStore,
+    analyzeAndSaveKifu,
+    startAnalysisJob: new StartAnalysisJob({
+      jobs: analysisJobs,
+      images: analysisImages,
+      queue: analysisQueue,
+      analyze: analyzeAndSaveKifu,
       now,
       newId,
+    }),
+    getAnalysisJob: new GetAnalysisJob(analysisJobs),
+    runAnalysisJob: new RunAnalysisJob({
+      jobs: analysisJobs,
+      images: analysisImages,
+      analyze: analyzeAndSaveKifu,
+      now,
     }),
     // 何切るの写真AI再現（保存なし・ドラフト返却のみ。課金カウントは共有ストアで原子加算）。
     analyzeProblemDraft: new AnalyzeProblemDraft({ users, analyzer, store: analysisStore, now }),

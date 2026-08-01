@@ -5,6 +5,7 @@ import { and, eq, inArray } from "drizzle-orm";
 import type { AccountStore } from "../../domain/user/account-store";
 import type { Db } from "../db/client";
 import {
+  analysisJobs,
   favorites,
   gameLogs,
   games,
@@ -66,6 +67,8 @@ export class DrizzleAccountStore implements AccountStore {
       this.db.delete(gameLogs).where(eq(gameLogs.userId, userId)),
       this.db.delete(games).where(eq(games.userId, userId)),
       this.db.delete(quizSessions).where(eq(quizSessions.userId, userId)),
+      // 解析ジョブも users への FK を持つ（消し漏らすと退会が FK 違反で落ちる）。
+      this.db.delete(analysisJobs).where(eq(analysisJobs.userId, userId)),
       this.db.delete(users).where(eq(users.id, userId)),
     ] as const;
 

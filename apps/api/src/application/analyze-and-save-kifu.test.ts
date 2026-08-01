@@ -69,6 +69,61 @@ function makeUsecase(opts: { user?: User; analyzer: Analyzer; games?: Game[] }) 
   return { usecase, users, gameLogs, games };
 }
 
+describe("AnalyzeAndSaveKifu.preflight（非同期ジョブ化の同期検証。docs/plans/async-analysis.md）", () => {
+  it("gameId 指定時、他人の半荘・不存在は game_not_found（202 の前に同期で弾く）", async () => {
+    const other: Game = { id: "g-other", userId: "someone-else", title: "", createdAt: NOW };
+    const { usecase } = makeUsecase({
+      user: paidUser(0),
+      analyzer: new FakeAnalyzer(validKifu),
+      games: [other],
+    });
+
+    expect(await usecase.preflight("u1", "g-other")).toEqual({
+      ok: false,
+      reason: "game_not_found",
+    });
+    expect(await usecase.preflight("u1", "missing")).toEqual({
+      ok: false,
+      reason: "game_not_found",
+    });
+  });
+
+  it("gameId 指定時、局数が上限の半荘は game_full", async () => {
+    const game: Game = { id: "g1", userId: "u1", title: "", createdAt: NOW };
+    const { usecase, gameLogs } = makeUsecase({
+      user: paidUser(0),
+      analyzer: new FakeAnalyzer(validKifu),
+      games: [game],
+    });
+    for (let i = 0; i < 30; i++) {
+      await gameLogs.save({
+        id: `log-${i}`,
+        userId: "u1",
+        gameId: "g1",
+        seq: i + 1,
+        kifu: validKifu,
+        visibility: "private",
+        status: "draft",
+        createdAt: NOW,
+      });
+    }
+
+    expect(await usecase.preflight("u1", "g1")).toEqual({ ok: false, reason: "game_full" });
+  });
+
+  it("自分の半荘で空きがあれば ok（gameId なしは従来どおり枠だけ見る）", async () => {
+    const game: Game = { id: "g1", userId: "u1", title: "", createdAt: NOW };
+    const { usecase } = makeUsecase({
+      user: paidUser(0),
+      analyzer: new FakeAnalyzer(validKifu),
+      games: [game],
+    });
+
+    expect(await usecase.preflight("u1", "g1")).toEqual({ ok: true });
+    expect(await usecase.preflight("u1")).toEqual({ ok: true });
+  });
+});
+
 describe("AnalyzeAndSaveKifu", () => {
   it("成功すると新規半荘に private 局として保存され、実呼び出し回数ぶん加算される", async () => {
     const user = paidUser(0);
