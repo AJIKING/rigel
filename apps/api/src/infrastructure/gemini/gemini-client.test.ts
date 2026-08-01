@@ -93,12 +93,23 @@ describe("HttpGeminiClient", () => {
     expect("cf-aig-authorization" in capturedHeaders).toBe(false);
   });
 
-  it("非200応答はエラーにする", async () => {
+  it("非200応答はエラーにする（本文の先頭を含めて原因を特定できるように）", async () => {
     const fetchImpl = (async () =>
-      new Response("nope", { status: 500 })) as unknown as typeof fetch;
+      new Response('{"error":{"message":"Invalid authentication token"}}', {
+        status: 500,
+      })) as unknown as typeof fetch;
     const client = new HttpGeminiClient({ apiKey: "k", baseUrl: "https://gw.example", fetchImpl });
     await expect(client.generateText({ model: "m", prompt: "p", images: [] })).rejects.toThrow(
-      /500/,
+      /500.*Invalid authentication token/,
+    );
+  });
+
+  it("非200応答の本文は長くても256文字で打ち切る（ログ肥大防止）", async () => {
+    const fetchImpl = (async () =>
+      new Response("x".repeat(1000), { status: 502 })) as unknown as typeof fetch;
+    const client = new HttpGeminiClient({ apiKey: "k", baseUrl: "https://gw.example", fetchImpl });
+    await expect(client.generateText({ model: "m", prompt: "p", images: [] })).rejects.toSatisfy(
+      (e: unknown) => (e as Error).message.length < 300,
     );
   });
 });

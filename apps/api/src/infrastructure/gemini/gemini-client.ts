@@ -83,7 +83,9 @@ export class HttpGeminiClient implements GeminiClient {
     });
 
     if (!res.ok) {
-      throw new Error(`Gemini API error: ${res.status}`);
+      // 出どころ（Gateway 認証 / Google の鍵 / モデル名 …）を特定できるよう本文の先頭を添える。
+      const detail = (await res.text().catch(() => "")).slice(0, 256);
+      throw new Error(`Gemini API error: ${res.status} ${detail}`);
     }
     const json = (await res.json()) as GeminiResponseShape;
     return joinTextParts(json);
