@@ -36,10 +36,15 @@ const navTheme = {
   },
 };
 
+// スタック画面のヘッダー（タブ画面の Toolbar とトーンを揃える）:
+// 戻るは矢印のみ（iOS 既定の前画面名「Home」を出さない）・影/境界なし・タイトルは中央。
 const headerOptions = {
   headerStyle: { backgroundColor: colors.chrome },
   headerTintColor: colors.white,
-  headerTitleStyle: { color: colors.white },
+  headerTitleStyle: { color: colors.white, fontSize: 16, fontWeight: "700" },
+  headerTitleAlign: "center",
+  headerBackButtonDisplayMode: "minimal",
+  headerShadowVisible: false,
 } as const;
 
 function Root() {

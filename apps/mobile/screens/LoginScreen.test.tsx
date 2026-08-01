@@ -42,14 +42,16 @@ jest.mock("../lib/auth", () => ({
 describe("LoginScreen の Sign in with Apple", () => {
   beforeEach(() => jest.clearAllMocks());
 
-  it("Apple ボタン押下で identityToken と authorizationCode をサーバ認証へ渡す", async () => {
+  it("iOS も自前ボタン（Google ボタンと同じ書体）。押下で identityToken と authorizationCode をサーバ認証へ渡す", async () => {
     mockSignInAsync.mockResolvedValue({
       identityToken: "apple-id-token",
       authorizationCode: "apple-code",
     });
     render(<LoginScreen />);
 
-    fireEvent.press(screen.getByLabelText("Appleでサインイン"));
+    // 純正ボタンではなくテキスト付きの自前ボタン（フォントを Google ボタンと統一。
+    // Apple のガイドライン準拠: ロゴ＋規定文言）。[決定] 2026-08-01 オーナー
+    fireEvent.press(screen.getByText("Apple でサインイン"));
 
     await waitFor(() =>
       expect(mockSignInWithApple).toHaveBeenCalledWith("apple-id-token", "apple-code"),
@@ -60,7 +62,7 @@ describe("LoginScreen の Sign in with Apple", () => {
     mockSignInAsync.mockRejectedValue({ code: "ERR_REQUEST_CANCELED" });
     render(<LoginScreen />);
 
-    fireEvent.press(screen.getByLabelText("Appleでサインイン"));
+    fireEvent.press(screen.getByText("Apple でサインイン"));
 
     await waitFor(() => expect(mockSignInAsync).toHaveBeenCalled());
     expect(mockSignInWithApple).not.toHaveBeenCalled();

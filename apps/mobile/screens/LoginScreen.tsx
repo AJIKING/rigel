@@ -212,20 +212,16 @@ export function LoginScreen() {
             Google サインインは未設定です（EXPO_PUBLIC_GOOGLE_CLIENT_ID を設定すると有効化）。
           </Text>
         )}
-        {/* Sign in with Apple。iOS は純正ボタン（HIG 要件）、Android は自前ボタン＋
-            web フロー（EXPO_PUBLIC_APPLE_CLIENT_ID 未設定なら出さない）。 */}
-        {Platform.OS === "ios" ? (
-          <AppleAuthentication.AppleAuthenticationButton
-            buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN}
-            buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.WHITE}
-            cornerRadius={radius.base}
-            style={styles.abtn}
-            onPress={() => void onApplePress()}
-          />
-        ) : appleWeb ? (
+        {/* Sign in with Apple。iOS/Android とも自前ボタンで Google ボタンと書体・意匠を
+            統一する（[決定] 2026-08-01 オーナー。純正ボタンはフォントが変更不可で浮くため。
+            自前でも Apple のボタンガイドライン準拠: ロゴ＋規定文言＋白地）。
+            iOS はネイティブ認証、Android は web フロー（APPLE_CLIENT_ID 未設定なら出さない）。 */}
+        {Platform.OS === "ios" || appleWeb ? (
           <Pressable
             style={({ pressed }) => [styles.gbtn, styles.abtnWeb, pressed && styles.gbtnPressed]}
-            onPress={() => void onAppleWebPress(appleWeb)}
+            onPress={() =>
+              void (Platform.OS === "ios" ? onApplePress() : appleWeb && onAppleWebPress(appleWeb))
+            }
             accessibilityRole="button"
             accessibilityLabel="Apple でサインイン"
           >
@@ -288,9 +284,7 @@ const styles = StyleSheet.create({
   },
   gbtnPressed: { opacity: 0.85 },
   gbtnText: { color: "#1f1f1f", fontWeight: "700", fontSize: 15 },
-  // Apple 純正ボタン（高さは HIG の最小 44pt 以上・Google ボタンと幅を揃える）。
-  abtn: { height: 48, marginTop: 10 },
-  // Android の自前 Apple ボタン（Google ボタンと同じ白地・純正と同じ間隔）。
+  // 自前 Apple ボタン（Google ボタンと同じ白地・書体。高さはガイドラインの最小 44pt 以上）。
   abtnWeb: { marginTop: 10 },
   note: { color: colors.w45, fontSize: 12, textAlign: "center" },
   // 審査用ログイン（ロゴ長押しで出現）。入力欄はボタン群と同じ幅・角丸で馴染ませる。
