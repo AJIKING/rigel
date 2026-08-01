@@ -62,6 +62,7 @@ import type { RootStackParamList } from "../lib/navigation";
 import { pickImage, type PickedImage } from "../lib/pick-image";
 import { KIND_LABELS } from "../lib/problems";
 import { colors, radius } from "../lib/theme";
+import { toUploadFile } from "../lib/upload";
 
 type Nav = NativeStackNavigationProp<RootStackParamList, "ProblemEdit">;
 
@@ -208,9 +209,9 @@ function EditorBody({ initial, token }: { initial?: ProblemPost; token: string |
     setAnalyzing(true);
     try {
       const form = new FormData();
-      // RN の FormData はファイルを {uri,name,type} で受け取る（DOM 型に合わせて cast）。
-      form.append("hand", handPhoto as unknown as Blob);
-      if (riverPhoto) form.append("river", riverPhoto as unknown as Blob);
+      // 写真は expo-file-system の File に変換（lib/upload.ts。CaptureScreen と同じ理由）。
+      form.append("hand", toUploadFile(handPhoto));
+      if (riverPhoto) form.append("river", toUploadFile(riverPhoto));
       form.append("cameraBottomSeat", pov);
       const result = await analyzeProblem(token, form);
       if (result.ok) applyAiDraft(result.kifu);

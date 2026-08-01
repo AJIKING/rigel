@@ -18,6 +18,7 @@ import { useAuth } from "../lib/auth";
 import type { RootStackParamList } from "../lib/navigation";
 import { pickImage, type PickedImage as Picked } from "../lib/pick-image";
 import { colors } from "../lib/theme";
+import { toUploadFile } from "../lib/upload";
 
 type Nav = NativeStackNavigationProp<RootStackParamList, "Capture">;
 
@@ -90,13 +91,14 @@ export function CaptureScreen() {
     setSubmitting(true);
     try {
       const form = new FormData();
-      // RN の FormData はファイルを {uri,name,type} で受け取る（DOM 型に合わせて cast）。
-      form.append("river", river as unknown as Blob);
+      // 写真は expo-file-system の File に変換して載せる（lib/upload.ts。expo/fetch の
+      // FormData は {uri,name,type} オブジェクトを受け付けないため）。
+      form.append("river", toUploadFile(river));
       form.append("cameraBottomSeat", seat);
       if (gameId) form.append("gameId", gameId); // 既存半荘への局追加
       for (const cam of CAMS) {
         const f = hands[cam];
-        if (f) form.append(`hand_${cam}`, f as unknown as Blob);
+        if (f) form.append(`hand_${cam}`, toUploadFile(f));
       }
       const result = await analyze(token, form);
       if (result.ok) {
