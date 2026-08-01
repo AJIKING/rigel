@@ -41,6 +41,8 @@ export interface StartAnalysisParams {
   cameraBottomSeat: Seat;
   riverImage: ImageRef;
   hands: Partial<Record<CameraSeat, ImageRef>>;
+  /** 1枚モード（河写真から手前の手牌も読む）。 */
+  handFromRiver?: boolean;
 }
 
 export type StartAnalysisJobResult =
@@ -107,6 +109,7 @@ export class StartAnalysisJob {
         cameraBottomSeat: params.cameraBottomSeat,
         riverKey,
         handKeys,
+        ...(params.handFromRiver ? { handFromRiver: true } : {}),
       };
       await queue.send(message);
       return { ok: true, jobId };

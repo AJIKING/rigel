@@ -20,6 +20,9 @@ export interface AnalysisInput {
    * 任意（M5b で対応）。無ければ手牌・鳴きは空の Kifu になる。
    */
   hands?: Partial<Record<CameraSeat, ImageRef>>;
+  /** 1枚モード: 河写真の下端帯から手前(bottom)の手牌も読む（呼び出し +1）。
+   *  明示の hands.bottom があればそちらを優先。docs/plans/one-shot-hand.md */
+  handFromRiver?: boolean;
   /** 撮影時に手前(bottom)だった席。相対→絶対変換の基準。 */
   cameraBottomSeat: Seat;
 }

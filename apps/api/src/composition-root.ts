@@ -65,7 +65,8 @@ import { DrizzleGameRepository } from "./infrastructure/game/drizzle-game.reposi
 import { GeminiAnalyzer } from "./infrastructure/gemini/gemini-analyzer";
 import { HttpGeminiClient } from "./infrastructure/gemini/gemini-client";
 import { DEFAULT_HAND_MODEL, DEFAULT_RIVER_MODEL } from "./infrastructure/gemini/models";
-import { HAND_PROMPT_SINGLE } from "./infrastructure/gemini/hand-prompt";
+import { HAND_FROM_TABLE_PROMPT, HAND_PROMPT_SINGLE } from "./infrastructure/gemini/hand-prompt";
+import { ImageHandPreprocessor } from "./infrastructure/gemini/image-hand-preprocessor";
 import { ImageRiverPreprocessor } from "./infrastructure/gemini/image-river-preprocessor";
 import { PhotonImageProcessor } from "./infrastructure/gemini/photon-image-processor";
 import { RIVER_PROMPT_SINGLE } from "./infrastructure/gemini/river-prompt";
@@ -154,6 +155,7 @@ export function buildContainer(env: Env): AppContainer {
   // 初回プロフィールのランダム handle（Google 情報は使わない）。英数字・11文字で HANDLE_RE を満たす。
   const randomHandle = () => "u" + crypto.randomUUID().replace(/-/g, "").slice(0, 10);
 
+  const photon = new PhotonImageProcessor();
   const analyzer = new GeminiAnalyzer({
     client: new HttpGeminiClient({
       apiKey: env.GEMINI_API_KEY,
@@ -161,10 +163,13 @@ export function buildContainer(env: Env): AppContainer {
       gatewayToken: env.CLOUDFLARE_AI_GATEWAY_TOKEN,
     }),
     // 河1枚 → 4分割＋正立（Photon/WASM）。
-    preprocessor: new ImageRiverPreprocessor(new PhotonImageProcessor()),
+    preprocessor: new ImageRiverPreprocessor(photon),
+    // 1枚モード: 河写真の下端帯 → 手前の手牌（docs/plans/one-shot-hand.md）。
+    handPreprocessor: new ImageHandPreprocessor(photon),
     riverPrompt: RIVER_PROMPT_SINGLE,
     riverModel: env.GEMINI_RIVER_MODEL ?? DEFAULT_RIVER_MODEL,
     handPrompt: HAND_PROMPT_SINGLE,
+    handTablePrompt: HAND_FROM_TABLE_PROMPT,
     handModel: env.GEMINI_HAND_MODEL ?? DEFAULT_HAND_MODEL,
     now,
   });

@@ -41,6 +41,9 @@ export function CaptureScreen() {
   const [seq, setSeq] = useState(1);
   const [river, setRiver] = useState<Picked | null>(null);
   const [hands, setHands] = useState<Partial<Record<(typeof CAMS)[number], Picked>>>({});
+  // 1枚モード: 河写真に自分の手牌も写して、その1枚から手前の手牌も読む
+  // （docs/plans/one-shot-hand.md。解析回数 +1）。ON 中は「あなたの手牌」欄を隠す。
+  const [handFromRiver, setHandFromRiver] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [creating, setCreating] = useState(false); // 手入力作成。解析(submitting)とは独立。
   const [error, setError] = useState<string | null>(null);
@@ -99,9 +102,10 @@ export function CaptureScreen() {
       form.append("river", toUploadFile(river));
       form.append("cameraBottomSeat", seat);
       if (gameId) form.append("gameId", gameId); // 既存半荘への局追加
+      if (handFromRiver) form.append("handFromRiver", "true"); // 1枚モード
       for (const cam of CAMS) {
         const f = hands[cam];
-        if (f) form.append(`hand_${cam}`, toUploadFile(f));
+        if (f && !(handFromRiver && cam === "bottom")) form.append(`hand_${cam}`, toUploadFile(f));
       }
       // 解析は非同期ジョブ（202 + jobId）。ポーリングはグローバルな Provider に任せ、
       // この画面は一覧へ戻る（一覧の先頭に解析中カードが出る。案B・plan 8-2）。
@@ -158,8 +162,30 @@ export function CaptureScreen() {
             )}
           </Pressable>
 
+          {/* 1枚モードのトグル（河ピッカー直下。[決定] 2026-08-01 オーナー提案の UX）。 */}
+          <Pressable
+            style={styles.tgl}
+            onPress={() => {
+              setHandFromRiver((v) => !v);
+              // 二重指定の混乱を防ぐ: モード切替時は明示の「あなたの手牌」選択を破棄。
+              setHands((h) => ({ ...h, bottom: undefined }));
+            }}
+            accessibilityRole="switch"
+            accessibilityState={{ checked: handFromRiver }}
+          >
+            <View style={[styles.tglBox, handFromRiver && styles.tglBoxOn]}>
+              {handFromRiver ? <Text style={styles.tglTick}>✓</Text> : null}
+            </View>
+            <View style={styles.tglBody}>
+              <Text style={styles.tglLabel}>この写真に自分の手牌も写っている</Text>
+              <Text style={styles.tglSub}>
+                手前の手牌もこの1枚から読み取ります（解析回数を1回分多く使います）
+              </Text>
+            </View>
+          </Pressable>
+
           <Text style={styles.label}>各家の手牌（任意）</Text>
-          {CAMS.map((cam) => (
+          {CAMS.filter((cam) => !(handFromRiver && cam === "bottom")).map((cam) => (
             <Pressable
               key={cam}
               style={styles.handRow}
@@ -226,6 +252,23 @@ const styles = StyleSheet.create({
   container: { padding: 16, gap: 10 },
   addNote: { color: colors.accent, fontSize: 12.5, fontWeight: "700" },
   quota: { color: colors.w45, fontSize: 12 },
+  // 1枚モードのトグル行（チェックボックス風。seatBtn 等と同じ枠色）。
+  tgl: { flexDirection: "row", alignItems: "flex-start", gap: 10, paddingVertical: 2 },
+  tglBox: {
+    width: 20,
+    height: 20,
+    borderWidth: 1.5,
+    borderColor: colors.w45,
+    borderRadius: 5,
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 1,
+  },
+  tglBoxOn: { backgroundColor: colors.accent, borderColor: colors.accent },
+  tglTick: { color: "#16181d", fontSize: 13, fontWeight: "800", lineHeight: 16 },
+  tglBody: { flex: 1, gap: 2 },
+  tglLabel: { color: colors.white, fontSize: 13.5, fontWeight: "700" },
+  tglSub: { color: colors.w45, fontSize: 11.5, lineHeight: 17 },
   label: { color: colors.w70, fontSize: 13, marginTop: 6 },
   seatRow: { flexDirection: "row", gap: 8 },
   seatBtn: {

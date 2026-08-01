@@ -63,6 +63,35 @@ function analyzeForm() {
   return form;
 }
 
+describe("POST /analyze の 1枚モード（handFromRiver）", () => {
+  it("フォームの handFromRiver=true がキューのメッセージへ伝わる", async () => {
+    const { app, queue } = makeApp();
+    const form = analyzeForm();
+    form.set("handFromRiver", "true");
+
+    const res = await app.request(
+      "/analyze",
+      { method: "POST", headers: await bearer("u1"), body: form },
+      fakeEnv,
+    );
+
+    expect(res.status).toBe(202);
+    expect(queue.sent[0]).toMatchObject({ handFromRiver: true });
+  });
+
+  it("フラグ無しのメッセージには handFromRiver を載せない", async () => {
+    const { app, queue } = makeApp();
+
+    await app.request(
+      "/analyze",
+      { method: "POST", headers: await bearer("u1"), body: analyzeForm() },
+      fakeEnv,
+    );
+
+    expect("handFromRiver" in (queue.sent[0] ?? {})).toBe(false);
+  });
+});
+
 describe("POST /analyze（202 + jobId）", () => {
   it("検証を通れば 202 で jobId を返し、画像を一時保存してキューへ投入する", async () => {
     const { app, jobs, images, queue } = makeApp();

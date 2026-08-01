@@ -8,8 +8,10 @@ import type { RiverPreprocessor } from "./river-preprocessor";
 
 const RIVER_PROMPT = "RIVER";
 const HAND_PROMPT = "HAND";
+const TABLE_HAND_PROMPT = "TABLE_HAND";
 const RIVER_JSON = '{"discards":[{"order":1,"tile":"1m"}],"notes":""}';
 const HAND_JSON = '{"hand":[{"tile":"2p"}],"melds":[],"notes":""}';
+const TABLE_HAND_JSON = '{"hand":[{"tile":"3s"}],"melds":[],"notes":""}';
 
 class FakePreprocessor implements RiverPreprocessor {
   split(_river: ImageRef): Promise<Record<CameraSeat, ImageRef>> {
@@ -22,11 +24,16 @@ class FakePreprocessor implements RiverPreprocessor {
   }
 }
 
-// プロンプトで河/手牌を判別して返すフェイク。
+// プロンプトで河/手牌/1枚モード手牌を判別して返すフェイク。
 class FakeClient implements GeminiClient {
   riverCalls = 0;
   handCalls = 0;
+  tableHandCalls = 0;
   generateText(params: GenerateParams): Promise<string> {
+    if (params.prompt === TABLE_HAND_PROMPT) {
+      this.tableHandCalls += 1;
+      return Promise.resolve(TABLE_HAND_JSON);
+    }
     if (params.prompt === HAND_PROMPT) {
       this.handCalls += 1;
       return Promise.resolve(HAND_JSON);
@@ -40,9 +47,11 @@ function makeDeps(client: GeminiClient, preprocessor: RiverPreprocessor): Gemini
   return {
     client,
     preprocessor,
+    handPreprocessor: { cropHand: () => Promise.resolve(img("table-hand-crop")) },
     riverPrompt: RIVER_PROMPT,
     riverModel: "river-model",
     handPrompt: HAND_PROMPT,
+    handTablePrompt: TABLE_HAND_PROMPT,
     handModel: "hand-model",
     now: () => new Date("2026-06-28T00:00:00.000Z"),
   };
@@ -94,6 +103,52 @@ describe("GeminiAnalyzer.analyze", () => {
     expect(client.handCalls).toBe(1); // 提供された1方向だけ
     expect(geminiCalls).toBe(5); // 河4 + 手牌1
     expect(kifu.seats.east.hand[0]?.tile).toBe("2p"); // bottom=東
+  });
+
+  it("1枚モード（handFromRiver）は河写真の下端帯を専用プロンプトで読み、bottom の手牌に入る", async () => {
+    const client = new FakeClient();
+    const analyzer = new GeminiAnalyzer(makeDeps(client, new FakePreprocessor()));
+
+    const { kifu, geminiCalls } = await analyzer.analyze({
+      riverImage: img("river"),
+      handFromRiver: true,
+      cameraBottomSeat: "east",
+    });
+
+    expect(client.tableHandCalls).toBe(1); // 専用プロンプトで1回
+    expect(client.handCalls).toBe(0);
+    expect(geminiCalls).toBe(5); // 河4 + 1枚モード手牌1（課金も +1）
+    expect(kifu.seats.east.hand[0]?.tile).toBe("3s");
+  });
+
+  it("1枚モードでも明示の hands.bottom があればそちらが勝つ（二重読みしない）", async () => {
+    const client = new FakeClient();
+    const analyzer = new GeminiAnalyzer(makeDeps(client, new FakePreprocessor()));
+
+    const { kifu, geminiCalls } = await analyzer.analyze({
+      riverImage: img("river"),
+      hands: { bottom: img("hand-bottom") },
+      handFromRiver: true,
+      cameraBottomSeat: "east",
+    });
+
+    expect(client.tableHandCalls).toBe(0);
+    expect(client.handCalls).toBe(1);
+    expect(geminiCalls).toBe(5);
+    expect(kifu.seats.east.hand[0]?.tile).toBe("2p"); // 明示の寄り写真の結果
+  });
+
+  it("1枚モードは河写真が無ければ何もしない（何切る用の手牌のみ入力を壊さない）", async () => {
+    const client = new FakeClient();
+    const analyzer = new GeminiAnalyzer(makeDeps(client, new FakePreprocessor()));
+
+    const { geminiCalls } = await analyzer.analyze({
+      handFromRiver: true,
+      cameraBottomSeat: "east",
+    });
+
+    expect(client.tableHandCalls).toBe(0);
+    expect(geminiCalls).toBe(0);
   });
 
   it("前処理が失敗したら伝播する", async () => {

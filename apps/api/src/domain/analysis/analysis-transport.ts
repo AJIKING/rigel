@@ -28,6 +28,8 @@ export interface AnalysisJobMessage {
   cameraBottomSeat: Seat;
   riverKey: string;
   handKeys: Partial<Record<CameraSeat, string>>;
+  /** 1枚モード（河写真から手前の手牌も読む。docs/plans/one-shot-hand.md）。 */
+  handFromRiver?: boolean;
 }
 
 export interface AnalysisQueue {

@@ -56,7 +56,12 @@ export class RunAnalysisJob {
 
       const result = await analyze.execute({
         userId: message.userId,
-        input: { riverImage, hands, cameraBottomSeat: message.cameraBottomSeat },
+        input: {
+          riverImage,
+          hands,
+          cameraBottomSeat: message.cameraBottomSeat,
+          ...(message.handFromRiver ? { handFromRiver: true } : {}),
+        },
         ...(message.gameId ? { gameId: message.gameId } : {}),
       });
 

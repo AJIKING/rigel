@@ -108,6 +108,8 @@ export function registerKifuRoutes(app: Hono<AppEnv>): void {
 
     const gameIdRaw = form?.get("gameId");
     const gameId = typeof gameIdRaw === "string" && gameIdRaw ? gameIdRaw : undefined;
+    // 1枚モード: 河写真から手前の手牌も読む（docs/plans/one-shot-hand.md）。
+    const handFromRiver = form?.get("handFromRiver") === "true";
 
     // 非同期ジョブ化（docs/plans/async-analysis.md）: 実写真の Gemini 読み取りは数分に
     // 達しうるため、接続を握ったまま解析しない。画像を R2 に一時保存（[決定] 2026-08-01
@@ -119,6 +121,7 @@ export function registerKifuRoutes(app: Hono<AppEnv>): void {
       cameraBottomSeat: seat.data,
       riverImage,
       hands,
+      ...(handFromRiver ? { handFromRiver: true } : {}),
     });
     if (!started.ok) {
       return c.json({ ok: false, reason: started.reason }, reasonStatus(started.reason));

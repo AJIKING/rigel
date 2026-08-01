@@ -79,6 +79,49 @@ describe("CaptureScreen（非同期ジョブの解析フロー。案B=送信し�
     expect(mockStart).toHaveBeenCalledWith(expect.objectContaining({ jobId: "job-1", seq: 1 }));
   });
 
+  /** RN の FormData（getParts）と whatwg 実装（get）の両対応でフィールド値を読む。 */
+  function formField(form: unknown, name: string): string | undefined {
+    const f = form as {
+      getParts?: () => { fieldName: string; string?: string }[];
+      get?: (n: string) => unknown;
+    };
+    const part = f.getParts?.().find((p) => p.fieldName === name);
+    if (part) return part.string;
+    const v = f.get?.(name);
+    return typeof v === "string" ? v : undefined;
+  }
+
+  it("「この写真に自分の手牌も写っている」トグルONで「手前」の手牌欄が隠れる", () => {
+    render(<CaptureScreen />);
+    expect(screen.getByText("手前")).toBeTruthy();
+
+    fireEvent.press(screen.getByText("この写真に自分の手牌も写っている"));
+
+    expect(screen.queryByText("手前")).toBeNull();
+    expect(screen.getByText(/解析回数を1回分多く使います/)).toBeTruthy();
+  });
+
+  it("トグルONで送信すると handFromRiver=true がフォームに載る", async () => {
+    mockAnalyze.mockResolvedValue({ ok: true, jobId: "job-1" });
+    render(<CaptureScreen />);
+    fireEvent.press(screen.getByText("この写真に自分の手牌も写っている"));
+
+    await pickRiverAndSubmit();
+
+    await waitFor(() => expect(mockAnalyze).toHaveBeenCalled());
+    expect(formField(mockAnalyze.mock.calls[0]![1], "handFromRiver")).toBe("true");
+  });
+
+  it("トグルOFF（既定）ならフォームに handFromRiver を載せない", async () => {
+    mockAnalyze.mockResolvedValue({ ok: true, jobId: "job-1" });
+    render(<CaptureScreen />);
+
+    await pickRiverAndSubmit();
+
+    await waitFor(() => expect(mockAnalyze).toHaveBeenCalled());
+    expect(formField(mockAnalyze.mock.calls[0]![1], "handFromRiver")).toBeUndefined();
+  });
+
   it("送信自体の失敗（枠切れ等）はその場でステータス文言を出し、遷移しない", async () => {
     mockAnalyze.mockResolvedValue({ ok: false, status: 402, reason: "quota_exceeded" });
     render(<CaptureScreen />);
