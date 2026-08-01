@@ -2,8 +2,16 @@ import * as AppleAuthentication from "expo-apple-authentication";
 import * as Google from "expo-auth-session/providers/google";
 import * as Crypto from "expo-crypto";
 import * as WebBrowser from "expo-web-browser";
-import { useEffect } from "react";
-import { ActivityIndicator, Platform, Pressable, StyleSheet, Text, View } from "react-native";
+import { useEffect, useState } from "react";
+import {
+  ActivityIndicator,
+  Platform,
+  Pressable,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Svg, { Path } from "react-native-svg";
 import { BrandMark } from "../components/BrandMark";
@@ -60,8 +68,55 @@ function AppleLogo() {
   );
 }
 
+// ストア審査用の合言葉ログインの入力パネル（docs/plans/review-login.md 案B。ロゴ長押しで
+// 出現。審査メモに手順を明記するので Apple/Google には隠さない）。コードはアプリに持たず
+// サーバーの Secret とだけ照合する。入力状態をここに閉じて LoginScreen 全体を
+// キー入力ごとに再レンダーしない。失敗は黙らずインラインで示す（利用者は手順書を
+// 持つ審査員で、誤入力と設定切れの区別がつかないと審査が詰まるため）。
+function ReviewLoginPanel({ signIn }: { signIn: (code: string) => Promise<void> }) {
+  const [code, setCode] = useState("");
+  const [failed, setFailed] = useState(false);
+
+  async function onSubmit() {
+    const trimmed = code.trim();
+    if (!trimmed) return;
+    setFailed(false);
+    try {
+      await signIn(trimmed);
+    } catch {
+      setFailed(true);
+    }
+  }
+
+  return (
+    <View style={styles.review}>
+      <TextInput
+        style={styles.reviewInput}
+        value={code}
+        onChangeText={setCode}
+        accessibilityLabel="審査コード"
+        placeholder="審査コード"
+        placeholderTextColor={colors.w45}
+        autoCapitalize="none"
+        autoCorrect={false}
+      />
+      {failed ? <Text style={styles.reviewError}>コードを確認できませんでした</Text> : null}
+      <Pressable
+        style={({ pressed }) => [styles.gbtn, pressed && styles.gbtnPressed]}
+        onPress={() => void onSubmit()}
+        accessibilityRole="button"
+      >
+        <Text style={styles.gbtnText}>コードでサインイン</Text>
+      </Pressable>
+    </View>
+  );
+}
+
 export function LoginScreen() {
-  const { signInWithGoogle, signInWithApple, startGuest } = useAuth();
+  const { signInWithGoogle, signInWithApple, signInWithReviewCode, startGuest } = useAuth();
+
+  // 審査コードパネルの表示フラグ（ロゴ長押しで開く。パネル本体は ReviewLoginPanel）。
+  const [reviewOpen, setReviewOpen] = useState(false);
 
   // EXPO_PUBLIC_GOOGLE_CLIENT_ID は iOS 用、EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID は
   // Android 用の OAuth クライアントID（詳細は lib/google-login.ts）。未設定なら null =
@@ -128,10 +183,18 @@ export function LoginScreen() {
   return (
     <SafeAreaView style={styles.root}>
       <View style={styles.inner}>
-        <TileChip size={104} center="star" />
-        <View style={styles.brand}>
-          <BrandMark size={30} fontSize={29} letterSpacing={7.5} />
-        </View>
+        {/* 長押しで審査コード入力欄を出す（見た目は通常のロゴのまま）。 */}
+        <Pressable
+          testID="review-login-trigger"
+          style={styles.brandPress}
+          onLongPress={() => setReviewOpen(true)}
+          delayLongPress={600}
+        >
+          <TileChip size={104} center="star" />
+          <View style={styles.brand}>
+            <BrandMark size={30} fontSize={29} letterSpacing={7.5} />
+          </View>
+        </Pressable>
       </View>
       <View style={styles.foot}>
         {googleConfig ? (
@@ -173,6 +236,8 @@ export function LoginScreen() {
         {!request && googleConfig ? (
           <ActivityIndicator color={colors.accent} style={{ marginTop: 12 }} />
         ) : null}
+        {/* ストア審査用の合言葉ログイン（ロゴ長押しで出現。コードを知らなければ何もできない）。 */}
+        {reviewOpen ? <ReviewLoginPanel signIn={signInWithReviewCode} /> : null}
         {/* サインイン必須のアプリではない（公開牌譜・何切るは見られる）。ゲスト開始の導線。 */}
         <Pressable
           style={({ pressed }) => [styles.guestBtn, pressed && styles.gbtnPressed]}
@@ -209,6 +274,7 @@ export function LoginScreen() {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.bg },
   inner: { flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 30 },
+  brandPress: { alignItems: "center" },
   brand: { marginTop: 24 },
   foot: { paddingHorizontal: 30, paddingBottom: 30 },
   gbtn: {
@@ -227,6 +293,18 @@ const styles = StyleSheet.create({
   // Android の自前 Apple ボタン（Google ボタンと同じ白地・純正と同じ間隔）。
   abtnWeb: { marginTop: 10 },
   note: { color: colors.w45, fontSize: 12, textAlign: "center" },
+  // 審査用ログイン（ロゴ長押しで出現）。入力欄はボタン群と同じ幅・角丸で馴染ませる。
+  review: { marginTop: 14, gap: 10 },
+  reviewInput: {
+    borderWidth: 1,
+    borderColor: colors.line,
+    borderRadius: radius.base,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    color: colors.white,
+    fontSize: 14,
+  },
+  reviewError: { color: colors.danger, fontSize: 12 },
   // ゲスト開始はボタンの見た目を弱く（主導線はサインイン。テキストリンク相当）。
   guestBtn: { marginTop: 14, alignItems: "center", paddingVertical: 6 },
   guestText: { color: colors.w70, fontSize: 13, fontWeight: "700" },

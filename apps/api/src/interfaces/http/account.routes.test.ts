@@ -4,6 +4,7 @@
 
 import { describe, expect, it } from "vitest";
 import { AuthenticateWithApple } from "../../application/authenticate-with-apple.usecase";
+import { AuthenticateWithReviewCode } from "../../application/authenticate-with-review-code.usecase";
 import type { AppContainer } from "../../composition-root";
 import { JwtSessionService } from "../../infrastructure/auth/jwt-session-service";
 import {
@@ -134,6 +135,73 @@ describe("POST /auth/apple", () => {
     const body = (await res.json()) as { sessionToken: string; user: Record<string, unknown> };
     expect(typeof body.sessionToken).toBe("string");
     // user はホワイトリスト（userProfileJson）のみ。運用専用情報は漏らさない。
+    expect(Object.keys(body.user).sort()).toEqual([
+      "displayName",
+      "handle",
+      "id",
+      "plan",
+      "planStore",
+    ]);
+  });
+});
+
+describe("POST /auth/review", () => {
+  // ストア審査用の合言葉ログイン（docs/plans/review-login.md 案B）。
+  // Secret 未設定なら 501 で口ごと閉じる（/auth/apple の 501 と同じ流儀）。
+  function reviewApp(users: InMemoryUserRepository, secret: string) {
+    const session = new JwtSessionService({ secret: "test-secret" });
+    const container = {
+      reviewAuthEnabled: Boolean(secret),
+      session,
+      authenticateWithReviewCode: new AuthenticateWithReviewCode({
+        users,
+        session,
+        now: () => new Date("2026-08-01T00:00:00.000Z"),
+        newId: () => "u-review",
+        randomHandle: () => "randomreview",
+        secret,
+      }),
+    } as Partial<AppContainer> as AppContainer;
+    return createApp({ container: () => container });
+  }
+
+  function postReview(app: ReturnType<typeof createApp>, body: unknown) {
+    return app.request(
+      "/auth/review",
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(body),
+      },
+      fakeEnv,
+    );
+  }
+
+  it("Secret 未設定なら 501（審査期間外は口が存在しないのと同じ）", async () => {
+    const res = await postReview(reviewApp(new InMemoryUserRepository(), ""), { code: "x" });
+    expect(res.status).toBe(501);
+  });
+
+  it("code が無ければ 400", async () => {
+    const res = await postReview(reviewApp(new InMemoryUserRepository(), "sesame"), {});
+    expect(res.status).toBe(400);
+  });
+
+  it("誤った code は 401（詳細は返さない・ユーザーを作らない）", async () => {
+    const users = new InMemoryUserRepository();
+    const res = await postReview(reviewApp(users, "sesame"), { code: "wrong" });
+    expect(res.status).toBe(401);
+    expect(users.size).toBe(0);
+  });
+
+  it("正しい code は 201 で公開プロフィールのみ返す（/auth/google と同形）", async () => {
+    const res = await postReview(reviewApp(new InMemoryUserRepository(), "sesame"), {
+      code: "sesame",
+    });
+
+    expect(res.status).toBe(201);
+    const body = (await res.json()) as { sessionToken: string; user: Record<string, unknown> };
+    expect(typeof body.sessionToken).toBe("string");
     expect(Object.keys(body.user).sort()).toEqual([
       "displayName",
       "handle",

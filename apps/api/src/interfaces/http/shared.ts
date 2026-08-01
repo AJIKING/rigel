@@ -49,19 +49,6 @@ export const requireAuth: MiddlewareHandler<AppEnv> = async (c, next) => {
 };
 
 /** ユースケースの失敗理由を HTTP ステータスに対応づける（ルート間で統一）。 */
-/** 文字列の定数時間比較（共有シークレットの照合に使う。長さの違いも早期 return しない）。 */
-export function timingSafeEqual(a: string | undefined, b: string | undefined): boolean {
-  if (a === undefined || b === undefined) return false;
-  const enc = new TextEncoder();
-  const x = enc.encode(a);
-  const y = enc.encode(b);
-  // 長さが違っても同じ回数だけ比較する（長さ自体は秘密ではない）。
-  let diff = x.length ^ y.length;
-  const n = Math.max(x.length, y.length);
-  for (let i = 0; i < n; i++) diff |= (x[i] ?? 0) ^ (y[i] ?? 0);
-  return diff === 0;
-}
-
 export function reasonStatus(reason: string): 400 | 402 | 403 | 404 | 409 {
   switch (reason) {
     case "quota_exceeded":

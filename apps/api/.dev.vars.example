@@ -12,6 +12,10 @@ GOOGLE_CLIENT_ID=
 # CORS で許可する web オリジン。localhost:3000 は既定で許可されるので通常は空でよい。
 ALLOWED_ORIGINS=http://localhost:3000
 
+# ストア審査用の合言葉ログイン（docs/plans/review-login.md 案B）。32文字以上のランダム文字列。
+# 未設定なら /auth/review は 501（通常はこのままでよい。審査期間だけ本番 Secret に設定する）。
+# REVIEW_LOGIN_SECRET=
+
 # --- ここから下は「AI解析(/analyze)」を試すときだけ必要。ログイン/編集/採点/公開だけなら未設定でよい。 ---
 # GEMINI_API_KEY=
 # CLOUDFLARE_AI_GATEWAY_URL=

@@ -35,6 +35,10 @@ export interface Env {
   ALLOWED_ORIGINS?: string;
   /** セッショントークンの署名鍵（Secret）。 */
   SESSION_SECRET: string;
+  /** ストア審査用の合言葉ログインの Secret（32文字以上のランダム文字列。
+   *  未設定なら /auth/review は 501。審査期間だけ設定し、終わったら削除して口を閉じる。
+   *  docs/plans/review-login.md 案B）。 */
+  REVIEW_LOGIN_SECRET?: string;
   /** Stripe シークレットキー（Secret。未設定なら課金機能は無効）。 */
   STRIPE_SECRET_KEY?: string;
   /** Stripe Webhook 署名シークレット（Secret）。 */

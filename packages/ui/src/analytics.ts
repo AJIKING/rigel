@@ -34,8 +34,8 @@ export const ANALYTICS_EVENTS = {
 
 export type AnalyticsEvent = (typeof ANALYTICS_EVENTS)[keyof typeof ANALYTICS_EVENTS];
 
-/** login/sign_up の method パラメータ（認証プロバイダ）。 */
-export type LoginMethod = "google" | "apple";
+/** login/sign_up の method パラメータ（認証プロバイダ。review=ストア審査用の合言葉ログイン）。 */
+export type LoginMethod = "google" | "apple" | "review";
 
 /** 解析イベントの result パラメータ。 */
 export type AnalyzeResultParam = "success" | "error";

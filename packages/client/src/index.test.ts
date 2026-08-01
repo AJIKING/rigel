@@ -149,6 +149,27 @@ describe("createApiClient", () => {
     await expect(client.authWithApple("idtok")).rejects.toThrow(/401/);
   });
 
+  it("authWithReviewCode は code を /auth/review に送る", async () => {
+    const client = createApiClient(
+      "https://api.test",
+      fakeFetch2((url, init) => {
+        expect(url).toBe("https://api.test/auth/review");
+        expect(JSON.parse(String(init?.body))).toEqual({ code: "sesame" });
+        return json({ sessionToken: "s1", created: true, user: { id: "u1" } });
+      }),
+    );
+    const result = await client.authWithReviewCode("sesame");
+    expect(result.sessionToken).toBe("s1");
+  });
+
+  it("authWithReviewCode は失敗時に例外", async () => {
+    const client = createApiClient(
+      "https://api.test",
+      fakeFetch(() => new Response("err", { status: 401 })),
+    );
+    await expect(client.authWithReviewCode("wrong")).rejects.toThrow(/401/);
+  });
+
   it("analyze は 201 で gameId/logId を返す", async () => {
     const client = createApiClient(
       "https://api.test",

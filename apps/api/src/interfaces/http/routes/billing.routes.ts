@@ -5,7 +5,8 @@
 
 import type { Hono } from "hono";
 import { isAllowedRedirect } from "../redirect";
-import { requireAuth, timingSafeEqual, type AppEnv } from "../shared";
+import { timingSafeEqual } from "../../../domain/auth/timing-safe-equal";
+import { requireAuth, type AppEnv } from "../shared";
 
 export function registerBillingRoutes(app: Hono<AppEnv>): void {
   // 課金: サブスク用 Checkout を開始（要認証）。body: { plan: "next"|"pro", successUrl, cancelUrl }。

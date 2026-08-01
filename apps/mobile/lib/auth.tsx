@@ -3,7 +3,14 @@ import * as SecureStore from "expo-secure-store";
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
 import { AppState } from "react-native";
 import { trackEvent } from "./analytics";
-import { authWithApple, authWithGoogle, fetchMe, type AuthResult, type AuthUser } from "./api";
+import {
+  authWithApple,
+  authWithGoogle,
+  authWithReviewCode,
+  fetchMe,
+  type AuthResult,
+  type AuthUser,
+} from "./api";
 import { logInPurchases, logOutPurchases } from "./purchases";
 
 const TOKEN_KEY = "rigel.session";
@@ -25,6 +32,8 @@ interface AuthState {
   /** Apple の identityToken でログイン（iOS。App Store 審査要件 4.8）。
    *  authorizationCode は退会時のトークン失効用（任意）。 */
   signInWithApple: (idToken: string, authorizationCode?: string) => Promise<void>;
+  /** ストア審査用の合言葉ログイン（審査ユーザー専用。docs/plans/review-login.md 案B）。 */
+  signInWithReviewCode: (code: string) => Promise<void>;
   signOut: () => void;
   /** /me を再取得して user を最新化する（プロフィール保存後など）。 */
   refresh: () => Promise<void>;
@@ -102,6 +111,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [establishSession],
   );
 
+  const signInWithReviewCode = useCallback(
+    async (code: string) => establishSession("review", await authWithReviewCode(code)),
+    [establishSession],
+  );
+
   const signOut = useCallback(() => {
     void SecureStore.deleteItemAsync(TOKEN_KEY);
     void logOutPurchases();
@@ -135,6 +149,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         endGuest,
         signInWithGoogle,
         signInWithApple,
+        signInWithReviewCode,
         signOut,
         refresh,
       }}

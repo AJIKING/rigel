@@ -206,6 +206,8 @@ export interface ApiClient {
   /** Apple ID トークンでログイン（App Store 審査要件 4.8）。authorizationCode は
    *  退会時のトークン失効用の refresh token 交換に使う（任意）。 */
   authWithApple(idToken: string, authorizationCode?: string): Promise<AuthResult>;
+  /** ストア審査用の合言葉ログイン（審査ユーザー専用。サーバーの Secret 未設定時は 501）。 */
+  authWithReviewCode(code: string): Promise<AuthResult>;
   /** セッショントークンで自分のユーザー情報を取得。無効なら null。 */
   fetchMe(token: string): Promise<AuthUser | null>;
   /** ログインユーザーの半荘一覧。 */
@@ -406,6 +408,16 @@ export function createApiClient(baseUrl: string, fetchImpl?: typeof fetch): ApiC
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ idToken, authorizationCode }),
+      });
+      if (!res.ok) throw new Error(`auth failed: ${res.status}`);
+      return res.json() as Promise<AuthResult>;
+    },
+
+    async authWithReviewCode(code) {
+      const res = await doFetch(`${baseUrl}/auth/review`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ code }),
       });
       if (!res.ok) throw new Error(`auth failed: ${res.status}`);
       return res.json() as Promise<AuthResult>;

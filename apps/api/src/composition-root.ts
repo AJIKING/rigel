@@ -10,6 +10,7 @@ import { AnalyzeAndSaveKifu } from "./application/analyze-and-save-kifu.usecase"
 import { AnalyzeProblemDraft } from "./application/analyze-problem-draft.usecase";
 import { AuthenticateWithApple } from "./application/authenticate-with-apple.usecase";
 import { AuthenticateWithGoogle } from "./application/authenticate-with-google.usecase";
+import { AuthenticateWithReviewCode } from "./application/authenticate-with-review-code.usecase";
 import { CreateEmptyKifu } from "./application/create-empty-kifu.usecase";
 import { GetFavoriteSummary, ListMyFavorites, SetFavorite } from "./application/favorite.usecase";
 import { DeleteGame } from "./application/delete-game.usecase";
@@ -93,6 +94,9 @@ export interface AppContainer {
   authenticateWithApple: AuthenticateWithApple;
   /** Sign in with Apple の設定（APPLE_CLIENT_ID）が揃っているか。未設定なら /auth/apple は 501。 */
   appleAuthEnabled: boolean;
+  authenticateWithReviewCode: AuthenticateWithReviewCode;
+  /** ストア審査用ログインの Secret（REVIEW_LOGIN_SECRET）が設定されているか。未設定なら /auth/review は 501。 */
+  reviewAuthEnabled: boolean;
   getUser: GetUser;
   updateProfile: UpdateProfile;
   getPublicProfile: GetPublicProfile;
@@ -240,6 +244,15 @@ export function buildContainer(env: Env): AppContainer {
       randomHandle,
     }),
     appleAuthEnabled,
+    authenticateWithReviewCode: new AuthenticateWithReviewCode({
+      users,
+      session,
+      now,
+      newId,
+      randomHandle,
+      secret: env.REVIEW_LOGIN_SECRET ?? "",
+    }),
+    reviewAuthEnabled: Boolean(env.REVIEW_LOGIN_SECRET),
     getUser: new GetUser(users),
     updateProfile: new UpdateProfile(users),
     getPublicProfile: new GetPublicProfile(users, gamesRepo, gameLogs),

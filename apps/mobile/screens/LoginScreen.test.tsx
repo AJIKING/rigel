@@ -28,11 +28,13 @@ jest.mock("expo-apple-authentication", () => {
 });
 
 const mockSignInWithApple = jest.fn((_idToken: string, _code?: string) => Promise.resolve());
+const mockSignInWithReviewCode = jest.fn((_code: string) => Promise.resolve());
 const mockStartGuest = jest.fn();
 jest.mock("../lib/auth", () => ({
   useAuth: () => ({
     signInWithGoogle: jest.fn(),
     signInWithApple: (...a: unknown[]) => mockSignInWithApple(...(a as [string, string?])),
+    signInWithReviewCode: (...a: unknown[]) => mockSignInWithReviewCode(...(a as [string])),
     startGuest: () => mockStartGuest(),
   }),
 }));
@@ -107,5 +109,44 @@ describe("LoginScreen の文言とゲスト開始", () => {
   it("Google 未設定時の案内も「サインイン」表記", () => {
     render(<LoginScreen />);
     expect(screen.getByText(/Google サインインは未設定です/)).toBeTruthy();
+  });
+});
+
+describe("LoginScreen の審査用ログイン（ストア審査員向けの合言葉。docs/plans/review-login.md 案B）", () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  it("通常表示では審査コード入力欄は出ない", () => {
+    render(<LoginScreen />);
+    expect(screen.queryByLabelText("審査コード")).toBeNull();
+  });
+
+  it("ロゴ長押しで入力欄が現れ、送信でコードをサーバ認証へ渡す", async () => {
+    render(<LoginScreen />);
+
+    fireEvent(screen.getByTestId("review-login-trigger"), "longPress");
+    fireEvent.changeText(screen.getByLabelText("審査コード"), "sesame-code");
+    fireEvent.press(screen.getByText("コードでサインイン"));
+
+    await waitFor(() => expect(mockSignInWithReviewCode).toHaveBeenCalledWith("sesame-code"));
+  });
+
+  it("空のコードでは送信しない", () => {
+    render(<LoginScreen />);
+
+    fireEvent(screen.getByTestId("review-login-trigger"), "longPress");
+    fireEvent.press(screen.getByText("コードでサインイン"));
+
+    expect(mockSignInWithReviewCode).not.toHaveBeenCalled();
+  });
+
+  it("認証失敗はインラインでエラーを表示する（審査員が誤入力と設定切れを判別できるように）", async () => {
+    mockSignInWithReviewCode.mockRejectedValueOnce(new Error("401"));
+    render(<LoginScreen />);
+
+    fireEvent(screen.getByTestId("review-login-trigger"), "longPress");
+    fireEvent.changeText(screen.getByLabelText("審査コード"), "wrong");
+    fireEvent.press(screen.getByText("コードでサインイン"));
+
+    await waitFor(() => expect(screen.getByText("コードを確認できませんでした")).toBeTruthy());
   });
 });

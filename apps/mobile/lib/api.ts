@@ -26,6 +26,7 @@ const client = createApiClient(process.env.EXPO_PUBLIC_API_URL ?? "");
 export const {
   authWithGoogle,
   authWithApple,
+  authWithReviewCode,
   fetchMe,
   getMyGames,
   getPublicGames,

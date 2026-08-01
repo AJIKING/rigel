@@ -22,9 +22,9 @@ async function respondAuth(
     const { sessionToken, user, created } = await run();
     return c.json({ sessionToken, created, user: userProfileJson(user) }, created ? 201 : 200);
   } catch (e) {
-    // 無効トークンは日常的に起きるため warn（トークン本体は含めない）。
-    console.warn(`auth ${provider} token verification failed`, e);
-    return c.json({ error: `invalid ${provider} token` }, 401);
+    // 無効な資格情報は日常的に起きるため warn（トークン/コード本体は含めない）。
+    console.warn(`auth ${provider} verification failed`, e);
+    return c.json({ error: `invalid ${provider} credential` }, 401);
   }
 }
 
@@ -75,6 +75,22 @@ export function registerAccountRoutes(app: Hono<AppEnv>): void {
       typeof body.authorizationCode === "string" ? body.authorizationCode : undefined;
     return respondAuth(c, "Apple", () =>
       c.get("container").authenticateWithApple.execute({ idToken, authorizationCode }),
+    );
+  });
+
+  // ストア審査用の合言葉ログイン（docs/plans/review-login.md 案B）。固定の審査ユーザー
+  // 1人に入る合鍵で、任意ユーザーへの口ではない。Secret 未設定なら 501 で閉じる。
+  app.post("/auth/review", async (c) => {
+    if (!c.get("container").reviewAuthEnabled) {
+      return c.json({ error: "review auth not configured" }, 501);
+    }
+    const body = (await c.req.json().catch(() => null)) as { code?: unknown } | null;
+    if (typeof body?.code !== "string") {
+      return c.json({ error: "code required" }, 400);
+    }
+    const code = body.code;
+    return respondAuth(c, "Review", () =>
+      c.get("container").authenticateWithReviewCode.execute({ code }),
     );
   });
 
