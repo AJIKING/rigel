@@ -340,10 +340,14 @@ export function GameDetailScreen() {
                 >
                   <Text style={styles.edit}>編集 ›</Text>
                 </Pressable>
-                {/* 局の削除はこの一覧から（編集画面には置かない）。最後の1局は不可。 */}
+                {/* 局の削除はこの一覧から（編集画面には置かない）。最後の1局は不可だが、
+                    無言で無視すると「壊れている」ように見えるため理由を表示する。 */}
                 <Pressable
-                  onPress={() => onDeleteKyoku(item.id, item.seq)}
-                  disabled={!canDelete}
+                  onPress={() =>
+                    canDelete
+                      ? onDeleteKyoku(item.id, item.seq)
+                      : setNote("最後の1局は削除できません（半荘ごと消すには「半荘を削除」）。")
+                  }
                   accessibilityRole="button"
                   accessibilityLabel={`第${item.seq}局を削除`}
                   hitSlop={8}

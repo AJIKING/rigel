@@ -170,6 +170,8 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     gap: 8,
     paddingHorizontal: 16,
+    // クォータ行はツールバーに密着させず少し空ける（2026-08-01 オーナー指摘）。
+    paddingTop: 6,
     paddingBottom: 8,
   },
   sample: { color: colors.accent, fontSize: 12, flexShrink: 1 },

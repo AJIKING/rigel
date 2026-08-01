@@ -1,5 +1,6 @@
 import { KifuSchema, type Kifu } from "@rigel/schema";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react-native";
+import { Alert } from "react-native";
 import type { GameDetail } from "../lib/api";
 import { GameDetailScreen } from "./GameDetailScreen";
 
@@ -81,6 +82,41 @@ describe("GameDetailScreen（半荘詳細の局一覧）", () => {
     mockUseGame.mockReturnValue({ loading: false, detail, refetch: jest.fn() });
     render(<GameDetailScreen />);
     expect(screen.getByText("要確認 1")).toBeTruthy();
+  });
+
+  it("最後の1局の✕は無言で無視せず、消せない理由を表示する", () => {
+    mockUseGame.mockReturnValue({
+      loading: false,
+      detail: makeDetail([{ id: "l1", seq: 1 }]),
+      refetch: jest.fn(),
+    });
+    render(<GameDetailScreen />);
+
+    fireEvent.press(screen.getByLabelText("第1局を削除"));
+
+    expect(screen.getByText(/最後の1局は削除できません/)).toBeTruthy();
+  });
+
+  it("2局以上あれば✕で確認ダイアログが出る", () => {
+    const alertSpy = jest.spyOn(Alert, "alert").mockImplementation(() => {});
+    mockUseGame.mockReturnValue({
+      loading: false,
+      detail: makeDetail([
+        { id: "l1", seq: 1 },
+        { id: "l2", seq: 2 },
+      ]),
+      refetch: jest.fn(),
+    });
+    render(<GameDetailScreen />);
+
+    fireEvent.press(screen.getByLabelText("第1局を削除"));
+
+    expect(alertSpy).toHaveBeenCalledWith(
+      expect.stringContaining("東一局を削除しますか"),
+      expect.anything(),
+      expect.anything(),
+    );
+    alertSpy.mockRestore();
   });
 });
 
