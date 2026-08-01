@@ -10,9 +10,16 @@ import {
   seatLabel,
   LIMIT_MESSAGES,
 } from "@rigel/ui";
-import { useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { RoundPicker } from "../components/RoundPicker";
+import {
+  clearPendingAnalysis,
+  loadPendingAnalysis,
+  pollAnalysisJob,
+  savePendingAnalysis,
+  type PendingAnalysis,
+} from "../lib/analysis-job";
 import { analyze, createEmptyKifu, createGame } from "../lib/api";
 import { useAuth } from "../lib/auth";
 import type { RootStackParamList } from "../lib/navigation";
@@ -78,6 +85,38 @@ export function CaptureScreen() {
     }
   }
 
+  // ポーリング打ち切り時の案内（ジョブ自体はサーバー側で進み続けるため、結果は一覧に現れる）。
+  const TIMEOUT_MESSAGE =
+    "解析に時間がかかっています。完了すると自動で牌譜一覧に追加されるので、後ほどご確認ください。";
+
+  /** ジョブの完了までポーリングし、結果に応じて遷移/表示する（送信直後と開き直し復元の共通経路）。 */
+  const trackJob = useCallback(
+    async (pending: PendingAnalysis) => {
+      if (!token) return;
+      setSubmitting(true);
+      const outcome = await pollAnalysisJob(token, pending);
+      await clearPendingAnalysis();
+      setSubmitting(false);
+      if (outcome.kind === "done") {
+        nav.navigate("GameDetail", { gameId: outcome.gameId });
+        return;
+      }
+      setError(outcome.kind === "failed" ? outcome.message : TIMEOUT_MESSAGE);
+    },
+    [token, nav, TIMEOUT_MESSAGE],
+  );
+
+  // 開き直しの復元: 進行中のジョブが残っていればポーリングを再開する
+  // （アプリを閉じても解析はサーバー側で進む。docs/plans/async-analysis.md）。
+  const resumed = useRef(false);
+  useEffect(() => {
+    if (!token || resumed.current) return;
+    resumed.current = true;
+    void loadPendingAnalysis().then((pending) => {
+      if (pending) void trackJob(pending);
+    });
+  }, [token, trackJob]);
+
   async function onSubmit() {
     if (!token) {
       setError("サインインが必要です。");
@@ -100,15 +139,19 @@ export function CaptureScreen() {
         const f = hands[cam];
         if (f) form.append(`hand_${cam}`, toUploadFile(f));
       }
+      // 解析は非同期ジョブ（202 + jobId）。ジョブを永続化してからポーリングに入る
+      // （途中でアプリを閉じても開き直しで再開できる）。
       const result = await analyze(token, form);
-      if (result.ok) {
-        nav.navigate("GameDetail", { gameId: result.gameId });
+      if (!result.ok) {
+        setError(analyzeErrorMessage(result.status, result.reason));
+        setSubmitting(false);
         return;
       }
-      setError(analyzeErrorMessage(result.status, result.reason));
+      const pending: PendingAnalysis = { jobId: result.jobId, startedAt: Date.now() };
+      await savePendingAnalysis(pending);
+      await trackJob(pending);
     } catch {
       setError("通信に失敗しました。");
-    } finally {
       setSubmitting(false);
     }
   }

@@ -22,6 +22,7 @@ import {
   analyzeProblem,
   answerProblem,
   createCheckout,
+  getAnalysisJob,
   finishQuizSession,
   listMyFavorites,
   listQuizSessions,
@@ -122,6 +123,11 @@ export async function createGameAction(cameraBottomSeat: Seat, meta?: KifuMetaIn
 
 export async function analyzeAction(form: FormData) {
   return analyze(await requireToken(), form);
+}
+
+/** 解析ジョブの状態（ポーリング用。docs/plans/async-analysis.md）。 */
+export async function getAnalysisJobAction(jobId: string) {
+  return getAnalysisJob(await requireToken(), jobId);
 }
 
 /** 何切るの写真AI再現（保存なし・Kifu 形のドラフト返却のみ）。 */

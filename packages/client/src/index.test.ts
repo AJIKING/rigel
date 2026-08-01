@@ -170,16 +170,16 @@ describe("createApiClient", () => {
     await expect(client.authWithReviewCode("wrong")).rejects.toThrow(/401/);
   });
 
-  it("analyze は 201 で gameId/logId を返す", async () => {
+  it("analyze は 202 で jobId を返す（非同期ジョブ。docs/plans/async-analysis.md）", async () => {
     const client = createApiClient(
       "https://api.test",
       fakeFetch((url) => {
         expect(url).toBe("https://api.test/analyze");
-        return json({ ok: true, gameId: "g1", logId: "l1" }, 201);
+        return json({ ok: true, jobId: "job-1" }, 202);
       }),
     );
     const result = await client.analyze("tok", new FormData());
-    expect(result).toEqual({ ok: true, gameId: "g1", logId: "l1" });
+    expect(result).toEqual({ ok: true, jobId: "job-1" });
   });
 
   it("analyze は枠超過(402)を理由付きで返す", async () => {
@@ -189,6 +189,34 @@ describe("createApiClient", () => {
     );
     const result = await client.analyze("tok", new FormData());
     expect(result).toEqual({ ok: false, status: 402, reason: "quota_exceeded" });
+  });
+
+  it("getAnalysisJob は GET /analyze/jobs/:id でジョブ状態を返す", async () => {
+    const client = createApiClient(
+      "https://api.test",
+      fakeFetch((url) => {
+        expect(url).toBe("https://api.test/analyze/jobs/job-1");
+        return json({
+          id: "job-1",
+          status: "done",
+          gameId: "g1",
+          logId: "l1",
+          reason: null,
+          createdAt: "2026-08-01T09:00:00.000Z",
+          updatedAt: "2026-08-01T09:03:00.000Z",
+        });
+      }),
+    );
+    const job = await client.getAnalysisJob("tok", "job-1");
+    expect(job).toMatchObject({ id: "job-1", status: "done", gameId: "g1", logId: "l1" });
+  });
+
+  it("getAnalysisJob は 404 で null（消えたジョブはクライアント側で失敗扱いにできる）", async () => {
+    const client = createApiClient(
+      "https://api.test",
+      fakeFetch(() => new Response("nf", { status: 404 })),
+    );
+    expect(await client.getAnalysisJob("tok", "missing")).toBeNull();
   });
 
   it("updateKifu は PUT /kifu/:id して成否を返す", async () => {

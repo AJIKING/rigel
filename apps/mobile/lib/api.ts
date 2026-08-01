@@ -27,6 +27,7 @@ export const {
   authWithGoogle,
   authWithApple,
   authWithReviewCode,
+  getAnalysisJob,
   fetchMe,
   getMyGames,
   getPublicGames,

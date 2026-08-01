@@ -191,8 +191,20 @@ export interface MyFavorites {
 export type SetFavoriteResult =
   { ok: true; faved: boolean; favoriteCount: number } | { ok: false; status: number };
 
+/** 解析は非同期ジョブ（202 + jobId → getAnalysisJob でポーリング。docs/plans/async-analysis.md）。 */
 export type AnalyzeResult =
-  { ok: true; gameId: string; logId: string } | { ok: false; status: number; reason?: string };
+  { ok: true; jobId: string } | { ok: false; status: number; reason?: string };
+
+/** 解析ジョブの状態（GET /analyze/jobs/:id）。done で gameId/logId が入る。 */
+export interface AnalysisJob {
+  id: string;
+  status: "processing" | "done" | "failed";
+  gameId: string | null;
+  logId: string | null;
+  reason: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
 
 /** 何切るの写真AI再現の結果（保存はされない。Kifu 形のドラフトが返る）。 */
 export type AnalyzeProblemResult =
@@ -223,11 +235,13 @@ export interface ApiClient {
   /** 公開半荘の取得（読み取り専用ビューア用・認証不要）。見つからなければ null。 */
   getPublicGameDetail(gameId: string): Promise<PublicGameDetail | null>;
   /**
-   * 撮影画像(multipart FormData)を解析し、半荘に局として保存する。
-   * FormData は各プラットフォームで組む（web=File / RN={uri,name,type}）。
+   * 撮影画像(multipart FormData)の解析ジョブを開始する（202 + jobId。保存は非同期）。
+   * FormData は各プラットフォームで組む（web=File / mobile=expo-file-system の File）。
    * 必要フィールド: river, cameraBottomSeat（任意: hand_*, gameId）。
    */
   analyze(token: string, form: FormData): Promise<AnalyzeResult>;
+  /** 解析ジョブの状態（ポーリング用）。404（消えたジョブ）は null。 */
+  getAnalysisJob(token: string, jobId: string): Promise<AnalysisJob | null>;
   /**
    * 何切るの写真AI再現。撮影画像から盤面ドラフト（Kifu 形）を得る（保存はされない）。
    * フォーム: hand(必須=自分の手牌), river(任意), cameraBottomSeat(任意=出題視点)。
@@ -479,11 +493,17 @@ export function createApiClient(baseUrl: string, fetchImpl?: typeof fetch): ApiC
         body: form,
       });
       if (res.ok) {
-        const d = (await res.json()) as { gameId: string; logId: string };
-        return { ok: true, gameId: d.gameId, logId: d.logId };
+        const d = (await res.json()) as { jobId: string };
+        return { ok: true, jobId: d.jobId };
       }
       const body = (await res.json().catch(() => ({}))) as { reason?: string; error?: string };
       return { ok: false, status: res.status, reason: body.reason ?? body.error };
+    },
+
+    async getAnalysisJob(token, jobId) {
+      const res = await doFetch(`${baseUrl}/analyze/jobs/${jobId}`, { headers: bearer(token) });
+      if (!res.ok) return null;
+      return res.json() as Promise<AnalysisJob>;
     },
 
     async analyzeProblem(token, form) {

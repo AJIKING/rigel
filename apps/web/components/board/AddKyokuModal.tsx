@@ -5,6 +5,7 @@ import {
   analyzeErrorMessage,
   cameraLabel,
   planCanAnalyze,
+  pollAnalysisOutcome,
   roundNameForSeq,
   seatLabel,
   LIMIT_MESSAGES,
@@ -12,7 +13,12 @@ import {
 } from "@rigel/ui";
 import { SeatSchema, type CameraSeat, type Seat, type Tile } from "@rigel/schema";
 import { useState } from "react";
-import { analyzeAction, createEmptyKifuAction, createGameAction } from "../../app/actions";
+import {
+  analyzeAction,
+  createEmptyKifuAction,
+  createGameAction,
+  getAnalysisJobAction,
+} from "../../app/actions";
 import { buildAnalyzeForm } from "../../lib/analyze-form";
 import { useAuth } from "../../lib/auth-context";
 import { DoraPicker } from "./DoraPicker";
@@ -70,14 +76,28 @@ export function AddKyokuModal({
     setBusy(true);
     setError(null);
     try {
+      // 解析は非同期ジョブ（202 + jobId → ポーリング。docs/plans/async-analysis.md）。
+      // 実写真の読み取りは数分に達しうるため、接続を握ったまま待たない。
       const result = await analyzeAction(
         buildAnalyzeForm({ river, cameraBottomSeat: seat, hands, gameId }),
       );
-      if (result.ok) {
-        await onDone(result.logId, result.gameId);
+      if (!result.ok) {
+        setError(analyzeErrorMessage(result.status, result.reason));
         return;
       }
-      setError(analyzeErrorMessage(result.status, result.reason));
+      const outcome = await pollAnalysisOutcome(
+        () => getAnalysisJobAction(result.jobId),
+        Date.now(),
+      );
+      if (outcome.kind === "done") {
+        await onDone(outcome.logId, outcome.gameId);
+        return;
+      }
+      setError(
+        outcome.kind === "failed"
+          ? outcome.message
+          : "解析に時間がかかっています。完了すると牌譜一覧に追加されるので、後ほどご確認ください。",
+      );
     } catch {
       setError("通信に失敗しました。");
     } finally {

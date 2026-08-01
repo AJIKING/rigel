@@ -1,6 +1,9 @@
 import { FREE_QUIZ_PER_DAY, KifuSchema, type Kifu } from "@rigel/schema";
 import { describe, expect, it } from "vitest";
 import {
+  analysisJobFailureMessage,
+  analysisPollDelayMs,
+  pollAnalysisOutcome,
   analysisQuotaLabel,
   ANALYTICS_EVENTS,
   analyzeErrorMessage,
@@ -236,6 +239,68 @@ describe("プラン表示", () => {
     expect(planCardSubLabel("next", 92, 100)).toBe("解析枠 残り 92 / 100（今月）");
     expect(planCardSubLabel("pro")).toBeNull();
   });
+  it("analysisPollDelayMs: 段階バックオフ 2s→5s→10s、10分でハードストップ（docs/plans/async-analysis.md 3-2）", () => {
+    expect(analysisPollDelayMs(0)).toBe(2000);
+    expect(analysisPollDelayMs(29_000)).toBe(2000);
+    expect(analysisPollDelayMs(30_000)).toBe(5000);
+    expect(analysisPollDelayMs(119_000)).toBe(5000);
+    expect(analysisPollDelayMs(120_000)).toBe(10_000);
+    expect(analysisPollDelayMs(9 * 60_000)).toBe(10_000);
+    expect(analysisPollDelayMs(10 * 60_000)).toBeNull(); // 打ち切り（タイマー消し忘れ事故の構造的防止）
+  });
+
+  it("pollAnalysisOutcome: done/failed/404/打ち切りを結果に写す（web/mobile 共通ループ）", async () => {
+    const clock = (start = 0) => {
+      let t = start;
+      return { now: () => t, sleep: (ms: number) => ((t += ms), Promise.resolve()) };
+    };
+
+    // done（途中の processing と一時例外を挟んでも完走する）
+    const seq: (unknown | Error)[] = [
+      new Error("network"),
+      { status: "processing", gameId: null, logId: null, reason: null },
+      { status: "done", gameId: "g1", logId: "l1", reason: null },
+    ];
+    const fetchJob = () => {
+      const next = seq.shift();
+      return next instanceof Error ? Promise.reject(next) : Promise.resolve(next as never);
+    };
+    expect(await pollAnalysisOutcome(fetchJob, 0, clock())).toEqual({
+      kind: "done",
+      gameId: "g1",
+      logId: "l1",
+    });
+
+    // failed は理由の文言
+    const failed = await pollAnalysisOutcome(
+      () => Promise.resolve({ status: "failed", gameId: null, logId: null, reason: "game_full" }),
+      0,
+      clock(),
+    );
+    expect(failed).toEqual({ kind: "failed", message: analysisJobFailureMessage("game_full") });
+
+    // 404（null）は失敗扱い
+    const gone = await pollAnalysisOutcome(() => Promise.resolve(null), 0, clock());
+    expect(gone.kind).toBe("failed");
+
+    // 予算超過は timeout
+    const timeout = await pollAnalysisOutcome(
+      () => Promise.resolve({ status: "processing", gameId: null, logId: null, reason: null }),
+      0,
+      clock(),
+    );
+    expect(timeout).toEqual({ kind: "timeout" });
+  });
+
+  it("analysisJobFailureMessage: ジョブの失敗理由を日本語にする（未知理由・null は汎用文言）", () => {
+    expect(analysisJobFailureMessage("quota_exceeded")).toMatch(/上限/);
+    expect(analysisJobFailureMessage("game_full")).toMatch(/局/);
+    expect(analysisJobFailureMessage("game_not_found")).toMatch(/半荘/);
+    expect(analysisJobFailureMessage("images_missing")).toMatch(/解析に失敗/);
+    expect(analysisJobFailureMessage("analysis_failed")).toMatch(/解析に失敗/);
+    expect(analysisJobFailureMessage(null)).toMatch(/解析に失敗/);
+  });
+
   it("isStoreManagedSubscription: IAP はストア管理、STRIPE/経路不明はポータル。未知 store は安全側（ストア）", () => {
     expect(isStoreManagedSubscription("APP_STORE")).toBe(true);
     expect(isStoreManagedSubscription("PLAY_STORE")).toBe(true);

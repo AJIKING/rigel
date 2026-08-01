@@ -198,6 +198,86 @@ export function analyzeErrorMessage(status: number, reason?: string): string {
   }
 }
 
+// ------------------------------------------------------------
+// 解析の非同期ジョブ（docs/plans/async-analysis.md）。ポーリング予算と失敗文言は
+// web/mobile で共有する（Plan 3-2 の「リクエスト数を暴れさせない」の単一実装）。
+// ------------------------------------------------------------
+
+/** 次のポーリングまでの待ち（ms）。送信直後 2s → 30s 以降 5s → 2分以降 10s。
+ *  10分でハードストップ（null = 打ち切り。タイマー消し忘れの構造的防止）。 */
+export function analysisPollDelayMs(elapsedMs: number): number | null {
+  if (elapsedMs >= 10 * 60_000) return null;
+  if (elapsedMs >= 120_000) return 10_000;
+  if (elapsedMs >= 30_000) return 5000;
+  return 2000;
+}
+
+/** ポーリングが見るジョブの最小形（@rigel/client の AnalysisJob と互換）。 */
+export interface AnalysisJobLike {
+  status: "processing" | "done" | "failed";
+  gameId: string | null;
+  logId: string | null;
+  reason: string | null;
+}
+
+export type AnalysisOutcome =
+  | { kind: "done"; gameId: string; logId: string }
+  | { kind: "failed"; message: string }
+  | { kind: "timeout" };
+
+interface PollClock {
+  now: () => number;
+  sleep: (ms: number) => Promise<void>;
+}
+
+// @rigel/ui は DOM/Node の lib を持たない（純ロジック）ため setTimeout はグローバル経由で参照する。
+const timers = globalThis as unknown as { setTimeout: (fn: () => void, ms: number) => unknown };
+const realPollClock: PollClock = {
+  now: () => Date.now(),
+  sleep: (ms) => new Promise((r) => timers.setTimeout(() => r(), ms)),
+};
+
+/**
+ * 解析ジョブを終端（done/failed）までポーリングする共通ループ（web/mobile 共用）。
+ * fetchJob: null=ジョブ不存在（404）→ 失敗扱い / 例外は一時障害として次の周期で再試行。
+ * 予算（analysisPollDelayMs）超過は timeout。
+ */
+export async function pollAnalysisOutcome(
+  fetchJob: () => Promise<AnalysisJobLike | null>,
+  startedAt: number,
+  clock: PollClock = realPollClock,
+): Promise<AnalysisOutcome> {
+  for (;;) {
+    const job = await fetchJob().catch(() => undefined);
+    if (job === null) return { kind: "failed", message: analysisJobFailureMessage(null) };
+    if (job) {
+      if (job.status === "done" && job.gameId && job.logId) {
+        return { kind: "done", gameId: job.gameId, logId: job.logId };
+      }
+      if (job.status === "failed") {
+        return { kind: "failed", message: analysisJobFailureMessage(job.reason) };
+      }
+    }
+    const delay = analysisPollDelayMs(clock.now() - startedAt);
+    if (delay === null) return { kind: "timeout" };
+    await clock.sleep(delay);
+  }
+}
+
+/** 解析ジョブの失敗理由（AnalysisJob.reason）の日本語メッセージ。 */
+export function analysisJobFailureMessage(reason: string | null): string {
+  switch (reason) {
+    case "quota_exceeded":
+      return "今月の解析回数の上限に達しました。プランのアップグレードで増やせます。";
+    case "game_full":
+      return "この半荘はこれ以上局を追加できません（1半荘30局まで）。";
+    case "game_not_found":
+      return "指定した半荘が見つかりません。";
+    default:
+      return "解析に失敗しました。少し待って再度お試しください。";
+  }
+}
+
 /** 課金 Checkout 開始に失敗したときの日本語メッセージ（web/mobile 共通）。
  *  501=未設定、409=加入中（変更・解約は決済ポータルで行う）。 */
 export function checkoutErrorMessage(status: number): string {

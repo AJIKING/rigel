@@ -40,6 +40,7 @@ export const {
   createEmptyKifu,
   analyze,
   analyzeProblem,
+  getAnalysisJob,
   updateProfile,
   createCheckout,
   createPortal,
