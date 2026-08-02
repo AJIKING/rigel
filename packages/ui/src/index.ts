@@ -182,6 +182,10 @@ export function cameraLabel(cam: CameraSeat): string {
  *  reason は API が返す文字列。人向けの説明文（日本語・記号入り）はそのまま出すが、
  *  機械コード（英小文字と _ のみ、例: user_not_found）はユーザーに見せず一般文言にする。 */
 export function analyzeErrorMessage(status: number, reason?: string): string {
+  // 409 は理由で分ける（game_full=局数上限 / game_analyzing=解析中ガード。plan 8-3）。
+  if (reason === "game_analyzing") {
+    return "この半荘は解析中です。完了してからもう一度お試しください。";
+  }
   switch (status) {
     case 401:
       return "ログインが必要です。";

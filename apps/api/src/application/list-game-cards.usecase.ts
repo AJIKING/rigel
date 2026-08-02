@@ -49,7 +49,7 @@ export class ListMyGamesWithCounts {
   async execute(userId: string): Promise<MyGameCard[]> {
     const games = await this.games.listByUser(userId);
     // 解析中/解析失敗の表示はサーバーが真実源（端末をまたいでも見える。plan 8-3）。
-    const analysis = deriveAnalysisStatus(await this.jobs.listByUser(userId), this.now());
+    const analysis = deriveAnalysisStatus(await this.jobs.listActiveByUser(userId), this.now());
     const cards = await Promise.all(
       games.map(async (g) => {
         const logs = await this.gameLogs.listByGame(g.id);

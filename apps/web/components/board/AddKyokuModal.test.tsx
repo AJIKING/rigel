@@ -95,6 +95,71 @@ describe("AddKyokuModal の非同期解析（202 + ポーリング。docs/plans/
   });
 });
 
+describe("AddKyokuModal の1枚モード（手牌を含む。mobile Capture と同一文言）", () => {
+  function pickRiver(container: HTMLElement) {
+    const input = container.querySelector('input[type="file"]')!;
+    fireEvent.change(input, {
+      target: { files: [new File(["img"], "river.jpg", { type: "image/jpeg" })] },
+    });
+  }
+
+  it("「手牌を含む」トグルONで各家の手牌欄がまるごと隠れる", async () => {
+    stubMe("next");
+    renderModal();
+    await screen.findAllByRole("button", { name: "AI再現" });
+    expect(screen.getByText("あなたの手牌")).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("checkbox", { name: "手牌を含む" }));
+
+    expect(screen.queryByText("あなたの手牌")).toBeNull();
+    expect(screen.getByText(/解析回数を最大4回分多く使います/)).toBeTruthy();
+  });
+
+  it("トグルONで送信すると handFromRiver=true がフォームに載る", async () => {
+    stubMe("next");
+    // このファイルはモックを跨ぎリセットしないので、自分の呼び出しだけ見る。
+    h.analyzeAction.mockClear().mockResolvedValue({ ok: true, jobId: "job-1" });
+    h.getAnalysisJobAction.mockResolvedValue({
+      id: "job-1",
+      status: "done",
+      gameId: "g1",
+      logId: "l1",
+      reason: null,
+    });
+    const { container } = renderModal();
+    await screen.findAllByRole("button", { name: "AI再現" });
+    fireEvent.click(screen.getByRole("checkbox", { name: "手牌を含む" }));
+
+    pickRiver(container);
+    fireEvent.click(screen.getAllByRole("button", { name: "AI再現" }).at(-1)!);
+
+    await waitFor(() => expect(h.analyzeAction).toHaveBeenCalled());
+    const form = h.analyzeAction.mock.calls[0]![0] as FormData;
+    expect(form.get("handFromRiver")).toBe("true");
+  });
+
+  it("トグルOFF（既定）ならフォームに handFromRiver を載せない", async () => {
+    stubMe("next");
+    h.analyzeAction.mockClear().mockResolvedValue({ ok: true, jobId: "job-1" });
+    h.getAnalysisJobAction.mockResolvedValue({
+      id: "job-1",
+      status: "done",
+      gameId: "g1",
+      logId: "l1",
+      reason: null,
+    });
+    const { container } = renderModal();
+    await screen.findAllByRole("button", { name: "AI再現" });
+
+    pickRiver(container);
+    fireEvent.click(screen.getAllByRole("button", { name: "AI再現" }).at(-1)!);
+
+    await waitFor(() => expect(h.analyzeAction).toHaveBeenCalled());
+    const form = h.analyzeAction.mock.calls[0]![0] as FormData;
+    expect(form.get("handFromRiver")).toBeNull();
+  });
+});
+
 describe("AddKyokuModal のプラン別出し分け（mobile の Capture と同一方針）", () => {
   it("free プランでは AI再現を出さず手動入力のみ＋アップセル文言", async () => {
     stubMe("free");

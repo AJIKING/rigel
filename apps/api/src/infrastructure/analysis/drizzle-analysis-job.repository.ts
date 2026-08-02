@@ -1,7 +1,7 @@
 // infrastructure/analysis — 解析ジョブの Drizzle 実装（docs/plans/async-analysis.md）。
 // 取得は常に所有者ガード付き（id + userId）。状態遷移は markDone / markFailed の2本だけ。
 
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, ne } from "drizzle-orm";
 import type { AnalysisJob, AnalysisJobRepository } from "../../domain/analysis/analysis-job";
 import type { Db } from "../db/client";
 import { analysisJobs } from "../db/schema";
@@ -20,11 +20,11 @@ export class DrizzleAnalysisJobRepository implements AnalysisJobRepository {
     });
   }
 
-  async listByUser(userId: string): Promise<AnalysisJob[]> {
+  async listActiveByUser(userId: string): Promise<AnalysisJob[]> {
     const rows = await this.db
       .select()
       .from(analysisJobs)
-      .where(eq(analysisJobs.userId, userId))
+      .where(and(eq(analysisJobs.userId, userId), ne(analysisJobs.status, "done")))
       .orderBy(desc(analysisJobs.createdAt));
     return rows.map((row) => ({
       id: row.id,
@@ -70,5 +70,9 @@ export class DrizzleAnalysisJobRepository implements AnalysisJobRepository {
       .update(analysisJobs)
       .set({ status: "failed", reason: params.reason, updatedAt: params.now })
       .where(eq(analysisJobs.id, id));
+  }
+
+  async deleteByGame(gameId: string): Promise<void> {
+    await this.db.delete(analysisJobs).where(eq(analysisJobs.gameId, gameId));
   }
 }

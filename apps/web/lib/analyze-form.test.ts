@@ -29,4 +29,10 @@ describe("buildAnalyzeForm", () => {
     expect(buildAnalyzeForm(base).get("gameId")).toBeNull();
     expect(buildAnalyzeForm({ ...base, gameId: "g1" }).get("gameId")).toBe("g1");
   });
+
+  it("handFromRiver=true のときだけ 1枚モードのフラグを付ける（既定は付けない）", () => {
+    const base = { river: file("r.jpg"), cameraBottomSeat: "east" as const, hands: {} };
+    expect(buildAnalyzeForm(base).get("handFromRiver")).toBeNull();
+    expect(buildAnalyzeForm({ ...base, handFromRiver: true }).get("handFromRiver")).toBe("true");
+  });
 });

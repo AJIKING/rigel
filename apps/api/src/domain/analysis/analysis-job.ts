@@ -22,8 +22,13 @@ export interface AnalysisJobRepository {
   create(params: { id: string; userId: string; gameId: string; now: Date }): Promise<void>;
   /** 所有者のジョブだけ返す（他人・不存在は null）。 */
   findForUser(id: string, userId: string): Promise<AnalysisJob | null>;
-  /** 所有者のジョブ一覧（一覧 DTO の analysisStatus 導出用。件数は少ない前提）。 */
-  listByUser(userId: string): Promise<AnalysisJob[]>;
+  /** 所有者の未終了ジョブ（processing/failed）一覧。done は返さない
+   *  （一覧 DTO の analysisStatus 導出と再解析ガードに要るのはこの2状態だけ。
+   *  完了履歴が溜まっても毎回舐めない）。 */
+  listActiveByUser(userId: string): Promise<AnalysisJob[]>;
   markDone(id: string, params: { gameId: string; logId: string; now: Date }): Promise<void>;
   markFailed(id: string, params: { reason: string; now: Date }): Promise<void>;
+  /** 半荘削除時の掃除。processing の行も消す＝キャンセル扱い
+   *  （consumer は行が無ければ何もしないので、進行中でも安全に消せる）。 */
+  deleteByGame(gameId: string): Promise<void>;
 }

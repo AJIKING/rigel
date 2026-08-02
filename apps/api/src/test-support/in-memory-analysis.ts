@@ -31,12 +31,19 @@ export class InMemoryAnalysisJobRepository implements AnalysisJobRepository {
     return Promise.resolve(job && job.userId === userId ? job : null);
   }
 
-  listByUser(userId: string): Promise<AnalysisJob[]> {
+  listActiveByUser(userId: string): Promise<AnalysisJob[]> {
     return Promise.resolve(
       [...this.jobs.values()]
-        .filter((j) => j.userId === userId)
+        .filter((j) => j.userId === userId && j.status !== "done")
         .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime()),
     );
+  }
+
+  deleteByGame(gameId: string): Promise<void> {
+    for (const [id, job] of [...this.jobs]) {
+      if (job.gameId === gameId) this.jobs.delete(id);
+    }
+    return Promise.resolve();
   }
 
   markDone(id: string, params: { gameId: string; logId: string; now: Date }): Promise<void> {

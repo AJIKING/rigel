@@ -67,6 +67,30 @@ describe("DrizzleAnalysisJobRepository", () => {
     expect(job?.updatedAt).toEqual(LATER);
   });
 
+  it("listActiveByUser は processing/failed だけを新しい順に返す（done は返さない＝全履歴を舐めない）", async () => {
+    await repo.create({ id: "job-done", userId: "u1", gameId: "g1", now: NOW });
+    await repo.markDone("job-done", { gameId: "g1", logId: "l1", now: LATER });
+    await repo.create({ id: "job-fail", userId: "u1", gameId: "g2", now: NOW });
+    await repo.markFailed("job-fail", { reason: "analysis_failed", now: LATER });
+    await repo.create({ id: "job-run", userId: "u1", gameId: "g3", now: LATER });
+    await repo.create({ id: "job-other", userId: "u2", gameId: "g4", now: NOW }); // 他人
+
+    const jobs = await repo.listActiveByUser("u1");
+    expect(jobs.map((j) => j.id)).toEqual(["job-run", "job-fail"]);
+  });
+
+  it("deleteByGame はその半荘のジョブ行だけを消す（半荘削除の掃除。processing はキャンセル扱い）", async () => {
+    await repo.create({ id: "job-1", userId: "u1", gameId: "g1", now: NOW });
+    await repo.create({ id: "job-2", userId: "u1", gameId: "g1", now: LATER });
+    await repo.create({ id: "job-3", userId: "u1", gameId: "g2", now: NOW }); // 別半荘は残る
+
+    await repo.deleteByGame("g1");
+
+    expect(await repo.findForUser("job-1", "u1")).toBeNull();
+    expect(await repo.findForUser("job-2", "u1")).toBeNull();
+    expect(await repo.findForUser("job-3", "u1")).not.toBeNull();
+  });
+
   it("markFailed で failed になり reason が入る（gameId は保持・logId は null のまま）", async () => {
     await repo.create({ id: "job-1", userId: "u1", gameId: "g-job", now: NOW });
     await repo.markFailed("job-1", { reason: "analysis_failed", now: LATER });

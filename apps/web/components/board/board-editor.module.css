@@ -1248,6 +1248,28 @@
   grid-template-columns: 1fr 1fr;
   gap: 10px;
 }
+/* 1枚モードのトグル行（手牌を含む）。チェックボックス＋タイトル/補足の2行。 */
+.oneTgl {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  cursor: pointer;
+}
+.oneTgl input {
+  margin-top: 3px;
+  accent-color: var(--accent, #2e7d5b);
+}
+.oneTgl strong {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+}
+.oneTgl small {
+  display: block;
+  font-size: 11px;
+  color: var(--ink-soft, #667);
+  line-height: 1.5;
+}
 .modalFoot {
   display: flex;
   justify-content: flex-end;

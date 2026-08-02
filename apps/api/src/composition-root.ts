@@ -254,7 +254,7 @@ export function buildContainer(env: Env): AppContainer {
     listKifu: new ListKifu(gameLogs),
     updateKifu: new UpdateKifu(gameLogs),
     deleteKifu: new DeleteKifu(gameLogs),
-    deleteGame: new DeleteGame(gamesRepo, gameLogs, favorites),
+    deleteGame: new DeleteGame(gamesRepo, gameLogs, favorites, analysisJobs),
     updateGame: new UpdateGame(gamesRepo),
     updateGameRules: new UpdateGameRules(gamesRepo, gameLogs),
     updateGamePlayers: new UpdateGamePlayers(gamesRepo, gameLogs),

@@ -224,8 +224,9 @@ export const analysisJobs = sqliteTable(
     status: text("status", { enum: ["processing", "done", "failed"] })
       .notNull()
       .default("processing"),
-    /** 完了時のみ（done で必ず入る）。games/game_logs への参照（FK は張らない:
-     *  半荘・局の削除でジョブ履歴まで消したくないため。参照先が消えたら 404 扱い）。 */
+    /** 半荘先行作成（plan 8-3）で作成時から入る。games/game_logs への参照（FK は
+     *  張らない: 局削除でジョブまで消えるのを避けるため。半荘削除は DeleteGame が
+     *  deleteByGame で明示的に掃除する。[決定] 2026-08-02）。 */
     gameId: text("game_id"),
     logId: text("log_id"),
     /** 失敗時の分類（固定語彙想定）。 */
@@ -233,7 +234,11 @@ export const analysisJobs = sqliteTable(
     createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
     updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull(),
   },
-  (t) => [index("analysis_jobs_user_idx").on(t.userId)],
+  (t) => [
+    index("analysis_jobs_user_idx").on(t.userId),
+    // 半荘削除時の掃除（deleteByGame）が全表を舐めないため。
+    index("analysis_jobs_game_idx").on(t.gameId),
+  ],
 );
 
 /** 処理済みの RevenueCat Webhook イベント（冪等キー = event.id）。

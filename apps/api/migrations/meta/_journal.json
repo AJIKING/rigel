@@ -120,6 +120,13 @@
       "when": 1785575258142,
       "tag": "0016_busy_swordsman",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "6",
+      "when": 1785659957944,
+      "tag": "0017_steep_big_bertha",
+      "breakpoints": true
     }
   ]
 }

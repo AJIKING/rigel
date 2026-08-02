@@ -29,7 +29,10 @@ export class GetGameWithLogs {
     const game = await this.games.findById(gameId);
     if (!game || game.userId !== viewerId) return null;
     const logs = await this.gameLogs.listByGame(gameId);
-    const analysis = deriveAnalysisStatus(await this.jobs.listByUser(game.userId), this.now());
+    const analysis = deriveAnalysisStatus(
+      await this.jobs.listActiveByUser(game.userId),
+      this.now(),
+    );
     return { game, logs, analysisStatus: analysis.get(gameId) ?? null };
   }
 }

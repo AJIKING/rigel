@@ -96,7 +96,9 @@ export class StartAnalysisJob {
       // 表示用の stale 降格（30分→failed 扱い）はここでは使わない: 終端書き込み失敗などで
       // 実際にはジョブが完走していても processing のまま残るため、時間で緩めると
       // 二局の穴が開き直る。生の status で判定する。
-      const latest = (await jobs.listByUser(params.userId)).find((j) => j.gameId === params.gameId);
+      const latest = (await jobs.listActiveByUser(params.userId)).find(
+        (j) => j.gameId === params.gameId,
+      );
       if (latest?.status === "processing") {
         return { ok: false, reason: "game_analyzing" };
       }

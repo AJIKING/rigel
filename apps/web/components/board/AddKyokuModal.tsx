@@ -60,6 +60,8 @@ export function AddKyokuModal({
   const [seat, setSeat] = useState<Seat>(bottomSeat);
   const [river, setRiver] = useState<File | null>(null);
   const [hands, setHands] = useState<Partial<Record<CameraSeat, File>>>({});
+  // 1枚モード（[決定] 2026-08-02 四家対応・文言は「手牌を含む」。mobile Capture と同一）。
+  const [handFromRiver, setHandFromRiver] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   // 手動入力で焼き込む局メタ（本場/供託/ドラ）。記録のみ・点数計算はしない。
@@ -89,7 +91,7 @@ export function AddKyokuModal({
       // 解析は非同期ジョブ（202 + jobId → ポーリング。docs/plans/async-analysis.md）。
       // 実写真の読み取りは数分に達しうるため、接続を握ったまま待たない。
       const result = await analyzeAction(
-        buildAnalyzeForm({ river, cameraBottomSeat: seat, hands, gameId }),
+        buildAnalyzeForm({ river, cameraBottomSeat: seat, hands, gameId, handFromRiver }),
       );
       if (!result.ok) {
         setError(analyzeErrorMessage(result.status, result.reason));
@@ -198,18 +200,39 @@ export function AddKyokuModal({
           <div className={s.modalBody}>
             {quotaLabel && <p className={s.note}>{quotaLabel}</p>}
             <PhotoField wide label="河（卓を上から1枚）" file={river} onChange={setRiver} />
-            <div className={s.upGrid}>
-              {HANDS.map(({ cam, label }) => (
-                <PhotoField
-                  key={cam}
-                  icon="plus"
-                  label={label}
-                  file={hands[cam] ?? null}
-                  selectedLabel={`${cameraLabel(cam)}：選択済`}
-                  onChange={(f) => setHands((h) => ({ ...h, [cam]: f ?? undefined }))}
-                />
-              ))}
-            </div>
+            {/* 1枚モードのトグル（河の直下。mobile Capture と同一文言）。
+                ON では個別の手牌写真は不要（二重指定の混乱を防ぐため明示選択も破棄）。 */}
+            <label className={s.oneTgl}>
+              <input
+                type="checkbox"
+                aria-label="手牌を含む"
+                checked={handFromRiver}
+                onChange={(e) => {
+                  setHandFromRiver(e.target.checked);
+                  setHands({});
+                }}
+              />
+              <span>
+                <strong>手牌を含む</strong>
+                <small>
+                  写真に写っている各家の手牌もこの1枚から読み取ります（解析回数を最大4回分多く使います）
+                </small>
+              </span>
+            </label>
+            {!handFromRiver && (
+              <div className={s.upGrid}>
+                {HANDS.map(({ cam, label }) => (
+                  <PhotoField
+                    key={cam}
+                    icon="plus"
+                    label={label}
+                    file={hands[cam] ?? null}
+                    selectedLabel={`${cameraLabel(cam)}：選択済`}
+                    onChange={(f) => setHands((h) => ({ ...h, [cam]: f ?? undefined }))}
+                  />
+                ))}
+              </div>
+            )}
             {error && (
               <p className={s.note} style={{ color: "var(--vermilion)" }}>
                 {error}

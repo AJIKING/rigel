@@ -4,7 +4,7 @@ import { LIST_LOAD_ERROR_MESSAGE, planKifuLimits, sortMyList, type MyListSortKey
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
-import { getMyGamesAction } from "../../app/actions";
+import { deleteGameAction, getMyGamesAction } from "../../app/actions";
 import { type MyGameCard } from "../../lib/api";
 import { useAuth } from "../../lib/auth-context";
 import { fmtDateSlash } from "../../lib/format";
@@ -150,16 +150,28 @@ export function MyKifuScreen() {
                   title={c.title || "（無題の半荘）"}
                   badge={
                     <>
-                      {c.publicCount > 0 ? (
-                        <span className={`${gc.badge} ${gc.pub}`}>公開</span>
-                      ) : (
-                        <span className={`${gc.badge} ${gc.priv}`}>非公開</span>
+                      {/* 解析ジョブの状態（plan 8-3。サーバー導出。mobile と同一表示）。 */}
+                      {c.analysisStatus === "processing" && (
+                        <span className={`${gc.badge} ${gc.pub}`}>解析中…</span>
                       )}
-                      {/* 下書きが1局でもあれば注意色、無ければ編集済（mobile と同一表示）。 */}
-                      {c.draftCount > 0 ? (
-                        <span className={`${gc.badge} ${gc.draft}`}>下書き</span>
-                      ) : (
-                        <span className={`${gc.badge} ${gc.priv}`}>編集済</span>
+                      {c.analysisStatus === "failed" && (
+                        <span className={`${gc.badge} ${gc.draft}`}>解析失敗</span>
+                      )}
+                      {/* 0局の解析中/失敗カードに「非公開・編集済」を並べない（mobile と同じ）。 */}
+                      {!(c.analysisStatus && c.kyokuCount === 0) && (
+                        <>
+                          {c.publicCount > 0 ? (
+                            <span className={`${gc.badge} ${gc.pub}`}>公開</span>
+                          ) : (
+                            <span className={`${gc.badge} ${gc.priv}`}>非公開</span>
+                          )}
+                          {/* 下書きが1局でもあれば注意色、無ければ編集済（mobile と同一表示）。 */}
+                          {c.draftCount > 0 ? (
+                            <span className={`${gc.badge} ${gc.draft}`}>下書き</span>
+                          ) : (
+                            <span className={`${gc.badge} ${gc.priv}`}>編集済</span>
+                          )}
+                        </>
                       )}
                     </>
                   }
@@ -173,7 +185,27 @@ export function MyKifuScreen() {
                   faved={c.viewerFaved}
                   favCount={c.favoriteCount}
                   onToggleFav={() => toggleFav("game", c)}
-                  onOpen={() => router.push(`/kifu/${c.id}`)}
+                  onOpen={() => {
+                    // 0局の解析中/失敗半荘は開く先（局）が無い。失敗は削除の受け皿にする
+                    // （web には他に削除導線が無く「消せないカード」が溜まるため。監査 2026-08-02）。
+                    if (c.kyokuCount === 0 && c.analysisStatus) {
+                      if (
+                        c.analysisStatus === "failed" &&
+                        window.confirm(
+                          "この半荘は解析に失敗しました。削除しますか？（元に戻せません）",
+                        )
+                      ) {
+                        void deleteGameAction(c.id)
+                          .then((r) => {
+                            if (r.ok)
+                              setGames((prev) => prev?.filter((g) => g.id !== c.id) ?? prev);
+                          })
+                          .catch(() => {});
+                      }
+                      return;
+                    }
+                    router.push(`/kifu/${c.id}`);
+                  }}
                 />
               ))
             )}

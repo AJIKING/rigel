@@ -1,0 +1,1 @@
+CREATE INDEX `analysis_jobs_game_idx` ON `analysis_jobs` (`game_id`);
