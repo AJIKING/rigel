@@ -258,9 +258,6 @@ export function LandingScreen() {
         <section className={s.trust}>
           <div className={s.trustIn}>
             <div className={s.trustItem}>
-              <b>撮影画像は保存しません</b>残るのは牌譜データだけ
-            </div>
-            <div className={s.trustItem}>
               <b>Mリーグ・天鳳ルール対応</b>点数計算までプリセットで
             </div>
             <div className={s.trustItem}>
@@ -317,12 +314,14 @@ export function LandingScreen() {
                       </svg>
                       <span>{BRAND}</span>
                     </div>
-                    <div className={s.embedTitle}>7/28 友人戦</div>
+                    <div className={s.embedTitle}>東京リーグ戦 2回戦</div>
                     <div className={s.embedInfo}>南四局 ・ 8局</div>
                   </div>
                   <div className={s.embedMeta}>
                     <span className={s.embedDomain}>{siteHost()}</span>
-                    <span className={s.embedText}>{`7/28 友人戦 ・ 麻雀牌譜 | ${BRAND}`}</span>
+                    <span
+                      className={s.embedText}
+                    >{`東京リーグ戦 2回戦 ・ 麻雀牌譜 | ${BRAND}`}</span>
                   </div>
                 </div>
               </div>

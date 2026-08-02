@@ -106,7 +106,7 @@ export function ProblemPhotoModal({
             onChange={setRiver}
           />
           <p className={s.note}>
-            AIが手牌・河のベースを再現します。読み違いは編集で直してください（画像は保存されません）。
+            AIが手牌・河のベースを再現します。読み違いは編集で直してください。
           </p>
           {error && (
             <p className={s.note} style={{ color: "var(--vermilion)" }}>
