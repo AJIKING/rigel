@@ -21,9 +21,11 @@ jest.mock("../lib/use-kifu-data", () => ({
   useGame: (...args: unknown[]) => mockUseGame(...args),
 }));
 
+const mockRetryAnalysis = jest.fn();
 jest.mock("../lib/api", () => ({
   deleteGame: jest.fn(),
   deleteKifu: jest.fn(),
+  retryAnalysis: (...args: unknown[]) => mockRetryAnalysis(...args),
   setGameStatus: jest.fn(),
   setGameVisibility: jest.fn(),
   updateGame: jest.fn(),
@@ -47,6 +49,7 @@ function makeDetail(logs: { id: string; seq: number; honba?: number }[]): GameDe
     favoriteCount: 0,
     viewerFaved: false,
     analysisStatus: null,
+    analysisJobId: null,
     logs: logs.map((l) => ({
       id: l.id,
       userId: "u1",
@@ -101,6 +104,34 @@ describe("GameDetailScreen（半荘詳細の局一覧）", () => {
     render(<GameDetailScreen />);
 
     expect(screen.getByText(/解析に失敗しました/)).toBeTruthy();
+  });
+
+  it("失敗＋ジョブIDありなら「もう一度解析」ボタンを出し、202 で再取得する（Phase 2）", async () => {
+    const detail = makeDetail([]);
+    detail.analysisStatus = "failed";
+    detail.analysisJobId = "job-9";
+    const refetch = jest.fn();
+    mockUseGame.mockReturnValue({ loading: false, detail, refetch });
+    mockRetryAnalysis.mockResolvedValue({ ok: true, jobId: "job-9", gameId: "g1" });
+    render(<GameDetailScreen />);
+
+    fireEvent.press(screen.getByText("もう一度解析"));
+
+    await waitFor(() => expect(mockRetryAnalysis).toHaveBeenCalledWith("t", "job-9"));
+    await waitFor(() => expect(refetch).toHaveBeenCalled());
+  });
+
+  it("再解析の期限切れ（retry_expired）は写真からの再送信を促す文言を出す", async () => {
+    const detail = makeDetail([]);
+    detail.analysisStatus = "failed";
+    detail.analysisJobId = "job-9";
+    mockUseGame.mockReturnValue({ loading: false, detail, refetch: jest.fn() });
+    mockRetryAnalysis.mockResolvedValue({ ok: false, status: 400, reason: "retry_expired" });
+    render(<GameDetailScreen />);
+
+    fireEvent.press(screen.getByText("もう一度解析"));
+
+    expect(await screen.findByText(/もう一度写真から送信/)).toBeTruthy();
   });
 
   it("最後の1局の✕は無言で無視せず、消せない理由を表示する", () => {

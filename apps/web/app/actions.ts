@@ -24,6 +24,7 @@ import {
   createCheckout,
   getAnalysisJob,
   getProblemAnalysisJob,
+  retryAnalysis,
   finishQuizSession,
   listMyFavorites,
   listQuizSessions,
@@ -129,6 +130,11 @@ export async function analyzeAction(form: FormData) {
 /** 解析ジョブの状態（ポーリング用。docs/plans/async-analysis.md）。 */
 export async function getAnalysisJobAction(jobId: string) {
   return getAnalysisJob(await requireToken(), jobId);
+}
+
+/** もう一度解析（Phase 2）。失敗ジョブを再アップロード無しで再実行する。 */
+export async function retryAnalysisAction(jobId: string) {
+  return retryAnalysis(await requireToken(), jobId);
 }
 
 /** 何切るの写真AI再現（非同期ジョブ。202 + jobId → ポーリング。保存なし）。 */

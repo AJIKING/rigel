@@ -8,6 +8,7 @@ const h = vi.hoisted(() => ({
   getMyGamesAction: vi.fn(),
   setFavoriteAction: vi.fn(),
   deleteGameAction: vi.fn(),
+  retryAnalysisAction: vi.fn(),
 }));
 vi.mock("../../app/actions", () => h);
 const push = vi.hoisted(() => vi.fn());
@@ -34,6 +35,7 @@ beforeEach(() => {
   h.getMyGamesAction.mockReset().mockResolvedValue([]);
   h.setFavoriteAction.mockReset().mockResolvedValue({ ok: true, faved: true, favoriteCount: 1 });
   h.deleteGameAction.mockReset().mockResolvedValue({ ok: true });
+  h.retryAnalysisAction.mockReset().mockResolvedValue({ ok: true, jobId: "j1", gameId: "g1" });
 });
 
 afterEach(() => {
@@ -96,11 +98,13 @@ describe("MyKifuScreen（マイページの牌譜タブ）", () => {
     expect(push).not.toHaveBeenCalled();
   });
 
-  it("解析失敗の0局半荘は「解析失敗」バッジを出し、開こうとしたら削除の確認→削除で一覧から消す", async () => {
+  it("解析失敗の0局半荘（ジョブIDあり）は、開こうとしたら「もう一度解析」を確認→承諾で解析中バッジへ", async () => {
     stubMe("free");
-    const confirm = vi.fn(() => true);
+    const confirm = vi.fn(() => true); // 最初の確認（もう一度解析）で承諾
     vi.stubGlobal("confirm", confirm);
-    h.getMyGamesAction.mockResolvedValue([card("g1", { kyokuCount: 0, analysisStatus: "failed" })]);
+    h.getMyGamesAction.mockResolvedValue([
+      card("g1", { kyokuCount: 0, analysisStatus: "failed", analysisJobId: "j1" }),
+    ]);
     render(
       <AuthProvider>
         <MyKifuScreen />
@@ -109,19 +113,43 @@ describe("MyKifuScreen（マイページの牌譜タブ）", () => {
     expect(await screen.findByText("解析失敗")).toBeTruthy();
 
     fireEvent.click(screen.getByText("半荘g1"));
-    expect(confirm).toHaveBeenCalledWith(expect.stringContaining("削除"));
-    await waitFor(() => expect(h.deleteGameAction).toHaveBeenCalledWith("g1"));
-    await waitFor(() => expect(screen.queryByText("半荘g1")).toBeNull());
+    expect(confirm).toHaveBeenCalledWith(expect.stringContaining("もう一度解析"));
+    await waitFor(() => expect(h.retryAnalysisAction).toHaveBeenCalledWith("j1"));
+    await waitFor(() => expect(screen.getByText("解析中…")).toBeTruthy());
+    expect(h.deleteGameAction).not.toHaveBeenCalled();
     expect(push).not.toHaveBeenCalled();
   });
 
-  it("解析失敗でも確認をキャンセルしたら消さない", async () => {
+  it("「もう一度解析」を断ったら削除の確認→削除で一覧から消す", async () => {
+    stubMe("free");
+    // 1回目（もう一度解析）は断り、2回目（削除）で承諾。
+    const confirm = vi.fn().mockReturnValueOnce(false).mockReturnValueOnce(true);
+    vi.stubGlobal("confirm", confirm);
+    h.getMyGamesAction.mockResolvedValue([
+      card("g1", { kyokuCount: 0, analysisStatus: "failed", analysisJobId: "j1" }),
+    ]);
+    render(
+      <AuthProvider>
+        <MyKifuScreen />
+      </AuthProvider>,
+    );
+    fireEvent.click(await screen.findByText("半荘g1"));
+
+    expect(confirm).toHaveBeenNthCalledWith(2, expect.stringContaining("削除"));
+    await waitFor(() => expect(h.deleteGameAction).toHaveBeenCalledWith("g1"));
+    await waitFor(() => expect(screen.queryByText("半荘g1")).toBeNull());
+    expect(h.retryAnalysisAction).not.toHaveBeenCalled();
+  });
+
+  it("両方の確認をキャンセルしたら何もしない", async () => {
     stubMe("free");
     vi.stubGlobal(
       "confirm",
       vi.fn(() => false),
     );
-    h.getMyGamesAction.mockResolvedValue([card("g1", { kyokuCount: 0, analysisStatus: "failed" })]);
+    h.getMyGamesAction.mockResolvedValue([
+      card("g1", { kyokuCount: 0, analysisStatus: "failed", analysisJobId: "j1" }),
+    ]);
     render(
       <AuthProvider>
         <MyKifuScreen />
@@ -129,7 +157,33 @@ describe("MyKifuScreen（マイページの牌譜タブ）", () => {
     );
     fireEvent.click(await screen.findByText("半荘g1"));
     expect(h.deleteGameAction).not.toHaveBeenCalled();
+    expect(h.retryAnalysisAction).not.toHaveBeenCalled();
     expect(screen.getByText("半荘g1")).toBeTruthy();
+  });
+
+  it("再解析の期限切れ（retry_expired）は写真からの再送信を促す（alert）", async () => {
+    stubMe("free");
+    vi.stubGlobal(
+      "confirm",
+      vi.fn(() => true),
+    );
+    const alert = vi.fn();
+    vi.stubGlobal("alert", alert);
+    h.retryAnalysisAction.mockResolvedValue({ ok: false, status: 400, reason: "retry_expired" });
+    h.getMyGamesAction.mockResolvedValue([
+      card("g1", { kyokuCount: 0, analysisStatus: "failed", analysisJobId: "j1" }),
+    ]);
+    render(
+      <AuthProvider>
+        <MyKifuScreen />
+      </AuthProvider>,
+    );
+    fireEvent.click(await screen.findByText("半荘g1"));
+
+    await waitFor(() =>
+      expect(alert).toHaveBeenCalledWith(expect.stringContaining("もう一度写真から送信")),
+    );
+    expect(screen.getByText("解析失敗")).toBeTruthy(); // 状態は変えない
   });
 
   it("局がある半荘は解析中でも通常どおり開ける（追加解析の進行はバッジで示すだけ）", async () => {

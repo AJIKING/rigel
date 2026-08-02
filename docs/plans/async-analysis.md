@@ -169,9 +169,14 @@
   端末をまたいでも状態が見える（サーバーが真実源）。
 - **stale 対策**: processing のまま 30 分を超えたジョブは表示上 failed 扱い
   （終端書き込み失敗で宙に浮いた行を「永遠に解析中」に見せない）。
-- **失敗時は R2 の一時画像を消さない**（TTL 1日に任せる）→ 将来の「もう一度解析」
-  （再アップロード不要のリトライ。**Phase 2**: ジョブ行に再enqueue用の最小情報を持たせる）。
-  done は従来どおり即削除。
+- **失敗時は R2 の一時画像を消さない**（TTL 1日に任せる）→ 「もう一度解析」
+  （**Phase 2 実装済み 2026-08-02**）: Start 時にキューへ送ったメッセージの控えを
+  `jobs/{jobId}/message.json` として R2 に置き（画像と同じ寿命）、
+  `POST /analyze/jobs/:id/retry` が failed ジョブを processing に戻して同じメッセージを
+  再 enqueue する（再アップロード不要）。枠・半荘上限は再チェック、同じ半荘の
+  processing とは並走不可（409）、R2 が消えていたら `retry_expired`（写真からの再送信を
+  促す）。DTO に `analysisJobId` を追加（mobile=半荘詳細のボタン / web=失敗カードの確認）。
+  done は従来どおり即削除（message.json ごと deletePrefix）。
 - **ジョブ行の運用**（[決定] 2026-08-02）: 半荘削除（DeleteGame）でその半荘のジョブ行も
   掃除する（FK は無いので明示。processing 行の削除＝キャンセル扱い: consumer は行が
   無ければ何もしない）。一覧導出・409 ガードの読み取りは `listActiveByUser`

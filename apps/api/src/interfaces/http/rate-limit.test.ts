@@ -44,6 +44,17 @@ describe("レート制限", () => {
     expect(keys).toEqual(["ip:203.0.113.9"]);
   });
 
+  it("/analyze/jobs/:id/retry（もう一度解析）も RL_ANALYZE（Gemini を呼び直すため）", async () => {
+    const { limiter, keys } = allowAll();
+    const env = { ...fakeEnv, RL_ANALYZE: limiter } as unknown as Env;
+    await app.request(
+      "/analyze/jobs/job-1/retry",
+      { method: "POST", headers: { authorization: `Bearer ${await token()}` } },
+      env,
+    );
+    expect(keys).toEqual(["user:u1"]);
+  });
+
   it("/problems/analyze は /analyze と同じ厳しめバケット（RL_ANALYZE・userId 単位）", async () => {
     const { limiter, keys } = allowAll();
     const env = { ...fakeEnv, RL_ANALYZE: limiter } as unknown as Env;

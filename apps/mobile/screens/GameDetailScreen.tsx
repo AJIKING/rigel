@@ -1,7 +1,13 @@
 import { useFocusEffect, useNavigation, useRoute, type RouteProp } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import type { KifuStatus, Visibility } from "@rigel/client";
-import { resultLabel, roundHonbaLabel, roundNameForSeq, LIMIT_MESSAGES } from "@rigel/ui";
+import {
+  analyzeErrorMessage,
+  resultLabel,
+  roundHonbaLabel,
+  roundNameForSeq,
+  LIMIT_MESSAGES,
+} from "@rigel/ui";
 import { useCallback, useEffect, useState } from "react";
 import { FlatList, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { CenterState } from "../components/CenterState";
@@ -13,6 +19,7 @@ import { Segment } from "../components/Segment";
 import {
   deleteGame,
   deleteKifu,
+  retryAnalysis,
   setGameStatus,
   setGameVisibility,
   updateGame,
@@ -55,7 +62,8 @@ export function GameDetailScreen() {
   );
 
   // 解析ジョブの終端で再取得（この画面を開いたまま「解析中→局が入る」を追従させる）。
-  const { settledCount } = useAnalysisJob();
+  const { settledCount, busy, start } = useAnalysisJob();
+  const [retrying, setRetrying] = useState(false);
   useEffect(() => {
     refetch();
   }, [settledCount, refetch]);
@@ -65,6 +73,31 @@ export function GameDetailScreen() {
 
   const visibility: Visibility = vis ?? detail.logs[0]?.visibility ?? "private";
   const gameStatus: KifuStatus = stat ?? detail.logs[0]?.status ?? "draft";
+
+  /** もう一度解析（Phase 2）。失敗ジョブを再アップロード無しで再実行し、Provider に追わせる。 */
+  async function onRetryAnalysis() {
+    if (!token || !detail?.analysisJobId) return;
+    // 解析はひとつずつ（Capture の送信前ガードと同じ。202 の後に断ると課金が走る）。
+    if (busy) {
+      setNote("解析はひとつずつ実行できます。進行中の解析が終わってからお試しください。");
+      return;
+    }
+    setNote(null);
+    setRetrying(true);
+    try {
+      const res = await retryAnalysis(token, detail.analysisJobId);
+      if (!res.ok) {
+        setNote(analyzeErrorMessage(res.status, res.reason));
+        return;
+      }
+      await start({ jobId: res.jobId, startedAt: Date.now() });
+      refetch(); // すぐ「解析中」表示に切り替える
+    } catch {
+      setNote("通信に失敗しました。");
+    } finally {
+      setRetrying(false);
+    }
+  }
 
   /** 半荘の編集状態（下書き/編集済）を切り替える（配下の全局に反映）。 */
   async function onToggleStatus(next: KifuStatus) {
@@ -318,9 +351,22 @@ export function GameDetailScreen() {
             AI解析中です。完了すると局が追加されます（アプリを閉じてもOK）。
           </Text>
         ) : detail.analysisStatus === "failed" ? (
-          <Text style={styles.analyzeFailed}>
-            解析に失敗しました。「＋ 局を追加」からやり直せます。
-          </Text>
+          <View style={styles.failedRow}>
+            <Text style={styles.analyzeFailed}>解析に失敗しました。</Text>
+            {/* もう一度解析（Phase 2）: 画像は R2 に1日残っているので再アップロード不要。
+                期限切れ等で再実行できないときは「＋ 局を追加」からやり直す。 */}
+            {detail.analysisJobId ? (
+              <Pressable
+                style={styles.retryBtn}
+                disabled={retrying}
+                accessibilityRole="button"
+                accessibilityLabel="もう一度解析"
+                onPress={() => void onRetryAnalysis()}
+              >
+                <Text style={styles.retryBtnText}>{retrying ? "送信中…" : "もう一度解析"}</Text>
+              </Pressable>
+            ) : null}
+          </View>
         ) : null}
       </View>
       <FlatList
@@ -437,7 +483,16 @@ const styles = StyleSheet.create({
   addBtnText: { color: "#16181d", fontWeight: "800", fontSize: 13 },
   delWrap: { marginLeft: "auto" },
   analyzing: { color: colors.accent, fontSize: 12.5, fontWeight: "700", marginTop: 6 },
-  analyzeFailed: { color: colors.danger, fontSize: 12.5, fontWeight: "700", marginTop: 6 },
+  analyzeFailed: { color: colors.danger, fontSize: 12.5, fontWeight: "700" },
+  failedRow: { flexDirection: "row", alignItems: "center", gap: 10, marginTop: 6 },
+  retryBtn: {
+    paddingVertical: 5,
+    paddingHorizontal: 10,
+    borderRadius: radius.base,
+    borderWidth: 1,
+    borderColor: colors.accent,
+  },
+  retryBtnText: { color: colors.accent, fontWeight: "700", fontSize: 12 },
   // 本文エラーは danger（theme の規約。vermilion は塗り・記号用）。
   note: { color: colors.danger, fontSize: 12, marginTop: 8 },
   card: {

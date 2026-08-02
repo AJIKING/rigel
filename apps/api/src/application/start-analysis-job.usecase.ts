@@ -12,9 +12,10 @@ import type { CameraSeat, Seat } from "@rigel/schema";
 import type { AnalysisJobRepository } from "../domain/analysis/analysis-job";
 import {
   analysisJobPrefix,
+  analysisMessageKey,
   type AnalysisImageStore,
-  type AnalysisJobMessage,
   type AnalysisQueue,
+  type KifuAnalysisJobMessage,
 } from "../domain/analysis/analysis-transport";
 import type { GameRepository } from "../domain/game/game.repository";
 import type { ImageRef } from "../domain/kifu/analyzer";
@@ -129,7 +130,7 @@ export class StartAnalysisJob {
         await games.save({ id: gameId, userId: params.userId, title: "", createdAt: now() });
       }
 
-      const message: AnalysisJobMessage = {
+      const message: KifuAnalysisJobMessage = {
         jobId,
         userId: params.userId,
         gameId,
@@ -138,6 +139,8 @@ export class StartAnalysisJob {
         handKeys,
         ...(params.handFromRiver ? { handFromRiver: true } : {}),
       };
+      // 再解析（Phase 2）用の控え。画像と同じ寿命（done で掃除・TTL 1日）。
+      await images.putJson(analysisMessageKey(jobId), message);
       await queue.send(message);
       return { ok: true, jobId, gameId };
     } catch (e) {

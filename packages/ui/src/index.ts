@@ -186,6 +186,10 @@ export function analyzeErrorMessage(status: number, reason?: string): string {
   if (reason === "game_analyzing") {
     return "この半荘は解析中です。完了してからもう一度お試しください。";
   }
+  // もう一度解析（Phase 2）の期限切れ: R2 の一時データ（TTL 1日）が消えている。
+  if (reason === "retry_expired") {
+    return "再解析できる期限が切れています。もう一度写真から送信してください。";
+  }
   switch (status) {
     case 401:
       return "ログインが必要です。";

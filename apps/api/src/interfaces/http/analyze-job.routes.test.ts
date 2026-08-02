@@ -3,7 +3,9 @@
 // GET /analyze/jobs/:id は所有者だけが状態を見られる（他人・不存在は 404）。
 
 import { describe, expect, it } from "vitest";
+import { RetryAnalysisJob } from "../../application/retry-analysis-job.usecase";
 import { GetAnalysisJob, StartAnalysisJob } from "../../application/start-analysis-job.usecase";
+import { analysisMessageKey } from "../../domain/analysis/analysis-transport";
 import type { AppContainer } from "../../composition-root";
 import { JwtSessionService } from "../../infrastructure/auth/jwt-session-service";
 import { fakeEnv } from "../../test-support/billing";
@@ -50,6 +52,20 @@ function makeApp(opts: { preflightOk?: boolean } = {}) {
       newId: () => `job-${++n}`,
     }),
     getAnalysisJob: new GetAnalysisJob(jobs),
+    retryAnalysisJob: new RetryAnalysisJob({
+      jobs,
+      images,
+      queue,
+      analyze: {
+        preflight: () =>
+          Promise.resolve(
+            opts.preflightOk === false
+              ? ({ ok: false, reason: "quota_exceeded" } as const)
+              : ({ ok: true } as const),
+          ),
+      },
+      now: () => NOW,
+    }),
   } as unknown as AppContainer;
   return { app: createApp({ container: () => container }), jobs, images, queue };
 }
@@ -175,5 +191,76 @@ describe("GET /analyze/jobs/:id", () => {
     const body = (await res.json()) as Record<string, unknown>;
     expect(body).toMatchObject({ id: "job-1", status: "processing", gameId: null, logId: null });
     expect("userId" in body).toBe(false);
+  });
+});
+
+describe("POST /analyze/jobs/:id/retry（もう一度解析。Phase 2）", () => {
+  /** 失敗ジョブ + R2 に残った画像・message.json を下ごしらえ。 */
+  async function seedFailedJob(ctx: ReturnType<typeof makeApp>) {
+    await ctx.jobs.create({ id: "job-1", userId: "owner", gameId: "g1", now: NOW });
+    await ctx.jobs.markFailed("job-1", { reason: "analysis_failed", now: NOW });
+    await ctx.images.put("jobs/job-1/river", {
+      data: new ArrayBuffer(4),
+      mimeType: "image/jpeg",
+    });
+    await ctx.images.putJson(analysisMessageKey("job-1"), {
+      jobId: "job-1",
+      userId: "owner",
+      gameId: "g1",
+      cameraBottomSeat: "east",
+      riverKey: "jobs/job-1/river",
+      handKeys: {},
+    });
+  }
+
+  it("失敗ジョブは 202 で再開し、同じメッセージが再 enqueue される", async () => {
+    const ctx = makeApp();
+    await seedFailedJob(ctx);
+
+    const res = await ctx.app.request(
+      "/analyze/jobs/job-1/retry",
+      { method: "POST", headers: await bearer("owner") },
+      fakeEnv,
+    );
+
+    expect(res.status).toBe(202);
+    expect(await res.json()).toEqual({ ok: true, jobId: "job-1", gameId: "g1" });
+    expect(ctx.queue.sent[0]).toMatchObject({ jobId: "job-1", riverKey: "jobs/job-1/river" });
+    expect((await ctx.jobs.findForUser("job-1", "owner"))?.status).toBe("processing");
+  });
+
+  it("他人のジョブは 404・処理中のジョブは 409（not_failed）", async () => {
+    const ctx = makeApp();
+    await seedFailedJob(ctx);
+
+    const other = await ctx.app.request(
+      "/analyze/jobs/job-1/retry",
+      { method: "POST", headers: await bearer("attacker") },
+      fakeEnv,
+    );
+    expect(other.status).toBe(404);
+
+    await ctx.jobs.markProcessing("job-1", { now: NOW });
+    const running = await ctx.app.request(
+      "/analyze/jobs/job-1/retry",
+      { method: "POST", headers: await bearer("owner") },
+      fakeEnv,
+    );
+    expect(running.status).toBe(409);
+  });
+
+  it("R2 の控えが消えていたら 400（retry_expired。写真からの再送信を促す）", async () => {
+    const ctx = makeApp();
+    await ctx.jobs.create({ id: "job-1", userId: "owner", gameId: "g1", now: NOW });
+    await ctx.jobs.markFailed("job-1", { reason: "analysis_failed", now: NOW });
+
+    const res = await ctx.app.request(
+      "/analyze/jobs/job-1/retry",
+      { method: "POST", headers: await bearer("owner") },
+      fakeEnv,
+    );
+
+    expect(res.status).toBe(400);
+    expect(await res.json()).toEqual({ ok: false, reason: "retry_expired" });
   });
 });

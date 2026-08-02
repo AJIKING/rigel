@@ -11,6 +11,12 @@ import type { AnalysisJob } from "../domain/analysis/analysis-job";
 
 export type GameAnalysisStatus = "processing" | "failed";
 
+/** DTO に載せる導出結果。jobId は「もう一度解析」（Phase 2）の宛先。 */
+export interface GameAnalysisInfo {
+  status: GameAnalysisStatus;
+  jobId: string;
+}
+
 /** これを超えて processing のままのジョブは表示上 failed 扱い。 */
 export const STALE_ANALYSIS_MS = 30 * 60_000;
 
@@ -18,21 +24,21 @@ export const STALE_ANALYSIS_MS = 30 * 60_000;
 export function deriveAnalysisStatus(
   jobs: AnalysisJob[],
   now: Date,
-): Map<string, GameAnalysisStatus> {
+): Map<string, GameAnalysisInfo> {
   // 半荘ごとに最新（createdAt 最大）のジョブだけを採用する。
   const latest = new Map<string, AnalysisJob>();
   for (const job of jobs) {
-    if (!job.gameId) continue; // 半荘先行作成より前の旧ジョブ
+    if (!job.gameId) continue; // 半荘先行作成より前の旧ジョブ・何切るジョブ
     const cur = latest.get(job.gameId);
     if (!cur || job.createdAt.getTime() > cur.createdAt.getTime()) latest.set(job.gameId, job);
   }
 
-  const result = new Map<string, GameAnalysisStatus>();
+  const result = new Map<string, GameAnalysisInfo>();
   for (const [gameId, job] of latest) {
-    if (job.status === "failed") result.set(gameId, "failed");
+    if (job.status === "failed") result.set(gameId, { status: "failed", jobId: job.id });
     else if (job.status === "processing") {
       const stale = now.getTime() - job.createdAt.getTime() > STALE_ANALYSIS_MS;
-      result.set(gameId, stale ? "failed" : "processing");
+      result.set(gameId, { status: stale ? "failed" : "processing", jobId: job.id });
     }
   }
   return result;

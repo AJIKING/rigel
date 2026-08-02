@@ -59,6 +59,7 @@ export function reasonStatus(reason: string): 400 | 402 | 403 | 404 | 409 {
       return 403;
     case "game_full":
     case "game_analyzing":
+    case "not_failed":
       return 409;
     case "game_not_found":
     case "not_found":

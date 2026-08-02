@@ -14,6 +14,8 @@ export interface GameDetail {
   logs: GameLog[];
   /** 解析ジョブの状態（半荘先行作成。plan 8-3）。null=通常表示。 */
   analysisStatus: GameAnalysisStatus | null;
+  /** 最新の解析ジョブID（failed のとき「もう一度解析」の宛先。Phase 2）。 */
+  analysisJobId: string | null;
 }
 
 export class GetGameWithLogs {
@@ -33,6 +35,12 @@ export class GetGameWithLogs {
       await this.jobs.listActiveByUser(game.userId),
       this.now(),
     );
-    return { game, logs, analysisStatus: analysis.get(gameId) ?? null };
+    const info = analysis.get(gameId);
+    return {
+      game,
+      logs,
+      analysisStatus: info?.status ?? null,
+      analysisJobId: info?.jobId ?? null,
+    };
   }
 }

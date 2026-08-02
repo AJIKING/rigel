@@ -21,16 +21,26 @@ function job(partial: Partial<AnalysisJob> & { gameId: string; createdAt: Date }
 }
 
 describe("deriveAnalysisStatus", () => {
-  it("最新ジョブが processing なら processing、failed なら failed、done なら null", () => {
+  it("最新ジョブが processing なら processing、failed なら failed（jobId 付き=再解析用）、done なら無し", () => {
     const jobs = [
-      job({ gameId: "g1", status: "processing", createdAt: new Date(NOW.getTime() - 60_000) }),
-      job({ gameId: "g2", status: "failed", createdAt: new Date(NOW.getTime() - 60_000) }),
-      job({ gameId: "g3", status: "done", createdAt: new Date(NOW.getTime() - 60_000) }),
+      job({
+        id: "j1",
+        gameId: "g1",
+        status: "processing",
+        createdAt: new Date(NOW.getTime() - 60_000),
+      }),
+      job({
+        id: "j2",
+        gameId: "g2",
+        status: "failed",
+        createdAt: new Date(NOW.getTime() - 60_000),
+      }),
+      job({ id: "j3", gameId: "g3", status: "done", createdAt: new Date(NOW.getTime() - 60_000) }),
     ];
     const map = deriveAnalysisStatus(jobs, NOW);
 
-    expect(map.get("g1")).toBe("processing");
-    expect(map.get("g2")).toBe("failed");
+    expect(map.get("g1")).toEqual({ status: "processing", jobId: "j1" });
+    expect(map.get("g2")).toEqual({ status: "failed", jobId: "j2" });
     expect(map.has("g3")).toBe(false);
   });
 
@@ -50,7 +60,7 @@ describe("deriveAnalysisStatus", () => {
         createdAt: new Date(NOW.getTime() - STALE_ANALYSIS_MS - 1),
       }),
     ];
-    expect(deriveAnalysisStatus(jobs, NOW).get("g1")).toBe("failed");
+    expect(deriveAnalysisStatus(jobs, NOW).get("g1")?.status).toBe("failed");
   });
 
   it("gameId の無い旧ジョブは無視する", () => {

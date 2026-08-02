@@ -1,10 +1,16 @@
 "use client";
 
-import { LIST_LOAD_ERROR_MESSAGE, planKifuLimits, sortMyList, type MyListSortKey } from "@rigel/ui";
+import {
+  analyzeErrorMessage,
+  planKifuLimits,
+  sortMyList,
+  LIST_LOAD_ERROR_MESSAGE,
+  type MyListSortKey,
+} from "@rigel/ui";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
-import { deleteGameAction, getMyGamesAction } from "../../app/actions";
+import { deleteGameAction, getMyGamesAction, retryAnalysisAction } from "../../app/actions";
 import { type MyGameCard } from "../../lib/api";
 import { useAuth } from "../../lib/auth-context";
 import { fmtDateSlash } from "../../lib/format";
@@ -186,15 +192,35 @@ export function MyKifuScreen() {
                   favCount={c.favoriteCount}
                   onToggleFav={() => toggleFav("game", c)}
                   onOpen={() => {
-                    // 0局の解析中/失敗半荘は開く先（局）が無い。失敗は削除の受け皿にする
+                    // 0局の解析中/失敗半荘は開く先（局）が無い。失敗は「もう一度解析」
+                    // （Phase 2。画像は R2 に1日残っている）→ 断ったら削除、の受け皿にする
                     // （web には他に削除導線が無く「消せないカード」が溜まるため。監査 2026-08-02）。
                     if (c.kyokuCount === 0 && c.analysisStatus) {
+                      if (c.analysisStatus !== "failed") return;
                       if (
-                        c.analysisStatus === "failed" &&
-                        window.confirm(
-                          "この半荘は解析に失敗しました。削除しますか？（元に戻せません）",
-                        )
+                        c.analysisJobId &&
+                        window.confirm("この半荘は解析に失敗しました。もう一度解析しますか？")
                       ) {
+                        void retryAnalysisAction(c.analysisJobId)
+                          .then((r) => {
+                            if (r.ok) {
+                              // すぐ「解析中…」バッジへ（次回取得からはサーバー導出が真実源）。
+                              setGames(
+                                (prev) =>
+                                  prev?.map((g) =>
+                                    g.id === c.id
+                                      ? { ...g, analysisStatus: "processing" as const }
+                                      : g,
+                                  ) ?? prev,
+                              );
+                            } else {
+                              window.alert(analyzeErrorMessage(r.status, r.reason));
+                            }
+                          })
+                          .catch(() => window.alert("通信に失敗しました。"));
+                        return;
+                      }
+                      if (window.confirm("この半荘を削除しますか？（元に戻せません）")) {
                         void deleteGameAction(c.id)
                           .then((r) => {
                             if (r.ok)

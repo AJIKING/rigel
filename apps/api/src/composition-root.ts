@@ -35,6 +35,7 @@ import { OpenBillingPortal } from "./application/open-billing-portal.usecase";
 import { ListGames } from "./application/list-games.usecase";
 import { ListMyGamesWithCounts, ListPublicGames } from "./application/list-game-cards.usecase";
 import { DeleteAccount, GetPublicProfile, UpdateProfile } from "./application/profile.usecase";
+import { RetryAnalysisJob } from "./application/retry-analysis-job.usecase";
 import { RunAnalysisJob } from "./application/run-analysis-job.usecase";
 import { GetAnalysisJob, StartAnalysisJob } from "./application/start-analysis-job.usecase";
 import type { AnalysisJobMessage } from "./domain/analysis/analysis-transport";
@@ -88,6 +89,8 @@ export interface AppContainer {
   startAnalysisJob: StartAnalysisJob;
   getAnalysisJob: GetAnalysisJob;
   runAnalysisJob: RunAnalysisJob;
+  /** もう一度解析（Phase 2。失敗ジョブの再 enqueue）。 */
+  retryAnalysisJob: RetryAnalysisJob;
   analyzeProblemDraft: AnalyzeProblemDraft;
   /** 何切るの写真AI再現の非同期ジョブ化（結果は R2 の result.json。[決定] 2026-08-02）。 */
   startProblemAnalysisJob: StartProblemAnalysisJob;
@@ -257,6 +260,13 @@ export function buildContainer(env: Env): AppContainer {
       newId,
     }),
     getAnalysisJob: new GetAnalysisJob(analysisJobs),
+    retryAnalysisJob: new RetryAnalysisJob({
+      jobs: analysisJobs,
+      images: analysisImages,
+      queue: analysisQueue,
+      analyze: analyzeAndSaveKifu,
+      now,
+    }),
     runAnalysisJob: new RunAnalysisJob({
       jobs: analysisJobs,
       images: analysisImages,

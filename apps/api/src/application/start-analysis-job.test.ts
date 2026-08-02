@@ -117,6 +117,15 @@ describe("StartAnalysisJob（半荘先行作成 + R2 + Queue）", () => {
     expect(jobs.jobs.size).toBe(0);
   });
 
+  it("再解析用にメッセージも R2 に置く（jobs/{id}/message.json。画像と同じ寿命=TTL 1日）", async () => {
+    const { usecase, images, queue } = makeUsecase();
+
+    await usecase.start({ ...params, handFromRiver: true });
+
+    // キューへ送ったものと同じメッセージが message.json に残る（Phase 2「もう一度解析」の材料）。
+    expect(await images.getJson("jobs/id-2/message.json")).toEqual(queue.sent[0]);
+  });
+
   it("既存半荘の直近ジョブが終端（done/failed）なら受け付ける", async () => {
     const { usecase, jobs, games } = makeUsecase();
     await games.save({ id: "g1", userId: "u1", title: "", createdAt: NOW });
@@ -135,6 +144,6 @@ describe("StartAnalysisJob（半荘先行作成 + R2 + Queue）", () => {
 
     expect(jobs.jobs.get("id-2")?.status).toBe("failed");
     expect(jobs.jobs.get("id-2")?.reason).toBe("enqueue_failed");
-    expect(images.size).toBe(2); // 画像は残す（掃除は R2 ライフサイクル1日）
+    expect(images.size).toBe(3); // 画像2枚 + message.json は残す（掃除は R2 ライフサイクル1日）
   });
 });

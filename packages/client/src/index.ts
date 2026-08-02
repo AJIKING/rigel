@@ -130,6 +130,8 @@ export interface GameDetail {
   viewerFaved: boolean;
   /** 解析ジョブの状態（半荘先行作成。plan 8-3）。null=通常表示。 */
   analysisStatus?: GameAnalysisStatus | null;
+  /** 最新の解析ジョブID（failed のとき retryAnalysis の宛先。Phase 2）。 */
+  analysisJobId?: string | null;
 }
 
 /** マイページの半荘カード（局数・公開数・下書き数つき）。 */
@@ -155,6 +157,8 @@ export interface MyGameCard extends FavoriteFields {
   draftCount: number;
   /** 解析ジョブの状態（半荘先行作成。plan 8-3）。null=通常表示。 */
   analysisStatus?: GameAnalysisStatus | null;
+  /** 最新の解析ジョブID（failed のとき retryAnalysis の宛先。Phase 2）。 */
+  analysisJobId?: string | null;
 }
 
 /** 公開牌譜フィードの半荘カード。 */
@@ -202,6 +206,11 @@ export type AnalyzeResult =
 
 /** 半荘の解析状態（一覧・詳細のバッジ表示。サーバー導出）。 */
 export type GameAnalysisStatus = "processing" | "failed";
+
+/** もう一度解析（POST /analyze/jobs/:id/retry）。gameId は牌譜ジョブなら必ず入る。 */
+export type RetryAnalysisResult =
+  | { ok: true; jobId: string; gameId: string | null }
+  | { ok: false; status: number; reason?: string };
 
 /** 解析ジョブの状態（GET /analyze/jobs/:id）。done で gameId/logId が入る。 */
 export interface AnalysisJob {
@@ -261,6 +270,9 @@ export interface ApiClient {
   analyze(token: string, form: FormData): Promise<AnalyzeResult>;
   /** 解析ジョブの状態（ポーリング用）。404（消えたジョブ）は null。 */
   getAnalysisJob(token: string, jobId: string): Promise<AnalysisJob | null>;
+  /** もう一度解析（Phase 2）。失敗ジョブを再アップロード無しで再実行する（202）。
+   *  期限切れ（R2 の一時データが消えた）は status 400 + reason "retry_expired"。 */
+  retryAnalysis(token: string, jobId: string): Promise<RetryAnalysisResult>;
   /**
    * 何切るの写真AI再現の解析ジョブを開始する（202 + jobId。保存はされない）。
    * フォーム: hand(必須=自分の手牌), river(任意), cameraBottomSeat(任意=出題視点)。
@@ -537,6 +549,19 @@ export function createApiClient(baseUrl: string, fetchImpl?: typeof fetch): ApiC
       if (res.ok) {
         const d = (await res.json()) as { jobId: string };
         return { ok: true, jobId: d.jobId };
+      }
+      const body = (await res.json().catch(() => ({}))) as { reason?: string; error?: string };
+      return { ok: false, status: res.status, reason: body.reason ?? body.error };
+    },
+
+    async retryAnalysis(token, jobId) {
+      const res = await doFetch(`${baseUrl}/analyze/jobs/${jobId}/retry`, {
+        method: "POST",
+        headers: bearer(token),
+      });
+      if (res.ok) {
+        const d = (await res.json()) as { jobId: string; gameId: string | null };
+        return { ok: true, jobId: d.jobId, gameId: d.gameId };
       }
       const body = (await res.json().catch(() => ({}))) as { reason?: string; error?: string };
       return { ok: false, status: res.status, reason: body.reason ?? body.error };

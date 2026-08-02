@@ -21,6 +21,8 @@ export interface MyGameCard {
   draftCount: number;
   /** 解析ジョブの状態（半荘先行作成。plan 8-3）。null=通常表示。 */
   analysisStatus: GameAnalysisStatus | null;
+  /** 最新の解析ジョブID（failed のとき「もう一度解析」の宛先。Phase 2）。 */
+  analysisJobId: string | null;
 }
 
 export interface PublicGameCard {
@@ -62,7 +64,8 @@ export class ListMyGamesWithCounts {
           publicCount: logs.filter((l) => l.visibility === "public" && l.status === "complete")
             .length,
           draftCount: logs.filter((l) => l.status === "draft").length,
-          analysisStatus: analysis.get(g.id) ?? null,
+          analysisStatus: analysis.get(g.id)?.status ?? null,
+          analysisJobId: analysis.get(g.id)?.jobId ?? null,
         };
       }),
     );

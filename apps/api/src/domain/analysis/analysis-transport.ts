@@ -17,6 +17,12 @@ export function analysisResultKey(jobId: string): string {
   return `${analysisJobPrefix(jobId)}result.json`;
 }
 
+/** キューへ送ったメッセージの控え（Phase 2「もう一度解析」の再 enqueue 用）。
+ *  画像と同じ prefix 配下＝done の掃除・TTL 1日がそのまま効く。 */
+export function analysisMessageKey(jobId: string): string {
+  return `${analysisJobPrefix(jobId)}message.json`;
+}
+
 export interface AnalysisImageStore {
   put(key: string, image: ImageRef): Promise<void>;
   /** 無ければ null（ライフサイクル削除・キー誤りなど）。 */

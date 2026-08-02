@@ -53,6 +53,34 @@ describe("createApiClient", () => {
     expect(job?.draft?.schemaVersion).toBe("1.0.0");
   });
 
+  it("retryAnalysis は POST /analyze/jobs/:id/retry して 202 の jobId/gameId を返す", async () => {
+    const client = createApiClient(
+      "https://api.test",
+      fakeFetch2((url, init) => {
+        expect(url).toBe("https://api.test/analyze/jobs/job-9/retry");
+        expect(init?.method).toBe("POST");
+        return json({ ok: true, jobId: "job-9", gameId: "g1" }, 202);
+      }),
+    );
+    expect(await client.retryAnalysis("tok", "job-9")).toEqual({
+      ok: true,
+      jobId: "job-9",
+      gameId: "g1",
+    });
+  });
+
+  it("retryAnalysis の期限切れは status と reason を返す", async () => {
+    const client = createApiClient(
+      "https://api.test",
+      fakeFetch(() => json({ ok: false, reason: "retry_expired" }, 400)),
+    );
+    expect(await client.retryAnalysis("tok", "job-9")).toEqual({
+      ok: false,
+      status: 400,
+      reason: "retry_expired",
+    });
+  });
+
   it("getProblemAnalysisJob の 404（消えたジョブ）は null", async () => {
     const client = createApiClient(
       "https://api.test",

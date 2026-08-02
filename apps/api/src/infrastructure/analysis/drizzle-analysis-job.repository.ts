@@ -80,6 +80,13 @@ export class DrizzleAnalysisJobRepository implements AnalysisJobRepository {
       .where(eq(analysisJobs.id, id));
   }
 
+  async markProcessing(id: string, params: { now: Date }): Promise<void> {
+    await this.db
+      .update(analysisJobs)
+      .set({ status: "processing", reason: null, updatedAt: params.now })
+      .where(eq(analysisJobs.id, id));
+  }
+
   async deleteByGame(gameId: string): Promise<void> {
     await this.db.delete(analysisJobs).where(eq(analysisJobs.gameId, gameId));
   }

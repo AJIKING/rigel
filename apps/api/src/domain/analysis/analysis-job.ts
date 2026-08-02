@@ -34,6 +34,8 @@ export interface AnalysisJobRepository {
     params: { gameId: string | null; logId: string | null; now: Date },
   ): Promise<void>;
   markFailed(id: string, params: { reason: string; now: Date }): Promise<void>;
+  /** 再解析（Phase 2）: failed のジョブを processing に戻す。前回の失敗理由は消す。 */
+  markProcessing(id: string, params: { now: Date }): Promise<void>;
   /** 半荘削除時の掃除。processing の行も消す＝キャンセル扱い
    *  （consumer は行が無ければ何もしないので、進行中でも安全に消せる）。 */
   deleteByGame(gameId: string): Promise<void>;

@@ -32,8 +32,12 @@ function bucketOf(
   ip: string,
 ): { binding: "RL_ANALYZE" | "RL_WRITE" | "RL_READ"; key: string } | null {
   if (path === "/health" || WEBHOOK_PATHS.includes(path)) return null;
-  // Gemini を呼ぶ解析系は厳しめの専用バケット（牌譜解析・何切るの写真解析）。
-  if (path === "/analyze" || path === "/problems/analyze") {
+  // Gemini を呼ぶ解析系は厳しめの専用バケット（牌譜解析・何切るの写真解析・再解析）。
+  if (
+    path === "/analyze" ||
+    path === "/problems/analyze" ||
+    /^\/analyze\/jobs\/[^/]+\/retry$/.test(path)
+  ) {
     return { binding: "RL_ANALYZE", key: `user:${userId ?? ip}` };
   }
   if (method === "GET" || method === "OPTIONS") return { binding: "RL_READ", key: `ip:${ip}` };

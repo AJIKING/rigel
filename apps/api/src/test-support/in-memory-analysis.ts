@@ -75,6 +75,14 @@ export class InMemoryAnalysisJobRepository implements AnalysisJobRepository {
     }
     return Promise.resolve();
   }
+
+  markProcessing(id: string, params: { now: Date }): Promise<void> {
+    const job = this.jobs.get(id);
+    if (job) {
+      this.jobs.set(id, { ...job, status: "processing", reason: null, updatedAt: params.now });
+    }
+    return Promise.resolve();
+  }
 }
 
 export class InMemoryAnalysisImageStore implements AnalysisImageStore {

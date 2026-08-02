@@ -29,6 +29,7 @@ export const {
   authWithReviewCode,
   getAnalysisJob,
   getProblemAnalysisJob,
+  retryAnalysis,
   fetchMe,
   getMyGames,
   getPublicGames,

@@ -139,4 +139,17 @@ export function registerKifuRoutes(app: Hono<AppEnv>): void {
     if (!job) return c.json({ error: "not found" }, 404);
     return c.json(job);
   });
+
+  // もう一度解析（Phase 2。失敗ジョブを再アップロード無しで再実行）。
+  // Gemini を呼び直すので RL_ANALYZE の対象（rate-limit.ts）。
+  app.post("/analyze/jobs/:id/retry", requireAuth, async (c) => {
+    const result = await c.get("container").retryAnalysisJob.execute({
+      userId: c.get("userId")!,
+      jobId: c.req.param("id"),
+    });
+    if (!result.ok) {
+      return c.json({ ok: false, reason: result.reason }, reasonStatus(result.reason));
+    }
+    return c.json({ ok: true, jobId: result.jobId, gameId: result.gameId }, 202);
+  });
 }
