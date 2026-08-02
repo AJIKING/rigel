@@ -15,8 +15,8 @@ export default defineConfig({
   test: {
     environment: "jsdom",
     setupFiles: ["./vitest.setup.ts"],
-    // e2e/ は Playwright（実ブラウザ）専用。vitest では実行しない。
+    // e2e/ と shots/ は Playwright（実ブラウザ）専用。vitest では実行しない。
     // .open-next/ はデプロイ用ビルド成果物（同梱 node_modules のテストを拾わない）。
-    exclude: ["e2e/**", "node_modules/**", ".next/**", ".open-next/**"],
+    exclude: ["e2e/**", "shots/**", "node_modules/**", ".next/**", ".open-next/**"],
   },
 });

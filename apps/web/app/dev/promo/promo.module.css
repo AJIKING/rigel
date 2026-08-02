@@ -1,0 +1,499 @@
+/* ============================================================
+   ストア用プロモ画像（/dev/promo）— LP v6 のデザイン言語を踏襲
+   （ダーク地 + フェルト緑のグロー + オレンジのアクセント、句点はヒーローのみ）。
+   フレーム寸法は lib/promo-shots.ts のマニフェストが単一ソース（inline style で固定）。
+   盤面・埋め込みカード等の見た目は landing.module.css / 実部品を再利用する。
+   ============================================================ */
+
+.page {
+  background: #090a0d;
+  min-height: 100vh;
+  width: fit-content;
+  padding: 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+  font-family: "Noto Sans JP", system-ui, sans-serif;
+  color: var(--white);
+  line-height: 1.7;
+}
+.pageNote {
+  color: var(--w45);
+  font-size: 12px;
+  /* フレームの Y 座標を整数に保つ（小数だと element screenshot が1px 切り上がり、
+     ストア規定サイズからズレる）。行高・マージンを整数 px に固定する。 */
+  line-height: 20px;
+  margin: 0;
+  max-width: 60em;
+}
+
+/* ---- フレーム共通 ---- */
+.frame {
+  position: relative;
+  flex: none;
+  box-sizing: border-box;
+  overflow: hidden;
+  background:
+    radial-gradient(120% 55% at 50% -8%, rgba(12, 122, 87, 0.3), transparent 62%),
+    radial-gradient(90% 45% at 50% 112%, rgba(255, 158, 69, 0.1), transparent 70%), var(--bg);
+  display: flex;
+  flex-direction: column;
+}
+.inner {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 44px 24px 32px;
+  gap: 22px;
+}
+.play .inner {
+  padding: 34px 20px 26px;
+  gap: 18px;
+}
+
+/* ---- コピー ---- */
+.kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.22em;
+  color: var(--em-light);
+  margin: 0 0 14px;
+}
+.kickerTile {
+  position: relative;
+  width: 22px;
+  height: 30px;
+  border-radius: 3px;
+  overflow: hidden;
+  filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.4));
+}
+.kickerTile img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+.headline {
+  font-weight: 900;
+  font-size: 34px;
+  line-height: 1.32;
+  letter-spacing: -0.01em;
+  text-wrap: balance;
+  margin: 0;
+}
+.play .headline {
+  font-size: 28px;
+}
+.headline em {
+  font-style: normal;
+  color: var(--accent);
+}
+.sub {
+  margin: 12px 0 0;
+  color: var(--w70);
+  font-size: 15px;
+}
+.play .sub {
+  font-size: 13.5px;
+}
+
+/* ---- ビジュアル置き場（キャプション下の主役領域） ---- */
+.vis {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 18px;
+}
+.panel {
+  background: var(--chrome);
+  border: 1px solid var(--line-2);
+  border-radius: 14px;
+  box-shadow: 0 30px 70px rgba(0, 0, 0, 0.55);
+  overflow: hidden;
+}
+
+/* 撮影フレーム（AI 読み取りの検出コーナー + 静止スキャンライン）。
+   landing の scanline はアニメーション前提のため、撮影用に静止版を持つ。 */
+.scan {
+  position: relative;
+}
+.corner {
+  position: absolute;
+  width: 18px;
+  height: 18px;
+  border: 2.5px solid var(--em-light);
+  opacity: 0.9;
+  z-index: 2;
+  pointer-events: none;
+}
+.cTL {
+  top: 10px;
+  left: 10px;
+  border-right: 0;
+  border-bottom: 0;
+}
+.cTR {
+  top: 10px;
+  right: 10px;
+  border-left: 0;
+  border-bottom: 0;
+}
+.cBL {
+  bottom: 10px;
+  left: 10px;
+  border-right: 0;
+  border-top: 0;
+}
+.cBR {
+  bottom: 10px;
+  right: 10px;
+  border-left: 0;
+  border-top: 0;
+}
+.scanline {
+  position: absolute;
+  top: 12px;
+  bottom: 12px;
+  left: 58%;
+  width: 2px;
+  background: linear-gradient(180deg, transparent, rgba(62, 196, 135, 0.9), transparent);
+  z-index: 2;
+  pointer-events: none;
+}
+
+/* ---- チップ（信頼・補足の小さな帯） ---- */
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--w85);
+  background: rgba(22, 24, 29, 0.85);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 6px 14px;
+}
+.play .chip {
+  font-size: 11px;
+  padding: 5px 12px;
+}
+.chip::before {
+  content: "✓";
+  color: var(--em-light);
+  font-weight: 900;
+}
+
+/* ---- 牌の列（プロモ用の寸法。面は実部品 OssTileFace） ---- */
+.tiles {
+  display: flex;
+  gap: 5px;
+  flex-wrap: nowrap;
+  justify-content: center;
+}
+.tile {
+  position: relative;
+  width: var(--pt-w, 34px);
+  height: var(--pt-h, 47px);
+  border-radius: 4px;
+  overflow: hidden;
+  flex: none;
+  filter: drop-shadow(0 3px 5px rgba(0, 0, 0, 0.4));
+}
+.tile img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+.pick {
+  outline: 2.5px solid var(--accent);
+  outline-offset: 2px;
+  transform: translateY(-6px);
+  overflow: visible;
+}
+.unknown {
+  box-shadow: inset 0 0 0 2.5px var(--accent);
+}
+.unknownQ {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: calc(var(--pt-h, 47px) * 0.52);
+  font-weight: 900;
+  color: var(--accent);
+}
+
+/* 共有フレームのチャット風モック（リンクカード + 会話のやりとり） */
+.chat {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.bubbleCard {
+  align-self: flex-end;
+  width: 88%;
+}
+.bubbleCard > * {
+  width: 100%;
+}
+.bubble {
+  max-width: 84%;
+  border-radius: 16px;
+  padding: 10px 16px;
+  font-size: 13.5px;
+  font-weight: 500;
+  line-height: 1.6;
+}
+.play .bubble {
+  font-size: 12px;
+  padding: 8px 13px;
+}
+.bubbleL {
+  align-self: flex-start;
+  background: var(--chrome-2);
+  border: 1px solid var(--line);
+  border-bottom-left-radius: 5px;
+}
+.bubbleR {
+  align-self: flex-end;
+  background: var(--em-deep);
+  color: #fff;
+  border-bottom-right-radius: 5px;
+}
+
+/* ---- 出題ビジュアル（枠なし。問いと牌姿だけ） ---- */
+.qfree {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+}
+.qhead {
+  font-size: 17px;
+  font-weight: 900;
+}
+.play .qhead {
+  font-size: 15px;
+}
+
+/* 何切る: 牌を横倒しにして縦一列に流す（縦長フレームの主役）。 */
+.vquiz {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 56px;
+}
+.vq {
+  font-size: 40px;
+  font-weight: 900;
+  letter-spacing: 0.02em;
+}
+.play .vq {
+  font-size: 32px;
+}
+.vhand {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+/* 外箱は横倒し後の寸法（幅=牌の高さ・高さ=牌の幅）。内箱を90度回して面を貼る。 */
+.vtile {
+  position: relative;
+  width: var(--vt-h);
+  height: var(--vt-w);
+  flex: none;
+  filter: drop-shadow(0 3px 5px rgba(0, 0, 0, 0.4));
+}
+.vtileIn {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: var(--vt-w);
+  height: var(--vt-h);
+  transform: translate(-50%, -50%) rotate(90deg);
+  border-radius: 4px;
+  overflow: hidden;
+}
+.vtileIn img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+/* ---- 特訓の統計タイル ---- */
+.statRow {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+}
+.stat {
+  background: var(--chrome);
+  border: 1px solid var(--line-2);
+  border-radius: 12px;
+  padding: 16px 8px 14px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+.statV {
+  font-size: 30px;
+  font-weight: 900;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}
+.statV small {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--w45);
+  margin-left: 2px;
+}
+.statL {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--w70);
+  letter-spacing: 0.04em;
+}
+.play .statV {
+  font-size: 25px;
+}
+.play .statL {
+  font-size: 10px;
+}
+
+/* ---- 最終フレーム（無料の範囲 + プラン） ---- */
+.brandRow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+.brandStar {
+  /* StarMark の svg は固有サイズを持たない（className で寸法を与える前提）。 */
+  width: 24px;
+  height: 24px;
+  flex: none;
+}
+.featureBrand .brandStar {
+  width: 28px;
+  height: 28px;
+}
+.brandWm {
+  font-weight: 900;
+  letter-spacing: 0.34em;
+  font-size: 20px;
+}
+.planList {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.planRow {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 16px;
+  background: linear-gradient(180deg, var(--chrome), rgba(22, 24, 29, 0.55));
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 22px 22px;
+}
+.play .planRow {
+  padding: 17px 18px;
+}
+.planHot {
+  border-color: rgba(255, 158, 69, 0.6);
+  background:
+    linear-gradient(135deg, rgba(255, 158, 69, 0.1), transparent 55%),
+    linear-gradient(180deg, var(--chrome), rgba(22, 24, 29, 0.55));
+  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.35);
+}
+.planBadge {
+  position: absolute;
+  top: -11px;
+  right: 18px;
+  background: var(--accent);
+  color: #1a1208;
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  border-radius: 999px;
+  padding: 4px 12px;
+}
+.play .planBadge {
+  font-size: 10px;
+  padding: 3px 10px;
+}
+.planName {
+  font-weight: 900;
+  font-size: 17px;
+}
+.play .planName {
+  font-size: 15px;
+}
+.planDesc {
+  display: block;
+  font-weight: 400;
+  font-size: 13px;
+  color: var(--w70);
+  margin-top: 4px;
+}
+.play .planDesc {
+  font-size: 11.5px;
+}
+.planPrice {
+  font-weight: 900;
+  font-size: 26px;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  white-space: nowrap;
+}
+.play .planPrice {
+  font-size: 22px;
+}
+.planPrice small {
+  font-size: 12px;
+  color: var(--w45);
+  font-weight: 700;
+}
+
+/* ---- フィーチャーグラフィック（1024×500 横長） ---- */
+.featureInner {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 430px;
+  gap: 36px;
+  align-items: center;
+  padding: 0 48px;
+}
+.featureCopy .headline {
+  font-size: 42px;
+}
+.featureBrand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 18px;
+}
+.featureBoard {
+  align-self: center;
+}

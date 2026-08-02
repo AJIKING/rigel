@@ -4,7 +4,7 @@ import { STAR_COLOR, STAR_PATH } from "../../../components/StarMark";
 import { getProblem } from "../../../lib/api-server";
 import { BRAND } from "../../../lib/brand";
 import { loadOgFonts, loadTileImages } from "../../../lib/og-assets";
-import { problemOgCard, siteBaseUrl } from "../../../lib/og-meta";
+import { problemOgCard, siteBaseUrl, siteHost } from "../../../lib/og-meta";
 
 // /p/[id] の動的OG画像（SNSカード）。/k と同じ next/og(satori) 流儀で、
 // 何切るは「手牌そのもの」をカードに描く（何の問題かが共有先で一目で伝わる）。
@@ -30,8 +30,9 @@ export default async function OgImage({ params }: { params: Promise<{ id: string
       ? await loadTileImages(tiles.map((t) => `${siteBaseUrl()}/tiles/${tileAssetName(t)}.svg`))
       : null;
 
-  // 第2引数はフォントサブセットの字種列。カードに描く全テキスト（ワードマーク含む）を渡す。
-  const fonts = await loadOgFonts(card.title, `${card.info}あなたなら何を切る？${BRAND}`);
+  const host = siteHost();
+  // 第2引数はフォントサブセットの字種列。カードに描く全テキスト（ワードマーク・ドメイン含む）を渡す。
+  const fonts = await loadOgFonts(card.title, `${card.info}あなたなら何を切る？${BRAND}${host}`);
 
   return new ImageResponse(
     <div
@@ -52,6 +53,22 @@ export default async function OgImage({ params }: { params: Promise<{ id: string
           <path d={STAR_PATH} fill={STAR_COLOR} />
         </svg>
         <div style={{ fontSize: 38, letterSpacing: 10 }}>{BRAND}</div>
+        <div
+          style={{
+            marginLeft: "auto",
+            display: "flex",
+            alignItems: "center",
+            fontSize: 26,
+            fontWeight: 700,
+            color: "rgba(255,255,255,0.92)",
+            background: "rgba(0,0,0,0.28)",
+            border: "2px solid rgba(255,255,255,0.30)",
+            borderRadius: 999,
+            padding: "8px 26px",
+          }}
+        >
+          {host}
+        </div>
       </div>
       <div style={{ fontSize: 56, fontWeight: 700, lineHeight: 1.3, lineClamp: 2 }}>
         {card.title}
