@@ -126,7 +126,8 @@ export function registerKifuRoutes(app: Hono<AppEnv>): void {
     if (!started.ok) {
       return c.json({ ok: false, reason: started.reason }, reasonStatus(started.reason));
     }
-    return c.json({ ok: true, jobId: started.jobId }, 202);
+    // gameId も返す（半荘先行作成。クライアントが一覧の「解析中」カードと紐づけられる）。
+    return c.json({ ok: true, jobId: started.jobId, gameId: started.gameId }, 202);
   });
 
   // 解析ジョブの状態（所有者のみ。ポーリング用 = RL_READ の対象）。

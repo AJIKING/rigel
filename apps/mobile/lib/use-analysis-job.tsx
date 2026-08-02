@@ -1,10 +1,10 @@
-// 解析ジョブのグローバル状態（docs/plans/async-analysis.md 8-2 案B「送信したら一覧へ」）。
-// ポーリングは画面ではなくこの Provider が一本で持つ:
-//   - 画面遷移・アプリの開き直しでも進行が生きる（マウント時に SecureStore から復元）
-//   - 二重ポーリングが構造的に起きない（進行中の start は false で拒否＝保存枠を潰さない）
-//   - サインアウトでポーリングを中断し（shouldStop）、カードを消す。保存記録は userId 付きで
-//     残し、同じユーザーの再ログインでだけ復元する（別アカウントに化けて出さない）
-// done はカードを消して completedCount を増やし、一覧が refetch する（実カードが現れる）。
+// 解析ジョブのグローバル状態（docs/plans/async-analysis.md 8-3 半荘先行作成）。
+// 表示の真実源はサーバー（一覧/詳細 DTO の analysisStatus バッジ）。この Provider は
+//   - ジョブのポーリングを一本で持つ（画面遷移・開き直しでも進行が生きる。復元も担う）
+//   - 終端（done/failed）やタイムアウトで settledCount を増やし、一覧に refetch させる
+//   - サインアウトでポーリングを中断（shouldStop）。保存記録は userId 付きで残し、
+//     同じユーザーの再ログインでだけ復元する（別アカウントに化けて出さない）
+//   - 進行中の start は false で拒否（解析はひとつずつ＝保存枠を潰さない）
 
 import {
   createContext,
@@ -24,35 +24,25 @@ import {
 } from "./analysis-job";
 import { useAuth } from "./auth";
 
-export type AnalysisCard =
-  { kind: "processing"; seq?: number } | { kind: "failed"; message: string } | { kind: "timeout" };
-
 interface AnalysisJobContextValue {
-  /** 一覧に出すカード（null = 出さない）。 */
-  card: AnalysisCard | null;
-  /** 完了のたびに増える（一覧の refetch トリガ）。 */
-  completedCount: number;
+  /** ジョブが終端（done/failed）やタイムアウトに達するたび増える（一覧の refetch トリガ）。 */
+  settledCount: number;
   /** 202 で受け取ったジョブを永続化してポーリングを開始する（撮影画面から）。
    *  進行中のジョブがあるときは開始せず false を返す（解析はひとつずつ）。 */
   start: (pending: PendingAnalysis) => Promise<boolean>;
-  /** failed / timeout カードを閉じる。 */
-  dismiss: () => void;
 }
 
 // Provider の外（未配線の画面・テスト）では不活性な既定値（App ルートで必ず配る）。
 const INERT: AnalysisJobContextValue = {
-  card: null,
-  completedCount: 0,
+  settledCount: 0,
   start: () => Promise.resolve(false),
-  dismiss: () => {},
 };
 
 const AnalysisJobContext = createContext<AnalysisJobContextValue>(INERT);
 
 export function AnalysisJobProvider({ children }: { children: ReactNode }) {
   const { token, user } = useAuth();
-  const [card, setCard] = useState<AnalysisCard | null>(null);
-  const [completedCount, setCompletedCount] = useState(0);
+  const [settledCount, setSettledCount] = useState(0);
   const polling = useRef(false);
 
   // ポーリングのループ内から「今の」セッションを見るための参照（クロージャに固定させない）。
@@ -65,26 +55,16 @@ export function AnalysisJobProvider({ children }: { children: ReactNode }) {
     const myToken = tokenRef.current;
     if (!myToken || polling.current) return;
     polling.current = true;
-    setCard({ kind: "processing", ...(pending.seq !== undefined ? { seq: pending.seq } : {}) });
     // サインアウト（トークンが変わった）ら次の周期で中断する。
     const outcome = await pollAnalysisJob(myToken, pending, undefined, () => {
       return tokenRef.current !== myToken;
     });
     polling.current = false;
-    if (outcome.kind === "cancelled") {
-      // 中断: カードだけ消す。記録は残す（同じユーザーの再ログインで復元される）。
-      setCard(null);
-      return;
-    }
+    if (outcome.kind === "cancelled") return; // 記録は残す（同じユーザーの再ログインで復元）
     await clearPendingAnalysis();
-    if (outcome.kind === "done") {
-      setCard(null);
-      setCompletedCount((n) => n + 1);
-    } else if (outcome.kind === "failed") {
-      setCard({ kind: "failed", message: outcome.message });
-    } else {
-      setCard({ kind: "timeout" });
-    }
+    // done/failed はサーバーのバッジに反映済み。timeout もジョブ自体は進んでいるため、
+    // いずれも一覧を再取得させて最新状態（実カード or 解析中/失敗バッジ）を見せる。
+    setSettledCount((n) => n + 1);
   }, []);
 
   const start = useCallback(
@@ -102,12 +82,10 @@ export function AnalysisJobProvider({ children }: { children: ReactNode }) {
     [track],
   );
 
-  // セッション遷移: サインアウトでカードを消す（ポーリングは shouldStop が止める）。
-  // 新しいトークンでは復元をやり直せるようフラグを戻す。
+  // セッション遷移: 新しいトークンでは復元をやり直せるようフラグを戻す。
   const restored = useRef(false);
   const prevToken = useRef<string | null>(null);
   useEffect(() => {
-    if (prevToken.current && !token) setCard(null);
     if (token && token !== prevToken.current) restored.current = false;
     prevToken.current = token;
   }, [token]);
@@ -127,10 +105,8 @@ export function AnalysisJobProvider({ children }: { children: ReactNode }) {
     });
   }, [token, track]);
 
-  const dismiss = useCallback(() => setCard(null), []);
-
   return (
-    <AnalysisJobContext.Provider value={{ card, completedCount, start, dismiss }}>
+    <AnalysisJobContext.Provider value={{ settledCount, start }}>
       {children}
     </AnalysisJobContext.Provider>
   );

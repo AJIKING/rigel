@@ -23,8 +23,8 @@ export interface AnalysisImageStore {
 export interface AnalysisJobMessage {
   jobId: string;
   userId: string;
-  /** 追加先の半荘（未指定なら新規作成）。 */
-  gameId?: string;
+  /** 保存先の半荘（半荘先行作成により常にある。plan 8-3）。 */
+  gameId: string;
   cameraBottomSeat: Seat;
   riverKey: string;
   handKeys: Partial<Record<CameraSeat, string>>;

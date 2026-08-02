@@ -3,9 +3,11 @@
 //   ListPublicGames: 公開局を含む半荘を全ユーザーから新着順に（公開牌譜）。
 // 牌譜(局)の公開範囲は game_log 単位なので、半荘は「公開局を含むか」で公開扱いにする。
 
+import type { AnalysisJobRepository } from "../domain/analysis/analysis-job";
 import type { GameRepository } from "../domain/game/game.repository";
 import type { GameLogRepository } from "../domain/kifu/game-log.repository";
 import type { UserRepository } from "../domain/user/user.repository";
+import { deriveAnalysisStatus, type GameAnalysisStatus } from "./analysis-status";
 
 export interface MyGameCard {
   id: string;
@@ -17,6 +19,8 @@ export interface MyGameCard {
   publicCount: number;
   /** 下書き(draft)の局数（0 なら全局が編集済）。一覧の下書き/編集済表示に使う。 */
   draftCount: number;
+  /** 解析ジョブの状態（半荘先行作成。plan 8-3）。null=通常表示。 */
+  analysisStatus: GameAnalysisStatus | null;
 }
 
 export interface PublicGameCard {
@@ -38,10 +42,14 @@ export class ListMyGamesWithCounts {
   constructor(
     private readonly games: GameRepository,
     private readonly gameLogs: GameLogRepository,
+    private readonly jobs: AnalysisJobRepository,
+    private readonly now: () => Date = () => new Date(),
   ) {}
 
   async execute(userId: string): Promise<MyGameCard[]> {
     const games = await this.games.listByUser(userId);
+    // 解析中/解析失敗の表示はサーバーが真実源（端末をまたいでも見える。plan 8-3）。
+    const analysis = deriveAnalysisStatus(await this.jobs.listByUser(userId), this.now());
     const cards = await Promise.all(
       games.map(async (g) => {
         const logs = await this.gameLogs.listByGame(g.id);
@@ -54,6 +62,7 @@ export class ListMyGamesWithCounts {
           publicCount: logs.filter((l) => l.visibility === "public" && l.status === "complete")
             .length,
           draftCount: logs.filter((l) => l.status === "draft").length,
+          analysisStatus: analysis.get(g.id) ?? null,
         };
       }),
     );

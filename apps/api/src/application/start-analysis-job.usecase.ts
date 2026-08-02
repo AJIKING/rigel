@@ -16,13 +16,17 @@ import {
   type AnalysisJobMessage,
   type AnalysisQueue,
 } from "../domain/analysis/analysis-transport";
+import type { GameRepository } from "../domain/game/game.repository";
 import type { ImageRef } from "../domain/kifu/analyzer";
+import { deriveAnalysisStatus } from "./analysis-status";
 import type { AnalyzeReason } from "./analyze-and-save-kifu.usecase";
 
 export interface StartAnalysisJobDeps {
   jobs: AnalysisJobRepository;
   images: AnalysisImageStore;
   queue: AnalysisQueue;
+  /** 半荘先行作成（plan 8-3）: 新規の場合ここで半荘を作る。 */
+  games: GameRepository;
   /** 同期検証だけを使う（解析本体は consumer 側）。 */
   analyze: {
     preflight(
@@ -46,7 +50,7 @@ export interface StartAnalysisParams {
 }
 
 export type StartAnalysisJobResult =
-  { ok: true; jobId: string } | { ok: false; reason: AnalyzeReason };
+  { ok: true; jobId: string; gameId: string } | { ok: false; reason: AnalyzeReason };
 
 /** ジョブ状態のクライアント向け DTO（userId は出さない）。 */
 export interface AnalysisJobView {
@@ -82,10 +86,25 @@ export class StartAnalysisJob {
   constructor(private readonly deps: StartAnalysisJobDeps) {}
 
   async start(params: StartAnalysisParams): Promise<StartAnalysisJobResult> {
-    const { jobs, images, queue, analyze, now, newId } = this.deps;
+    const { jobs, images, queue, games, analyze, now, newId } = this.deps;
 
     const pre = await analyze.preflight(params.userId, params.gameId);
     if (!pre.ok) return pre;
+
+    let gameId = params.gameId;
+    if (gameId) {
+      // 同じ半荘に processing のジョブがあるうちは受け付けない（再送信による二局作成の根治。
+      // クライアント表示が失敗/タイムアウトでもサーバーのジョブは進んでいることがある）。
+      const status = deriveAnalysisStatus(await jobs.listByUser(params.userId), now());
+      if (status.get(gameId) === "processing") {
+        return { ok: false, reason: "game_analyzing" };
+      }
+    } else {
+      // 半荘先行作成（plan 8-3）: 解析中/失敗をこの半荘の実体として見せる。
+      // 失敗しても半荘は 0 局のまま「解析失敗」ステータスで残す（[決定] 2026-08-02）。
+      gameId = newId();
+      await games.save({ id: gameId, userId: params.userId, title: "", createdAt: now() });
+    }
 
     const jobId = newId();
     const prefix = analysisJobPrefix(jobId);
@@ -100,23 +119,23 @@ export class StartAnalysisJob {
         handKeys[cam] = key;
       }
 
-      await jobs.create({ id: jobId, userId: params.userId, now: now() });
+      await jobs.create({ id: jobId, userId: params.userId, gameId, now: now() });
 
       const message: AnalysisJobMessage = {
         jobId,
         userId: params.userId,
-        ...(params.gameId ? { gameId: params.gameId } : {}),
+        gameId,
         cameraBottomSeat: params.cameraBottomSeat,
         riverKey,
         handKeys,
         ...(params.handFromRiver ? { handFromRiver: true } : {}),
       };
       await queue.send(message);
-      return { ok: true, jobId };
+      return { ok: true, jobId, gameId };
     } catch (e) {
-      // 途中失敗は宙に浮かせない: ジョブがあれば failed、置いた画像は必ず消す。
+      // 途中失敗は宙に浮かせない: ジョブがあれば failed に。画像は消さない
+      // （失敗した半荘のリトライ用に残す方針。掃除は R2 のライフサイクル1日。plan 8-3）。
       await jobs.markFailed(jobId, { reason: "enqueue_failed", now: now() }).catch(() => {});
-      await images.deletePrefix(prefix).catch(() => {});
       throw e;
     }
   }

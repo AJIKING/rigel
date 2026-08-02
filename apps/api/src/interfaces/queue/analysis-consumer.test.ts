@@ -10,6 +10,7 @@ import { consumeAnalysisBatch } from "./analysis-consumer";
 const body: AnalysisJobMessage = {
   jobId: "job-1",
   userId: "u1",
+  gameId: "g1",
   cameraBottomSeat: "east",
   riverKey: "jobs/job-1/river",
   handKeys: {},

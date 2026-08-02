@@ -128,6 +128,8 @@ export interface GameDetail {
   /** この半荘のお気に入り数（所有者プレビューの★に添える）。 */
   favoriteCount: number;
   viewerFaved: boolean;
+  /** 解析ジョブの状態（半荘先行作成。plan 8-3）。null=通常表示。 */
+  analysisStatus?: GameAnalysisStatus | null;
 }
 
 /** マイページの半荘カード（局数・公開数・下書き数つき）。 */
@@ -151,6 +153,8 @@ export interface MyGameCard extends FavoriteFields {
   publicCount: number;
   /** 下書き(draft)の局数（0 なら全局が編集済）。 */
   draftCount: number;
+  /** 解析ジョブの状態（半荘先行作成。plan 8-3）。null=通常表示。 */
+  analysisStatus?: GameAnalysisStatus | null;
 }
 
 /** 公開牌譜フィードの半荘カード。 */
@@ -191,9 +195,13 @@ export interface MyFavorites {
 export type SetFavoriteResult =
   { ok: true; faved: boolean; favoriteCount: number } | { ok: false; status: number };
 
-/** 解析は非同期ジョブ（202 + jobId → getAnalysisJob でポーリング。docs/plans/async-analysis.md）。 */
+/** 解析は非同期ジョブ（202 + jobId → getAnalysisJob でポーリング。docs/plans/async-analysis.md）。
+ *  gameId は半荘先行作成（plan 8-3）で 202 時点から確定している。 */
 export type AnalyzeResult =
-  { ok: true; jobId: string } | { ok: false; status: number; reason?: string };
+  { ok: true; jobId: string; gameId: string } | { ok: false; status: number; reason?: string };
+
+/** 半荘の解析状態（一覧・詳細のバッジ表示。サーバー導出）。 */
+export type GameAnalysisStatus = "processing" | "failed";
 
 /** 解析ジョブの状態（GET /analyze/jobs/:id）。done で gameId/logId が入る。 */
 export interface AnalysisJob {
@@ -493,8 +501,8 @@ export function createApiClient(baseUrl: string, fetchImpl?: typeof fetch): ApiC
         body: form,
       });
       if (res.ok) {
-        const d = (await res.json()) as { jobId: string };
-        return { ok: true, jobId: d.jobId };
+        const d = (await res.json()) as { jobId: string; gameId: string };
+        return { ok: true, jobId: d.jobId, gameId: d.gameId };
       }
       const body = (await res.json().catch(() => ({}))) as { reason?: string; error?: string };
       return { ok: false, status: res.status, reason: body.reason ?? body.error };

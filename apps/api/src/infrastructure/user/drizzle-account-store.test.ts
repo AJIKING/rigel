@@ -75,8 +75,8 @@ describe("DrizzleAccountStore（実 SQLite）", () => {
     for (const id of ["u1", "u2"]) {
       await users.save(User.create({ id, googleSub: `sub-${id}`, now: NOW }));
     }
-    await jobs.create({ id: "j1", userId: "u1", now: NOW });
-    await jobs.create({ id: "j2", userId: "u2", now: NOW });
+    await jobs.create({ id: "j1", userId: "u1", gameId: "g-job", now: NOW });
+    await jobs.create({ id: "j2", userId: "u2", gameId: "g-job", now: NOW });
 
     const store = new DrizzleAccountStore(db);
     await store.deleteAll("u1");

@@ -46,6 +46,7 @@ function makeDetail(logs: { id: string; seq: number; honba?: number }[]): GameDe
     game: { id: "g1", userId: "u1", title: "テスト卓", createdAt: "2026-07-01T00:00:00.000Z" },
     favoriteCount: 0,
     viewerFaved: false,
+    analysisStatus: null,
     logs: logs.map((l) => ({
       id: l.id,
       userId: "u1",
@@ -82,6 +83,24 @@ describe("GameDetailScreen（半荘詳細の局一覧）", () => {
     mockUseGame.mockReturnValue({ loading: false, detail, refetch: jest.fn() });
     render(<GameDetailScreen />);
     expect(screen.queryByText(/要確認/)).toBeNull();
+  });
+
+  it("解析中の半荘は 0 局でも「AI解析中」の案内を出す（plan 8-3）", () => {
+    const detail = makeDetail([]);
+    detail.analysisStatus = "processing";
+    mockUseGame.mockReturnValue({ loading: false, detail, refetch: jest.fn() });
+    render(<GameDetailScreen />);
+
+    expect(screen.getByText(/AI解析中/)).toBeTruthy();
+  });
+
+  it("解析に失敗した半荘は失敗ステータスを表示する（[決定] 2026-08-02 オーナー）", () => {
+    const detail = makeDetail([]);
+    detail.analysisStatus = "failed";
+    mockUseGame.mockReturnValue({ loading: false, detail, refetch: jest.fn() });
+    render(<GameDetailScreen />);
+
+    expect(screen.getByText(/解析に失敗しました/)).toBeTruthy();
   });
 
   it("最後の1局の✕は無言で無視せず、消せない理由を表示する", () => {

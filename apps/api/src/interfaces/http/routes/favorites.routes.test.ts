@@ -23,6 +23,7 @@ import { DrizzleGameLogRepository } from "../../../infrastructure/kifu/drizzle-g
 import { DrizzleProblemRepository } from "../../../infrastructure/problem/drizzle-problem.repository";
 import { DrizzleUserRepository } from "../../../infrastructure/user/drizzle-user.repository";
 import { fakeEnv, issueTestToken, TEST_SESSION_SECRET } from "../../../test-support/billing";
+import { InMemoryAnalysisJobRepository } from "../../../test-support/in-memory-analysis";
 import { validKifu } from "../../../test-support/kifu";
 import { makeProblemData } from "../../../test-support/problem";
 import { makeTestDb } from "../../../test-support/sqlite";
@@ -86,7 +87,11 @@ async function makeFavoritesApp() {
     getFavoriteSummary: new GetFavoriteSummary(favorites),
     listMyFavorites: new ListMyFavorites({ favorites, games, gameLogs, problems, users }),
     listPublicGames: new ListPublicGames(games, gameLogs, users),
-    listMyGamesWithCounts: new ListMyGamesWithCounts(games, gameLogs),
+    listMyGamesWithCounts: new ListMyGamesWithCounts(
+      games,
+      gameLogs,
+      new InMemoryAnalysisJobRepository(),
+    ),
     listPublishedProblems: new ListPublishedProblems(problems),
   } as Partial<AppContainer> as AppContainer;
   const app = createApp({ container: () => container });

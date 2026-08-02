@@ -25,7 +25,13 @@ export type AnalyzeResult =
   { ok: true; gameLog: GameLog; gameId: string } | { ok: false; reason: AnalyzeReason };
 
 /** 解析を実行できなかった理由。 */
-export type AnalyzeReason = "user_not_found" | "quota_exceeded" | "game_not_found" | "game_full";
+export type AnalyzeReason =
+  | "user_not_found"
+  | "quota_exceeded"
+  | "game_not_found"
+  | "game_full"
+  /** 同じ半荘に processing のジョブがある（409。plan 8-3 の二局作成防止）。 */
+  | "game_analyzing";
 
 export interface AnalyzeDeps {
   users: UserRepository;
@@ -43,8 +49,8 @@ export interface AnalyzeDeps {
 export interface AnalyzeParams {
   userId: string;
   input: AnalysisInput;
-  /** 追加先の半荘。未指定なら新しい半荘を作る。 */
-  gameId?: string;
+  /** 保存先の半荘（半荘先行作成により必須。作成は StartAnalysisJob の責務。plan 8-3）。 */
+  gameId: string;
 }
 
 export class AnalyzeAndSaveKifu {
@@ -82,26 +88,19 @@ export class AnalyzeAndSaveKifu {
     // Free は AI再現なし（枠0）＝ここで弾かれる。解析できるのは有料プランのみ。
     if (!user.canAnalyze(now())) return { ok: false, reason: "quota_exceeded" };
 
-    // 既存半荘の指定があれば、解析の前に所有確認（無駄な解析・課金を避ける）。
-    let game: Game | null = null;
-    if (params.gameId) {
-      game = await games.findById(params.gameId);
-      if (!game || game.userId !== user.id) return { ok: false, reason: "game_not_found" };
-      // 1半荘30局まで（解析前に弾いて無駄な課金を避ける）。
-      if ((await gameLogs.listByGame(game.id)).length >= MAX_LOGS_PER_GAME) {
-        return { ok: false, reason: "game_full" };
-      }
+    // 半荘は先行作成済み（StartAnalysisJob。plan 8-3）。所有確認と上限だけ見る。
+    const game: Game | null = await games.findById(params.gameId);
+    if (!game || game.userId !== user.id) return { ok: false, reason: "game_not_found" };
+    // 1半荘30局まで（解析前に弾いて無駄な課金を避ける）。
+    if ((await gameLogs.listByGame(game.id)).length >= MAX_LOGS_PER_GAME) {
+      return { ok: false, reason: "game_full" };
     }
 
     // 画像 → 牌譜ドラフト（Analyzer 内で Zod 検証済みのものが返る契約）。
-    // ここで例外が出たら以降は実行されず、半荘作成も保存もカウント加算もされない。
+    // ここで例外が出たら以降は実行されず、保存もカウント加算もされない。
     const { kifu, geminiCalls } = await analyzer.analyze(params.input);
 
-    // 解析が成功してから、新規なら半荘を組み立てる（保存はトランザクション内）。
-    const isNewGame = game === null;
-    if (!game) game = { id: newId(), userId: user.id, title: "", createdAt: now() };
-
-    const existing = isNewGame ? [] : await gameLogs.listByGame(game.id);
+    const existing = await gameLogs.listByGame(game.id);
     const gameLog: GameLog = {
       id: newId(),
       userId: user.id,
@@ -120,7 +119,8 @@ export class AnalyzeAndSaveKifu {
     // 月境界のリセット時刻はドメインの規則（firstOfNextMonthUtc）で決める。
     const at = now();
     await store.commit({
-      newGame: isNewGame ? game : null,
+      newGame: null, // 半荘は先行作成済み（StartAnalysisJob）
+
       gameLog,
       counter: {
         userId: user.id,

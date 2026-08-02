@@ -125,17 +125,19 @@ describe("AnalyzeAndSaveKifu.preflight（非同期ジョブ化の同期検証。
 });
 
 describe("AnalyzeAndSaveKifu", () => {
-  it("成功すると新規半荘に private 局として保存され、実呼び出し回数ぶん加算される", async () => {
+  it("成功すると指定半荘に private 局として保存され、実呼び出し回数ぶん加算される（半荘は先行作成済み）", async () => {
     const user = paidUser(0);
+    const game: Game = { id: "g1", userId: "u1", title: "", createdAt: NOW };
     const { usecase, gameLogs, games } = makeUsecase({
       user,
       analyzer: new FakeAnalyzer(validKifu, 4),
+      games: [game],
     });
 
-    const result = await usecase.execute({ userId: "u1", input: dummyInput });
+    const result = await usecase.execute({ userId: "u1", input: dummyInput, gameId: "g1" });
 
     expect(result.ok).toBe(true);
-    expect(await games.listByUser("u1")).toHaveLength(1); // 新規半荘を作る
+    expect(await games.listByUser("u1")).toHaveLength(1); // 半荘は増えない（先行作成が前提）
     expect(gameLogs.saved).toHaveLength(1);
     const log = gameLogs.saved[0];
     expect(log?.gameId).not.toBeNull();
@@ -190,7 +192,7 @@ describe("AnalyzeAndSaveKifu", () => {
     const analyzer = new FakeAnalyzer(validKifu);
     const { usecase, gameLogs } = makeUsecase({ user, analyzer });
 
-    const result = await usecase.execute({ userId: "u1", input: dummyInput });
+    const result = await usecase.execute({ userId: "u1", input: dummyInput, gameId: "g1" });
 
     expect(result).toEqual({ ok: false, reason: "quota_exceeded" });
     expect(analyzer.calls).toBe(0); // 解析を呼ばない（コストもかけない）
@@ -203,11 +205,16 @@ describe("AnalyzeAndSaveKifu", () => {
 
   it("解析が失敗したらカウントを進めず保存もしない（成功時のみ加算）", async () => {
     const user = paidUser(3);
-    const { usecase, gameLogs } = makeUsecase({ user, analyzer: new FailingAnalyzer() });
+    const game: Game = { id: "g1", userId: "u1", title: "", createdAt: NOW };
+    const { usecase, gameLogs } = makeUsecase({
+      user,
+      analyzer: new FailingAnalyzer(),
+      games: [game],
+    });
 
-    await expect(usecase.execute({ userId: "u1", input: dummyInput })).rejects.toThrow(
-      "analyze failed",
-    );
+    await expect(
+      usecase.execute({ userId: "u1", input: dummyInput, gameId: "g1" }),
+    ).rejects.toThrow("analyze failed");
 
     expect(gameLogs.saved).toHaveLength(0);
     expect(user.analysisCountThisMonth).toBe(3);
@@ -215,7 +222,7 @@ describe("AnalyzeAndSaveKifu", () => {
 
   it("ユーザーが存在しなければ user_not_found", async () => {
     const { usecase } = makeUsecase({ analyzer: new FakeAnalyzer(validKifu) });
-    const result = await usecase.execute({ userId: "missing", input: dummyInput });
+    const result = await usecase.execute({ userId: "missing", input: dummyInput, gameId: "g1" });
     expect(result).toEqual({ ok: false, reason: "user_not_found" });
   });
 });

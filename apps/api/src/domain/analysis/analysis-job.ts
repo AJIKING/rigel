@@ -18,10 +18,12 @@ export interface AnalysisJob {
 }
 
 export interface AnalysisJobRepository {
-  /** processing 状態でジョブを作る。 */
-  create(params: { id: string; userId: string; now: Date }): Promise<void>;
+  /** processing 状態でジョブを作る（半荘先行作成: gameId は最初から紐づく。plan 8-3）。 */
+  create(params: { id: string; userId: string; gameId: string; now: Date }): Promise<void>;
   /** 所有者のジョブだけ返す（他人・不存在は null）。 */
   findForUser(id: string, userId: string): Promise<AnalysisJob | null>;
+  /** 所有者のジョブ一覧（一覧 DTO の analysisStatus 導出用。件数は少ない前提）。 */
+  listByUser(userId: string): Promise<AnalysisJob[]>;
   markDone(id: string, params: { gameId: string; logId: string; now: Date }): Promise<void>;
   markFailed(id: string, params: { reason: string; now: Date }): Promise<void>;
 }

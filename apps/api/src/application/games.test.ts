@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { Game } from "../domain/game/game";
 import type { GameLog } from "../domain/kifu/game-log";
 import { InMemoryGameLogRepository, InMemoryGameRepository } from "../test-support/in-memory";
+import { InMemoryAnalysisJobRepository } from "../test-support/in-memory-analysis";
 import { validKifu } from "../test-support/kifu";
 import { GetGameWithLogs } from "./get-game-with-logs.usecase";
 import { ListGames } from "./list-games.usecase";
@@ -35,7 +36,11 @@ describe("GetGameWithLogs", () => {
     await logs.save(log("l1", "g1", 1));
     await logs.save(log("other", "g2", 1));
 
-    const detail = await new GetGameWithLogs(games, logs).execute("g1", "u1");
+    const detail = await new GetGameWithLogs(
+      games,
+      logs,
+      new InMemoryAnalysisJobRepository(),
+    ).execute("g1", "u1");
     expect(detail?.game.id).toBe("g1");
     expect(detail?.logs.map((l) => l.id)).toEqual(["l1", "l2"]);
   });
@@ -44,6 +49,7 @@ describe("GetGameWithLogs", () => {
     const detail = await new GetGameWithLogs(
       new InMemoryGameRepository(),
       new InMemoryGameLogRepository(),
+      new InMemoryAnalysisJobRepository(),
     ).execute("nope", "u1");
     expect(detail).toBeNull();
   });
@@ -55,10 +61,11 @@ describe("GetGameWithLogs", () => {
     { name: "未ログインには null（存在を漏らさない）", viewerId: null, visible: false },
   ])("$name", async ({ viewerId, visible }) => {
     const games = new InMemoryGameRepository([game("g1", "u1")]);
-    const detail = await new GetGameWithLogs(games, new InMemoryGameLogRepository()).execute(
-      "g1",
-      viewerId,
-    );
+    const detail = await new GetGameWithLogs(
+      games,
+      new InMemoryGameLogRepository(),
+      new InMemoryAnalysisJobRepository(),
+    ).execute("g1", viewerId);
     if (visible) expect(detail?.game.id).toBe("g1");
     else expect(detail).toBeNull();
   });

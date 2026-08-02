@@ -12,12 +12,12 @@ import type { ImageRef } from "../domain/kifu/analyzer";
 export class InMemoryAnalysisJobRepository implements AnalysisJobRepository {
   jobs = new Map<string, AnalysisJob>();
 
-  create(params: { id: string; userId: string; now: Date }): Promise<void> {
+  create(params: { id: string; userId: string; gameId?: string; now: Date }): Promise<void> {
     this.jobs.set(params.id, {
       id: params.id,
       userId: params.userId,
       status: "processing",
-      gameId: null,
+      gameId: params.gameId ?? null,
       logId: null,
       reason: null,
       createdAt: params.now,
@@ -29,6 +29,14 @@ export class InMemoryAnalysisJobRepository implements AnalysisJobRepository {
   findForUser(id: string, userId: string): Promise<AnalysisJob | null> {
     const job = this.jobs.get(id);
     return Promise.resolve(job && job.userId === userId ? job : null);
+  }
+
+  listByUser(userId: string): Promise<AnalysisJob[]> {
+    return Promise.resolve(
+      [...this.jobs.values()]
+        .filter((j) => j.userId === userId)
+        .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime()),
+    );
   }
 
   markDone(id: string, params: { gameId: string; logId: string; now: Date }): Promise<void> {

@@ -3,7 +3,6 @@ import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { planKifuLimits, sortMyList, type MyListSortKey } from "@rigel/ui";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { FlatList, Pressable, StyleSheet, Text, View } from "react-native";
-import { AnalysisJobCard } from "../components/AnalysisJobCard";
 import { CenterState } from "../components/CenterState";
 import { KifuCard } from "../components/KifuCard";
 import { MyListToolbar } from "../components/MyListToolbar";
@@ -42,12 +41,12 @@ export function MyListScreen() {
     }, [refetch]),
   );
 
-  // 解析ジョブ（非同期解析。docs/plans/async-analysis.md 8-2）: 進行/失敗カードを一覧の
-  // 上に出し、完了（completedCount の変化）で再取得して実カードを出す。
-  const { card: analysisCard, completedCount, dismiss } = useAnalysisJob();
+  // 解析ジョブ（plan 8-3）: 表示は各カードの analysisStatus バッジ（サーバーが真実源）。
+  // ジョブの終端（settledCount の変化）で再取得して最新状態を出す。
+  const { settledCount } = useAnalysisJob();
   useEffect(() => {
     refetch();
-  }, [completedCount, refetch]);
+  }, [settledCount, refetch]);
 
   /** 半荘を長押しで削除（確認つき。成功で一覧を再取得）。 */
   function onDelete(gameId: string, title: string) {
@@ -117,8 +116,6 @@ export function MyListScreen() {
           )}
         </View>
       )}
-      {/* 解析中カードは 0 件・ロード中でも出す（初めての解析で空画面に置き去りにしない）。 */}
-      {analysisCard ? <AnalysisJobCard card={analysisCard} onDismiss={dismiss} /> : null}
       {loading ? (
         <CenterState loading />
       ) : shown.length === 0 ? (
@@ -140,13 +137,19 @@ export function MyListScreen() {
             <KifuCard
               title={item.title || "（無題の半荘）"}
               badges={[
+                // 解析中/解析失敗はカード自体の状態として先頭に出す（plan 8-3。サーバー導出）。
+                ...(item.analysisStatus === "processing"
+                  ? [{ label: "解析中…", tone: "accent" } as const]
+                  : item.analysisStatus === "failed"
+                    ? [{ label: "解析失敗", tone: "warn" } as const]
+                    : []),
                 item.publicCount > 0
-                  ? { label: "公開", tone: "accent" }
-                  : { label: "非公開", tone: "muted" },
+                  ? { label: "公開", tone: "accent" as const }
+                  : { label: "非公開", tone: "muted" as const },
                 // 下書きが1局でもあれば注意色で示し（件数は出さない）、無ければ編集済。
                 item.draftCount > 0
-                  ? { label: "下書き", tone: "warn" }
-                  : { label: "編集済", tone: "muted" },
+                  ? { label: "下書き", tone: "warn" as const }
+                  : { label: "編集済", tone: "muted" as const },
               ]}
               metaParts={[relativeTime(item.createdAt), `${item.kyokuCount}局`]}
               fav={item.viewerFaved}

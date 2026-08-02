@@ -305,6 +305,16 @@ export function GameDetailScreen() {
           </View>
         </View>
         {note ? <Text style={styles.note}>{note}</Text> : null}
+        {/* 解析ジョブの状態（plan 8-3。サーバー導出。0局のうちはここが半荘の"中身"）。 */}
+        {detail.analysisStatus === "processing" ? (
+          <Text style={styles.analyzing} accessibilityLiveRegion="polite">
+            AI解析中です。完了すると局が追加されます（アプリを閉じてもOK）。
+          </Text>
+        ) : detail.analysisStatus === "failed" ? (
+          <Text style={styles.analyzeFailed}>
+            解析に失敗しました。「＋ 局を追加」からやり直せます。
+          </Text>
+        ) : null}
       </View>
       <FlatList
         data={detail.logs}
@@ -419,6 +429,8 @@ const styles = StyleSheet.create({
   },
   addBtnText: { color: "#16181d", fontWeight: "800", fontSize: 13 },
   delWrap: { marginLeft: "auto" },
+  analyzing: { color: colors.accent, fontSize: 12.5, fontWeight: "700", marginTop: 6 },
+  analyzeFailed: { color: colors.danger, fontSize: 12.5, fontWeight: "700", marginTop: 6 },
   // 本文エラーは danger（theme の規約。vermilion は塗り・記号用）。
   note: { color: colors.danger, fontSize: 12, marginTop: 8 },
   card: {

@@ -7,6 +7,7 @@ import {
   InMemoryGameRepository,
   InMemoryUserRepository,
 } from "../test-support/in-memory";
+import { InMemoryAnalysisJobRepository } from "../test-support/in-memory-analysis";
 import { validKifu } from "../test-support/kifu";
 import { ListMyGamesWithCounts, ListPublicGames } from "./list-game-cards.usecase";
 
@@ -52,7 +53,11 @@ describe("ListMyGamesWithCounts", () => {
     await gameLogs.save(log("l2", "u1", "g1", "private"));
     await gameLogs.save(log("l3", "u1", "g2", "private"));
 
-    const cards = await new ListMyGamesWithCounts(games, gameLogs).execute("u1");
+    const cards = await new ListMyGamesWithCounts(
+      games,
+      gameLogs,
+      new InMemoryAnalysisJobRepository(),
+    ).execute("u1");
 
     expect(cards.map((c) => c.id)).toEqual(["g2", "g1"]); // 新しい順
     const g1 = cards.find((c) => c.id === "g1")!;
@@ -67,7 +72,11 @@ describe("ListMyGamesWithCounts", () => {
     await gameLogs.save({ ...log("l2", "u1", "g1", "private"), status: "draft" });
     await gameLogs.save(log("l3", "u1", "g1", "private")); // complete
 
-    const cards = await new ListMyGamesWithCounts(games, gameLogs).execute("u1");
+    const cards = await new ListMyGamesWithCounts(
+      games,
+      gameLogs,
+      new InMemoryAnalysisJobRepository(),
+    ).execute("u1");
     expect(cards[0]?.draftCount).toBe(2);
   });
 });

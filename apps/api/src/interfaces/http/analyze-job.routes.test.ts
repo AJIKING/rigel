@@ -7,6 +7,7 @@ import { GetAnalysisJob, StartAnalysisJob } from "../../application/start-analys
 import type { AppContainer } from "../../composition-root";
 import { JwtSessionService } from "../../infrastructure/auth/jwt-session-service";
 import { fakeEnv } from "../../test-support/billing";
+import { InMemoryGameRepository } from "../../test-support/in-memory";
 import {
   InMemoryAnalysisImageStore,
   InMemoryAnalysisJobRepository,
@@ -36,6 +37,7 @@ function makeApp(opts: { preflightOk?: boolean } = {}) {
       jobs,
       images,
       queue,
+      games: new InMemoryGameRepository(),
       analyze: {
         preflight: () =>
           Promise.resolve(
@@ -103,12 +105,18 @@ describe("POST /analyze（202 + jobId）", () => {
     );
 
     expect(res.status).toBe(202);
-    const body = (await res.json()) as { ok: boolean; jobId: string };
-    expect(body).toEqual({ ok: true, jobId: "job-1" });
-    expect(jobs.jobs.get("job-1")?.status).toBe("processing");
-    expect(await images.get("jobs/job-1/river")).not.toBeNull();
+    const body = (await res.json()) as { ok: boolean; jobId: string; gameId: string };
+    // 半荘先行作成: 202 の時点で gameId が返る（newId 順で job-1=半荘、job-2=ジョブ）。
+    expect(body).toEqual({ ok: true, jobId: "job-2", gameId: "job-1" });
+    expect(jobs.jobs.get("job-2")).toMatchObject({ status: "processing", gameId: "job-1" });
+    expect(await images.get("jobs/job-2/river")).not.toBeNull();
     expect(queue.sent).toHaveLength(1);
-    expect(queue.sent[0]).toMatchObject({ jobId: "job-1", userId: "u1", cameraBottomSeat: "east" });
+    expect(queue.sent[0]).toMatchObject({
+      jobId: "job-2",
+      userId: "u1",
+      gameId: "job-1",
+      cameraBottomSeat: "east",
+    });
   });
 
   it("枠不足は従来どおり同期の 402（ジョブも画像も作らない）", async () => {

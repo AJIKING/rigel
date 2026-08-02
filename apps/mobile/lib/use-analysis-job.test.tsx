@@ -1,6 +1,6 @@
-// 解析ジョブのグローバル状態（docs/plans/async-analysis.md 8-2 案B）。
-// ポーリングは画面ではなく Provider が一本で持つ（画面遷移・開き直しでも進行が生き、
-// 二重ポーリングが構造的に起きない）。カード状態: processing → done(消える)/failed/timeout。
+// 解析ジョブのグローバル状態（docs/plans/async-analysis.md 8-3）。
+// 表示はサーバーのバッジ（analysisStatus）が真実源。Provider はポーリング・復元・
+// refetch トリガ（settledCount）・多重 start 拒否・サインアウト中断を担う。
 
 import { renderHook, waitFor } from "@testing-library/react-native";
 import type { ReactNode } from "react";
@@ -35,15 +35,24 @@ describe("useAnalysisJob", () => {
     mockAuth = { token: "tok", user: { id: "u1" } };
   });
 
-  it("start で userId 付きで永続化して processing カードを出し、done でカードが消え completedCount が増える", async () => {
+  it("start で userId 付きで永続化し、done で記録を掃除して settledCount が増える", async () => {
     mockPoll.mockResolvedValue({ kind: "done", gameId: "g1", logId: "l1" });
     const { result } = renderHook(() => useAnalysisJob(), { wrapper });
 
     await result.current.start({ jobId: "j1", startedAt: 0, seq: 3 });
 
     expect(mockSave).toHaveBeenCalledWith({ jobId: "j1", startedAt: 0, seq: 3, userId: "u1" });
-    await waitFor(() => expect(result.current.completedCount).toBe(1));
-    expect(result.current.card).toBeNull();
+    await waitFor(() => expect(result.current.settledCount).toBe(1));
+    expect(mockClear).toHaveBeenCalled();
+  });
+
+  it("failed / timeout でも settledCount が増える（サーバーのバッジを一覧に反映させる）", async () => {
+    mockPoll.mockResolvedValue({ kind: "failed", message: "x" });
+    const { result } = renderHook(() => useAnalysisJob(), { wrapper });
+
+    await result.current.start({ jobId: "j1", startedAt: 0 });
+
+    await waitFor(() => expect(result.current.settledCount).toBe(1));
     expect(mockClear).toHaveBeenCalled();
   });
 
@@ -53,56 +62,25 @@ describe("useAnalysisJob", () => {
     const { result } = renderHook(() => useAnalysisJob(), { wrapper });
 
     await result.current.start({ jobId: "j1", startedAt: 0 });
-    await waitFor(() => expect(result.current.card).toEqual({ kind: "processing" }));
+    await waitFor(() => expect(mockPoll).toHaveBeenCalled());
 
     const second = await result.current.start({ jobId: "j2", startedAt: 1 });
 
     expect(second).toBe(false);
     expect(mockSave).toHaveBeenCalledTimes(1); // j2 で j1 の記録を潰さない
     resolvePoll({ kind: "done", gameId: "g1", logId: "l1" });
-    await waitFor(() => expect(result.current.completedCount).toBe(1));
+    await waitFor(() => expect(result.current.settledCount).toBe(1));
   });
 
-  it("cancelled（サインアウト等の中断）はカードを消すが記録は消さない（再ログインで復元可能）", async () => {
+  it("cancelled（サインアウト等の中断）は記録を消さず settledCount も増やさない", async () => {
     mockPoll.mockResolvedValue({ kind: "cancelled" });
     const { result } = renderHook(() => useAnalysisJob(), { wrapper });
 
     await result.current.start({ jobId: "j1", startedAt: 0 });
 
-    await waitFor(() => expect(result.current.card).toBeNull());
+    await waitFor(() => expect(mockPoll).toHaveBeenCalled());
     expect(mockClear).not.toHaveBeenCalled();
-  });
-
-  it("別ユーザーの保存済みジョブは復元せず掃除する（前アカウントのカードを出さない）", async () => {
-    mockStored = { jobId: "j9", startedAt: 100, userId: "someone-else" };
-    const { result } = renderHook(() => useAnalysisJob(), { wrapper });
-
-    await waitFor(() => expect(mockClear).toHaveBeenCalled());
-    expect(mockPoll).not.toHaveBeenCalled();
-    expect(result.current.card).toBeNull();
-  });
-
-  it("failed は理由付きカードになり、dismiss で消える", async () => {
-    mockPoll.mockResolvedValue({ kind: "failed", message: "解析に失敗しました。" });
-    const { result } = renderHook(() => useAnalysisJob(), { wrapper });
-
-    await result.current.start({ jobId: "j1", startedAt: 0 });
-
-    await waitFor(() =>
-      expect(result.current.card).toEqual({ kind: "failed", message: "解析に失敗しました。" }),
-    );
-    result.current.dismiss();
-    await waitFor(() => expect(result.current.card).toBeNull());
-  });
-
-  it("timeout は案内カードになる（completedCount は増えない）", async () => {
-    mockPoll.mockResolvedValue({ kind: "timeout" });
-    const { result } = renderHook(() => useAnalysisJob(), { wrapper });
-
-    await result.current.start({ jobId: "j1", startedAt: 0 });
-
-    await waitFor(() => expect(result.current.card).toEqual({ kind: "timeout" }));
-    expect(result.current.completedCount).toBe(0);
+    expect(result.current.settledCount).toBe(0);
   });
 
   it("マウント時に保存済みジョブがあれば復元してポーリングする（開き直し）", async () => {
@@ -110,7 +88,7 @@ describe("useAnalysisJob", () => {
     mockPoll.mockResolvedValue({ kind: "done", gameId: "g9", logId: "l9" });
     const { result } = renderHook(() => useAnalysisJob(), { wrapper });
 
-    await waitFor(() => expect(result.current.completedCount).toBe(1));
+    await waitFor(() => expect(result.current.settledCount).toBe(1));
     expect(mockPoll).toHaveBeenCalledWith(
       "tok",
       { jobId: "j9", startedAt: 100, seq: 5 },
@@ -119,8 +97,16 @@ describe("useAnalysisJob", () => {
     );
   });
 
-  it("Provider の外では不活性な既定値を返す（テスト・未配線画面を壊さない）", () => {
+  it("別ユーザーの保存済みジョブは復元せず掃除する（前アカウントの状態を引き継がない）", async () => {
+    mockStored = { jobId: "j9", startedAt: 100, userId: "someone-else" };
+    renderHook(() => useAnalysisJob(), { wrapper });
+
+    await waitFor(() => expect(mockClear).toHaveBeenCalled());
+    expect(mockPoll).not.toHaveBeenCalled();
+  });
+
+  it("Provider の外では不活性な既定値を返す（テスト・未配線画面を壊さない）", async () => {
     const { result } = renderHook(() => useAnalysisJob());
-    expect(result.current.card).toBeNull();
+    expect(await result.current.start({ jobId: "x", startedAt: 0 })).toBe(false);
   });
 });

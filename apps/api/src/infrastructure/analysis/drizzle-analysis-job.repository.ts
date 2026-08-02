@@ -1,7 +1,7 @@
 // infrastructure/analysis — 解析ジョブの Drizzle 実装（docs/plans/async-analysis.md）。
 // 取得は常に所有者ガード付き（id + userId）。状態遷移は markDone / markFailed の2本だけ。
 
-import { and, eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import type { AnalysisJob, AnalysisJobRepository } from "../../domain/analysis/analysis-job";
 import type { Db } from "../db/client";
 import { analysisJobs } from "../db/schema";
@@ -9,14 +9,33 @@ import { analysisJobs } from "../db/schema";
 export class DrizzleAnalysisJobRepository implements AnalysisJobRepository {
   constructor(private readonly db: Db) {}
 
-  async create(params: { id: string; userId: string; now: Date }): Promise<void> {
+  async create(params: { id: string; userId: string; gameId: string; now: Date }): Promise<void> {
     await this.db.insert(analysisJobs).values({
       id: params.id,
       userId: params.userId,
+      gameId: params.gameId,
       status: "processing",
       createdAt: params.now,
       updatedAt: params.now,
     });
+  }
+
+  async listByUser(userId: string): Promise<AnalysisJob[]> {
+    const rows = await this.db
+      .select()
+      .from(analysisJobs)
+      .where(eq(analysisJobs.userId, userId))
+      .orderBy(desc(analysisJobs.createdAt));
+    return rows.map((row) => ({
+      id: row.id,
+      userId: row.userId,
+      status: row.status,
+      gameId: row.gameId,
+      logId: row.logId,
+      reason: row.reason,
+      createdAt: row.createdAt,
+      updatedAt: row.updatedAt,
+    }));
   }
 
   async findForUser(id: string, userId: string): Promise<AnalysisJob | null> {

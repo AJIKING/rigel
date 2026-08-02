@@ -36,14 +36,14 @@ describe("DrizzleAnalysisJobRepository", () => {
   });
 
   it("create したジョブは processing で取得できる", async () => {
-    await repo.create({ id: "job-1", userId: "u1", now: NOW });
+    await repo.create({ id: "job-1", userId: "u1", gameId: "g-job", now: NOW });
     const job = await repo.findForUser("job-1", "u1");
 
     expect(job).toMatchObject({
       id: "job-1",
       userId: "u1",
       status: "processing",
-      gameId: null,
+      gameId: "g-job", // 半荘先行作成（plan 8-3）: 作成時から紐づく
       logId: null,
       reason: null,
     });
@@ -52,14 +52,14 @@ describe("DrizzleAnalysisJobRepository", () => {
   });
 
   it("他人のジョブ・不存在のジョブは null（所有者ガード）", async () => {
-    await repo.create({ id: "job-1", userId: "u1", now: NOW });
+    await repo.create({ id: "job-1", userId: "u1", gameId: "g-job", now: NOW });
 
     expect(await repo.findForUser("job-1", "attacker")).toBeNull();
     expect(await repo.findForUser("missing", "u1")).toBeNull();
   });
 
   it("markDone で done になり gameId/logId と updatedAt が入る", async () => {
-    await repo.create({ id: "job-1", userId: "u1", now: NOW });
+    await repo.create({ id: "job-1", userId: "u1", gameId: "g-job", now: NOW });
     await repo.markDone("job-1", { gameId: "g1", logId: "l1", now: LATER });
 
     const job = await repo.findForUser("job-1", "u1");
@@ -67,15 +67,15 @@ describe("DrizzleAnalysisJobRepository", () => {
     expect(job?.updatedAt).toEqual(LATER);
   });
 
-  it("markFailed で failed になり reason が入る（gameId/logId は null のまま）", async () => {
-    await repo.create({ id: "job-1", userId: "u1", now: NOW });
+  it("markFailed で failed になり reason が入る（gameId は保持・logId は null のまま）", async () => {
+    await repo.create({ id: "job-1", userId: "u1", gameId: "g-job", now: NOW });
     await repo.markFailed("job-1", { reason: "analysis_failed", now: LATER });
 
     const job = await repo.findForUser("job-1", "u1");
     expect(job).toMatchObject({
       status: "failed",
       reason: "analysis_failed",
-      gameId: null,
+      gameId: "g-job",
       logId: null,
     });
   });

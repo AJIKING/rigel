@@ -1,10 +1,13 @@
-// 解析の非同期ジョブ化（docs/plans/async-analysis.md）。
-// start: 同期検証 → 画像を一時ストア（R2）へ → ジョブ作成 → キュー投入 → jobId。
-// 投入に失敗したらジョブを failed に落とし一時画像を削除する（宙に浮かせない）。
+// 解析の非同期ジョブ化（docs/plans/async-analysis.md 8-3 半荘先行作成）。
+// start: 同期検証 → 半荘を先に作成（既存指定ならそれ）→ 画像を R2 → ジョブ作成
+//        （gameId 紐付き）→ キュー投入 → jobId + gameId。
+// 同じ半荘に processing のジョブがあれば game_analyzing（二局作成の根治）。
+// 投入失敗はジョブを failed に落とす（画像はリトライ用に残す＝TTL任せ）。
 
 import { describe, expect, it } from "vitest";
 import type { ImageRef } from "../domain/kifu/analyzer";
 import { fakeImage } from "../test-support/image";
+import { InMemoryGameRepository } from "../test-support/in-memory";
 import {
   InMemoryAnalysisImageStore,
   InMemoryAnalysisJobRepository,
@@ -18,11 +21,13 @@ function makeUsecase(opts: { preflightOk?: boolean; queueFails?: boolean } = {})
   const jobs = new InMemoryAnalysisJobRepository();
   const images = new InMemoryAnalysisImageStore();
   const queue = new InMemoryAnalysisQueue(opts.queueFails ?? false);
+  const games = new InMemoryGameRepository();
   let n = 0;
   const usecase = new StartAnalysisJob({
     jobs,
     images,
     queue,
+    games,
     analyze: {
       preflight: () =>
         Promise.resolve(
@@ -32,9 +37,9 @@ function makeUsecase(opts: { preflightOk?: boolean; queueFails?: boolean } = {})
         ),
     },
     now: () => NOW,
-    newId: () => `job-${++n}`,
+    newId: () => `id-${++n}`,
   });
-  return { usecase, jobs, images, queue };
+  return { usecase, jobs, images, queue, games };
 }
 
 const river: ImageRef = fakeImage();
@@ -45,9 +50,9 @@ const params = {
   hands: { bottom: fakeImage() },
 };
 
-describe("StartAnalysisJob（R2 + Queue 版）", () => {
-  it("同期検証 NG ならジョブも画像もキューも作らない", async () => {
-    const { usecase, jobs, images, queue } = makeUsecase({ preflightOk: false });
+describe("StartAnalysisJob（半荘先行作成 + R2 + Queue）", () => {
+  it("同期検証 NG なら半荘もジョブも画像もキューも作らない", async () => {
+    const { usecase, jobs, images, queue, games } = makeUsecase({ preflightOk: false });
 
     const result = await usecase.start(params);
 
@@ -55,36 +60,56 @@ describe("StartAnalysisJob（R2 + Queue 版）", () => {
     expect(jobs.jobs.size).toBe(0);
     expect(images.size).toBe(0);
     expect(queue.sent).toHaveLength(0);
+    expect(await games.listByUser("u1")).toHaveLength(0);
   });
 
-  it("検証を通れば 画像保存 → processing ジョブ → キュー投入 の順で行い jobId を返す", async () => {
-    const { usecase, jobs, images, queue } = makeUsecase();
+  it("新規なら半荘を先に作成し、gameId 紐付きのジョブ → キュー投入 → jobId+gameId を返す", async () => {
+    const { usecase, jobs, images, queue, games } = makeUsecase();
+
+    const result = await usecase.start(params);
+
+    expect(result).toEqual({ ok: true, jobId: "id-2", gameId: "id-1" });
+    expect(await games.listByUser("u1")).toHaveLength(1); // 半荘先行作成
+    expect(jobs.jobs.get("id-2")).toMatchObject({ status: "processing", gameId: "id-1" });
+    expect(await images.get("jobs/id-2/river")).not.toBeNull();
+    expect(queue.sent[0]).toMatchObject({
+      jobId: "id-2",
+      userId: "u1",
+      gameId: "id-1",
+      riverKey: "jobs/id-2/river",
+      handKeys: { bottom: "jobs/id-2/hand_bottom" },
+    });
+  });
+
+  it("既存半荘に processing のジョブがあるうちは game_analyzing（二局作成の根治）", async () => {
+    const { usecase, jobs, games } = makeUsecase();
+    await games.save({ id: "g1", userId: "u1", title: "", createdAt: NOW });
+    await jobs.create({ id: "j0", userId: "u1", gameId: "g1", now: NOW });
 
     const result = await usecase.start({ ...params, gameId: "g1" });
 
-    expect(result).toEqual({ ok: true, jobId: "job-1" });
-    expect(jobs.jobs.get("job-1")?.status).toBe("processing");
-    expect(await images.get("jobs/job-1/river")).not.toBeNull();
-    expect(await images.get("jobs/job-1/hand_bottom")).not.toBeNull();
-    expect(queue.sent).toEqual([
-      {
-        jobId: "job-1",
-        userId: "u1",
-        gameId: "g1",
-        cameraBottomSeat: "east",
-        riverKey: "jobs/job-1/river",
-        handKeys: { bottom: "jobs/job-1/hand_bottom" },
-      },
-    ]);
+    expect(result).toEqual({ ok: false, reason: "game_analyzing" });
+    expect(jobs.jobs.size).toBe(1); // 新しいジョブは作らない
   });
 
-  it("キュー投入に失敗したらジョブを failed に落とし一時画像を削除して例外を伝える", async () => {
+  it("既存半荘の直近ジョブが終端（done/failed）なら受け付ける", async () => {
+    const { usecase, jobs, games } = makeUsecase();
+    await games.save({ id: "g1", userId: "u1", title: "", createdAt: NOW });
+    await jobs.create({ id: "j0", userId: "u1", gameId: "g1", now: NOW });
+    await jobs.markFailed("j0", { reason: "analysis_failed", now: NOW });
+
+    const result = await usecase.start({ ...params, gameId: "g1" });
+
+    expect(result).toMatchObject({ ok: true, gameId: "g1" });
+  });
+
+  it("キュー投入に失敗したらジョブを failed に落として例外を伝える（画像はリトライ用に残す）", async () => {
     const { usecase, jobs, images } = makeUsecase({ queueFails: true });
 
     await expect(usecase.start(params)).rejects.toThrow();
 
-    expect(jobs.jobs.get("job-1")?.status).toBe("failed");
-    expect(jobs.jobs.get("job-1")?.reason).toBe("enqueue_failed");
-    expect(images.size).toBe(0); // 消し漏れなし（保険の TTL に頼らない）
+    expect(jobs.jobs.get("id-2")?.status).toBe("failed");
+    expect(jobs.jobs.get("id-2")?.reason).toBe("enqueue_failed");
+    expect(images.size).toBe(2); // 画像は残す（掃除は R2 ライフサイクル1日）
   });
 });

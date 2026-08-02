@@ -62,7 +62,7 @@ export class RunAnalysisJob {
           cameraBottomSeat: message.cameraBottomSeat,
           ...(message.handFromRiver ? { handFromRiver: true } : {}),
         },
-        ...(message.gameId ? { gameId: message.gameId } : {}),
+        gameId: message.gameId,
       });
 
       // 終端書き込みは再送に乗せない: execute は成功済み（保存・課金加算済み）なので、
@@ -76,10 +76,11 @@ export class RunAnalysisJob {
             logId: result.gameLog.id,
             now: now(),
           });
+          await images.deletePrefix(prefix); // 成功したら一時画像は即削除
         } else {
+          // 失敗は画像を残す（リトライ用。掃除は R2 のライフサイクル1日。plan 8-3）。
           await jobs.markFailed(message.jobId, { reason: result.reason, now: now() });
         }
-        await images.deletePrefix(prefix);
       } catch (e) {
         console.error("analysis job terminal write failed", message.jobId, e);
       }
@@ -88,8 +89,7 @@ export class RunAnalysisJob {
       console.error("analysis job failed permanently", message.jobId, e);
       await jobs
         .markFailed(message.jobId, { reason: "analysis_failed", now: now() })
-        .catch(() => {});
-      await images.deletePrefix(prefix).catch(() => {});
+        .catch(() => {}); // 画像は残す（リトライ用）
     }
   }
 }

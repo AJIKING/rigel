@@ -19,6 +19,7 @@ const gameLog = { id: "log-1", gameId: "g1" } as unknown as GameLog;
 const message = {
   jobId: "job-1",
   userId: "u1",
+  gameId: "g1",
   cameraBottomSeat: "east" as const,
   riverKey: "jobs/job-1/river",
   handKeys: { bottom: "jobs/job-1/hand_bottom" } as const,
@@ -62,7 +63,7 @@ describe("RunAnalysisJob", () => {
     });
   });
 
-  it("reason 付き失敗は failed + reason になり、一時画像を削除する（再送しない）", async () => {
+  it("reason 付き失敗は failed + reason になり、画像はリトライ用に残す（再送しない）", async () => {
     const { usecase, jobs, images } = await makeFixture(() =>
       Promise.resolve({ ok: false, reason: "game_full" }),
     );
@@ -70,7 +71,7 @@ describe("RunAnalysisJob", () => {
     await usecase.execute(message, 1);
 
     expect(jobs.jobs.get("job-1")).toMatchObject({ status: "failed", reason: "game_full" });
-    expect(images.size).toBe(0);
+    expect(images.size).toBe(2); // 掃除は R2 のライフサイクル1日（plan 8-3）
   });
 
   it("一時画像が消えていたら failed(images_missing)（TTL 削除後の遅延再送に耐える）", async () => {
@@ -95,7 +96,7 @@ describe("RunAnalysisJob", () => {
     expect(images.size).toBe(2); // 再送で使うので消さない
   });
 
-  it("最終試行の例外は failed(analysis_failed) に落として ack（画像は削除）", async () => {
+  it("最終試行の例外は failed(analysis_failed) に落として ack（画像はリトライ用に残す）", async () => {
     const { usecase, jobs, images } = await makeFixture(() =>
       Promise.reject(new Error("Gemini API error: 500")),
     );
@@ -103,7 +104,7 @@ describe("RunAnalysisJob", () => {
     await expect(usecase.execute(message, MAX_ANALYSIS_ATTEMPTS)).resolves.toBeUndefined();
 
     expect(jobs.jobs.get("job-1")).toMatchObject({ status: "failed", reason: "analysis_failed" });
-    expect(images.size).toBe(0);
+    expect(images.size).toBe(2);
   });
 
   it("解析成功後の終端書き込み失敗は投げ返さない（再送で解析やり直し＝二重保存・二重課金にしない）", async () => {
