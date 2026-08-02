@@ -31,7 +31,7 @@ export function CaptureScreen() {
   const gameId = useRoute<RouteProp<RootStackParamList, "Capture">>().params?.gameId;
   const { token, user } = useAuth();
   // 解析ジョブの開始（ポーリングはグローバル Provider の責務。lib/use-analysis-job）。
-  const { start: startAnalysis } = useAnalysisJob();
+  const { start: startAnalysis, busy: analysisBusy } = useAnalysisJob();
   // 写真からのAI再現は有料プランのみ（free は解析枠0）。フリーには写真入力を出さない。
   const canAnalyze = planCanAnalyze(user?.plan ?? "free");
   // 残枠は撮る前に見せる（送信後の 403 で知るのでは撮影の手間が無駄になる）。
@@ -93,6 +93,12 @@ export function CaptureScreen() {
       setError("河（卓を上から1枚）の写真を選んでください。");
       return;
     }
+    // 多重送信ガードは POST の前に行う（202 の後に断ると、サーバー側では既に
+    // 半荘作成・キュー投入・課金が走ってしまう）。
+    if (analysisBusy) {
+      setError("解析はひとつずつ実行できます。進行中の解析が終わってからお試しください。");
+      return;
+    }
     setError(null);
     setSubmitting(true);
     try {
@@ -102,10 +108,10 @@ export function CaptureScreen() {
       form.append("river", toUploadFile(river));
       form.append("cameraBottomSeat", seat);
       if (gameId) form.append("gameId", gameId); // 既存半荘への局追加
-      if (handFromRiver) form.append("handFromRiver", "true"); // 1枚モード
+      if (handFromRiver) form.append("handFromRiver", "true"); // 1枚モード（四家。トグルONで hands は空）
       for (const cam of CAMS) {
         const f = hands[cam];
-        if (f && !(handFromRiver && cam === "bottom")) form.append(`hand_${cam}`, toUploadFile(f));
+        if (f) form.append(`hand_${cam}`, toUploadFile(f));
       }
       // 解析は非同期ジョブ（202 + jobId）。ポーリングはグローバルな Provider に任せ、
       // この画面は一覧へ戻る（一覧の先頭に解析中カードが出る。案B・plan 8-2）。

@@ -143,13 +143,19 @@ export function MyListScreen() {
                   : item.analysisStatus === "failed"
                     ? [{ label: "解析失敗", tone: "warn" } as const]
                     : []),
-                item.publicCount > 0
-                  ? { label: "公開", tone: "accent" as const }
-                  : { label: "非公開", tone: "muted" as const },
-                // 下書きが1局でもあれば注意色で示し（件数は出さない）、無ければ編集済。
-                item.draftCount > 0
-                  ? { label: "下書き", tone: "warn" as const }
-                  : { label: "編集済", tone: "muted" as const },
+                // 0局の解析中/失敗カードに「非公開・編集済」を並べない（中身が無いのに
+                // 編集済と読めてしまうため。plan 8-3）。
+                ...(item.analysisStatus && item.kyokuCount === 0
+                  ? []
+                  : [
+                      item.publicCount > 0
+                        ? { label: "公開", tone: "accent" as const }
+                        : { label: "非公開", tone: "muted" as const },
+                      // 下書きが1局でもあれば注意色で示し（件数は出さない）、無ければ編集済。
+                      item.draftCount > 0
+                        ? { label: "下書き", tone: "warn" as const }
+                        : { label: "編集済", tone: "muted" as const },
+                    ]),
               ]}
               metaParts={[relativeTime(item.createdAt), `${item.kyokuCount}局`]}
               fav={item.viewerFaved}

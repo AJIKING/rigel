@@ -2,7 +2,7 @@ import { useFocusEffect, useNavigation, useRoute, type RouteProp } from "@react-
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import type { KifuStatus, Visibility } from "@rigel/client";
 import { resultLabel, roundHonbaLabel, roundNameForSeq, LIMIT_MESSAGES } from "@rigel/ui";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { FlatList, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { CenterState } from "../components/CenterState";
 import { Chip } from "../components/Chip";
@@ -20,6 +20,7 @@ import {
   updateGameRules,
 } from "../lib/api";
 import { useAuth } from "../lib/auth";
+import { useAnalysisJob } from "../lib/use-analysis-job";
 import { confirmDestructive } from "../lib/confirm";
 import { fmtDate } from "../lib/format";
 import { colors, radius } from "../lib/theme";
@@ -52,6 +53,12 @@ export function GameDetailScreen() {
       refetch();
     }, [refetch]),
   );
+
+  // 解析ジョブの終端で再取得（この画面を開いたまま「解析中→局が入る」を追従させる）。
+  const { settledCount } = useAnalysisJob();
+  useEffect(() => {
+    refetch();
+  }, [settledCount, refetch]);
 
   if (loading) return <CenterState loading />;
   if (!detail) return <CenterState message="半荘が見つかりませんでした。" />;

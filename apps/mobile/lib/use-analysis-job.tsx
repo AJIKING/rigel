@@ -27,6 +27,9 @@ import { useAuth } from "./auth";
 interface AnalysisJobContextValue {
   /** ジョブが終端（done/failed）やタイムアウトに達するたび増える（一覧の refetch トリガ）。 */
   settledCount: number;
+  /** ポーリング中のジョブがあるか。送信前ガードに使う（202 の後に断ると
+   *  サーバー側では既に半荘・課金が走ってしまうため、送信前に見る）。 */
+  busy: boolean;
   /** 202 で受け取ったジョブを永続化してポーリングを開始する（撮影画面から）。
    *  進行中のジョブがあるときは開始せず false を返す（解析はひとつずつ）。 */
   start: (pending: PendingAnalysis) => Promise<boolean>;
@@ -35,6 +38,7 @@ interface AnalysisJobContextValue {
 // Provider の外（未配線の画面・テスト）では不活性な既定値（App ルートで必ず配る）。
 const INERT: AnalysisJobContextValue = {
   settledCount: 0,
+  busy: false,
   start: () => Promise.resolve(false),
 };
 
@@ -43,6 +47,7 @@ const AnalysisJobContext = createContext<AnalysisJobContextValue>(INERT);
 export function AnalysisJobProvider({ children }: { children: ReactNode }) {
   const { token, user } = useAuth();
   const [settledCount, setSettledCount] = useState(0);
+  const [busy, setBusy] = useState(false);
   const polling = useRef(false);
 
   // ポーリングのループ内から「今の」セッションを見るための参照（クロージャに固定させない）。
@@ -51,15 +56,26 @@ export function AnalysisJobProvider({ children }: { children: ReactNode }) {
   const userRef = useRef(user);
   userRef.current = user;
 
-  const track = useCallback(async (pending: PendingAnalysis) => {
+  const track = useCallback(async (pending: PendingAnalysis, claimed = false) => {
     const myToken = tokenRef.current;
-    if (!myToken || polling.current) return;
-    polling.current = true;
+    if (!myToken) {
+      if (claimed) {
+        polling.current = false;
+        setBusy(false);
+      }
+      return;
+    }
+    if (!claimed) {
+      if (polling.current) return;
+      polling.current = true;
+      setBusy(true);
+    }
     // サインアウト（トークンが変わった）ら次の周期で中断する。
     const outcome = await pollAnalysisJob(myToken, pending, undefined, () => {
       return tokenRef.current !== myToken;
     });
     polling.current = false;
+    setBusy(false);
     if (outcome.kind === "cancelled") return; // 記録は残す（同じユーザーの再ログインで復元）
     await clearPendingAnalysis();
     // done/failed はサーバーのバッジに反映済み。timeout もジョブ自体は進んでいるため、
@@ -71,12 +87,21 @@ export function AnalysisJobProvider({ children }: { children: ReactNode }) {
     async (pending: PendingAnalysis) => {
       // 解析はひとつずつ（2件目で SecureStore の枠を潰すと1件目が行方不明になる）。
       if (polling.current) return false;
+      // 同期的に予約して、二連打の両方がガードを抜けるのを防ぐ（track が claimed で引き継ぐ）。
+      polling.current = true;
+      setBusy(true);
       const withUser: PendingAnalysis = {
         ...pending,
         ...(userRef.current?.id ? { userId: userRef.current.id } : {}),
       };
-      await savePendingAnalysis(withUser);
-      void track(withUser); // ポーリングは待たせない（呼び出し側はすぐ画面遷移する）
+      try {
+        await savePendingAnalysis(withUser);
+      } catch (e) {
+        polling.current = false;
+        setBusy(false);
+        throw e;
+      }
+      void track(withUser, true); // ポーリングは待たせない（呼び出し側はすぐ画面遷移する）
       return true;
     },
     [track],
@@ -106,7 +131,7 @@ export function AnalysisJobProvider({ children }: { children: ReactNode }) {
   }, [token, track]);
 
   return (
-    <AnalysisJobContext.Provider value={{ settledCount, start }}>
+    <AnalysisJobContext.Provider value={{ settledCount, busy, start }}>
       {children}
     </AnalysisJobContext.Provider>
   );

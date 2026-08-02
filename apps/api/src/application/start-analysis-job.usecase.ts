@@ -18,7 +18,6 @@ import {
 } from "../domain/analysis/analysis-transport";
 import type { GameRepository } from "../domain/game/game.repository";
 import type { ImageRef } from "../domain/kifu/analyzer";
-import { deriveAnalysisStatus } from "./analysis-status";
 import type { AnalyzeReason } from "./analyze-and-save-kifu.usecase";
 
 export interface StartAnalysisJobDeps {
@@ -91,25 +90,24 @@ export class StartAnalysisJob {
     const pre = await analyze.preflight(params.userId, params.gameId);
     if (!pre.ok) return pre;
 
-    let gameId = params.gameId;
-    if (gameId) {
-      // 同じ半荘に processing のジョブがあるうちは受け付けない（再送信による二局作成の根治。
-      // クライアント表示が失敗/タイムアウトでもサーバーのジョブは進んでいることがある）。
-      const status = deriveAnalysisStatus(await jobs.listByUser(params.userId), now());
-      if (status.get(gameId) === "processing") {
+    const isNewGame = !params.gameId;
+    if (params.gameId) {
+      // 同じ半荘に processing のジョブがあるうちは受け付けない（再送信による二局作成の根治）。
+      // 表示用の stale 降格（30分→failed 扱い）はここでは使わない: 終端書き込み失敗などで
+      // 実際にはジョブが完走していても processing のまま残るため、時間で緩めると
+      // 二局の穴が開き直る。生の status で判定する。
+      const latest = (await jobs.listByUser(params.userId)).find((j) => j.gameId === params.gameId);
+      if (latest?.status === "processing") {
         return { ok: false, reason: "game_analyzing" };
       }
-    } else {
-      // 半荘先行作成（plan 8-3）: 解析中/失敗をこの半荘の実体として見せる。
-      // 失敗しても半荘は 0 局のまま「解析失敗」ステータスで残す（[決定] 2026-08-02）。
-      gameId = newId();
-      await games.save({ id: gameId, userId: params.userId, title: "", createdAt: now() });
     }
+    const gameId = params.gameId ?? newId();
 
     const jobId = newId();
     const prefix = analysisJobPrefix(jobId);
     const riverKey = `${prefix}river`;
     const handKeys: Partial<Record<CameraSeat, string>> = {};
+    let jobCreated = false;
 
     try {
       await images.put(riverKey, params.riverImage);
@@ -120,6 +118,14 @@ export class StartAnalysisJob {
       }
 
       await jobs.create({ id: jobId, userId: params.userId, gameId, now: now() });
+      jobCreated = true;
+
+      // 半荘先行作成（plan 8-3）はジョブ行の後: 画像アップロード等で失敗したとき、
+      // ステータスの付かない「見えない空半荘」を残さないため。
+      // 失敗しても半荘は 0 局のまま「解析失敗」ステータスで残す（[決定] 2026-08-02）。
+      if (isNewGame) {
+        await games.save({ id: gameId, userId: params.userId, title: "", createdAt: now() });
+      }
 
       const message: AnalysisJobMessage = {
         jobId,
@@ -133,9 +139,11 @@ export class StartAnalysisJob {
       await queue.send(message);
       return { ok: true, jobId, gameId };
     } catch (e) {
-      // 途中失敗は宙に浮かせない: ジョブがあれば failed に。画像は消さない
-      // （失敗した半荘のリトライ用に残す方針。掃除は R2 のライフサイクル1日。plan 8-3）。
-      await jobs.markFailed(jobId, { reason: "enqueue_failed", now: now() }).catch(() => {});
+      // 途中失敗は宙に浮かせない: ジョブ行があるときだけ failed に落とす（無ければ何も
+      // 永続化されていない）。画像は消さない（掃除は R2 のライフサイクル1日。plan 8-3）。
+      if (jobCreated) {
+        await jobs.markFailed(jobId, { reason: "enqueue_failed", now: now() }).catch(() => {});
+      }
       throw e;
     }
   }

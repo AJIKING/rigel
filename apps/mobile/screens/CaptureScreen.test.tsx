@@ -31,8 +31,9 @@ jest.mock("../lib/upload", () => ({ toUploadFile: (p: unknown) => p }));
 
 // ポーリングはグローバル（use-analysis-job の Provider）の責務。画面は start に渡すだけ。
 const mockStart = jest.fn<Promise<boolean>, unknown[]>(() => Promise.resolve(true));
+let mockBusy = false;
 jest.mock("../lib/use-analysis-job", () => ({
-  useAnalysisJob: () => ({ card: null, completedCount: 0, start: mockStart, dismiss: jest.fn() }),
+  useAnalysisJob: () => ({ settledCount: 0, busy: mockBusy, start: mockStart }),
 }));
 
 describe("CaptureScreen（解析枠の表示）", () => {
@@ -121,6 +122,17 @@ describe("CaptureScreen（非同期ジョブの解析フロー。案B=送信し�
 
     await waitFor(() => expect(mockAnalyze).toHaveBeenCalled());
     expect(formField(mockAnalyze.mock.calls[0]![1], "handFromRiver")).toBeUndefined();
+  });
+
+  it("進行中の解析がある（busy）ときは送信自体を止める（202 の後に断るとサーバーで課金が走るため）", async () => {
+    mockBusy = true;
+    render(<CaptureScreen />);
+
+    await pickRiverAndSubmit();
+
+    await waitFor(() => expect(screen.getByText(/解析はひとつずつ/)).toBeTruthy());
+    expect(mockAnalyze).not.toHaveBeenCalled(); // POST 前に止める
+    mockBusy = false;
   });
 
   it("進行中の解析がある（start=false）ときは案内を出し、遷移しない", async () => {

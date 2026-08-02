@@ -92,6 +92,31 @@ describe("StartAnalysisJob（半荘先行作成 + R2 + Queue）", () => {
     expect(jobs.jobs.size).toBe(1); // 新しいジョブは作らない
   });
 
+  it("30分を超えた processing でも 409 のまま（表示の stale 降格でガードを緩めない）", async () => {
+    const { usecase, jobs, games } = makeUsecase();
+    await games.save({ id: "g1", userId: "u1", title: "", createdAt: NOW });
+    await jobs.create({
+      id: "j0",
+      userId: "u1",
+      gameId: "g1",
+      now: new Date(NOW.getTime() - 60 * 60_000), // 1時間前から processing のまま
+    });
+
+    const result = await usecase.start({ ...params, gameId: "g1" });
+
+    expect(result).toEqual({ ok: false, reason: "game_analyzing" });
+  });
+
+  it("画像アップロードに失敗したら半荘を作らない（見えない空半荘を残さない）", async () => {
+    const { usecase, images, jobs, games } = makeUsecase();
+    images.put = () => Promise.reject(new Error("R2 down"));
+
+    await expect(usecase.start(params)).rejects.toThrow("R2 down");
+
+    expect(await games.listByUser("u1")).toHaveLength(0);
+    expect(jobs.jobs.size).toBe(0);
+  });
+
   it("既存半荘の直近ジョブが終端（done/failed）なら受け付ける", async () => {
     const { usecase, jobs, games } = makeUsecase();
     await games.save({ id: "g1", userId: "u1", title: "", createdAt: NOW });
