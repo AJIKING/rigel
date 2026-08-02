@@ -13,6 +13,8 @@ import {
   addDraftMeld,
   analysisQuotaLabel,
   analyzeErrorMessage,
+  pollProblemAnalysisOutcome,
+  problemAnalysisTimeoutMessage,
   assembleProblem,
   compareTiles,
   draftToKifu,
@@ -32,7 +34,7 @@ import {
   type DraftRiverTile,
   type MeldPick,
 } from "@rigel/ui";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Pressable,
   ScrollView,
@@ -54,6 +56,7 @@ import {
   analyzeProblem,
   createProblem,
   getProblem,
+  getProblemAnalysisJob,
   updateProblem,
   type ProblemPost,
 } from "../lib/api";
@@ -165,6 +168,14 @@ function EditorBody({ initial, token }: { initial?: ProblemPost; token: string |
   const [analyzing, setAnalyzing] = useState(false);
   const [readingNotes, setReadingNotes] = useState("");
   const [aiReview, setAiReview] = useState("");
+  // 画面破棄でポーリングを中断する（アンマウント後の setState と無駄なリクエストを防ぐ）。
+  const aliveRef = useRef(true);
+  useEffect(() => {
+    aliveRef.current = true;
+    return () => {
+      aliveRef.current = false;
+    };
+  }, []);
 
   /** 写真を選んで onPicked に渡す（Capture と同じ流儀）。 */
   async function pickInto(onPicked: (file: PickedImage) => void) {
@@ -213,13 +224,26 @@ function EditorBody({ initial, token }: { initial?: ProblemPost; token: string |
       form.append("hand", toUploadFile(handPhoto));
       if (riverPhoto) form.append("river", toUploadFile(riverPhoto));
       form.append("cameraBottomSeat", pov);
+      // 解析は非同期ジョブ（202 + ポーリング。async-analysis.md Task 8・[決定] 2026-08-02）。
+      // 実写真は数分に達しうるため接続を握ったまま待たない。画面破棄で中断（ジョブは進む）。
       const result = await analyzeProblem(token, form);
-      if (result.ok) applyAiDraft(result.kifu);
-      else setErr(analyzeErrorMessage(result.status, result.reason));
+      if (!result.ok) {
+        setErr(analyzeErrorMessage(result.status, result.reason));
+        return;
+      }
+      const outcome = await pollProblemAnalysisOutcome(
+        () => getProblemAnalysisJob(token, result.jobId),
+        Date.now(),
+        undefined,
+        () => !aliveRef.current,
+      );
+      if (outcome.kind === "cancelled") return;
+      if (outcome.kind === "done") applyAiDraft(outcome.kifu);
+      else setErr(outcome.kind === "failed" ? outcome.message : problemAnalysisTimeoutMessage());
     } catch {
-      setErr("通信に失敗しました。");
+      if (aliveRef.current) setErr("通信に失敗しました。");
     } finally {
-      setAnalyzing(false);
+      if (aliveRef.current) setAnalyzing(false);
     }
   }
   // 盤面プレビュー（牌譜と同じ回転卓に編集内容を即時反映。KifuEditor と同じ折りたたみ・既定 open）。

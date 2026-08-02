@@ -58,6 +58,14 @@ describe("DrizzleAnalysisJobRepository", () => {
     expect(await repo.findForUser("missing", "u1")).toBeNull();
   });
 
+  it("何切るジョブ（gameId 無し）は null のまま作成・完了できる（結果は R2 の result.json）", async () => {
+    await repo.create({ id: "job-p", userId: "u1", gameId: null, now: NOW });
+    await repo.markDone("job-p", { gameId: null, logId: null, now: LATER });
+
+    const job = await repo.findForUser("job-p", "u1");
+    expect(job).toMatchObject({ status: "done", gameId: null, logId: null });
+  });
+
   it("markDone で done になり gameId/logId と updatedAt が入る", async () => {
     await repo.create({ id: "job-1", userId: "u1", gameId: "g-job", now: NOW });
     await repo.markDone("job-1", { gameId: "g1", logId: "l1", now: LATER });

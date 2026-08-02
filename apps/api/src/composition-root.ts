@@ -21,6 +21,11 @@ import { UpdateGamePlayers } from "./application/update-game-players.usecase";
 import { UpdateGameStatus } from "./application/update-game-status.usecase";
 import { UpdateGameVisibility } from "./application/update-game-visibility.usecase";
 import { GetGameWithLogs } from "./application/get-game-with-logs.usecase";
+import {
+  GetProblemAnalysisJob,
+  RunProblemAnalysisJob,
+  StartProblemAnalysisJob,
+} from "./application/problem-analysis-job.usecase";
 import { GetKifu } from "./application/get-kifu.usecase";
 import { GetPublicGameDetail } from "./application/get-public-game-detail.usecase";
 import { GetUser } from "./application/get-user.usecase";
@@ -84,6 +89,10 @@ export interface AppContainer {
   getAnalysisJob: GetAnalysisJob;
   runAnalysisJob: RunAnalysisJob;
   analyzeProblemDraft: AnalyzeProblemDraft;
+  /** 何切るの写真AI再現の非同期ジョブ化（結果は R2 の result.json。[決定] 2026-08-02）。 */
+  startProblemAnalysisJob: StartProblemAnalysisJob;
+  getProblemAnalysisJob: GetProblemAnalysisJob;
+  runProblemAnalysisJob: RunProblemAnalysisJob;
   getKifu: GetKifu;
   listKifu: ListKifu;
   updateKifu: UpdateKifu;
@@ -222,6 +231,12 @@ export function buildContainer(env: Env): AppContainer {
     now,
     newId,
   });
+  const analyzeProblemDraft = new AnalyzeProblemDraft({
+    users,
+    analyzer,
+    store: analysisStore,
+    now,
+  });
   const analysisJobs = new DrizzleAnalysisJobRepository(db);
   const analysisImages = new R2AnalysisImageStore(env.ANALYSIS_TMP);
   const analysisQueue = {
@@ -249,7 +264,22 @@ export function buildContainer(env: Env): AppContainer {
       now,
     }),
     // 何切るの写真AI再現（保存なし・ドラフト返却のみ。課金カウントは共有ストアで原子加算）。
-    analyzeProblemDraft: new AnalyzeProblemDraft({ users, analyzer, store: analysisStore, now }),
+    analyzeProblemDraft,
+    startProblemAnalysisJob: new StartProblemAnalysisJob({
+      jobs: analysisJobs,
+      images: analysisImages,
+      queue: analysisQueue,
+      analyze: analyzeProblemDraft,
+      now,
+      newId,
+    }),
+    getProblemAnalysisJob: new GetProblemAnalysisJob(analysisJobs, analysisImages),
+    runProblemAnalysisJob: new RunProblemAnalysisJob({
+      jobs: analysisJobs,
+      images: analysisImages,
+      analyze: analyzeProblemDraft,
+      now,
+    }),
     getKifu: new GetKifu(gameLogs),
     listKifu: new ListKifu(gameLogs),
     updateKifu: new UpdateKifu(gameLogs),

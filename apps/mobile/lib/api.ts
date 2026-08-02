@@ -28,6 +28,7 @@ export const {
   authWithApple,
   authWithReviewCode,
   getAnalysisJob,
+  getProblemAnalysisJob,
   fetchMe,
   getMyGames,
   getPublicGames,

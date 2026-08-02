@@ -15,7 +15,20 @@ const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
 
 describe("createApiClient", () => {
-  it("analyzeProblem は POST /problems/analyze してドラフト Kifu を返す（保存なし）", async () => {
+  it("analyzeProblem は POST /problems/analyze して 202 の jobId を返す（非同期ジョブ）", async () => {
+    const client = createApiClient(
+      "https://api.test",
+      fakeFetch2((url, init) => {
+        expect(url).toBe("https://api.test/problems/analyze");
+        expect(init?.method).toBe("POST");
+        return json({ ok: true, jobId: "job-9" }, 202);
+      }),
+    );
+    const result = await client.analyzeProblem("tok", new FormData());
+    expect(result).toEqual({ ok: true, jobId: "job-9" });
+  });
+
+  it("getProblemAnalysisJob は done のジョブから結果ドラフト（Kifu 形）を受け取る", async () => {
     const kifu = KifuSchema.parse({
       schemaVersion: "1.0.0",
       capturedAt: "2026-07-14T00:00:00.000Z",
@@ -23,15 +36,29 @@ describe("createApiClient", () => {
     });
     const client = createApiClient(
       "https://api.test",
-      fakeFetch2((url, init) => {
-        expect(url).toBe("https://api.test/problems/analyze");
-        expect(init?.method).toBe("POST");
-        return json({ ok: true, kifu });
+      fakeFetch((url) => {
+        expect(url).toBe("https://api.test/problems/analyze/jobs/job-9");
+        return json({
+          id: "job-9",
+          status: "done",
+          reason: null,
+          createdAt: "2026-08-02T10:00:00.000Z",
+          updatedAt: "2026-08-02T10:01:00.000Z",
+          draft: kifu,
+        });
       }),
     );
-    const result = await client.analyzeProblem("tok", new FormData());
-    expect(result.ok).toBe(true);
-    if (result.ok) expect(result.kifu.schemaVersion).toBe("1.0.0");
+    const job = await client.getProblemAnalysisJob("tok", "job-9");
+    expect(job?.status).toBe("done");
+    expect(job?.draft?.schemaVersion).toBe("1.0.0");
+  });
+
+  it("getProblemAnalysisJob の 404（消えたジョブ）は null", async () => {
+    const client = createApiClient(
+      "https://api.test",
+      fakeFetch(() => json({ error: "not found" }, 404)),
+    );
+    expect(await client.getProblemAnalysisJob("tok", "gone")).toBeNull();
   });
 
   it("analyzeProblem の失敗は status と reason を返す（枠切れ 403 など）", async () => {

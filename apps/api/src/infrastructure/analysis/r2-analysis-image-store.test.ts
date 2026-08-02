@@ -11,8 +11,9 @@ class FakeR2Bucket {
   /** list の1ページの大きさ（ページング検証用に小さくできる）。 */
   constructor(private readonly pageSize = 1000) {}
 
-  put(key: string, data: ArrayBuffer, opts?: { httpMetadata?: { contentType?: string } }) {
-    this.objects.set(key, { data, contentType: opts?.httpMetadata?.contentType });
+  put(key: string, data: ArrayBuffer | string, opts?: { httpMetadata?: { contentType?: string } }) {
+    const bytes = typeof data === "string" ? new TextEncoder().encode(data).buffer : data;
+    this.objects.set(key, { data: bytes, contentType: opts?.httpMetadata?.contentType });
     return Promise.resolve();
   }
   get(key: string) {
@@ -20,6 +21,7 @@ class FakeR2Bucket {
     if (!entry) return Promise.resolve(null);
     return Promise.resolve({
       arrayBuffer: () => Promise.resolve(entry.data),
+      text: () => Promise.resolve(new TextDecoder().decode(entry.data)),
       httpMetadata: entry.contentType ? { contentType: entry.contentType } : undefined,
     });
   }
@@ -60,6 +62,31 @@ describe("R2AnalysisImageStore", () => {
   it("不存在キーは null", async () => {
     const store = new R2AnalysisImageStore(new FakeR2Bucket() as unknown as R2Bucket);
     expect(await store.get("missing")).toBeNull();
+  });
+
+  it("putJson/getJson で JSON 値が application/json として往復する（不存在・壊れた JSON は null）", async () => {
+    const bucket = new FakeR2Bucket();
+    const store = new R2AnalysisImageStore(bucket as unknown as R2Bucket);
+
+    await store.putJson("jobs/j1/result.json", { kyoku: 1, tiles: [null, "m1"] });
+
+    expect(bucket.objects.get("jobs/j1/result.json")?.contentType).toBe("application/json");
+    expect(await store.getJson("jobs/j1/result.json")).toEqual({ kyoku: 1, tiles: [null, "m1"] });
+    expect(await store.getJson("missing")).toBeNull();
+
+    bucket.objects.set("broken", { data: new TextEncoder().encode("{oops").buffer });
+    expect(await store.getJson("broken")).toBeNull();
+  });
+
+  it("delete は単一キーだけを消す（result.json を残して画像だけ消す用）", async () => {
+    const bucket = new FakeR2Bucket();
+    const store = new R2AnalysisImageStore(bucket as unknown as R2Bucket);
+    await store.put("jobs/j1/hand", image);
+    await store.putJson("jobs/j1/result.json", { ok: true });
+
+    await store.delete("jobs/j1/hand");
+
+    expect([...bucket.objects.keys()]).toEqual(["jobs/j1/result.json"]);
   });
 
   it("deletePrefix は prefix 配下だけを消す（list のページングにも追従）", async () => {

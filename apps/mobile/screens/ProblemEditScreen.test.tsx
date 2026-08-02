@@ -23,11 +23,13 @@ const mockGetProblem = jest.fn();
 const mockCreateProblem = jest.fn();
 const mockUpdateProblem = jest.fn();
 const mockAnalyzeProblem = jest.fn();
+const mockGetProblemAnalysisJob = jest.fn();
 jest.mock("../lib/api", () => ({
   getProblem: (...args: unknown[]) => mockGetProblem(...args),
   createProblem: (...args: unknown[]) => mockCreateProblem(...args),
   updateProblem: (...args: unknown[]) => mockUpdateProblem(...args),
   analyzeProblem: (...args: unknown[]) => mockAnalyzeProblem(...args),
+  getProblemAnalysisJob: (...args: unknown[]) => mockGetProblemAnalysisJob(...args),
 }));
 
 const mockPickImage = jest.fn();
@@ -73,9 +75,13 @@ describe("ProblemEditScreen（何切る問題の作成/編集）", () => {
       status: "picked",
       file: { uri: "file://h.jpg", name: "h.jpg", type: "image/jpeg" },
     });
-    mockAnalyzeProblem.mockResolvedValue({
-      ok: true,
-      kifu: KifuSchema.parse({
+    // 非同期ジョブ（202 + ポーリング。async-analysis.md Task 8）: done で結果ドラフト同梱。
+    mockAnalyzeProblem.mockResolvedValue({ ok: true, jobId: "job-1" });
+    mockGetProblemAnalysisJob.mockResolvedValue({
+      id: "job-1",
+      status: "done",
+      reason: null,
+      draft: KifuSchema.parse({
         schemaVersion: "1.0.0",
         capturedAt: "2026-07-14T00:00:00.000Z",
         cameraBottomSeat: "east",

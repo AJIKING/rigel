@@ -124,9 +124,12 @@
 6. [x] mobile: AnalysisJobProvider（一本化ポーリング・復元・userId ガード・サインアウト中断・
        多重 start 拒否）＋解析中カード（8-2）
 7. [x] web: AddKyokuModal のポーリング化（モーダル破棄で中断）
-8. [ ] /problems/analyze の同経路化 → Red（**未着手の負債**。何切る写真AI再現は同期のままで、
-       実写真では同じタイムアウト問題が残る。ジョブ結果が「保存されないドラフト Kifu」のため
-       結果の置き場（R2 or 新カラム）の設計判断が要る）
+8. [x] /problems/analyze の同経路化（**[決定] 2026-08-02 オーナー承認・案A=R2**）:
+       結果ドラフト（Kifu 形・保存されない）は R2 の `jobs/{jobId}/result.json` に置き、
+       `GET /problems/analyze/jobs/:id` が done で Zod 再検証して同梱する。ジョブ行は
+       gameId/logId とも null（参照だけの原則を維持）。done で画像だけ削除し result.json は
+       残す（保険は TTL 1日。期限切れは failed/result_expired として返す）。キューの
+       メッセージは `kind: "problem"` で牌譜解析と振り分け（kind 省略=旧メッセージ互換）
 9. [x] 滞留ジョブのクライアント側タイムアウト（10分打ち切り＋案内）
 10. [ ] 実機（Codemagic ビルド）でスマホを閉じる→開くの完走確認
 

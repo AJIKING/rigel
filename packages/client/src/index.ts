@@ -214,9 +214,20 @@ export interface AnalysisJob {
   updatedAt: string;
 }
 
-/** 何切るの写真AI再現の結果（保存はされない。Kifu 形のドラフトが返る）。 */
+/** 何切るの写真AI再現も非同期ジョブ（202 + jobId → getProblemAnalysisJob でポーリング。
+ *  結果ドラフトは保存されず、done のジョブに同梱される。[決定] 2026-08-02）。 */
 export type AnalyzeProblemResult =
-  { ok: true; kifu: Kifu } | { ok: false; status: number; reason?: string };
+  { ok: true; jobId: string } | { ok: false; status: number; reason?: string };
+
+/** 何切る解析ジョブの状態（GET /problems/analyze/jobs/:id）。done で draft が入る。 */
+export interface ProblemAnalysisJob {
+  id: string;
+  status: "processing" | "done" | "failed";
+  reason: string | null;
+  createdAt: string;
+  updatedAt: string;
+  draft: Kifu | null;
+}
 
 export type CheckoutResult = { ok: true; url: string } | { ok: false; status: number };
 
@@ -251,10 +262,12 @@ export interface ApiClient {
   /** 解析ジョブの状態（ポーリング用）。404（消えたジョブ）は null。 */
   getAnalysisJob(token: string, jobId: string): Promise<AnalysisJob | null>;
   /**
-   * 何切るの写真AI再現。撮影画像から盤面ドラフト（Kifu 形）を得る（保存はされない）。
+   * 何切るの写真AI再現の解析ジョブを開始する（202 + jobId。保存はされない）。
    * フォーム: hand(必須=自分の手牌), river(任意), cameraBottomSeat(任意=出題視点)。
    */
   analyzeProblem(token: string, form: FormData): Promise<AnalyzeProblemResult>;
+  /** 何切る解析ジョブの状態（ポーリング用）。done で結果ドラフト同梱。404 は null。 */
+  getProblemAnalysisJob(token: string, jobId: string): Promise<ProblemAnalysisJob | null>;
   /** 牌譜の修正を保存する（所有者のみ）。seq=局順（東一局=1〜北四局=16。省略は現状維持）。 */
   updateKifu(
     token: string,
@@ -522,11 +535,19 @@ export function createApiClient(baseUrl: string, fetchImpl?: typeof fetch): ApiC
         body: form,
       });
       if (res.ok) {
-        const d = (await res.json()) as { kifu: Kifu };
-        return { ok: true, kifu: d.kifu };
+        const d = (await res.json()) as { jobId: string };
+        return { ok: true, jobId: d.jobId };
       }
       const body = (await res.json().catch(() => ({}))) as { reason?: string; error?: string };
       return { ok: false, status: res.status, reason: body.reason ?? body.error };
+    },
+
+    async getProblemAnalysisJob(token, jobId) {
+      const res = await doFetch(`${baseUrl}/problems/analyze/jobs/${jobId}`, {
+        headers: bearer(token),
+      });
+      if (!res.ok) return null;
+      return res.json() as Promise<ProblemAnalysisJob>;
     },
 
     async updateKifu(token, logId, kifu, seq) {

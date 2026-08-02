@@ -23,6 +23,27 @@ export class R2AnalysisImageStore implements AnalysisImageStore {
     };
   }
 
+  async delete(key: string): Promise<void> {
+    await this.bucket.delete(key);
+  }
+
+  async putJson(key: string, value: unknown): Promise<void> {
+    await this.bucket.put(key, JSON.stringify(value), {
+      httpMetadata: { contentType: "application/json" },
+    });
+  }
+
+  async getJson(key: string): Promise<unknown | null> {
+    const object = await this.bucket.get(key);
+    if (!object) return null;
+    // 壊れた JSON（想定外の書き込み）は「無い」と同じ扱い（呼び出し側が failed に落とす）。
+    try {
+      return JSON.parse(await object.text()) as unknown;
+    } catch {
+      return null;
+    }
+  }
+
   async deletePrefix(prefix: string): Promise<void> {
     // 消したぶんリストがずれるので cursor は使わず、空になるまで先頭から取り直す。
     for (;;) {

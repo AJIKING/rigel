@@ -23,6 +23,7 @@ import {
   answerProblem,
   createCheckout,
   getAnalysisJob,
+  getProblemAnalysisJob,
   finishQuizSession,
   listMyFavorites,
   listQuizSessions,
@@ -130,9 +131,14 @@ export async function getAnalysisJobAction(jobId: string) {
   return getAnalysisJob(await requireToken(), jobId);
 }
 
-/** 何切るの写真AI再現（保存なし・Kifu 形のドラフト返却のみ）。 */
+/** 何切るの写真AI再現（非同期ジョブ。202 + jobId → ポーリング。保存なし）。 */
 export async function analyzeProblemAction(form: FormData) {
   return analyzeProblem(await requireToken(), form);
+}
+
+/** 何切る解析ジョブの状態（ポーリング用。done で結果ドラフト同梱）。 */
+export async function getProblemAnalysisJobAction(jobId: string) {
+  return getProblemAnalysisJob(await requireToken(), jobId);
 }
 
 export async function updateProfileAction(update: { handle?: string; displayName?: string }) {

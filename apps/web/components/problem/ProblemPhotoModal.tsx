@@ -1,9 +1,14 @@
 "use client";
 
 import { type Kifu, type Seat } from "@rigel/schema";
-import { analysisQuotaLabel, analyzeErrorMessage } from "@rigel/ui";
-import { useState } from "react";
-import { analyzeProblemAction } from "../../app/actions";
+import {
+  analysisQuotaLabel,
+  analyzeErrorMessage,
+  pollProblemAnalysisOutcome,
+  problemAnalysisTimeoutMessage,
+} from "@rigel/ui";
+import { useEffect, useRef, useState } from "react";
+import { analyzeProblemAction, getProblemAnalysisJobAction } from "../../app/actions";
 import { useAuth } from "../../lib/auth-context";
 import { PhotoField } from "../board/PhotoField";
 import s from "../board/board-editor.module.css";
@@ -11,7 +16,8 @@ import s from "../board/board-editor.module.css";
 /**
  * 何切るの「写真から作成」モーダル。自分の手牌（必須）＋河（任意）を解析に送り、
  * 盤面ドラフト（Kifu 形）を受け取って親（エディタ）へ返す。
- * 画像もドラフトも保存されない（Plan: docs/plans/problem-photo-analyze.md）。
+ * 解析は非同期ジョブ（202 + ポーリング。async-analysis.md Task 8・[決定] 2026-08-02）。
+ * 画像は一時保存のみ・ドラフトは保存されない（Plan: docs/plans/problem-photo-analyze.md）。
  * 意匠は局追加モーダル（AddKyokuModal）の写真フォームと共通（board-editor.module.css）。
  */
 export function ProblemPhotoModal({
@@ -31,6 +37,14 @@ export function ProblemPhotoModal({
   const [error, setError] = useState<string | null>(null);
   // 残枠は撮る前に見せる（送信後の枠切れで撮影の手間を無駄にしない。mobile Capture と同方針）。
   const quotaLabel = analysisQuotaLabel(user?.remainingCalls, user?.monthlyCallQuota);
+  // モーダルを閉じたらポーリングを中断する（AddKyokuModal と同じ。ジョブはサーバー側で進む）。
+  const alive = useRef(true);
+  useEffect(() => {
+    alive.current = true;
+    return () => {
+      alive.current = false;
+    };
+  }, []);
 
   async function onAnalyze() {
     if (!hand) {
@@ -45,15 +59,26 @@ export function ProblemPhotoModal({
       if (river) form.set("river", river);
       form.set("cameraBottomSeat", pov);
       const result = await analyzeProblemAction(form);
-      if (result.ok) {
-        onDone(result.kifu);
+      if (!result.ok) {
+        setError(analyzeErrorMessage(result.status, result.reason));
         return;
       }
-      setError(analyzeErrorMessage(result.status, result.reason));
+      const outcome = await pollProblemAnalysisOutcome(
+        () => getProblemAnalysisJobAction(result.jobId),
+        Date.now(),
+        undefined,
+        () => !alive.current,
+      );
+      if (outcome.kind === "cancelled") return; // モーダルが閉じられた
+      if (outcome.kind === "done") {
+        onDone(outcome.kifu);
+        return;
+      }
+      setError(outcome.kind === "failed" ? outcome.message : problemAnalysisTimeoutMessage());
     } catch {
-      setError("通信に失敗しました。");
+      if (alive.current) setError("通信に失敗しました。");
     } finally {
-      setBusy(false);
+      if (alive.current) setBusy(false);
     }
   }
 

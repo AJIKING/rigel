@@ -9,6 +9,7 @@ const h = vi.hoisted(() => ({
   createProblemAction: vi.fn(),
   updateProblemAction: vi.fn(),
   analyzeProblemAction: vi.fn(),
+  getProblemAnalysisJobAction: vi.fn(),
 }));
 vi.mock("../../app/actions", () => h);
 const push = vi.hoisted(() => vi.fn());
@@ -51,6 +52,7 @@ beforeEach(() => {
   h.createProblemAction.mockReset().mockResolvedValue({ ok: true, problemId: "p1" });
   h.updateProblemAction.mockReset().mockResolvedValue({ ok: true, status: 200 });
   h.analyzeProblemAction.mockReset();
+  h.getProblemAnalysisJobAction.mockReset();
 });
 
 afterEach(() => {
@@ -88,7 +90,14 @@ describe("ProblemEditorScreen: 写真から作成（AI再現）", () => {
 
   it("解析結果（AIドラフト）がエディタへ流し込まれ、読み取りメモが表示される", async () => {
     stubMe("pro", { remainingCalls: 300, monthlyCallQuota: 320 });
-    h.analyzeProblemAction.mockResolvedValue({ ok: true, kifu: aiKifu() });
+    // 非同期ジョブ（202 + ポーリング。async-analysis.md Task 8）: done で結果ドラフト同梱。
+    h.analyzeProblemAction.mockResolvedValue({ ok: true, jobId: "job-1" });
+    h.getProblemAnalysisJobAction.mockResolvedValue({
+      id: "job-1",
+      status: "done",
+      reason: null,
+      draft: aiKifu(),
+    });
     renderEditor();
 
     fireEvent.click(await screen.findByRole("button", { name: /写真から作成/ }));

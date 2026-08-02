@@ -19,6 +19,10 @@ export default {
   fetch: app.fetch,
   // 解析ジョブの consumer（docs/plans/async-analysis.md。wrangler.toml の queues.consumers）。
   async queue(batch: MessageBatch<AnalysisJobMessage>, env: Env): Promise<void> {
-    await consumeAnalysisBatch(batch, buildContainer(env).runAnalysisJob);
+    const container = buildContainer(env);
+    await consumeAnalysisBatch(batch, {
+      runKifu: container.runAnalysisJob,
+      runProblem: container.runProblemAnalysisJob,
+    });
   },
 };

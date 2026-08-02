@@ -15,7 +15,7 @@ import type { AnalysisJobRepository } from "../domain/analysis/analysis-job";
 import {
   analysisJobPrefix,
   type AnalysisImageStore,
-  type AnalysisJobMessage,
+  type KifuAnalysisJobMessage,
 } from "../domain/analysis/analysis-transport";
 import type { ImageRef } from "../domain/kifu/analyzer";
 import type { AnalyzeParams, AnalyzeResult } from "./analyze-and-save-kifu.usecase";
@@ -34,7 +34,7 @@ export interface RunAnalysisJobDeps {
 export class RunAnalysisJob {
   constructor(private readonly deps: RunAnalysisJobDeps) {}
 
-  async execute(message: AnalysisJobMessage, attempts: number): Promise<void> {
+  async execute(message: KifuAnalysisJobMessage, attempts: number): Promise<void> {
     const { jobs, images, analyze, now } = this.deps;
 
     const job = await jobs.findForUser(message.jobId, message.userId);

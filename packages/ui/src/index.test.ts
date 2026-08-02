@@ -5,6 +5,8 @@ import {
   analysisPollDelayMs,
   analysisTimeoutMessage,
   pollAnalysisOutcome,
+  pollProblemAnalysisOutcome,
+  problemAnalysisTimeoutMessage,
   analysisQuotaLabel,
   ANALYTICS_EVENTS,
   analyzeErrorMessage,
@@ -305,6 +307,54 @@ describe("プラン表示", () => {
     );
     expect(cancelled).toEqual({ kind: "cancelled" });
     expect(calls).toBe(1);
+  });
+
+  it("pollProblemAnalysisOutcome: done は結果ドラフトを返し、done なのに draft 無し（期限切れ）は失敗", async () => {
+    const clock = (start = 0) => {
+      let t = start;
+      return { now: () => t, sleep: (ms: number) => ((t += ms), Promise.resolve()) };
+    };
+    const doneJob = (draft: Kifu | null) => ({ status: "done" as const, reason: null, draft });
+
+    const done = await pollProblemAnalysisOutcome(
+      () => Promise.resolve(doneJob(kifuWithReviews)),
+      0,
+      clock(),
+    );
+    expect(done).toEqual({ kind: "done", kifu: kifuWithReviews });
+
+    // done でも結果が消えていたら（R2 TTL 1日）失敗として案内する
+    const expired = await pollProblemAnalysisOutcome(
+      () => Promise.resolve(doneJob(null)),
+      0,
+      clock(),
+    );
+    expect(expired).toEqual({
+      kind: "failed",
+      message: analysisJobFailureMessage("result_expired"),
+    });
+
+    // failed / timeout / cancelled は牌譜ジョブと同じ扱い
+    const failed = await pollProblemAnalysisOutcome(
+      () => Promise.resolve({ status: "failed" as const, reason: "quota_exceeded", draft: null }),
+      0,
+      clock(),
+    );
+    expect(failed).toEqual({
+      kind: "failed",
+      message: analysisJobFailureMessage("quota_exceeded"),
+    });
+
+    const timeout = await pollProblemAnalysisOutcome(
+      () => Promise.resolve({ status: "processing" as const, reason: null, draft: null }),
+      0,
+      clock(),
+    );
+    expect(timeout).toEqual({ kind: "timeout" });
+  });
+
+  it("problemAnalysisTimeoutMessage: 何切るは一覧に現れないので再試行を促す文言", () => {
+    expect(problemAnalysisTimeoutMessage()).toMatch(/もう一度/);
   });
 
   it("analysisTimeoutMessage: 打ち切り案内は web/mobile 共通の一文（一覧に載る旨）", () => {

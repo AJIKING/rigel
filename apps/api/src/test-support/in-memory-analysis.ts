@@ -12,7 +12,7 @@ import type { ImageRef } from "../domain/kifu/analyzer";
 export class InMemoryAnalysisJobRepository implements AnalysisJobRepository {
   jobs = new Map<string, AnalysisJob>();
 
-  create(params: { id: string; userId: string; gameId?: string; now: Date }): Promise<void> {
+  create(params: { id: string; userId: string; gameId?: string | null; now: Date }): Promise<void> {
     this.jobs.set(params.id, {
       id: params.id,
       userId: params.userId,
@@ -46,7 +46,10 @@ export class InMemoryAnalysisJobRepository implements AnalysisJobRepository {
     return Promise.resolve();
   }
 
-  markDone(id: string, params: { gameId: string; logId: string; now: Date }): Promise<void> {
+  markDone(
+    id: string,
+    params: { gameId: string | null; logId: string | null; now: Date },
+  ): Promise<void> {
     const job = this.jobs.get(id);
     if (job) {
       this.jobs.set(id, {
@@ -76,9 +79,11 @@ export class InMemoryAnalysisJobRepository implements AnalysisJobRepository {
 
 export class InMemoryAnalysisImageStore implements AnalysisImageStore {
   private images = new Map<string, ImageRef>();
+  /** JSON 置き場（何切るジョブの result.json）。画像とキー空間を共有する。 */
+  private jsons = new Map<string, unknown>();
 
   get size(): number {
-    return this.images.size;
+    return this.images.size + this.jsons.size;
   }
 
   put(key: string, image: ImageRef): Promise<void> {
@@ -90,11 +95,30 @@ export class InMemoryAnalysisImageStore implements AnalysisImageStore {
     return Promise.resolve(this.images.get(key) ?? null);
   }
 
+  delete(key: string): Promise<void> {
+    this.images.delete(key);
+    this.jsons.delete(key);
+    return Promise.resolve();
+  }
+
   deletePrefix(prefix: string): Promise<void> {
     for (const key of [...this.images.keys()]) {
       if (key.startsWith(prefix)) this.images.delete(key);
     }
+    for (const key of [...this.jsons.keys()]) {
+      if (key.startsWith(prefix)) this.jsons.delete(key);
+    }
     return Promise.resolve();
+  }
+
+  putJson(key: string, value: unknown): Promise<void> {
+    // 実装（R2）と同じく JSON 経由で往復させる（Date 等が素通りしない）。
+    this.jsons.set(key, JSON.parse(JSON.stringify(value)));
+    return Promise.resolve();
+  }
+
+  getJson(key: string): Promise<unknown | null> {
+    return Promise.resolve(this.jsons.get(key) ?? null);
   }
 }
 

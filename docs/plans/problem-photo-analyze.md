@@ -1,6 +1,9 @@
 # Plan: 何切る盤面の写真AI再現（problem-photo-analyze）
 
 > 状態: **承認済み（2026-07-14）**。mobile を初回スコープに含める修正込み。
+> 追記（[決定] 2026-08-02）: /problems/analyze は非同期ジョブ化（202 + ポーリング）。
+> 結果ドラフトは R2 の result.json 経由（保存しない原則は不変）。詳細は
+> [async-analysis.md](async-analysis.md) Task 8。
 > 関連: [nanikiru.md](nanikiru.md) / [タスク分解とPlan運用](../開発ガイド/03_タスク分解とPlan運用.md)
 
 ## 1. 目的（なぜ）

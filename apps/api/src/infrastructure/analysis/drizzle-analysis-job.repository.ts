@@ -9,7 +9,12 @@ import { analysisJobs } from "../db/schema";
 export class DrizzleAnalysisJobRepository implements AnalysisJobRepository {
   constructor(private readonly db: Db) {}
 
-  async create(params: { id: string; userId: string; gameId: string; now: Date }): Promise<void> {
+  async create(params: {
+    id: string;
+    userId: string;
+    gameId: string | null;
+    now: Date;
+  }): Promise<void> {
     await this.db.insert(analysisJobs).values({
       id: params.id,
       userId: params.userId,
@@ -58,7 +63,10 @@ export class DrizzleAnalysisJobRepository implements AnalysisJobRepository {
     };
   }
 
-  async markDone(id: string, params: { gameId: string; logId: string; now: Date }): Promise<void> {
+  async markDone(
+    id: string,
+    params: { gameId: string | null; logId: string | null; now: Date },
+  ): Promise<void> {
     await this.db
       .update(analysisJobs)
       .set({ status: "done", gameId: params.gameId, logId: params.logId, updatedAt: params.now })

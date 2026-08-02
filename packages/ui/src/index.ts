@@ -287,9 +287,60 @@ export function analysisJobFailureMessage(reason: string | null): string {
       return "この半荘はこれ以上局を追加できません（1半荘30局まで）。";
     case "game_not_found":
       return "指定した半荘が見つかりません。";
+    case "result_expired":
+      return "解析結果の保存期限が切れました。もう一度お試しください。";
     default:
       return "解析に失敗しました。少し待って再度お試しください。";
   }
+}
+
+/** 何切る解析ジョブのポーリングが見る最小形（@rigel/client の ProblemAnalysisJob と互換）。 */
+export interface ProblemAnalysisJobLike {
+  status: "processing" | "done" | "failed";
+  reason: string | null;
+  draft: Kifu | null;
+}
+
+export type ProblemAnalysisOutcome =
+  | { kind: "done"; kifu: Kifu }
+  | { kind: "failed"; message: string }
+  | { kind: "timeout" }
+  /** shouldStop による中断（画面破棄など）。ジョブ自体はサーバー側で進む。 */
+  | { kind: "cancelled" };
+
+/**
+ * 何切る解析ジョブを終端までポーリングする共通ループ（web/mobile 共用）。
+ * 予算・中断・404 の扱いは牌譜ジョブ（pollAnalysisOutcome）と同じ。
+ * done は結果ドラフト（Kifu）を返す。done なのに draft が無い（結果の期限切れ）は失敗扱い。
+ */
+export async function pollProblemAnalysisOutcome(
+  fetchJob: () => Promise<ProblemAnalysisJobLike | null>,
+  startedAt: number,
+  clock: PollClock = realPollClock,
+  shouldStop?: () => boolean,
+): Promise<ProblemAnalysisOutcome> {
+  for (;;) {
+    if (shouldStop?.()) return { kind: "cancelled" };
+    const job = await fetchJob().catch(() => undefined);
+    if (job === null) return { kind: "failed", message: analysisJobFailureMessage(null) };
+    if (job) {
+      if (job.status === "done") {
+        if (job.draft) return { kind: "done", kifu: job.draft };
+        return { kind: "failed", message: analysisJobFailureMessage("result_expired") };
+      }
+      if (job.status === "failed") {
+        return { kind: "failed", message: analysisJobFailureMessage(job.reason) };
+      }
+    }
+    const delay = analysisPollDelayMs(clock.now() - startedAt);
+    if (delay === null) return { kind: "timeout" };
+    await clock.sleep(delay);
+  }
+}
+
+/** 何切る解析のポーリング打ち切り時の案内（結果は一覧に現れないので、時間をおいての再試行を促す）。 */
+export function problemAnalysisTimeoutMessage(): string {
+  return "解析に時間がかかっています。時間をおいてもう一度お試しください。";
 }
 
 /** 課金 Checkout 開始に失敗したときの日本語メッセージ（web/mobile 共通）。

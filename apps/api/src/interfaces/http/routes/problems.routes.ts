@@ -5,7 +5,6 @@
 
 import { SeatSchema } from "@rigel/schema";
 import type { Hono } from "hono";
-import type { AnalysisInput } from "../../../domain/kifu/analyzer";
 import { asFile, isValidImageFile, toImageRef, MAX_IMAGE_COUNT } from "../limits";
 import { reasonStatus, requireAuth, withFavorites, type AppEnv } from "../shared";
 
@@ -15,9 +14,11 @@ function parseStatus(v: unknown): "draft" | "published" | undefined {
 }
 
 export function registerProblemRoutes(app: Hono<AppEnv>): void {
-  // 撮影画像 → 何切るドラフト（**保存しない**。Kifu 形のドラフトを返すだけ。画像も非保存）。
+  // 撮影画像 → 何切るドラフト（**保存しない**。画像も恒久保存しない）。
+  // 非同期ジョブ化（docs/plans/async-analysis.md Task 8・[決定] 2026-08-02）: 実写真の
+  // Gemini 読み取りは数分に達しうるため 202 + jobId を即返し、結果ドラフト（Kifu 形）は
+  // R2 の result.json に置いて GET /problems/analyze/jobs/:id が返す。
   // フォーム: hand(file 必須=自分の手牌), river(file 任意), cameraBottomSeat(任意・既定 east=出題視点)。
-  // Plan: docs/plans/problem-photo-analyze.md
   app.post("/problems/analyze", requireAuth, async (c) => {
     const userId = c.get("userId")!;
 
@@ -34,26 +35,29 @@ export function registerProblemRoutes(app: Hono<AppEnv>): void {
     }
 
     // 枠のプリフライト（画像をメモリへ載せる前）。free（枠0）はここで弾く。
-    const uc = c.get("container").analyzeProblemDraft;
-    const pre = await uc.preflight(userId);
+    const pre = await c.get("container").analyzeProblemDraft.preflight(userId);
     if (!pre.ok) return c.json({ ok: false, reason: pre.reason }, reasonStatus(pre.reason));
 
-    const input: AnalysisInput = {
-      riverImage: river ? await toImageRef(river) : undefined,
-      hands: { bottom: await toImageRef(hand) },
+    const started = await c.get("container").startProblemAnalysisJob.start({
+      userId,
       cameraBottomSeat: seat.success ? seat.data : "east",
-    };
-
-    try {
-      const result = await uc.execute({ userId, input });
-      if (!result.ok) {
-        return c.json({ ok: false, reason: result.reason }, reasonStatus(result.reason));
-      }
-      return c.json({ ok: true, kifu: result.kifu });
-    } catch (e) {
-      console.error("POST /problems/analyze failed", e);
-      return c.json({ ok: false, error: "解析に失敗しました" }, 502);
+      handImage: await toImageRef(hand),
+      ...(river ? { riverImage: await toImageRef(river) } : {}),
+    });
+    if (!started.ok) {
+      return c.json({ ok: false, reason: started.reason }, reasonStatus(started.reason));
     }
+    return c.json({ ok: true, jobId: started.jobId }, 202);
+  });
+
+  // 何切る解析ジョブの状態（所有者のみ。ポーリング用 = RL_READ の対象）。
+  // done なら結果ドラフト（Kifu 形・Zod 検証済み）を同梱。他人・不存在は 404。
+  app.get("/problems/analyze/jobs/:id", requireAuth, async (c) => {
+    const job = await c
+      .get("container")
+      .getProblemAnalysisJob.execute(c.req.param("id"), c.get("userId")!);
+    if (!job) return c.json({ error: "not found" }, 404);
+    return c.json(job);
   });
 
   // 公開一覧（published のみ・新着順。閲覧は自由）。

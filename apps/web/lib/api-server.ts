@@ -41,6 +41,7 @@ export const {
   analyze,
   analyzeProblem,
   getAnalysisJob,
+  getProblemAnalysisJob,
   updateProfile,
   createCheckout,
   createPortal,
