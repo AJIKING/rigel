@@ -91,20 +91,21 @@ describe("CaptureScreen（非同期ジョブの解析フロー。案B=送信し�
     return typeof v === "string" ? v : undefined;
   }
 
-  it("「この写真に自分の手牌も写っている」トグルONで「手前」の手牌欄が隠れる", () => {
+  it("「手牌を含む」トグルONで手牌欄（各家）がまるごと隠れる", () => {
     render(<CaptureScreen />);
     expect(screen.getByText("手前")).toBeTruthy();
 
-    fireEvent.press(screen.getByText("この写真に自分の手牌も写っている"));
+    fireEvent.press(screen.getByText("手牌を含む"));
 
     expect(screen.queryByText("手前")).toBeNull();
-    expect(screen.getByText(/解析回数を1回分多く使います/)).toBeTruthy();
+    expect(screen.queryByText("各家の手牌（任意）")).toBeNull();
+    expect(screen.getByText(/解析回数を最大4回分多く使います/)).toBeTruthy();
   });
 
   it("トグルONで送信すると handFromRiver=true がフォームに載る", async () => {
     mockAnalyze.mockResolvedValue({ ok: true, jobId: "job-1" });
     render(<CaptureScreen />);
-    fireEvent.press(screen.getByText("この写真に自分の手牌も写っている"));
+    fireEvent.press(screen.getByText("手牌を含む"));
 
     await pickRiverAndSubmit();
 

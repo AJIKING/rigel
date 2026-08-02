@@ -47,7 +47,15 @@ function makeDeps(client: GeminiClient, preprocessor: RiverPreprocessor): Gemini
   return {
     client,
     preprocessor,
-    handPreprocessor: { cropHand: () => Promise.resolve(img("table-hand-crop")) },
+    handPreprocessor: {
+      cropHands: () =>
+        Promise.resolve({
+          bottom: img("hand-band-bottom"),
+          right: img("hand-band-right"),
+          top: img("hand-band-top"),
+          left: img("hand-band-left"),
+        }),
+    },
     riverPrompt: RIVER_PROMPT,
     riverModel: "river-model",
     handPrompt: HAND_PROMPT,
@@ -105,7 +113,7 @@ describe("GeminiAnalyzer.analyze", () => {
     expect(kifu.seats.east.hand[0]?.tile).toBe("2p"); // bottom=東
   });
 
-  it("1枚モード（handFromRiver）は河写真の下端帯を専用プロンプトで読み、bottom の手牌に入る", async () => {
+  it("1枚モード（handFromRiver）は四辺の帯を専用プロンプトで読み、四家の手牌に入る", async () => {
     const client = new FakeClient();
     const analyzer = new GeminiAnalyzer(makeDeps(client, new FakePreprocessor()));
 
@@ -115,13 +123,14 @@ describe("GeminiAnalyzer.analyze", () => {
       cameraBottomSeat: "east",
     });
 
-    expect(client.tableHandCalls).toBe(1); // 専用プロンプトで1回
+    expect(client.tableHandCalls).toBe(4); // 四家ぶん（伏せ牌の辺は空の手牌が返る想定）
     expect(client.handCalls).toBe(0);
-    expect(geminiCalls).toBe(5); // 河4 + 1枚モード手牌1（課金も +1）
-    expect(kifu.seats.east.hand[0]?.tile).toBe("3s");
+    expect(geminiCalls).toBe(8); // 河4 + 1枚モード手牌4（課金も +4）
+    expect(kifu.seats.east.hand[0]?.tile).toBe("3s"); // bottom=東
+    expect(kifu.seats.south.hand[0]?.tile).toBe("3s"); // right=南（東の下家）
   });
 
-  it("1枚モードでも明示の hands.bottom があればそちらが勝つ（二重読みしない）", async () => {
+  it("1枚モードでも明示の手牌写真がある方向はそちらが勝つ（その方向は帯を読まない）", async () => {
     const client = new FakeClient();
     const analyzer = new GeminiAnalyzer(makeDeps(client, new FakePreprocessor()));
 
@@ -132,9 +141,9 @@ describe("GeminiAnalyzer.analyze", () => {
       cameraBottomSeat: "east",
     });
 
-    expect(client.tableHandCalls).toBe(0);
-    expect(client.handCalls).toBe(1);
-    expect(geminiCalls).toBe(5);
+    expect(client.handCalls).toBe(1); // bottom は明示の寄り写真
+    expect(client.tableHandCalls).toBe(3); // 残り3方向だけ帯から
+    expect(geminiCalls).toBe(8);
     expect(kifu.seats.east.hand[0]?.tile).toBe("2p"); // 明示の寄り写真の結果
   });
 

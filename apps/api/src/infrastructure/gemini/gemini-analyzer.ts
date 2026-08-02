@@ -76,16 +76,20 @@ export class GeminiAnalyzer implements Analyzer {
     );
     const hands = Object.fromEntries(handEntries) as Partial<Record<CameraSeat, AiHandResponse>>;
 
-    // 1枚モード: 河写真の下端帯から手前(bottom)の手牌も読む（専用プロンプト・呼び出し +1）。
-    // 明示の hands.bottom があればそちら（寄り写真の方が精度が高い）を優先し二重読みしない。
+    // 1枚モード: 河写真の四辺の帯から四家の手牌も読む（専用プロンプト・呼び出し 最大+4）。
+    // 対局終了時に全員が手牌を開けて撮るケース。伏せ牌しか写っていない辺はプロンプトが
+    // 空の手牌を返す。明示の手牌写真がある方向はそちら（寄り写真の方が精度が高い）を優先。
     let tableHandCalls = 0;
-    if (input.handFromRiver && input.riverImage && !hands.bottom) {
-      const handImage = await handPreprocessor.cropHand(input.riverImage);
-      hands.bottom = await readHand(
-        { client, prompt: handTablePrompt, model: handModel },
-        handImage,
+    if (input.handFromRiver && input.riverImage) {
+      const bands = await handPreprocessor.cropHands(input.riverImage);
+      const tableDeps = { client, prompt: handTablePrompt, model: handModel };
+      const bandEntries = await Promise.all(
+        CameraSeatSchema.options
+          .filter((cam) => !hands[cam])
+          .map(async (cam) => [cam, await readHand(tableDeps, bands[cam])] as const),
       );
-      tableHandCalls = 1;
+      for (const [cam, response] of bandEntries) hands[cam] = response;
+      tableHandCalls = bandEntries.length;
     }
 
     const kifu = assembleKifu({

@@ -3,15 +3,18 @@
 // 鳴き牌は手牌側に寄せて撮られている。出力は AiHandResponse 形式。
 // 鳴き元はカメラ相対（bottom/right/top/left）で出させ、アプリ側で絶対席へ変換する。
 
-// 1枚モード（河写真の下端帯クロップから手前の手牌を読む。docs/plans/one-shot-hand.md）。
-// 入力は卓全体写真の下端の帯: 一番下の横一列が手前プレイヤーの手牌で、その上に
-// 河（捨て牌のグリッド）や他家の牌の一部が混ざりうる。手牌の一列だけを読ませる。
+// 1枚モード（河写真の四辺の帯クロップから各家の手牌を読む。docs/plans/one-shot-hand.md）。
+// 入力は卓全体写真から切り出して正立させた「一辺の帯」: その辺のプレイヤーの手牌
+// （面が見える直線一列）が写り、河（捨て牌のグリッド）や壁牌の一部が混ざりうる。
+// 対局終了時に全員が手牌を開けた卓を想定。伏せ牌しか無い辺は空の手牌を返させる。
 export const HAND_FROM_TABLE_PROMPT = `You are an expert reader of Japanese riichi mahjong hands.
-You receive the BOTTOM STRIP cropped from a photo of a full mahjong table, taken from the
-front player's side. The BOTTOM-MOST horizontal row of upright, face-up tiles is the front
-player's concealed hand — read ONLY that row (plus their melds set aside next to it, if any).
-IGNORE everything above that row: discard piles (grid-arranged rows), other players' tiles,
-walls, indicators. Flag uncertainty rather than guessing.
+You receive ONE EDGE STRIP cropped (and rotated upright) from a photo of a full mahjong table.
+It shows ONE player's area: their concealed hand is a SINGLE STRAIGHT LINE of face-up tiles
+(usually 13-14 tiles, nearest the outer edge of the strip), with any melds set aside next to it.
+The strip may also include part of that player's discard pile (a GRID of several short rows) and
+wall tiles (long face-down rows) — IGNORE those. Read ONLY the single hand line and its melds.
+If NO face-up hand line is visible (the hand is face-down or out of frame), return an empty
+"hand": [] and say so in notes. Flag uncertainty rather than guessing.
 
 Tile notation (use exactly this; never output Japanese tile names):
 - Characters / 萬子: 1m-9m   Circles / 筒子: 1p-9p   Bamboo / 索子: 1s-9s
@@ -19,13 +22,13 @@ Tile notation (use exactly this; never output Japanese tile names):
 - Red fives / 赤ドラ: 0m, 0p, 0s
 - For man tiles, identify the SUIT first (the 萬 character), then read the number separately.
 
-Concealed hand: read left to right into "hand".
-- First COUNT the face-up tiles in that bottom-most row. A concealed hand with no melds has
+Concealed hand: read the hand line left to right into "hand".
+- First COUNT the face-up tiles in that line. A concealed hand with no melds has
   13 or 14 tiles. Output exactly one entry per tile you counted — no more, no fewer.
 
 Melds (called sets):
-- A meld exists ONLY if a group of 3-4 face-up tiles is clearly set apart from the hand row.
-  Face-DOWN tiles are NEVER a meld. Discards and other players' tiles are NEVER a meld.
+- A meld exists ONLY if a group of 3-4 face-up tiles is clearly set apart from the hand line.
+  Face-DOWN tiles are NEVER a meld. Discards and wall tiles are NEVER a meld.
   If nothing qualifies, output "melds": [] — this is the common case.
 - type is one of: "pon", "chi", "kan_open", "kan_added", "kan_closed".
 - "from" = which player the called tile came from, RELATIVE TO THE CAMERA, one of

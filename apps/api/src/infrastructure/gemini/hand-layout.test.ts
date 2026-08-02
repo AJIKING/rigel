@@ -1,21 +1,40 @@
-// 1枚モード（河写真から手前の手牌も読む。docs/plans/one-shot-hand.md）の
-// クロップ決定ロジック（純粋）。矩形の不変条件を固定する。実寸の妥当性は実機検証。
+// 1枚モード（河写真から四家の手牌も読む。docs/plans/one-shot-hand.md）の
+// クロップ決定ロジック（純粋）。四辺の外側の帯を、河と同じ回転で正立させる。
+// 実寸の妥当性は実機検証。
 
+import { CameraSeatSchema } from "@rigel/schema";
 import { describe, expect, it } from "vitest";
-import { handFromTableLayout } from "./hand-layout";
+import { handsFromTableLayout } from "./hand-layout";
+import { riverLayout } from "./river-layout";
 
-describe("handFromTableLayout", () => {
-  it("下端の帯を全幅・回転なしで切り出す（0..1 の割合矩形）", () => {
-    const { crop, rotateCW } = handFromTableLayout();
+describe("handsFromTableLayout", () => {
+  it("四方向それぞれ外側の帯を切り出す（0..1 の割合矩形）", () => {
+    const layout = handsFromTableLayout();
 
-    expect(rotateCW).toBe(0); // 手前の手牌は正立済み
-    expect(crop.x).toBe(0);
-    expect(crop.width).toBe(1); // 全幅（副露が右に寄っていても切らない）
-    expect(crop.y).toBeGreaterThan(0.5); // 下半分のさらに下側の帯
-    expect(crop.y + crop.height).toBeCloseTo(1); // 下端まで
-    for (const v of [crop.x, crop.y, crop.width, crop.height]) {
-      expect(v).toBeGreaterThanOrEqual(0);
-      expect(v).toBeLessThanOrEqual(1);
+    // 手前: 下端の帯 / 向かい: 上端の帯 / 左右: それぞれの端の縦帯。
+    expect(layout.bottom.crop.y + layout.bottom.crop.height).toBeCloseTo(1);
+    expect(layout.bottom.crop.width).toBe(1);
+    expect(layout.top.crop.y).toBe(0);
+    expect(layout.top.crop.width).toBe(1);
+    expect(layout.left.crop.x).toBe(0);
+    expect(layout.left.crop.height).toBe(1);
+    expect(layout.right.crop.x + layout.right.crop.width).toBeCloseTo(1);
+    expect(layout.right.crop.height).toBe(1);
+
+    for (const cam of CameraSeatSchema.options) {
+      const { x, y, width, height } = layout[cam].crop;
+      for (const v of [x, y, width, height]) {
+        expect(v).toBeGreaterThanOrEqual(0);
+        expect(v).toBeLessThanOrEqual(1);
+      }
+    }
+  });
+
+  it("回転角は河（riverLayout）と同じ値を共有する（実機検証で直すとき一箇所で済む）", () => {
+    const hands = handsFromTableLayout();
+    const rivers = riverLayout();
+    for (const cam of CameraSeatSchema.options) {
+      expect(hands[cam].rotateCW).toBe(rivers[cam].rotateCW);
     }
   });
 });

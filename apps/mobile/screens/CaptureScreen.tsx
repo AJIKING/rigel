@@ -167,45 +167,51 @@ export function CaptureScreen() {
             )}
           </Pressable>
 
-          {/* 1枚モードのトグル（河ピッカー直下。[決定] 2026-08-01 オーナー提案の UX）。 */}
+          {/* 1枚モードのトグル（河ピッカー直下。[決定] 2026-08-02 四家対応・文言は「手牌を含む」）。
+              対局終了時に全員が手牌を開けて撮った1枚から、四家の手牌もまとめて読む。 */}
           <Pressable
             style={styles.tgl}
             onPress={() => {
               setHandFromRiver((v) => !v);
-              // 二重指定の混乱を防ぐ: モード切替時は明示の「あなたの手牌」選択を破棄。
-              setHands((h) => ({ ...h, bottom: undefined }));
+              // 二重指定の混乱を防ぐ: モード切替時は明示の手牌選択を破棄。
+              setHands({});
             }}
             accessibilityRole="switch"
             accessibilityState={{ checked: handFromRiver }}
-            accessibilityLabel="この写真に自分の手牌も写っている"
-            accessibilityHint="手前の手牌もこの1枚から読み取ります。解析回数を1回分多く使います"
+            accessibilityLabel="手牌を含む"
+            accessibilityHint="写真に写っている各家の手牌もこの1枚から読み取ります。解析回数を最大4回分多く使います"
           >
             <View style={[styles.tglBox, handFromRiver && styles.tglBoxOn]}>
               {handFromRiver ? <Text style={styles.tglTick}>✓</Text> : null}
             </View>
             <View style={styles.tglBody}>
-              <Text style={styles.tglLabel}>この写真に自分の手牌も写っている</Text>
+              <Text style={styles.tglLabel}>手牌を含む</Text>
               <Text style={styles.tglSub}>
-                手前の手牌もこの1枚から読み取ります（解析回数を1回分多く使います）
+                写真に写っている各家の手牌もこの1枚から読み取ります（解析回数を最大4回分多く使います）
               </Text>
             </View>
           </Pressable>
 
-          <Text style={styles.label}>各家の手牌（任意）</Text>
-          {CAMS.filter((cam) => !(handFromRiver && cam === "bottom")).map((cam) => (
-            <Pressable
-              key={cam}
-              style={styles.handRow}
-              onPress={() => void pickInto((p) => setHands((h) => ({ ...h, [cam]: p })))}
-            >
-              <Text style={styles.handLabel}>{cameraLabel(cam)}</Text>
-              {hands[cam] ? (
-                <Image source={{ uri: hands[cam]?.uri }} style={styles.thumbSmall} />
-              ) : (
-                <Text style={styles.pickText}>選ぶ</Text>
-              )}
-            </Pressable>
-          ))}
+          {/* 1枚モード ON では個別の手牌写真は不要（明示指定は API 側で優先されるが UI は簡潔に）。 */}
+          {handFromRiver ? null : (
+            <>
+              <Text style={styles.label}>各家の手牌（任意）</Text>
+              {CAMS.map((cam) => (
+                <Pressable
+                  key={cam}
+                  style={styles.handRow}
+                  onPress={() => void pickInto((p) => setHands((h) => ({ ...h, [cam]: p })))}
+                >
+                  <Text style={styles.handLabel}>{cameraLabel(cam)}</Text>
+                  {hands[cam] ? (
+                    <Image source={{ uri: hands[cam]?.uri }} style={styles.thumbSmall} />
+                  ) : (
+                    <Text style={styles.pickText}>選ぶ</Text>
+                  )}
+                </Pressable>
+              ))}
+            </>
+          )}
         </>
       ) : null}
 
