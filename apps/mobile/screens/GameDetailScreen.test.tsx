@@ -76,12 +76,12 @@ describe("GameDetailScreen（半荘詳細の局一覧）", () => {
     expect(screen.getByText(/東一局 1本場/)).toBeTruthy();
   });
 
-  it("読めなかった牌（null）を含む局には「要確認」バッジを出す（人手修正の入口）", () => {
+  it("読めなかった牌（null）があっても「要確認」バッジは出さない（[決定] 2026-08-02 オーナー: 表示廃止）", () => {
     const detail = makeDetail([{ id: "l1", seq: 1 }]);
     detail.logs[0]!.kifu = makeKifu(0, { hand: [{ tile: null }, { tile: "1m" }] });
     mockUseGame.mockReturnValue({ loading: false, detail, refetch: jest.fn() });
     render(<GameDetailScreen />);
-    expect(screen.getByText("要確認 1")).toBeTruthy();
+    expect(screen.queryByText(/要確認/)).toBeNull();
   });
 
   it("最後の1局の✕は無言で無視せず、消せない理由を表示する", () => {

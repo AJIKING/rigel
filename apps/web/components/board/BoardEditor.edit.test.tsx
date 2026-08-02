@@ -609,13 +609,13 @@ describe("BoardEditor 編集操作", () => {
     expect(kifu.seats.east.melds).toHaveLength(0);
   });
 
-  it("局メニューに要確認の牌数バッジを出す（読めなかった null 牌）", async () => {
+  it("局メニューに「要確認」バッジを出さない（[決定] 2026-08-02 オーナー: 表示廃止。null 牌は盤面で埋める）", async () => {
     const d = makeDetail([{ id: "l1" }, { id: "l2" }]);
     d.logs[0]!.kifu = makeKifu({ east: { hand: [{ tile: null }] } });
     render(<BoardEditor initialDetail={d} gameId="g1" logId="l1" />);
 
     fireEvent.click(await screen.findByRole("button", { name: /東一局/ }));
-    expect(screen.getByText("要確認 1")).toBeTruthy();
+    expect(screen.queryByText(/要確認/)).toBeNull();
   });
 
   it("局が1つだけなら削除ボタンは無効", async () => {

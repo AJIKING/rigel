@@ -15,7 +15,6 @@ import {
   applyTileEdit,
   callDiscard,
   discardCallOf,
-  collectReviewItems,
   deriveWinResult,
   mutateKifu,
   reconcileTimeline,
@@ -626,8 +625,6 @@ function Editor(p: EditorProps) {
                     {roundMenu && (
                       <div className={s.roundMenu}>
                         {detail.logs.map((l, i) => {
-                          // 要確認（読めなかった null 牌）の残数。人手修正の入口（mobile の半荘詳細と同等）。
-                          const review = collectReviewItems(l.kifu).length;
                           return (
                             <button
                               key={l.id}
@@ -640,8 +637,8 @@ function Editor(p: EditorProps) {
                               {/* 本場も出す：連荘（同じ局順の局）を区別できる唯一の手掛かり。
                                   ラベルと第n局の間は実スペース（JSX の改行は空白にならず、
                                   ビューアの局メニューとアクセシブルネームがずれるため）。 */}
+                              {/* 「要確認」バッジは表示廃止（[決定] 2026-08-02 オーナー。null 牌は盤面で埋める）。 */}
                               {roundHonbaLabel(l.seq, l.kifu.meta.honba)} <small>第{l.seq}局</small>
-                              {review > 0 && <small className={s.reviewCnt}>要確認 {review}</small>}
                             </button>
                           );
                         })}

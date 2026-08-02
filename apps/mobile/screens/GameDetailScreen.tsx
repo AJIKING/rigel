@@ -1,13 +1,7 @@
 import { useFocusEffect, useNavigation, useRoute, type RouteProp } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import type { KifuStatus, Visibility } from "@rigel/client";
-import {
-  collectReviewItems,
-  resultLabel,
-  roundHonbaLabel,
-  roundNameForSeq,
-  LIMIT_MESSAGES,
-} from "@rigel/ui";
+import { resultLabel, roundHonbaLabel, roundNameForSeq, LIMIT_MESSAGES } from "@rigel/ui";
 import { useCallback, useState } from "react";
 import { FlatList, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { CenterState } from "../components/CenterState";
@@ -317,7 +311,6 @@ export function GameDetailScreen() {
         keyExtractor={(l) => l.id}
         contentContainerStyle={{ gap: 8, padding: 12 }}
         renderItem={({ item }) => {
-          const reviews = collectReviewItems(item.kifu).length;
           const canDelete = detail.logs.length > 1;
           return (
             <Pressable
@@ -330,7 +323,7 @@ export function GameDetailScreen() {
                 <Text style={styles.result}>{resultLabel(item.kifu.result)}</Text>
               </Text>
               <View style={styles.cardRight}>
-                {reviews > 0 ? <Text style={styles.review}>要確認 {reviews}</Text> : null}
+                {/* 「要確認」バッジは表示廃止（[決定] 2026-08-02 オーナー。null 牌は盤面で埋める）。 */}
                 <Text style={styles.preview}>プレビュー ›</Text>
                 <Pressable
                   onPress={() => nav.navigate("Edit", { gameId, logId: item.id })}
@@ -440,7 +433,6 @@ const styles = StyleSheet.create({
   },
   localTitle: { color: colors.white, fontWeight: "700" },
   result: { color: colors.w45, fontWeight: "400", fontSize: 13 },
-  review: { color: colors.vermilion, fontSize: 12 },
   preview: { color: colors.w70, fontSize: 12.5, fontWeight: "700" },
   cardRight: { flexDirection: "row", alignItems: "center", gap: 14 },
   edit: { color: colors.accent, fontSize: 12.5, fontWeight: "700" },
