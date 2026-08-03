@@ -4,6 +4,7 @@ import {
   deleteConfirmText,
   filterMyProblems,
   sortMyList,
+  A11Y_LABELS,
   DELETE_CONFIRM,
   PROBLEM_KIND_LABELS,
   PROBLEM_LIMIT,
@@ -158,9 +159,9 @@ export function MyProblemsScreen({
           <MyListToolbar
             q={q}
             onQ={setQ}
-            searchLabel="自分の問題を検索"
+            searchLabel={A11Y_LABELS.searchMyProblems}
             searchPlaceholder="問題を検索"
-            statusLabel="状態で絞り込み"
+            statusLabel={A11Y_LABELS.filterProblemStatus}
             statusOptions={MY_PROBLEM_STATUS_OPTIONS}
             status={status}
             onStatus={setStatus}

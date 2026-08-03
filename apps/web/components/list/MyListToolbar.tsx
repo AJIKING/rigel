@@ -1,6 +1,6 @@
 "use client";
 
-import { MY_LIST_SORTS, type MyListSortKey } from "@rigel/ui";
+import { A11Y_LABELS, MY_LIST_SORTS, type MyListSortKey } from "@rigel/ui";
 import s from "./kifu-list.module.css";
 
 /** 状態（公開/非公開・公開/下書き）の選択肢。中身はタブごとに違うが並びと形は共通。 */
@@ -86,7 +86,7 @@ export function MyListToolbar({
 
       <div className={s.sortwrap}>
         <select
-          aria-label="並び替え"
+          aria-label={A11Y_LABELS.sort}
           value={sort}
           onChange={(e) => onSort(e.target.value as MyListSortKey)}
         >
@@ -105,7 +105,7 @@ export function MyListToolbar({
         <button
           type="button"
           className={s.favbtn}
-          aria-label="お気に入りのみ表示"
+          aria-label={A11Y_LABELS.favoriteOnly}
           aria-pressed={favOnly}
           onClick={() => onFavOnly(!favOnly)}
         >

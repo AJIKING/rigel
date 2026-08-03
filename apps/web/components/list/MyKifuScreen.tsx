@@ -6,6 +6,7 @@ import {
   myKifuStats,
   planKifuLimits,
   sortMyList,
+  A11Y_LABELS,
   DELETE_CONFIRM,
   LIST_LOAD_ERROR_MESSAGE,
   LIST_REFRESH_INTERVAL_MS,
@@ -170,9 +171,9 @@ export function MyKifuScreen() {
           <MyListToolbar
             q={q}
             onQ={setQ}
-            searchLabel="自分の牌譜を検索"
+            searchLabel={A11Y_LABELS.searchMyKifu}
             searchPlaceholder="牌譜を検索"
-            statusLabel="公開状態で絞り込み"
+            statusLabel={A11Y_LABELS.filterKifuStatus}
             statusOptions={MY_KIFU_STATUS_OPTIONS}
             status={status}
             onStatus={setStatus}

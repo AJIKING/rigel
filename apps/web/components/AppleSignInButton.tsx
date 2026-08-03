@@ -1,5 +1,6 @@
 "use client";
 
+import { APPLE_SIGN_IN_LABEL } from "@rigel/ui";
 import Script from "next/script";
 import { useState } from "react";
 import { useAuth } from "../lib/auth-context";
@@ -73,7 +74,7 @@ export function AppleSignInButton() {
       />
       <button type="button" className={s.abtn} disabled={!ready} onClick={() => void onClick()}>
         <AppleLogo />
-        Appleでサインイン
+        {APPLE_SIGN_IN_LABEL}
       </button>
       {error && (
         <p role="alert" className={s.err}>

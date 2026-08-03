@@ -2,6 +2,7 @@
 
 import {
   filterPublicFeed,
+  A11Y_LABELS,
   LIST_LOAD_ERROR_MESSAGE,
   PROBLEM_KIND_LABELS,
   PUBLIC_FEED_FILTERS,
@@ -58,14 +59,14 @@ export function ProblemListScreen({
               <input
                 type="search"
                 placeholder="問題を検索"
-                aria-label="何切る問題を検索"
+                aria-label={A11Y_LABELS.searchPublicProblems}
                 value={q}
                 onChange={(e) => setQ(e.target.value.trim())}
               />
             </div>
             <div className={s.sortwrap}>
               <select
-                aria-label="並び替え"
+                aria-label={A11Y_LABELS.sort}
                 value={filter}
                 onChange={(e) => setFilter(e.target.value as FeedFilterKey)}
               >

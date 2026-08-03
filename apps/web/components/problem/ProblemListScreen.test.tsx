@@ -209,7 +209,7 @@ describe("MyProblemsScreen（マイ何切る。牌譜マイページと同じ構
         <MyProblemsScreen initialPosts={[post("p1")]} />
       </AuthProvider>,
     );
-    expect(await screen.findByLabelText("自分の問題を検索")).toBeTruthy();
+    expect(await screen.findByLabelText("問題を検索")).toBeTruthy();
     expect(screen.getByLabelText("状態で絞り込み")).toBeTruthy();
     const sort = screen.getByLabelText("並び替え") as HTMLSelectElement;
     expect(Array.from(sort.options).map((o) => o.textContent)).toEqual([

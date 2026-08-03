@@ -1,6 +1,6 @@
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import { filterPublicFeed, PUBLIC_FEED_FILTERS } from "@rigel/ui";
+import { filterPublicFeed, A11Y_LABELS, PUBLIC_FEED_FILTERS } from "@rigel/ui";
 import { useEffect, useMemo, useState } from "react";
 import { FlatList, StyleSheet, View } from "react-native";
 import { AppBar } from "../components/AppBar";
@@ -63,7 +63,12 @@ export function ProblemsListScreen() {
         segments={SEGMENT_LABELS}
         activeIndex={filter}
         onSegmentPress={setFilter}
-        search={{ value: q, onChange: setQ, placeholder: "問題を検索" }}
+        search={{
+          value: q,
+          onChange: setQ,
+          placeholder: "問題を検索",
+          label: A11Y_LABELS.searchPublicProblems,
+        }}
       />
       {loading ? (
         <CenterState loading />

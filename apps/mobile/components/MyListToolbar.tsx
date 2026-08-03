@@ -1,4 +1,4 @@
-import { MY_LIST_SORTS, type MyListSortKey, type MyListStatusOption } from "@rigel/ui";
+import { A11Y_LABELS, MY_LIST_SORTS, type MyListSortKey, type MyListStatusOption } from "@rigel/ui";
 import { useState, type ReactNode } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import Svg, { Path } from "react-native-svg";
@@ -52,7 +52,7 @@ export function MyListToolbar({
           style={styles.sortBtn}
           onPress={() => setSortOpen(true)}
           accessibilityRole="button"
-          accessibilityLabel="並び替え"
+          accessibilityLabel={A11Y_LABELS.sort}
         >
           <Text style={styles.sortText} numberOfLines={1}>
             {current} ▾
@@ -77,7 +77,7 @@ export function MyListToolbar({
             style={[styles.fav, favOnly && styles.favOn]}
             onPress={() => onFavOnly(!favOnly)}
             accessibilityRole="button"
-            accessibilityLabel="お気に入りのみ表示"
+            accessibilityLabel={A11Y_LABELS.favoriteOnly}
             accessibilityState={{ selected: !!favOnly }}
             hitSlop={6}
           >

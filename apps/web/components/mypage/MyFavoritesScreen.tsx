@@ -3,9 +3,10 @@
 import type { FavoriteGameCard, FavoriteProblemCard } from "@rigel/client";
 import {
   authorLabel,
+  sortMyList,
+  A11Y_LABELS,
   LIST_LOAD_ERROR_MESSAGE,
   PROBLEM_KIND_LABELS,
-  sortMyList,
   type MyListSortKey,
 } from "@rigel/ui";
 import Link from "next/link";
@@ -97,9 +98,9 @@ export function MyFavoritesScreen({
           <MyListToolbar
             q={q}
             onQ={setQ}
-            searchLabel="お気に入りを検索"
+            searchLabel={A11Y_LABELS.searchFavorites}
             searchPlaceholder="お気に入りを検索"
-            statusLabel="種別で絞り込み"
+            statusLabel={A11Y_LABELS.filterFavoriteKind}
             statusOptions={KIND_OPTIONS}
             status={kind}
             onStatus={setKind}

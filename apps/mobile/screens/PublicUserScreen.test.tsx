@@ -65,7 +65,7 @@ describe("PublicUserScreen（公開ユーザーページ。web /u と対。Phase
     render(<PublicUserScreen />);
     await screen.findByText("公開半荘");
 
-    fireEvent.press(screen.getByLabelText("お気に入りに追加/解除（2件）"));
+    fireEvent.press(screen.getByLabelText("お気に入り（2件）"));
     expect(mockToggleFav).toHaveBeenCalledWith("game", expect.objectContaining({ id: "g1" }));
   });
 

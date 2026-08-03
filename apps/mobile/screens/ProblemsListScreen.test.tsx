@@ -69,7 +69,7 @@ describe("ProblemsListScreen（何切る公開一覧）", () => {
     render(<ProblemsListScreen />);
     await screen.findByText("リーチ判断の基本");
 
-    fireEvent.press(screen.getAllByLabelText("お気に入りに追加/解除")[0]!);
+    fireEvent.press(screen.getAllByLabelText("お気に入り")[0]!);
     expect(mockToggle).toHaveBeenCalledWith("problem", expect.objectContaining({ id: "p1" }));
   });
 

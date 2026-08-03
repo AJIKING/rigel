@@ -1,3 +1,4 @@
+import { favoriteLabel } from "@rigel/ui";
 import { type ReactNode } from "react";
 import s from "./game-card.module.css";
 
@@ -22,7 +23,7 @@ function FavButton({ on, count, onToggle }: { on: boolean; count: number; onTogg
       type="button"
       className={`${s.fav} ${on ? s.on : ""}`}
       aria-pressed={on}
-      aria-label={count > 0 ? `お気に入り（${count}件）` : "お気に入り"}
+      aria-label={favoriteLabel(count)}
       onClick={(e) => {
         e.stopPropagation();
         onToggle();

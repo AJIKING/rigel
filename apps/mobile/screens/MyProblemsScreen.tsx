@@ -3,6 +3,7 @@ import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import {
   filterMyProblems,
   sortMyList,
+  A11Y_LABELS,
   DELETE_CONFIRM,
   LIMIT_MESSAGES,
   LIST_REFRESH_INTERVAL_MS,
@@ -152,13 +153,20 @@ export function MyProblemsScreen() {
 
   return (
     <View style={styles.root}>
-      <Toolbar search={{ value: q, onChange: setQ, placeholder: "問題を検索" }} />
+      <Toolbar
+        search={{
+          value: q,
+          onChange: setQ,
+          placeholder: "問題を検索",
+          label: A11Y_LABELS.searchMyProblems,
+        }}
+      />
       {/* ＋新規はツールバー右端の action スロットへ（タブ間で位置を統一。[決定] 2026-07-29）。
           クォータはツールバー直下の行に出す。 */}
       <MyListToolbar
         sort={sort}
         onSort={setSort}
-        statusLabel="状態で絞り込み"
+        statusLabel={A11Y_LABELS.filterProblemStatus}
         statusOptions={MY_PROBLEM_STATUS_OPTIONS}
         status={status}
         onStatus={setStatus}

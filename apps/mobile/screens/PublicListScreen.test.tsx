@@ -84,12 +84,12 @@ describe("PublicListScreen（公開フィードの絞り込み）", () => {
   it("検索欄でタイトル・投稿者を絞り込める（web の公開一覧と同一条件。旧・未配線の検索窓の回帰）", () => {
     render(<PublicListScreen />);
 
-    fireEvent.changeText(screen.getByLabelText("牌譜を検索"), "今日");
+    fireEvent.changeText(screen.getByLabelText("公開牌譜を検索"), "今日");
     expect(screen.getByText("今日の半荘")).toBeTruthy();
     expect(screen.queryByText("先週の半荘")).toBeNull();
 
     // 投稿者（handle/表示名）でも当たる。
-    fireEvent.changeText(screen.getByLabelText("牌譜を検索"), "太郎");
+    fireEvent.changeText(screen.getByLabelText("公開牌譜を検索"), "太郎");
     expect(screen.getByText("今日の半荘")).toBeTruthy();
     expect(screen.getByText("先週の半荘")).toBeTruthy();
   });
@@ -98,7 +98,7 @@ describe("PublicListScreen（公開フィードの絞り込み）", () => {
     render(<PublicListScreen />);
 
     // 件数つきのラベル（サーバー集計を読み上げにも出す）。
-    fireEvent.press(screen.getByLabelText("お気に入りに追加/解除（9件）"));
+    fireEvent.press(screen.getByLabelText("お気に入り（9件）"));
     expect(mockToggle).toHaveBeenCalledWith("game", expect.objectContaining({ id: "g-old" }));
   });
 });

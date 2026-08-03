@@ -3,6 +3,7 @@
 import {
   authorLabel,
   filterPublicFeed,
+  A11Y_LABELS,
   LIST_LOAD_ERROR_MESSAGE,
   PUBLIC_FEED_FILTERS,
   type FeedFilterKey,
@@ -72,14 +73,14 @@ export function PublicKifuScreen({
               <input
                 type="search"
                 placeholder="タイトル・投稿者で検索"
-                aria-label="公開牌譜を検索"
+                aria-label={A11Y_LABELS.searchPublicKifu}
                 value={q}
                 onChange={(e) => setQ(e.target.value.trim())}
               />
             </div>
             <div className={s.sortwrap}>
               <select
-                aria-label="並び替え"
+                aria-label={A11Y_LABELS.sort}
                 value={filter}
                 onChange={(e) => setFilter(e.target.value as FeedFilterKey)}
               >

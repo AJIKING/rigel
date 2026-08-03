@@ -28,8 +28,10 @@ export function Toolbar({
   activeIndex?: number;
   /** セグメント押下。 */
   onSegmentPress?: (index: number) => void;
-  /** 検索欄（値・変更・画面ごとのプレースホルダ）。省略時は非表示。 */
-  search?: { value: string; onChange: (v: string) => void; placeholder: string };
+  /** 検索欄（値・変更・画面ごとのプレースホルダ）。省略時は非表示。
+   *  label は読み上げ名（web の aria-label と同一の文言を @rigel/ui から渡す）。
+   *  省略時はプレースホルダを流用するが、それだと「どの一覧の検索か」が伝わらない。 */
+  search?: { value: string; onChange: (v: string) => void; placeholder: string; label?: string };
 }) {
   return (
     <View>
@@ -43,7 +45,7 @@ export function Toolbar({
               onChangeText={search.onChange}
               placeholder={search.placeholder}
               placeholderTextColor={colors.w45}
-              accessibilityLabel={search.placeholder}
+              accessibilityLabel={search.label ?? search.placeholder}
               returnKeyType="search"
               clearButtonMode="while-editing"
             />

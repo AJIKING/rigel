@@ -1,6 +1,6 @@
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import { authorLabel, filterPublicFeed, PUBLIC_FEED_FILTERS } from "@rigel/ui";
+import { authorLabel, filterPublicFeed, A11Y_LABELS, PUBLIC_FEED_FILTERS } from "@rigel/ui";
 import { useMemo, useState } from "react";
 import { FlatList, StyleSheet, Text, View } from "react-native";
 import { AppBar } from "../components/AppBar";
@@ -49,7 +49,12 @@ export function PublicListScreen() {
         segments={SEGMENT_LABELS}
         activeIndex={filter}
         onSegmentPress={setFilter}
-        search={{ value: q, onChange: setQ, placeholder: "牌譜を検索" }}
+        search={{
+          value: q,
+          onChange: setQ,
+          placeholder: "牌譜を検索",
+          label: A11Y_LABELS.searchPublicKifu,
+        }}
       />
       {loading ? (
         <CenterState loading />

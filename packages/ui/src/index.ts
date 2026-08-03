@@ -636,6 +636,40 @@ export const MY_LIST_SORTS: readonly { key: MyListSortKey; label: string }[] = [
   { key: "fav", label: "お気に入りが多い順" },
 ];
 
+/**
+ * 読み上げ名（web=aria-label / mobile=accessibilityLabel）の共有定義。
+ *
+ * 同じ機能に同じ名前が付いていることは「UI の意味が一致している」ことそのもので、
+ * 見た目の差より先に揃えるべきもの（パリティ監査 2026-08-04）。ここに置いた文言は
+ * shared-copy.parity.test.ts が「アプリ側でのベタ書き」を禁じ、ドリフトを止める。
+ */
+export const A11Y_LABELS = {
+  sort: "並び替え",
+  favoriteOnly: "お気に入りのみ表示",
+  /** 検索欄。マイページ側は画面の文脈で自分のものと分かるので「自分の」は付けない
+   *  （[決定] 2026-08-04 オーナー）。公開一覧だけ、別の集合を検索することを名前で示す。 */
+  searchMyKifu: "牌譜を検索",
+  searchPublicKifu: "公開牌譜を検索",
+  searchMyProblems: "問題を検索",
+  searchPublicProblems: "何切る問題を検索",
+  searchFavorites: "お気に入りを検索",
+  /** 状態フィルタ。 */
+  filterKifuStatus: "公開状態で絞り込み",
+  filterProblemStatus: "状態で絞り込み",
+  filterFavoriteKind: "種別で絞り込み",
+} as const;
+
+/** ★（お気に入り）ボタンの読み上げ名。件数は 1 以上のときだけ添える。
+ *  付け外しの状態は web=aria-pressed / mobile=accessibilityState.selected が伝えるので、
+ *  名前は役割だけを言う（「追加/解除」は状態と二重になる）。 */
+export function favoriteLabel(count: number): string {
+  return count > 0 ? `お気に入り（${count}件）` : "お気に入り";
+}
+
+/** Sign in with Apple のボタン文言。Apple 純正ボタンの表記（スペース無し）に合わせる
+ *  （[決定] 2026-07-29 オーナー。web/mobile で割れていたのを 2026-08-04 に統一）。 */
+export const APPLE_SIGN_IN_LABEL = "Appleでサインイン";
+
 /** マイページ一覧の状態フィルタの選択肢（value はフィルタキー・label は表示名）。 */
 export interface MyListStatusOption {
   value: string;

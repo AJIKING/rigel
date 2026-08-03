@@ -5,6 +5,7 @@ import {
   myKifuStats,
   planKifuLimits,
   sortMyList,
+  A11Y_LABELS,
   DELETE_CONFIRM,
   MY_KIFU_STATUS_OPTIONS,
   type MyListSortKey,
@@ -92,13 +93,20 @@ export function MyListScreen() {
 
   return (
     <View style={styles.root}>
-      <Toolbar search={{ value: q, onChange: setQ, placeholder: "牌譜を検索" }} />
+      <Toolbar
+        search={{
+          value: q,
+          onChange: setQ,
+          placeholder: "牌譜を検索",
+          label: A11Y_LABELS.searchMyKifu,
+        }}
+      />
       {/* ＋新規はツールバー右端の action スロットへ（タブ間で位置を統一。[決定] 2026-07-29）。
           クォータはツールバー直下の行に出す。 */}
       <MyListToolbar
         sort={sort}
         onSort={setSort}
-        statusLabel="公開状態で絞り込み"
+        statusLabel={A11Y_LABELS.filterKifuStatus}
         statusOptions={MY_KIFU_STATUS_OPTIONS}
         status={status}
         onStatus={setStatus}

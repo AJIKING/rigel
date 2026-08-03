@@ -1,3 +1,4 @@
+import { favoriteLabel } from "@rigel/ui";
 import { Pressable, StyleSheet, Text } from "react-native";
 import Svg, { Path } from "react-native-svg";
 import { colors } from "../lib/theme";
@@ -22,9 +23,9 @@ export function StarButton({
       hitSlop={8}
       accessibilityRole="button"
       accessibilityState={{ selected: on }}
-      accessibilityLabel={
-        count > 0 ? `お気に入りに追加/解除（${count}件）` : "お気に入りに追加/解除"
-      }
+      // 読み上げ名は web の★と同一（@rigel/ui）。付け外しの状態は accessibilityState.selected が
+      // 伝えるので、名前は役割だけを言う（「追加/解除」は状態と二重になる。2026-08-04 に統一）。
+      accessibilityLabel={favoriteLabel(count)}
       onPress={onPress}
     >
       <Svg width={18} height={18} viewBox="0 0 24 24" fill={on ? colors.accent : "none"}>

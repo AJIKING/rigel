@@ -7,6 +7,7 @@ import { type PublicGameDetail } from "../../lib/api";
 import { useAuth } from "../../lib/auth-context";
 import {
   buildPlaybackFrame,
+  favoriteLabel,
   playbackKifu,
   resultLabel,
   rulePresetLabel,
@@ -301,11 +302,7 @@ export function KifuViewer({ detail, gameId }: { detail: PublicGameDetail; gameI
             <button
               className={`${s.iconbtn} ${s.fav} ${favCard!.viewerFaved ? s.on : ""}`}
               aria-pressed={favCard!.viewerFaved}
-              aria-label={
-                favCard!.favoriteCount > 0
-                  ? `お気に入り（${favCard!.favoriteCount}件）`
-                  : "お気に入り"
-              }
+              aria-label={favoriteLabel(favCard!.favoriteCount)}
               onClick={() => toggleFav("game", favCard!)}
             >
               <svg viewBox="0 0 24 24">

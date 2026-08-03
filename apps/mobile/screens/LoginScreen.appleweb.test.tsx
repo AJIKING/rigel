@@ -55,7 +55,7 @@ describe("LoginScreen（Android）の Sign in with Apple（web フロー）", ()
     });
     render(<LoginScreen />);
 
-    fireEvent.press(screen.getByLabelText("Apple でサインイン"));
+    fireEvent.press(screen.getByLabelText("Appleでサインイン"));
 
     await waitFor(() =>
       expect(mockSignInWithApple).toHaveBeenCalledWith("web-apple-token", "web-code"),
@@ -73,7 +73,7 @@ describe("LoginScreen（Android）の Sign in with Apple（web フロー）", ()
     });
     render(<LoginScreen />);
 
-    fireEvent.press(screen.getByLabelText("Apple でサインイン"));
+    fireEvent.press(screen.getByLabelText("Appleでサインイン"));
 
     await waitFor(() => expect(mockOpenAuthSession).toHaveBeenCalled());
     expect(mockSignInWithApple).not.toHaveBeenCalled();
@@ -83,7 +83,7 @@ describe("LoginScreen（Android）の Sign in with Apple（web フロー）", ()
     mockOpenAuthSession.mockResolvedValue({ type: "dismiss" });
     render(<LoginScreen />);
 
-    fireEvent.press(screen.getByLabelText("Apple でサインイン"));
+    fireEvent.press(screen.getByLabelText("Appleでサインイン"));
 
     await waitFor(() => expect(mockOpenAuthSession).toHaveBeenCalled());
     expect(mockSignInWithApple).not.toHaveBeenCalled();

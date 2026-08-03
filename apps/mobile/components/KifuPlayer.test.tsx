@@ -76,7 +76,7 @@ describe("KifuPlayer", () => {
       />,
     );
 
-    fireEvent.press(screen.getByLabelText("お気に入りに追加/解除（3件）"));
+    fireEvent.press(screen.getByLabelText("お気に入り（3件）"));
     expect(onToggle).toHaveBeenCalled();
   });
 

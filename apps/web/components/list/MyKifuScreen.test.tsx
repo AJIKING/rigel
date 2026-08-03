@@ -225,7 +225,7 @@ describe("MyKifuScreen（マイページの牌譜タブ）", () => {
         <MyKifuScreen />
       </AuthProvider>,
     );
-    expect(await screen.findByLabelText("自分の牌譜を検索")).toBeTruthy();
+    expect(await screen.findByLabelText("牌譜を検索")).toBeTruthy();
     expect(screen.getByLabelText("公開状態で絞り込み")).toBeTruthy();
     const sort = screen.getByLabelText("並び替え") as HTMLSelectElement;
     expect(Array.from(sort.options).map((o) => o.textContent)).toEqual([

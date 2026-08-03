@@ -1,3 +1,4 @@
+import { APPLE_SIGN_IN_LABEL } from "@rigel/ui";
 import * as AppleAuthentication from "expo-apple-authentication";
 import * as Google from "expo-auth-session/providers/google";
 import * as Crypto from "expo-crypto";
@@ -230,10 +231,10 @@ export function LoginScreen() {
               void (Platform.OS === "ios" ? onApplePress() : appleWeb && onAppleWebPress(appleWeb))
             }
             accessibilityRole="button"
-            accessibilityLabel="Apple でサインイン"
+            accessibilityLabel={APPLE_SIGN_IN_LABEL}
           >
             <AppleLogo />
-            <Text style={styles.gbtnText}>Apple でサインイン</Text>
+            <Text style={styles.gbtnText}>{APPLE_SIGN_IN_LABEL}</Text>
           </Pressable>
         ) : null}
         {!request && googleConfig ? (

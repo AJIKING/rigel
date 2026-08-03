@@ -116,7 +116,7 @@ describe("MyFavoritesScreen（マイページ お気に入り）", () => {
     render(<MyFavoritesScreen />);
     await screen.findByText("半荘g1");
 
-    fireEvent.press(screen.getByLabelText("お気に入りに追加/解除（1件）"));
+    fireEvent.press(screen.getByLabelText("お気に入り（1件）"));
     await waitFor(() =>
       expect(mockToggleFav).toHaveBeenCalledWith("game", expect.objectContaining({ id: "g1" })),
     );

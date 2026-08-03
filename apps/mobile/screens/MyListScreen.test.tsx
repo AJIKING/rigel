@@ -233,7 +233,7 @@ describe("MyListScreen（マイ牌譜一覧）", () => {
     setGames([makeGame({ id: "g1", favoriteCount: 3 })]);
     render(<MyListScreen />);
 
-    fireEvent.press(screen.getByLabelText("お気に入りに追加/解除（3件）"));
+    fireEvent.press(screen.getByLabelText("お気に入り（3件）"));
     expect(mockToggleFav).toHaveBeenCalledWith("game", expect.objectContaining({ id: "g1" }));
   });
 });
