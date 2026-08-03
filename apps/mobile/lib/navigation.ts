@@ -10,5 +10,5 @@ export type RootStackParamList = {
   /** 何切る問題の回答画面。 */
   ProblemAnswer: { problemId: string };
   /** 何切る問題の作成（problemId なし）/ 編集（あり）。 */
-  ProblemEdit: { problemId?: string } | undefined;
+  ProblemEdit: { problemId?: string; draftId?: string } | undefined;
 };

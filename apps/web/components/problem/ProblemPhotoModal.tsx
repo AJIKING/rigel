@@ -28,7 +28,8 @@ export function ProblemPhotoModal({
   /** 出題視点の席（= 撮影時の手前席として解析される）。 */
   pov: Seat;
   onClose: () => void;
-  onDone: (kifu: Kifu) => void;
+  /** 解析完了。draftId は先行作成された解析下書き（保存時の写真引き継ぎに使う）。 */
+  onDone: (kifu: Kifu, draftId: string | null) => void;
 }) {
   const { user } = useAuth();
   const [hand, setHand] = useState<File | null>(null);
@@ -71,7 +72,7 @@ export function ProblemPhotoModal({
       );
       if (outcome.kind === "cancelled") return; // モーダルが閉じられた
       if (outcome.kind === "done") {
-        onDone(outcome.kifu);
+        onDone(outcome.kifu, result.draftId ?? null);
         return;
       }
       setError(outcome.kind === "failed" ? outcome.message : problemAnalysisTimeoutMessage());

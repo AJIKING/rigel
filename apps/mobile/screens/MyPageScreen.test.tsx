@@ -37,6 +37,8 @@ jest.mock("../lib/api", () => ({
   getMyProblems: (...args: unknown[]) => mockGetMyProblems(...args),
   updateProblem: jest.fn(),
   deleteProblem: jest.fn(),
+  listProblemDrafts: jest.fn(() => Promise.resolve([])),
+  deleteProblemDraft: jest.fn(),
   listQuizSessions: (...args: unknown[]) => mockListQuizSessions(...args),
 }));
 

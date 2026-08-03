@@ -9,8 +9,14 @@ export const metadata = {
 };
 
 // 何切る問題の新規作成。要ログイン（保存時に上限判定は API 側でも行う）。
-export default async function NewProblemPage() {
+// ?draft={id} で解析下書き（photo-retention.md）から開く（結果の流し込みはクライアント側）。
+export default async function NewProblemPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ draft?: string }>;
+}) {
   const token = await getSessionToken();
   if (!token) redirect("/login");
-  return <ProblemEditorScreen />;
+  const { draft } = await searchParams;
+  return <ProblemEditorScreen draftId={typeof draft === "string" ? draft : undefined} />;
 }

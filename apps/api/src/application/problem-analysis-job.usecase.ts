@@ -41,8 +41,7 @@ export interface StartProblemAnalysisJobDeps {
 }
 
 export type StartProblemAnalysisJobResult =
-  | { ok: true; jobId: string; draftId: string }
-  | { ok: false; reason: ProblemAnalyzeReason };
+  { ok: true; jobId: string; draftId: string } | { ok: false; reason: ProblemAnalyzeReason };
 
 export class StartProblemAnalysisJob {
   constructor(private readonly deps: StartProblemAnalysisJobDeps) {}

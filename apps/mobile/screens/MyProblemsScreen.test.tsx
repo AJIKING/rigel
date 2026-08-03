@@ -19,6 +19,8 @@ jest.mock("../lib/api", () => ({
   getMyProblems: (...args: unknown[]) => mockGetMyProblems(...args),
   updateProblem: (...args: unknown[]) => mockUpdateProblem(...args),
   deleteProblem: (...args: unknown[]) => mockDeleteProblem(...args),
+  listProblemDrafts: jest.fn(() => Promise.resolve([])),
+  deleteProblemDraft: jest.fn(),
 }));
 
 // 削除確認はテストでは即 onConfirm（Alert はネイティブのためモック）。

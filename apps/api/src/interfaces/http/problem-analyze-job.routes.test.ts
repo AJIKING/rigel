@@ -164,9 +164,7 @@ describe("/problems/drafts（解析下書き）", () => {
 
     expect(res.status).toBe(200);
     const body = (await res.json()) as { drafts: { id: string; status: string }[] };
-    expect(body.drafts).toEqual([
-      { id: "d-1", status: "ready", createdAt: NOW.toISOString() },
-    ]);
+    expect(body.drafts).toEqual([{ id: "d-1", status: "ready", createdAt: NOW.toISOString() }]);
   });
 
   it("詳細は ready なら Kifu を同梱。他人は 404", async () => {

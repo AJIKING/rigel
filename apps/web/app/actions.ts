@@ -24,6 +24,9 @@ import {
   createCheckout,
   getAnalysisJob,
   getProblemAnalysisJob,
+  getProblemDraft,
+  deleteProblemDraft,
+  listProblemDrafts,
   retryAnalysis,
   listGamePhotos,
   finishQuizSession,
@@ -151,6 +154,21 @@ export async function analyzeProblemAction(form: FormData) {
 /** 何切る解析ジョブの状態（ポーリング用。done で結果ドラフト同梱）。 */
 export async function getProblemAnalysisJobAction(jobId: string) {
   return getProblemAnalysisJob(await requireToken(), jobId);
+}
+
+/** 解析下書きの一覧（マイページ何切るタブ。photo-retention.md）。 */
+export async function getProblemDraftsAction() {
+  return listProblemDrafts(await requireToken());
+}
+
+/** 解析下書きの詳細（ready なら Kifu 同梱。編集画面への流し込み用）。 */
+export async function getProblemDraftAction(draftId: string) {
+  return getProblemDraft(await requireToken(), draftId);
+}
+
+/** 解析下書きの破棄（写真ごと消える）。 */
+export async function deleteProblemDraftAction(draftId: string) {
+  return deleteProblemDraft(await requireToken(), draftId);
 }
 
 export async function updateProfileAction(update: { handle?: string; displayName?: string }) {

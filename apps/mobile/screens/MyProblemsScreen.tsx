@@ -8,7 +8,15 @@ import { Chip } from "../components/Chip";
 import { DangerButton } from "../components/DangerButton";
 import { MyListToolbar } from "../components/MyListToolbar";
 import { StarButton } from "../components/StarButton";
-import { deleteProblem, getMyProblems, updateProblem, type ProblemPost } from "../lib/api";
+import type { ProblemDraftCard } from "@rigel/client";
+import {
+  deleteProblem,
+  deleteProblemDraft,
+  getMyProblems,
+  listProblemDrafts,
+  updateProblem,
+  type ProblemPost,
+} from "../lib/api";
 import { useAuth } from "../lib/auth";
 import { confirmDestructive } from "../lib/confirm";
 import { relativeTime } from "../lib/format";
@@ -40,6 +48,9 @@ export function MyProblemsScreen() {
     return sortMyList(favOnly ? resolved.filter((p) => p.viewerFaved) : resolved, sort);
   }, [posts, apply, favOnly, sort]);
 
+  // 解析下書き（photo-retention.md）: 写真AI再現の送信で先行作成され、閉じてもここに残る。
+  const [drafts, setDrafts] = useState<ProblemDraftCard[]>([]);
+
   useEffect(() => {
     if (!token) return;
     let active = true;
@@ -51,10 +62,32 @@ export function MyProblemsScreen() {
           setLoading(false);
         }
       });
+    listProblemDrafts(token)
+      .catch(() => [] as ProblemDraftCard[])
+      .then((list) => {
+        if (active) setDrafts(list);
+      });
     return () => {
       active = false;
     };
   }, [token]);
+
+  /** 解析下書きの破棄（写真ごと消える）。 */
+  function onDiscardDraft(id: string) {
+    if (!token) return;
+    confirmDestructive({
+      title: "解析下書きを破棄しますか？",
+      message: "写真も削除され、元に戻せません。",
+      onConfirm: () => {
+        deleteProblemDraft(token, id)
+          .then((res) => {
+            if (res.ok) setDrafts((cur) => cur.filter((d) => d.id !== id));
+            else setErr("下書きの破棄に失敗しました。");
+          })
+          .catch(() => setErr("下書きの破棄に失敗しました。"));
+      },
+    });
+  }
 
   if (!token) {
     return <CenterState message="サインインするとマイ何切るが使えます。" />;
@@ -127,6 +160,34 @@ export function MyProblemsScreen() {
       {atLimit ? <Text style={styles.limitNote}>{LIMIT_MESSAGES.problems}</Text> : null}
       {err ? <Text style={styles.err}>{err}</Text> : null}
       {favError ? <Text style={styles.err}>{favError}</Text> : null}
+
+      {/* 解析下書き（写真AI再現の受け皿）。通常の問題カードの上に出す。 */}
+      {drafts.map((d) => (
+        <View key={d.id} style={styles.card}>
+          <Pressable
+            onPress={() => {
+              if (d.status === "ready") nav.navigate("ProblemEdit", { draftId: d.id });
+            }}
+            accessibilityRole="button"
+            accessibilityLabel="解析下書き"
+          >
+            <Text style={styles.cardTitle}>解析下書き</Text>
+            <View style={styles.metaRow}>
+              <Text style={d.status === "processing" ? styles.badgePub : styles.badgeDraft}>
+                {d.status === "ready"
+                  ? "下書き"
+                  : d.status === "processing"
+                    ? "解析中…"
+                    : "解析失敗"}
+              </Text>
+              <Text style={styles.meta}>{relativeTime(d.createdAt)}</Text>
+            </View>
+          </Pressable>
+          <View style={styles.acts}>
+            <Chip label="破棄" a11ySelected={false} onPress={() => onDiscardDraft(d.id)} />
+          </View>
+        </View>
+      ))}
 
       {loading ? (
         <CenterState loading />

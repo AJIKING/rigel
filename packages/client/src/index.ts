@@ -234,10 +234,11 @@ export interface AnalysisJob {
   updatedAt: string;
 }
 
-/** 何切るの写真AI再現も非同期ジョブ（202 + jobId → getProblemAnalysisJob でポーリング。
- *  結果ドラフトは保存されず、done のジョブに同梱される。[決定] 2026-08-02）。 */
+/** 何切るの写真AI再現も非同期ジョブ（202 + jobId → getProblemAnalysisJob でポーリング）。
+ *  送信時に解析下書き（draftId）が先行作成され、閉じてもマイページから開ける
+ *  （photo-retention.md・[決定] 2026-08-03）。 */
 export type AnalyzeProblemResult =
-  { ok: true; jobId: string } | { ok: false; status: number; reason?: string };
+  { ok: true; jobId: string; draftId: string } | { ok: false; status: number; reason?: string };
 
 /** 何切る解析ジョブの状態（GET /problems/analyze/jobs/:id）。done で draft が入る。 */
 export interface ProblemAnalysisJob {
@@ -246,6 +247,20 @@ export interface ProblemAnalysisJob {
   reason: string | null;
   createdAt: string;
   updatedAt: string;
+  draft: Kifu | null;
+  /** 先行作成された解析下書きの ID（旧ジョブは null）。 */
+  draftId: string | null;
+}
+
+/** 解析下書きのカード（マイページ何切るタブに並ぶ）。 */
+export interface ProblemDraftCard {
+  id: string;
+  status: "processing" | "failed" | "ready";
+  createdAt: string;
+}
+
+/** 解析下書きの詳細。ready なら解析結果（Kifu 形）が入る。 */
+export interface ProblemDraftDetail extends ProblemDraftCard {
   draft: Kifu | null;
 }
 
@@ -294,6 +309,12 @@ export interface ApiClient {
   analyzeProblem(token: string, form: FormData): Promise<AnalyzeProblemResult>;
   /** 何切る解析ジョブの状態（ポーリング用）。done で結果ドラフト同梱。404 は null。 */
   getProblemAnalysisJob(token: string, jobId: string): Promise<ProblemAnalysisJob | null>;
+  /** 解析下書きの一覧（マイページ何切るタブ。所有者のみ）。 */
+  listProblemDrafts(token: string): Promise<ProblemDraftCard[]>;
+  /** 解析下書きの詳細（ready なら Kifu 同梱）。404 は null。 */
+  getProblemDraft(token: string, draftId: string): Promise<ProblemDraftDetail | null>;
+  /** 解析下書きの破棄（写真ごと消える）。 */
+  deleteProblemDraft(token: string, draftId: string): Promise<{ ok: boolean; status: number }>;
   /** 牌譜の修正を保存する（所有者のみ）。seq=局順（東一局=1〜北四局=16。省略は現状維持）。 */
   updateKifu(
     token: string,
@@ -383,10 +404,11 @@ export interface ApiClient {
   getMyProblems(token: string): Promise<ProblemPost[]>;
   /** 何切る問題1件。published は誰でも・draft は所有者のみ（他人は null）。 */
   getProblem(problemId: string, token?: string): Promise<ProblemPost | null>;
-  /** 何切る問題を作成する。free の上限超過は status 403。 */
+  /** 何切る問題を作成する。free の上限超過は status 403。
+   *  draftId 指定で解析下書きから正規保存（写真を引き継ぎ、下書きは畳まれる）。 */
   createProblem(
     token: string,
-    input: { title: string; problem: Problem; status?: ProblemStatus },
+    input: { title: string; problem: Problem; status?: ProblemStatus; draftId?: string },
   ): Promise<{ ok: true; problemId: string } | { ok: false; status: number }>;
   /** 何切る問題を更新する（タイトル・問題本体・draft/published 切替。所有者のみ）。 */
   updateProblem(
@@ -561,11 +583,34 @@ export function createApiClient(baseUrl: string, fetchImpl?: typeof fetch): ApiC
         body: form,
       });
       if (res.ok) {
-        const d = (await res.json()) as { jobId: string };
-        return { ok: true, jobId: d.jobId };
+        const d = (await res.json()) as { jobId: string; draftId: string };
+        return { ok: true, jobId: d.jobId, draftId: d.draftId };
       }
       const body = (await res.json().catch(() => ({}))) as { reason?: string; error?: string };
       return { ok: false, status: res.status, reason: body.reason ?? body.error };
+    },
+
+    async listProblemDrafts(token) {
+      const res = await doFetch(`${baseUrl}/problems/drafts`, { headers: bearer(token) });
+      if (!res.ok) return [];
+      const d = (await res.json()) as { drafts: ProblemDraftCard[] };
+      return d.drafts;
+    },
+
+    async getProblemDraft(token, draftId) {
+      const res = await doFetch(`${baseUrl}/problems/drafts/${draftId}`, {
+        headers: bearer(token),
+      });
+      if (!res.ok) return null;
+      return res.json() as Promise<ProblemDraftDetail>;
+    },
+
+    async deleteProblemDraft(token, draftId) {
+      const res = await doFetch(`${baseUrl}/problems/drafts/${draftId}`, {
+        method: "DELETE",
+        headers: bearer(token),
+      });
+      return { ok: res.ok, status: res.status };
     },
 
     async retryAnalysis(token, jobId) {

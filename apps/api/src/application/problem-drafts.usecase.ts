@@ -8,10 +8,7 @@
 
 import type { Kifu } from "@rigel/schema";
 import type { AnalysisJobRepository } from "../domain/analysis/analysis-job";
-import {
-  problemDraftPrefix,
-  type AnalysisImageStore,
-} from "../domain/analysis/analysis-transport";
+import { problemDraftPrefix, type AnalysisImageStore } from "../domain/analysis/analysis-transport";
 import type { ProblemDraftRepository } from "../domain/problem/problem-draft.repository";
 import { STALE_ANALYSIS_MS } from "./analysis-status";
 

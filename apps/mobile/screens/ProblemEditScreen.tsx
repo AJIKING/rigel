@@ -57,6 +57,7 @@ import {
   createProblem,
   getProblem,
   getProblemAnalysisJob,
+  getProblemDraft,
   updateProblem,
   type ProblemPost,
 } from "../lib/api";
@@ -116,10 +117,21 @@ export function ProblemEditScreen() {
 
   if (loading) return <CenterState loading />;
   if (problemId && !initial) return <CenterState message="問題が見つかりません。" />;
-  return <EditorBody initial={initial ?? undefined} token={token} />;
+  return (
+    <EditorBody initial={initial ?? undefined} token={token} draftId={route.params?.draftId} />
+  );
 }
 
-function EditorBody({ initial, token }: { initial?: ProblemPost; token: string | null }) {
+function EditorBody({
+  initial,
+  token,
+  draftId,
+}: {
+  initial?: ProblemPost;
+  token: string | null;
+  /** 解析下書き（photo-retention.md）から開く場合の ID。結果を流し込み、保存で写真を引き継ぐ。 */
+  draftId?: string;
+}) {
   const nav = useNavigation<Nav>();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
@@ -168,6 +180,8 @@ function EditorBody({ initial, token }: { initial?: ProblemPost; token: string |
   const [analyzing, setAnalyzing] = useState(false);
   const [readingNotes, setReadingNotes] = useState("");
   const [aiReview, setAiReview] = useState("");
+  // 保存時に写真を引き継ぐ解析下書き（route param か、画面内の写真AI再現で紐づく）。
+  const [linkedDraftId, setLinkedDraftId] = useState<string | null>(draftId ?? null);
   // 画面破棄でポーリングを中断する（アンマウント後の setState と無駄なリクエストを防ぐ）。
   const aliveRef = useRef(true);
   useEffect(() => {
@@ -176,6 +190,21 @@ function EditorBody({ initial, token }: { initial?: ProblemPost; token: string |
       aliveRef.current = false;
     };
   }, []);
+
+  // 解析下書きから開いたときの流し込み（一度だけ。ready 以外は案内を出す）。
+  const draftLoaded = useRef(false);
+  useEffect(() => {
+    if (!draftId || !token || draftLoaded.current) return;
+    draftLoaded.current = true;
+    getProblemDraft(token, draftId)
+      .then((d) => {
+        if (!d) setErr("解析下書きが見つかりませんでした。");
+        else if (d.draft) applyAiDraft(d.draft);
+        else if (d.status === "processing") setErr("この下書きはまだ解析中です。");
+        else setErr("この下書きは解析に失敗しています。写真からやり直してください。");
+      })
+      .catch(() => setErr("解析下書きを読み込めませんでした。"));
+  });
 
   /** 写真を選んで onPicked に渡す（Capture と同じ流儀）。 */
   async function pickInto(onPicked: (file: PickedImage) => void) {
@@ -231,6 +260,8 @@ function EditorBody({ initial, token }: { initial?: ProblemPost; token: string |
         setErr(analyzeErrorMessage(result.status, result.reason));
         return;
       }
+      // 解析下書きが先行作成される（photo-retention.md）。保存時に写真を引き継ぐ。
+      setLinkedDraftId(result.draftId ?? null);
       const outcome = await pollProblemAnalysisOutcome(
         () => getProblemAnalysisJob(token, result.jobId),
         Date.now(),
@@ -369,7 +400,13 @@ function EditorBody({ initial, token }: { initial?: ProblemPost; token: string |
           ok: false,
           status: 0,
         }))
-      : await createProblem(token, { title, problem, status }).catch(() => ({
+      : await createProblem(token, {
+          title,
+          problem,
+          status,
+          // 解析下書き由来なら写真を引き継ぐ（photo-retention.md）。
+          ...(linkedDraftId ? { draftId: linkedDraftId } : {}),
+        }).catch(() => ({
           ok: false,
           status: 0,
         }));

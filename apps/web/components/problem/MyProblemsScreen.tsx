@@ -8,9 +8,15 @@ import {
   sortMyList,
   type MyListSortKey,
 } from "@rigel/ui";
+import type { ProblemDraftCard } from "@rigel/client";
 import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
-import { deleteProblemAction, updateProblemAction } from "../../app/actions";
+import { useEffect, useMemo, useState } from "react";
+import {
+  deleteProblemAction,
+  deleteProblemDraftAction,
+  getProblemDraftsAction,
+  updateProblemAction,
+} from "../../app/actions";
 import { type ProblemPost } from "../../lib/api";
 import { useAuth } from "../../lib/auth-context";
 import { fmtDateSlash } from "../../lib/format";
@@ -59,6 +65,29 @@ export function MyProblemsScreen({
   const limit = PROBLEM_LIMIT[user?.plan ?? "free"];
   const atLimit = limit !== null && posts.length >= limit;
   const publishedCount = posts.filter((post) => post.status === "published").length;
+
+  // 解析下書き（photo-retention.md）: 写真AI再現の送信で先行作成され、閉じてもここに残る。
+  const [drafts, setDrafts] = useState<ProblemDraftCard[]>([]);
+  useEffect(() => {
+    if (!user) return;
+    let alive = true;
+    getProblemDraftsAction()
+      .then((d) => {
+        if (alive) setDrafts(d);
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, [user]);
+
+  /** 解析下書きの破棄（写真ごと消える）。 */
+  async function onDiscardDraft(id: string) {
+    if (!window.confirm("この解析下書きを破棄しますか？（写真も削除されます）")) return;
+    const res = await deleteProblemDraftAction(id).catch(() => ({ ok: false, status: 0 }));
+    if (res.ok) setDrafts((cur) => cur.filter((d) => d.id !== id));
+    else setErr("下書きの破棄に失敗しました。");
+  }
 
   const view = useMemo(() => {
     let arr = apply(posts);
@@ -143,6 +172,42 @@ export function MyProblemsScreen({
             onNew={() => router.push("/problems/new")}
             newDisabled={atLimit}
           />
+
+          {/* 解析下書き（写真AI再現の受け皿）。通常の問題カードの上に出す。 */}
+          {drafts.length > 0 && (
+            <div className={gc.feed}>
+              {drafts.map((d) => (
+                <GameCard
+                  key={d.id}
+                  title="解析下書き"
+                  badge={
+                    d.status === "ready" ? (
+                      <span className={`${gc.badge} ${gc.draft}`}>下書き</span>
+                    ) : d.status === "processing" ? (
+                      <span className={`${gc.badge} ${gc.pub}`}>解析中…</span>
+                    ) : (
+                      <span className={`${gc.badge} ${gc.draft}`}>解析失敗</span>
+                    )
+                  }
+                  meta={fmtDateSlash(d.createdAt)}
+                  faved={false}
+                  onToggleFav={() => {}}
+                  onOpen={() => {
+                    if (d.status === "ready") router.push(`/problems/new?draft=${d.id}`);
+                  }}
+                  actions={
+                    <button
+                      type="button"
+                      className={gc.danger}
+                      onClick={() => void onDiscardDraft(d.id)}
+                    >
+                      破棄
+                    </button>
+                  }
+                />
+              ))}
+            </div>
+          )}
 
           <div className={gc.feed}>
             {view.length === 0 ? (

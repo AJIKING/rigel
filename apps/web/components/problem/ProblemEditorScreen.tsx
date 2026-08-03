@@ -34,8 +34,8 @@ import {
   type PickerSuit,
 } from "@rigel/ui";
 import { useRouter } from "next/navigation";
-import { useMemo, useRef, useState } from "react";
-import { createProblemAction, updateProblemAction } from "../../app/actions";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { createProblemAction, getProblemDraftAction, updateProblemAction } from "../../app/actions";
 import { type ProblemPost } from "../../lib/api";
 import { useAuth } from "../../lib/auth-context";
 import { useBoardScale } from "../../lib/use-board-scale";
@@ -165,7 +165,14 @@ function TileChipRow({
  * 出題者のコメント（任意）を付けて保存する。正解は設けない（多様な正解を前提）。
  * 保存前にクライアントでも ProblemSchema で検証し、エラーは日本語で表示する。
  */
-export function ProblemEditorScreen({ initial }: { initial?: ProblemPost }) {
+export function ProblemEditorScreen({
+  initial,
+  draftId,
+}: {
+  initial?: ProblemPost;
+  /** 解析下書き（photo-retention.md）から開く場合の ID。結果を流し込み、保存で写真を引き継ぐ。 */
+  draftId?: string;
+}) {
   const router = useRouter();
   const { user } = useAuth();
   const p0 = initial?.problem;
@@ -208,6 +215,25 @@ export function ProblemEditorScreen({ initial }: { initial?: ProblemPost }) {
   const [photoOpen, setPhotoOpen] = useState(false);
   const [readingNotes, setReadingNotes] = useState("");
   const [aiReview, setAiReview] = useState("");
+  // 保存時に写真を引き継ぐ解析下書き（route の ?draft= か、画面内の写真AI再現で紐づく）。
+  const [linkedDraftId, setLinkedDraftId] = useState<string | null>(draftId ?? null);
+  // 解析下書きから開いたときの流し込み（一度だけ。ready 以外は案内を出す）。
+  const draftLoaded = useRef(false);
+  useEffect(() => {
+    if (!draftId || draftLoaded.current) return;
+    draftLoaded.current = true;
+    getProblemDraftAction(draftId)
+      .then((d) => {
+        if (!d) {
+          setErr("解析下書きが見つかりませんでした。");
+          return;
+        }
+        if (d.draft) applyAiDraft(d.draft);
+        else if (d.status === "processing") setErr("この下書きはまだ解析中です。");
+        else setErr("この下書きは解析に失敗しています。写真からやり直してください。");
+      })
+      .catch(() => setErr("解析下書きを読み込めませんでした。"));
+  }, [draftId]);
 
   /** AIドラフト（Kifu 形）をエディタの各状態へ流し込む（変換は @rigel/ui の共有純関数）。 */
   function applyAiDraft(kifu: Kifu) {
@@ -327,7 +353,13 @@ export function ProblemEditorScreen({ initial }: { initial?: ProblemPost }) {
           ok: false,
           status: 0,
         }))
-      : await createProblemAction({ title, problem, status }).catch(() => ({
+      : await createProblemAction({
+          title,
+          problem,
+          status,
+          // 解析下書き由来なら写真を引き継ぐ（photo-retention.md）。
+          ...(linkedDraftId ? { draftId: linkedDraftId } : {}),
+        }).catch(() => ({
           ok: false as const,
           status: 0,
         }));
@@ -711,7 +743,15 @@ export function ProblemEditorScreen({ initial }: { initial?: ProblemPost }) {
       )}
 
       {photoOpen && (
-        <ProblemPhotoModal pov={pov} onClose={() => setPhotoOpen(false)} onDone={applyAiDraft} />
+        <ProblemPhotoModal
+          pov={pov}
+          onClose={() => setPhotoOpen(false)}
+          onDone={(kifu, doneDraftId) => {
+            applyAiDraft(kifu);
+            // 保存時に写真を引き継ぐ（この場で保存しなくても下書きはマイページに残る）。
+            if (doneDraftId) setLinkedDraftId(doneDraftId);
+          }}
+        />
       )}
     </div>
   );

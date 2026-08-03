@@ -9,6 +9,8 @@ const h = vi.hoisted(() => ({
   updateProblemAction: vi.fn(),
   deleteProblemAction: vi.fn(),
   setFavoriteAction: vi.fn(),
+  getProblemDraftsAction: vi.fn(() => Promise.resolve([])),
+  deleteProblemDraftAction: vi.fn(),
 }));
 vi.mock("../../app/actions", () => h);
 // 一覧カードは牌譜一覧と同じ role=button + router.push 遷移（GameCard 共有）。
