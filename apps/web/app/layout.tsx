@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { GoogleAnalytics } from "../components/GoogleAnalytics";
 import { AuthProvider } from "../lib/auth-context";
+import { AnalysisJobProvider } from "../lib/use-analysis-job";
 import { DEFAULT_DESCRIPTION, DEFAULT_TITLE, siteBaseUrl } from "../lib/og-meta";
 import "./theme.css";
 
@@ -26,7 +27,10 @@ export default function RootLayout({ children }: { children: ReactNode }) {
       <body style={{ margin: 0 }}>
         {/* GA4（NEXT_PUBLIC_GA_MEASUREMENT_ID 未設定なら何も読み込まない）。 */}
         <GoogleAnalytics />
-        <AuthProvider>{children}</AuthProvider>
+        <AuthProvider>
+          {/* 解析ジョブのグローバル追従（一覧の自動反映・リロード復元・多重送信ガード）。 */}
+          <AnalysisJobProvider>{children}</AnalysisJobProvider>
+        </AuthProvider>
       </body>
     </html>
   );

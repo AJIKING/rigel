@@ -22,6 +22,7 @@ import {
 } from "../../app/actions";
 import { buildAnalyzeForm } from "../../lib/analyze-form";
 import { useAuth } from "../../lib/auth-context";
+import { useAnalysisJob } from "../../lib/use-analysis-job";
 import { DoraPicker } from "./DoraPicker";
 import { PhotoField } from "./PhotoField";
 import { Stepper } from "./Stepper";
@@ -70,19 +71,29 @@ export function AddKyokuModal({
   const [dora, setDora] = useState<Tile | null>(null);
   // 作成する局（東一局=1〜北四局=16）。半荘内の好きな局を1つだけ作れる。
   const [seq, setSeq] = useState(1);
-  // モーダルを閉じたらポーリングを中断する（アンマウント後の setState と無駄なリクエストを防ぐ。
-  // ジョブ自体はサーバー側で進み、完了すると一覧に現れる）。
+  // モーダルを閉じたらポーリングを中断し、進行中なら Provider に引き継ぐ
+  // （閉じても解析は続き、完了で一覧に自動反映される。Phase B web-mobile-parity.md）。
+  const { busy: analysisBusy, start: startTracking } = useAnalysisJob();
   const alive = useRef(true);
+  const pendingRef = useRef<{ jobId: string; startedAt: number } | null>(null);
   useEffect(() => {
     alive.current = true;
     return () => {
       alive.current = false;
+      if (pendingRef.current) startTracking(pendingRef.current);
     };
-  }, []);
+    // startTracking は Provider の useCallback で安定。
+  }, [startTracking]);
 
   async function onAnalyze() {
     if (!river) {
       setError("河（卓を上から1枚）の写真を選んでください。");
+      return;
+    }
+    // 解析はひとつずつ（202 の後に断るとサーバー側では課金・キュー投入が済んでいるため、
+    // 送信前に見る。mobile Capture と同じ規律）。
+    if (analysisBusy) {
+      setError("解析はひとつずつ実行できます。進行中の解析が終わってからお試しください。");
       return;
     }
     setBusy(true);
@@ -97,13 +108,15 @@ export function AddKyokuModal({
         setError(analyzeErrorMessage(result.status, result.reason));
         return;
       }
+      pendingRef.current = { jobId: result.jobId, startedAt: Date.now() };
       const outcome = await pollAnalysisOutcome(
         () => getAnalysisJobAction(result.jobId),
-        Date.now(),
+        pendingRef.current.startedAt,
         undefined,
         () => !alive.current,
       );
-      if (outcome.kind === "cancelled") return; // モーダルが閉じられた
+      if (outcome.kind === "cancelled") return; // モーダルが閉じられた（Provider が引き継ぐ）
+      pendingRef.current = null;
       if (outcome.kind === "done") {
         await onDone(outcome.logId, outcome.gameId);
         return;
@@ -232,6 +245,10 @@ export function AddKyokuModal({
                   />
                 ))}
               </div>
+            )}
+            {/* 閉じてもジョブは進み Provider が引き継ぐ（Phase B）。待たされる不安を下げる注記。 */}
+            {busy && (
+              <p className={s.note}>閉じても解析は続きます（完了すると一覧に反映されます）。</p>
             )}
             {error && (
               <p className={s.note} style={{ color: "var(--vermilion)" }}>

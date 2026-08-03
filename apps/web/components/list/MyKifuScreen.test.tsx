@@ -13,6 +13,9 @@ const h = vi.hoisted(() => ({
 vi.mock("../../app/actions", () => h);
 const push = vi.hoisted(() => vi.fn());
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push }) }));
+// 解析追従 Provider はモック（retry→追従開始・busy ガードを観測する）。
+const aj = vi.hoisted(() => ({ settledCount: 0, busy: false, start: vi.fn() }));
+vi.mock("../../lib/use-analysis-job", () => ({ useAnalysisJob: () => aj }));
 
 import { MyKifuScreen } from "./MyKifuScreen";
 
@@ -36,6 +39,8 @@ beforeEach(() => {
   h.setFavoriteAction.mockReset().mockResolvedValue({ ok: true, faved: true, favoriteCount: 1 });
   h.deleteGameAction.mockReset().mockResolvedValue({ ok: true });
   h.retryAnalysisAction.mockReset().mockResolvedValue({ ok: true, jobId: "j1", gameId: "g1" });
+  aj.busy = false;
+  aj.start.mockReset();
 });
 
 afterEach(() => {
@@ -115,6 +120,27 @@ describe("MyKifuScreen（マイページの牌譜タブ）", () => {
     await waitFor(() => expect(h.retryAnalysisAction).toHaveBeenCalledWith("j1"));
     await waitFor(() => expect(screen.getByText("解析中")).toBeTruthy());
     expect(h.deleteGameAction).not.toHaveBeenCalled();
+    // 202 後は Provider が追従する（完了で一覧を refetch。Phase B）。
+    expect(aj.start).toHaveBeenCalledWith({ jobId: "j1", startedAt: expect.any(Number) });
+  });
+
+  it("別の解析が進行中（busy）なら再解析を送らず「ひとつずつ」の案内を出す", async () => {
+    stubMe("free");
+    aj.busy = true;
+    h.getMyGamesAction.mockResolvedValue([
+      card("g1", { kyokuCount: 0, analysisStatus: "failed", analysisJobId: "j1" }),
+    ]);
+    render(
+      <AuthProvider>
+        <MyKifuScreen />
+      </AuthProvider>,
+    );
+    await screen.findByText("解析失敗");
+
+    fireEvent.click(screen.getByRole("button", { name: "もう一度解析" }));
+
+    expect(await screen.findByText(/解析はひとつずつ実行できます/)).toBeTruthy();
+    expect(h.retryAnalysisAction).not.toHaveBeenCalled();
   });
 
   it("「削除」ボタンは確認のうえで一覧から消す（キャンセルなら何もしない）", async () => {

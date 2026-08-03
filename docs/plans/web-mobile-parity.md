@@ -16,7 +16,7 @@
       告知 / 解析下書き）。web の「2度押し」は説明ゼロのため廃止し、説明つき confirm に統一。
       web の「最後の1局」も無言 disabled をやめ理由を表示（mobile と同じ）
 
-## フェーズ B: web の解析追従（設計）
+## フェーズ B: web の解析追従（設計）— **完了 2026-08-03**
 
 mobile の `AnalysisJobProvider` 相当を web に移植する。**目的は3点**:
 一覧バッジの自動反映 / タブ・リロードを跨ぐ追跡の復元 / 多重送信ガード。
@@ -36,6 +36,12 @@ mobile の `AnalysisJobProvider` 相当を web に移植する。**目的は3点
   ポーリング（何切る下書きと同じ方式）。再解析（retry）成功時も Provider に追わせる
 - 送信前 busy ガード: AddKyokuModal（AI タブ）と retry ボタンに適用
   （文言は mobile と同じ「解析はひとつずつ実行できます。…」）
+
+実装メモ（2026-08-03）: 上記のとおり実装。MyKifuScreen の refetch 効果と 5 秒ポーリング効果は
+分離した（`hasProcessing` を取得効果の依存に入れると retry の楽観更新を即 refetch で潰すため）。
+テスト: `apps/web/lib/use-analysis-job.test.tsx`（start 予約・ひとつずつ・永続化・復元・
+別ユーザー掃除・failed でも settled）＋ AddKyokuModal（busy ガード・閉じたら引き継ぎ）＋
+MyKifuScreen（retry→Provider 追従・busy ガード）。
 
 ## フェーズ C: web の半荘詳細相当（設計）
 

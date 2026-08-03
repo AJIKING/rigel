@@ -16,6 +16,7 @@ import { deleteGameAction, getMyGamesAction, retryAnalysisAction } from "../../a
 import { type MyGameCard } from "../../lib/api";
 import { useAuth } from "../../lib/auth-context";
 import { fmtDateSlash } from "../../lib/format";
+import { useAnalysisJob } from "../../lib/use-analysis-job";
 import { useFavorites } from "../../lib/use-favorites";
 import { AppHeader } from "../AppHeader";
 import { GameCard } from "../GameCard";
@@ -56,13 +57,18 @@ export function MyKifuScreen() {
   // 解析失敗カードの操作結果・案内（インライン表示。alert は使わない）。
   const [note, setNote] = useState<string | null>(null);
 
-  /** もう一度解析（Phase 2）。202 で即「解析中」バッジへ。 */
+  /** もう一度解析（Phase 2）。202 で即「解析中」バッジへ。完了は Provider が追従する。 */
   async function onRetry(c: MyGameCard) {
     if (!c.analysisJobId) return;
+    if (analysisBusy) {
+      setNote("解析はひとつずつ実行できます。進行中の解析が終わってからお試しください。");
+      return;
+    }
     setNote(null);
     try {
       const r = await retryAnalysisAction(c.analysisJobId);
       if (r.ok) {
+        startTracking({ jobId: r.jobId, startedAt: Date.now() });
         setGames(
           (prev) =>
             prev?.map((g) =>
@@ -90,6 +96,8 @@ export function MyKifuScreen() {
     }
   }
 
+  // 解析ジョブの追従（Phase B）: 終端（settledCount）で refetch する。
+  const { settledCount, busy: analysisBusy, start: startTracking } = useAnalysisJob();
   useEffect(() => {
     if (authLoading) return;
     if (!user) {
@@ -99,10 +107,26 @@ export function MyKifuScreen() {
     getMyGamesAction()
       .then(setGames)
       .catch(() => {
-        setGames([]);
+        // 既に一覧が出ているなら消さない（refetch 失敗で画面を白紙に戻さない）。
+        setGames((cur) => cur ?? []);
         setLoadFailed(true);
       });
-  }, [authLoading, user]);
+  }, [authLoading, user, settledCount]);
+
+  // 解析中バッジがある間は 5 秒間隔で再取得（他端末・復元漏れの進行も拾う。
+  // 何切る下書き一覧と同じ方式）。取得効果と分ける＝retry の楽観更新を即 refetch で潰さない。
+  const hasProcessing = (games ?? []).some((c) => c.analysisStatus === "processing");
+  useEffect(() => {
+    if (!user || !hasProcessing) return;
+    const timer = setInterval(() => {
+      getMyGamesAction()
+        .then(setGames)
+        .catch(() => {
+          // ポーリングの失敗は無視（次の周期・settledCount で回復する）。
+        });
+    }, 5000);
+    return () => clearInterval(timer);
+  }, [user, hasProcessing]);
 
   const view = useMemo(() => {
     let arr = apply(games ?? []);

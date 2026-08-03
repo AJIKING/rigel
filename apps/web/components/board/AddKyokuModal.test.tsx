@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AuthProvider } from "../../lib/auth-context";
 
 // Server Action はモック（app/actions は server-only を辿るため実体は読み込まない）。
@@ -10,6 +10,9 @@ const h = vi.hoisted(() => ({
   createGameAction: vi.fn(),
 }));
 vi.mock("../../app/actions", () => h);
+// 解析追従 Provider はモック（busy ガード・閉じたときの引き継ぎを観測する）。
+const aj = vi.hoisted(() => ({ settledCount: 0, busy: false, start: vi.fn() }));
+vi.mock("../../lib/use-analysis-job", () => ({ useAnalysisJob: () => aj }));
 
 import { AddKyokuModal } from "./AddKyokuModal";
 
@@ -31,6 +34,11 @@ function renderModal() {
     </AuthProvider>,
   );
 }
+
+beforeEach(() => {
+  aj.busy = false;
+  aj.start.mockReset();
+});
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -92,6 +100,45 @@ describe("AddKyokuModal の非同期解析（202 + ポーリング。docs/plans/
 
     await waitFor(() => expect(screen.getByText(/30局/)).toBeTruthy());
     expect(onDone).not.toHaveBeenCalled();
+  });
+
+  it("別の解析が進行中（busy）なら送信せず「ひとつずつ」の案内を出す", async () => {
+    stubMe("next");
+    aj.busy = true;
+    h.analyzeAction.mockClear();
+    const { container } = renderModal();
+    await screen.findAllByRole("button", { name: "AI再現" });
+
+    pickRiver(container);
+    fireEvent.click(screen.getAllByRole("button", { name: "AI再現" }).at(-1)!);
+
+    expect(await screen.findByText(/解析はひとつずつ実行できます/)).toBeTruthy();
+    expect(h.analyzeAction).not.toHaveBeenCalled();
+  });
+
+  it("解析中に閉じたら Provider にジョブを引き継ぐ（注記も出す。Phase B）", async () => {
+    stubMe("next");
+    h.analyzeAction.mockClear().mockResolvedValue({ ok: true, jobId: "job-7" });
+    // 終端に達しない processing（モーダル内ポーリングが続く状態で閉じる）。
+    h.getAnalysisJobAction.mockResolvedValue({
+      id: "job-7",
+      status: "processing",
+      gameId: null,
+      logId: null,
+      reason: null,
+    });
+    const { container, unmount } = renderModal();
+    await screen.findAllByRole("button", { name: "AI再現" });
+
+    pickRiver(container);
+    fireEvent.click(screen.getAllByRole("button", { name: "AI再現" }).at(-1)!);
+    // 202 → 引き継ぎ記録（pendingRef）が積まれた後＝最初のポーリングまで待つ。
+    await waitFor(() => expect(h.getAnalysisJobAction).toHaveBeenCalledWith("job-7"));
+    // 待たされる不安を下げる注記（閉じても続く）。
+    expect(await screen.findByText(/閉じても解析は続きます/)).toBeTruthy();
+
+    unmount();
+    expect(aj.start).toHaveBeenCalledWith({ jobId: "job-7", startedAt: expect.any(Number) });
   });
 });
 
