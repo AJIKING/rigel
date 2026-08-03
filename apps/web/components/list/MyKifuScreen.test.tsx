@@ -85,7 +85,7 @@ describe("MyKifuScreen（マイページの牌譜タブ）", () => {
     expect(screen.queryByText(/該当する牌譜がありません/)).toBeNull();
   });
 
-  it("解析中の0局半荘はタップで遷移せず、案内をインラインで出す（開く先の局が無い）", async () => {
+  it("解析中の0局半荘もタップで開ける（半荘ヘッダビューが受ける。Phase C）", async () => {
     stubMe("free");
     h.getMyGamesAction.mockResolvedValue([
       card("g1", { kyokuCount: 0, analysisStatus: "processing" }),
@@ -100,8 +100,23 @@ describe("MyKifuScreen（マイページの牌譜タブ）", () => {
     expect(screen.queryByText("編集済")).toBeNull();
 
     fireEvent.click(screen.getByText("半荘g1"));
-    expect(push).not.toHaveBeenCalled();
-    expect(screen.getByText(/AI解析中です/)).toBeTruthy();
+    expect(push).toHaveBeenCalledWith("/kifu/g1");
+  });
+
+  it("局がある半荘の解析失敗にも「もう一度解析」を出す（削除ボタンは0局限定）", async () => {
+    stubMe("free");
+    h.getMyGamesAction.mockResolvedValue([
+      card("g1", { kyokuCount: 3, analysisStatus: "failed", analysisJobId: "j1" }),
+    ]);
+    render(
+      <AuthProvider>
+        <MyKifuScreen />
+      </AuthProvider>,
+    );
+    expect(await screen.findByText("解析失敗")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "もう一度解析" })).toBeTruthy();
+    // 局がある半荘の削除はエディタ側に寄せる（一覧の削除ボタンは 0局限定）。
+    expect(screen.queryByRole("button", { name: "削除" })).toBeNull();
   });
 
   it("解析失敗の0局半荘には「もう一度解析」「削除」ボタンが付き、再解析で解析中バッジへ", async () => {

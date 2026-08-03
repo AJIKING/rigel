@@ -40,12 +40,15 @@ const HANDS: { cam: CameraSeat; label: string }[] = [
 export function AddKyokuModal({
   gameId,
   bottomSeat = "east",
+  askSeat = false,
   onClose,
   onDone,
 }: {
   /** 既存半荘に追加するなら指定。無指定なら新しい半荘を作る（手前席を選ばせる）。 */
   gameId?: string;
   bottomSeat?: Seat;
+  /** 既存半荘でも手前席を選ばせる（0局＝参照できる局が無いとき。Phase C）。 */
+  askSeat?: boolean;
   onClose: () => void;
   onDone: (newLogId: string, gameId: string) => void | Promise<void>;
 }) {
@@ -191,7 +194,7 @@ export function AddKyokuModal({
           </div>
         )}
 
-        {isNew && (
+        {(isNew || askSeat) && (
           <div className={s.modalSeat}>
             <span className={s.meLabel}>手前の席</span>
             <div className={s.meSeg}>

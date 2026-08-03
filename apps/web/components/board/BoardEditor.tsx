@@ -26,6 +26,7 @@ import {
   setDoraTile,
   sortKifuHands,
   visibilityLabel,
+  analyzeErrorMessage,
   deleteConfirmText,
   DELETE_CONFIRM,
   LIMIT_MESSAGES,
@@ -40,6 +41,7 @@ import {
   deleteGameAction,
   deleteKifuAction,
   getGameAction,
+  retryAnalysisAction,
   setGameStatusAction,
   setGameVisibilityAction,
   updateGameAction,
@@ -47,6 +49,7 @@ import {
   updateKifuAction,
 } from "../../app/actions";
 import { type GameDetail, type GameLog } from "../../lib/api";
+import { useAnalysisJob } from "../../lib/use-analysis-job";
 import { usePlayersForm } from "./use-players-form";
 import {
   SEAT_ORDER,
@@ -434,6 +437,29 @@ function Editor(p: EditorProps) {
     if (!res.ok) setSaveErr("対局日の保存に失敗しました。");
   }
 
+  /** 追加解析の失敗を救う「もう一度解析」（Phase C。failed 全般で表示）。
+   *  202 後は Provider に追わせ、バナーは「解析中」表示に切り替える。 */
+  const { busy: analysisBusy, start: startTracking } = useAnalysisJob();
+  const [retrySent, setRetrySent] = useState(false);
+  async function onRetryAnalysis() {
+    if (!detail.analysisJobId) return;
+    if (analysisBusy) {
+      setSaveErr("解析はひとつずつ実行できます。進行中の解析が終わってからお試しください。");
+      return;
+    }
+    try {
+      const r = await retryAnalysisAction(detail.analysisJobId);
+      if (r.ok) {
+        startTracking({ jobId: r.jobId, startedAt: Date.now() });
+        setRetrySent(true);
+      } else {
+        setSaveErr(analyzeErrorMessage(r.status, r.reason));
+      }
+    } catch {
+      setSaveErr("通信に失敗しました。");
+    }
+  }
+
   /** 半荘を配下の全局ごと削除する（2度押しで確定＝誤操作防止）。成功で一覧へ戻る。 */
   async function onDeleteGame() {
     // 確認は説明つき confirm（DELETE_CONFIRM=web/mobile 共通文言。2度押しは説明ゼロで廃止）。
@@ -691,6 +717,17 @@ function Editor(p: EditorProps) {
                       この局を削除
                     </button>
                   </div>
+                  {/* 追加解析の失敗（局がある半荘でも起きる）。一覧まで戻らなくても救えるように
+                      ここに出す（Phase C。0局は GameHeaderScreen が受ける）。 */}
+                  {detail.analysisStatus === "failed" && detail.analysisJobId && !retrySent && (
+                    <p className={s.analyzeFail}>
+                      追加の解析に失敗しました。
+                      <button type="button" onClick={() => void onRetryAnalysis()}>
+                        もう一度解析
+                      </button>
+                    </p>
+                  )}
+                  {retrySent && <p className={s.visNote}>解析中（完了すると局が追加されます）。</p>}
                 </div>
               )}
             </section>

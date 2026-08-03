@@ -1,0 +1,122 @@
+/* ============================================================
+   0局の半荘ヘッダビュー（/kifu/[gameId]。Phase C）
+   テーマ変数は app/theme.css の .themeApp が供給する。
+   ============================================================ */
+
+.shell {
+  background: var(--bg);
+  color: var(--white);
+  font-family: "Noto Sans JP", sans-serif;
+  min-height: 100vh;
+}
+
+.main {
+  position: relative;
+  z-index: 1;
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 28px 20px 96px;
+}
+
+.card {
+  background: var(--chrome);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.field span {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--w45);
+}
+.field input {
+  background: var(--chrome-2);
+  border: 1px solid var(--line);
+  color: var(--white);
+  font-family: inherit;
+  font-size: 14px;
+  padding: 9px 12px;
+  border-radius: var(--r-sm);
+}
+.field input::placeholder {
+  color: var(--w45);
+}
+
+.analyzing {
+  margin: 0;
+  font-size: 13px;
+  color: var(--w70);
+}
+
+.failedRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.failedText {
+  font-size: 13px;
+  color: var(--danger);
+}
+.failedRow button {
+  background: var(--chrome-2);
+  border: 1px solid var(--line);
+  color: var(--white);
+  font-family: var(--round);
+  font-weight: 700;
+  font-size: 12px;
+  padding: 7px 12px;
+  border-radius: var(--r-sm);
+  cursor: pointer;
+}
+
+.note {
+  margin: 0;
+  font-size: 12.5px;
+  color: var(--danger);
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding-top: 4px;
+}
+.actions button {
+  background: var(--chrome-2);
+  border: 1px solid var(--line);
+  color: var(--white);
+  font-family: var(--round);
+  font-weight: 700;
+  font-size: 12.5px;
+  padding: 8px 14px;
+  border-radius: var(--r-sm);
+  cursor: pointer;
+}
+.actions .addBtn {
+  background: var(--white);
+  color: #0c0e12;
+  border: 0;
+  font-weight: 800;
+}
+.actions .danger {
+  margin-left: auto;
+  color: var(--danger);
+  border-color: rgba(255, 90, 90, 0.4);
+}
+
+.hint {
+  margin: 0;
+  font-size: 12px;
+  color: var(--w45);
+}

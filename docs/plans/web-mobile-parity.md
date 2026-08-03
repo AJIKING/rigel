@@ -43,7 +43,7 @@ mobile の `AnalysisJobProvider` 相当を web に移植する。**目的は3点
 別ユーザー掃除・failed でも settled）＋ AddKyokuModal（busy ガード・閉じたら引き継ぎ）＋
 MyKifuScreen（retry→Provider 追従・busy ガード）。
 
-## フェーズ C: web の半荘詳細相当（設計）
+## フェーズ C: web の半荘詳細相当（設計）— **完了 2026-08-03**
 
 web には半荘詳細画面が無く、0局半荘が開けない。**専用ページは作らず**、
 `/kifu/[gameId]` のリダイレクトを条件分岐にする:
@@ -55,6 +55,12 @@ web には半荘詳細画面が無く、0局半荘が開けない。**専用ペ�
   （BoardEditor から半荘メタ部を抽出 or 小さく新設。エディタ本体は読み込まない）
 - 一覧の再解析条件を `kyokuCount===0` 限定から **`analysisStatus==="failed"` 全般**へ緩和
   （局がある半荘の追加解析失敗も救う）。エディタ側にも failed 時の「もう一度解析」を表示
+
+実装メモ（2026-08-03): `GameHeaderScreen.tsx` を新設（`/kifu/[gameId]` で 0局なら表示。
+局ができたら `router.replace` でエディタへ）。AddKyokuModal に `askSeat` prop（0局は参照できる
+局が無いので手前席を選ばせる）。一覧の 0局カードはタップでヘッダビューへ遷移（インライン案内は
+廃止）。削除ボタンは一覧では 0局限定のまま（局がある半荘はエディタ/ヘッダビューに寄せる）。
+エディタの局操作欄に failed バナー＋「もう一度解析」（202 で Provider に追わせる）。
 
 ## フェーズ D: mobile の機能差（設計）
 

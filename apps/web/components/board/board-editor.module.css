@@ -939,6 +939,28 @@
   line-height: 1.6;
 }
 
+/* 追加解析の失敗バナー（Phase C。文言＋「もう一度解析」ボタン）。 */
+.analyzeFail {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-size: 11.5px;
+  color: var(--vermilion);
+  margin: 10px 2px 0;
+}
+.analyzeFail button {
+  background: var(--chrome-2);
+  border: 1px solid var(--line);
+  color: var(--white);
+  font-family: var(--round);
+  font-weight: 700;
+  font-size: 11.5px;
+  padding: 5px 10px;
+  border-radius: var(--r-sm);
+  cursor: pointer;
+}
+
 /* tilepop */
 .tilepop {
   position: fixed;

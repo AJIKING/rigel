@@ -254,34 +254,27 @@ export function MyKifuScreen() {
                   faved={c.viewerFaved}
                   favCount={c.favoriteCount}
                   onToggleFav={() => toggleFav("game", c)}
-                  onOpen={() => {
-                    // 0局の解析中/失敗半荘は開く先（局）が無い。失敗時の操作は actions の
-                    // ボタン（もう一度解析/削除）で行う（連鎖 confirm は誤操作のもと）。
-                    if (c.kyokuCount === 0 && c.analysisStatus) {
-                      setNote(
-                        c.analysisStatus === "processing"
-                          ? "AI解析中です。完了すると開けるようになります。"
-                          : "解析に失敗しました。「もう一度解析」か「削除」を選んでください。",
-                      );
-                      return;
-                    }
-                    router.push(`/kifu/${c.id}`);
-                  }}
+                  // 0局でも開ける（半荘ヘッダビューが受ける。Phase C。mobile と同じ動線）。
+                  onOpen={() => router.push(`/kifu/${c.id}`)}
                   actions={
-                    c.kyokuCount === 0 && c.analysisStatus === "failed" ? (
+                    // 再解析は failed 全般（局がある半荘の追加解析失敗も救う。Phase C）。
+                    // 削除ボタンは 0局限定（局がある半荘はエディタ側の削除に寄せる）。
+                    c.analysisStatus === "failed" ? (
                       <>
                         {c.analysisJobId && (
                           <button type="button" onClick={() => void onRetry(c)}>
                             もう一度解析
                           </button>
                         )}
-                        <button
-                          type="button"
-                          className={gc.danger}
-                          onClick={() => void onDeleteFailed(c)}
-                        >
-                          削除
-                        </button>
+                        {c.kyokuCount === 0 && (
+                          <button
+                            type="button"
+                            className={gc.danger}
+                            onClick={() => void onDeleteFailed(c)}
+                          >
+                            削除
+                          </button>
+                        )}
                       </>
                     ) : undefined
                   }
