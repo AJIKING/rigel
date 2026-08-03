@@ -301,9 +301,11 @@
 }
 .tile {
   position: relative;
-  width: 44px;
+  /* 牌幅は横向き牌（.tileLay）のマージン計算にも使うので変数で持つ。 */
+  --tw: 44px;
+  width: var(--tw);
   min-width: 0;
-  flex: 0 1 44px;
+  flex: 0 1 var(--tw);
   aspect-ratio: 1 / 1.35;
   padding: 0;
   border: 0;
@@ -394,8 +396,9 @@ button.tile:disabled {
   min-width: 0;
 }
 .scoreHand .tile {
-  width: 38px;
-  flex: 0 1 38px;
+  --tw: 38px;
+  width: var(--tw);
+  flex: 0 1 var(--tw);
 }
 .meld {
   display: inline-flex;
@@ -428,9 +431,13 @@ button.tile:disabled {
   border: 1px solid rgba(255, 255, 255, 0.18);
   border-radius: 5px;
 }
-/* 大明槓の横向き牌（位置が鳴き元を示す） */
+/* 鳴いた牌の横向き（位置が鳴き元を示す）。
+   rotate で視覚幅が牌の高さ（幅×1.35）へ広がるのに、レイアウト箱は幅のままなので
+   そのままだと左右の牌に食い込む。差分 (h - w) = w×0.35 を左右マージンで確保する
+   （盤面の .tile.meldT.lay と同じ考え方。2026-08-03 に重なりを修正）。 */
 .tileLay {
   transform: rotate(90deg);
+  margin-inline: calc(var(--tw) * 0.175);
 }
 /* 選択肢4ボタン: 2×2（狭幅は縦1列）・中央揃え・共通トークン（--r-sm / --line） */
 .choices2 {

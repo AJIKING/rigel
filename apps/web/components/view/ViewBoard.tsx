@@ -225,7 +225,8 @@ export function ViewBoard({
                     {/* 鳴きの向き・暗槓の背面は共有ルール（meldTileViews）。
                         横向きの位置が鳴き元を示す（上家=左端・対面=左から2枚目・下家=右端）。 */}
                     {board.melds.map((md, mi) => (
-                      <div key={mi} className={s.meld}>
+                      // data-meld はレイアウト検証（Playwright）用の安定セレクタ。
+                      <div key={mi} className={s.meld} data-meld="">
                         {meldTileViews(md, seat).map((v, ti) => (
                           <ViewTile key={ti} code={v.tile} kind="meld" lay={v.lay} back={v.back} />
                         ))}

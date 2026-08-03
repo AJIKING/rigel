@@ -683,12 +683,14 @@ function QuestionPanel({
             ))}
           </span>
           {question.melds.map((m, mi) => (
-            <span key={mi} role="group" aria-label="副露" className={s.meld}>
+            // data-meld / data-tile はレイアウト検証（Playwright）用の安定セレクタ
+            // （CSS Module クラスはハッシュ化されるため、牌の矩形を測るフックにする）。
+            <span key={mi} role="group" aria-label="副露" className={s.meld} data-meld="">
               {scoreMeldViews(m, question.seatWind).map((v, j) =>
                 v.back ? (
-                  <span key={j} className={`${s.tile} ${s.tileBack}`} />
+                  <span key={j} className={`${s.tile} ${s.tileBack}`} data-tile="meld" />
                 ) : (
-                  <span key={j} className={`${s.tile} ${v.lay ? s.tileLay : ""}`}>
+                  <span key={j} className={`${s.tile} ${v.lay ? s.tileLay : ""}`} data-tile="meld">
                     <OssTileFace code={v.tile} />
                   </span>
                 ),
