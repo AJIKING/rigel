@@ -60,15 +60,13 @@ export const rateLimit: MiddlewareHandler<AppEnv> = async (c, next) => {
   if (!bucket) return next();
 
   const limiter = (c.env as unknown as Record<string, RateLimiter | undefined>)[bucket.binding];
-  // TODO(2026-08-03・診断用/確認後に削除): 本番でレート制限が効かない原因の切り分け。
-  // バインディングの有無と limit() の戻りだけを返す（キー・IP は載せない）。
-  if (!limiter) {
-    c.header("x-rl-debug", `${bucket.binding}:missing`);
-    return next(); // 未設定＝制限なし（本番では wrangler.toml で必ず束ねる）
-  }
+  if (!limiter) return next(); // 未設定＝制限なし（本番では wrangler.toml で必ず束ねる）
 
+  // ⚠️ 2026-08-03 実測: 本番ではバインディングが解決していても limit() が常に success を返し、
+  // 実際には数えていない（20連投でも block しない。namespace 振り直しでも同じ）。原因は
+  // Cloudflare 側にある疑いが濃く、調査中。**この層だけを防波堤にしない**こと
+  // （解析コストは月次の Gemini 枠、認証は署名検証と定数時間比較が本丸）。
   const { success } = await limiter.limit({ key: bucket.key });
-  c.header("x-rl-debug", `${bucket.binding}:bound:${success ? "allow" : "block"}`);
   if (success) return next();
 
   return c.json({ error: "too many requests" }, 429, {

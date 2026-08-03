@@ -32,6 +32,18 @@ Cloudflare Workers（Hono + D1）への本番デプロイ。GitHub Actions の
    > **`REVENUECAT_ALLOW_SANDBOX` は本番に置かないこと**（"true" だと無料の
    > サンドボックス購入で有料プランが付く）。`wrangler secret list` に出たら
    > `wrangler secret delete REVENUECAT_ALLOW_SANDBOX` で消す。
+   >
+   > **⚠️ レート制限は本番で機能していない（2026-08-03 実測・未解決）**。
+   > `[[ratelimits]]`（wrangler 4 の第一級キー）でバインディングは解決しているのに
+   > `limit()` が常に success を返し、`/auth/google` へ 20 連投しても 429 が出ない
+   > （namespace_id を 1001-1004 → 2001-2004 に振り直しても同じ）。Cloudflare 側の
+   > 調査が要る。**復旧したかの確認方法**:
+   > ```bash
+   > for i in $(seq 1 15); do curl -s -o /dev/null -w "%{http_code}\n" \
+   >   -X POST https://api.raisha.jp/auth/google \
+   >   -H 'content-type: application/json' -d '{"idToken":"invalid"}'; done
+   > # 期待: 11 回目以降が 429（RL_AUTH は 10回/分/IP）
+   > ```
    > **`ALLOWED_ORIGINS` は CORS と決済の戻り先の唯一の許可リスト**（2026-08-03 に
    > localhost のハードコードを廃止）。ローカル開発は `.dev.vars` に
    > `ALLOWED_ORIGINS=http://localhost:3000` を書く。
