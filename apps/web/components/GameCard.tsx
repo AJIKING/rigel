@@ -74,6 +74,10 @@ export function GameCard({
       tabIndex={0}
       onClick={onOpen}
       onKeyDown={(e) => {
+        // カード自身にフォーカスがあるときだけ開く。内側のボタン（★・もう一度解析・削除）で
+        // Enter を押すと、そのボタンの動作とカード遷移が同時発火してしまうため（キーは
+        // click と違い stopPropagation の網に掛からない）。
+        if (e.target !== e.currentTarget) return;
         if (e.key === "Enter" || e.key === " ") {
           e.preventDefault();
           onOpen();

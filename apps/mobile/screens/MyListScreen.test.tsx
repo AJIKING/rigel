@@ -22,8 +22,15 @@ jest.mock("../lib/use-kifu-data", () => ({
   useMyGames: (...args: unknown[]) => mockUseMyGames(...args),
 }));
 
+const mockDeleteGame = jest.fn<Promise<{ ok: boolean }>, unknown[]>();
 jest.mock("../lib/api", () => ({
-  deleteGame: jest.fn(),
+  deleteGame: (...a: unknown[]) => mockDeleteGame(...a),
+}));
+
+// 削除確認はテストでは即 onConfirm（Alert はネイティブのためモック）。
+const mockConfirm = jest.fn(({ onConfirm }: { onConfirm: () => void }) => onConfirm());
+jest.mock("../lib/confirm", () => ({
+  confirmDestructive: (params: { onConfirm: () => void }) => mockConfirm(params),
 }));
 
 // お気に入りはサーバー保存。状態はカードが持つので apply はそのまま返す。
@@ -211,6 +218,15 @@ describe("MyListScreen（マイ牌譜一覧）", () => {
     fireEvent.press(within(screen.getByTestId("bottom-sheet-card")).getByText("非公開"));
     expect(screen.getByText("非公開の半荘")).toBeTruthy();
     expect(screen.queryByText("公開済みの半荘")).toBeNull();
+  });
+
+  it("長押し削除の失敗は理由を出す（確認まで出して押したのに無反応にしない）", async () => {
+    mockDeleteGame.mockResolvedValue({ ok: false });
+    setGames([makeGame({ id: "g1", title: "消したい半荘" })]);
+    render(<MyListScreen />);
+
+    fireEvent(screen.getByText("消したい半荘"), "longPress");
+    expect(await screen.findByText("削除に失敗しました。")).toBeTruthy();
   });
 
   it("カードの★を押すとサーバー保存の toggle が種別つきで呼ばれる", () => {

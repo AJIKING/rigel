@@ -7,8 +7,10 @@ export interface CardBadge {
   label: string;
   /** accent=オレンジ(公開/著者), muted=灰(非公開/編集済), warn=朱(下書きあり)。 */
   tone: "accent" | "muted" | "warn";
-  /** バッジ押下（例: 著者名→ユーザーページ）。指定時のみ押せる。 */
+  /** バッジ押下（例: 著者名→ユーザーページ）。指定時のみ押せる（下線＝押せる手がかり）。 */
   onPress?: () => void;
+  /** 押せるバッジの読み上げ名（例:「◯◯のユーザーページを開く」）。省略時は label。 */
+  a11yLabel?: string;
 }
 
 const BADGE_STYLE: Record<CardBadge["tone"], object> = {
@@ -53,8 +55,13 @@ export function KifuCard({
           {badges.map((b) => (
             <View key={b.label} style={styles.metaItem}>
               {b.onPress ? (
-                <Pressable onPress={b.onPress} accessibilityRole="button" hitSlop={6}>
-                  <Text style={BADGE_STYLE[b.tone]}>{b.label}</Text>
+                <Pressable
+                  onPress={b.onPress}
+                  accessibilityRole="button"
+                  accessibilityLabel={b.a11yLabel ?? b.label}
+                  hitSlop={12}
+                >
+                  <Text style={[BADGE_STYLE[b.tone], styles.badgeLink]}>{b.label}</Text>
                 </Pressable>
               ) : (
                 <Text style={BADGE_STYLE[b.tone]}>{b.label}</Text>
@@ -102,4 +109,6 @@ const styles = StyleSheet.create({
     marginHorizontal: 6,
   },
   star: { position: "absolute", top: 9, right: 9 },
+  // 押せるバッジ（著者名など）は下線で静的バッジと見分けられるようにする。
+  badgeLink: { textDecorationLine: "underline" },
 });

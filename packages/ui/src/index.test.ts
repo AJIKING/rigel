@@ -8,11 +8,22 @@ import {
   pollProblemAnalysisOutcome,
   problemAnalysisTimeoutMessage,
   analysisQuotaLabel,
+  ANALYSIS_BUSY_MESSAGE,
   ANALYTICS_EVENTS,
   analyzeErrorMessage,
   applyTileEdit,
+  filterMyKifu,
+  filterMyProblems,
   filterPublicFeed,
+  myKifuStats,
+  parsePendingAnalysis,
+  CHECKOUT_GIVEUP_MS,
+  CHECKOUT_PENDING_MESSAGES,
+  CHECKOUT_POLL_MS,
+  LIST_REFRESH_INTERVAL_MS,
+  MY_KIFU_STATUS_OPTIONS,
   MY_LIST_SORTS,
+  MY_PROBLEM_STATUS_OPTIONS,
   PUBLIC_FEED_FILTERS,
   sortMyList,
   isStoreManagedSubscription,
@@ -621,5 +632,123 @@ describe("ANALYTICS_EVENTS（計測イベントの共有体系。web=GA4 / mobil
   it("特訓クイズの開始・完了イベントを持つ（params は kind のみ＝成績・PII は載らない）", () => {
     expect(ANALYTICS_EVENTS.quizStart).toBe("quiz_start");
     expect(ANALYTICS_EVENTS.quizComplete).toBe("quiz_complete");
+  });
+});
+
+describe("マイページ一覧のフィルタ（純関数。web/mobile 4画面の述語を一本化）", () => {
+  const kifu = (
+    id: string,
+    over: Partial<{ title: string; publicCount: number; viewerFaved: boolean }> = {},
+  ) => ({
+    id,
+    title: over.title ?? `半荘${id}`,
+    createdAt: "2026-08-01T00:00:00.000Z",
+    publicCount: over.publicCount ?? 0,
+    favoriteCount: 0,
+    viewerFaved: over.viewerFaved ?? false,
+  });
+
+  it("filterMyKifu: pub/priv は publicCount で判定し、q はタイトル部分一致、favOnly は viewerFaved", () => {
+    const cards = [
+      kifu("a", { title: "金曜セット", publicCount: 2 }),
+      kifu("b", { title: "大会予選", publicCount: 0, viewerFaved: true }),
+    ];
+    expect(filterMyKifu(cards, { status: "pub" }).map((c) => c.id)).toEqual(["a"]);
+    expect(filterMyKifu(cards, { status: "priv" }).map((c) => c.id)).toEqual(["b"]);
+    expect(filterMyKifu(cards, { q: "大会" }).map((c) => c.id)).toEqual(["b"]);
+    expect(filterMyKifu(cards, { favOnly: true }).map((c) => c.id)).toEqual(["b"]);
+    expect(filterMyKifu(cards, {}).map((c) => c.id)).toEqual(["a", "b"]);
+  });
+
+  it("filterMyProblems: status は完全一致（all は素通し）・q はタイトル部分一致", () => {
+    const posts = [
+      {
+        id: "p1",
+        title: "下書きの問題",
+        status: "draft",
+        createdAt: "2026-08-01T00:00:00.000Z",
+        favoriteCount: 0,
+        viewerFaved: false,
+      },
+      {
+        id: "p2",
+        title: "公開中の問題",
+        status: "published",
+        createdAt: "2026-08-01T00:00:00.000Z",
+        favoriteCount: 0,
+        viewerFaved: true,
+      },
+    ];
+    expect(filterMyProblems(posts, { status: "published" }).map((c) => c.id)).toEqual(["p2"]);
+    expect(filterMyProblems(posts, { status: "draft" }).map((c) => c.id)).toEqual(["p1"]);
+    expect(filterMyProblems(posts, { q: "公開中" }).map((c) => c.id)).toEqual(["p2"]);
+    expect(filterMyProblems(posts, { favOnly: true }).map((c) => c.id)).toEqual(["p2"]);
+  });
+
+  it("MY_KIFU/MY_PROBLEM_STATUS_OPTIONS の value はフィルタが解釈できるキーと一致する", () => {
+    for (const o of MY_KIFU_STATUS_OPTIONS) {
+      expect(["all", "pub", "priv"]).toContain(o.value);
+    }
+    for (const o of MY_PROBLEM_STATUS_OPTIONS) {
+      expect(["all", "published", "draft"]).toContain(o.value);
+    }
+  });
+});
+
+describe("myKifuStats（マイページ牌譜タブの統計3枠。web/mobile 共通の定義）", () => {
+  it("牌譜数・公開数（publicCount>0 の半荘数）・★された数（favoriteCount 総和）を返す", () => {
+    const stats = myKifuStats([
+      { publicCount: 2, favoriteCount: 3 },
+      { publicCount: 0, favoriteCount: 1 },
+    ]);
+    expect(stats).toEqual([
+      { label: "牌譜", count: 2 },
+      { label: "公開", count: 1 },
+      { label: "お気に入りされた数", count: 4 },
+    ]);
+  });
+});
+
+describe("parsePendingAnalysis（解析ジョブ永続レコードの検証。web/mobile 共通）", () => {
+  it("jobId/startedAt が揃っていれば seq/userId ごと返す", () => {
+    const raw = JSON.stringify({ jobId: "j1", startedAt: 123, seq: 2, userId: "u1" });
+    expect(parsePendingAnalysis(raw)).toEqual({
+      jobId: "j1",
+      startedAt: 123,
+      seq: 2,
+      userId: "u1",
+    });
+  });
+
+  it("壊れた記録（JSON でない・必須欠落・型違い）は null（黙って捨てる）", () => {
+    expect(parsePendingAnalysis(null)).toBeNull();
+    expect(parsePendingAnalysis("not json")).toBeNull();
+    expect(parsePendingAnalysis(JSON.stringify({ jobId: "j1" }))).toBeNull();
+    expect(parsePendingAnalysis(JSON.stringify({ jobId: 1, startedAt: 2 }))).toBeNull();
+    // 型違いの任意フィールドは落として返す（レコード自体は生かす）。
+    expect(parsePendingAnalysis(JSON.stringify({ jobId: "j1", startedAt: 1, seq: "x" }))).toEqual({
+      jobId: "j1",
+      startedAt: 1,
+    });
+  });
+});
+
+describe("パリティ文言・周期の共有定数", () => {
+  it("ANALYSIS_BUSY_MESSAGE は「ひとつずつ」の案内（web/mobile の全ガードで同文）", () => {
+    expect(ANALYSIS_BUSY_MESSAGE).toBe(
+      "解析はひとつずつ実行できます。進行中の解析が終わってからお試しください。",
+    );
+  });
+
+  it("CHECKOUT_PENDING_MESSAGES と周期（3秒×30秒）を持つ", () => {
+    expect(CHECKOUT_PENDING_MESSAGES.waiting).toContain("プランを反映しています");
+    expect(CHECKOUT_PENDING_MESSAGES.applied).toBe("プランが反映されました");
+    expect(CHECKOUT_PENDING_MESSAGES.timeout).toContain("反映に時間がかかっています");
+    expect(CHECKOUT_POLL_MS).toBe(3000);
+    expect(CHECKOUT_GIVEUP_MS).toBe(30000);
+  });
+
+  it("LIST_REFRESH_INTERVAL_MS は 5 秒（解析中カードがある一覧の再取得間隔）", () => {
+    expect(LIST_REFRESH_INTERVAL_MS).toBe(5000);
   });
 });

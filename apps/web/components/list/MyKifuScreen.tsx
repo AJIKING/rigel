@@ -1,24 +1,27 @@
 "use client";
 
 import {
-  analyzeErrorMessage,
   deleteConfirmText,
+  filterMyKifu,
+  myKifuStats,
   planKifuLimits,
   sortMyList,
   DELETE_CONFIRM,
   LIST_LOAD_ERROR_MESSAGE,
+  LIST_REFRESH_INTERVAL_MS,
   MY_KIFU_STATUS_OPTIONS,
   type MyListSortKey,
 } from "@rigel/ui";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
-import { deleteGameAction, getMyGamesAction, retryAnalysisAction } from "../../app/actions";
+import { deleteGameAction, getMyGamesAction } from "../../app/actions";
 import { type MyGameCard } from "../../lib/api";
 import { useAuth } from "../../lib/auth-context";
 import { fmtDateSlash } from "../../lib/format";
 import { useAnalysisJob } from "../../lib/use-analysis-job";
 import { useFavorites } from "../../lib/use-favorites";
+import { useRetryAnalysis } from "../../lib/use-retry-analysis";
 import { AppHeader } from "../AppHeader";
 import { GameCard } from "../GameCard";
 import { MyPageTabs } from "../mypage/MyPageTabs";
@@ -51,29 +54,21 @@ export function MyKifuScreen() {
   // 解析失敗カードの操作結果・案内（インライン表示。alert は使わない）。
   const [note, setNote] = useState<string | null>(null);
 
-  /** もう一度解析（Phase 2）。202 で即「解析中」バッジへ。完了は Provider が追従する。 */
+  /** もう一度解析（Phase 2）。202 で即「解析中」バッジへ。完了は Provider が追従する。
+   *  busy ガード・retry・追従開始の共通フローは useRetryAnalysis（3画面共有）。 */
+  const retryAnalysis = useRetryAnalysis();
   async function onRetry(c: MyGameCard) {
     if (!c.analysisJobId) return;
-    if (analysisBusy) {
-      setNote("解析はひとつずつ実行できます。進行中の解析が終わってからお試しください。");
-      return;
-    }
     setNote(null);
-    try {
-      const r = await retryAnalysisAction(c.analysisJobId);
-      if (r.ok) {
-        startTracking({ jobId: r.jobId, startedAt: Date.now() });
-        setGames(
-          (prev) =>
-            prev?.map((g) =>
-              g.id === c.id ? { ...g, analysisStatus: "processing" as const } : g,
-            ) ?? prev,
-        );
-      } else {
-        setNote(analyzeErrorMessage(r.status, r.reason));
-      }
-    } catch {
-      setNote("通信に失敗しました。");
+    const r = await retryAnalysis(c.analysisJobId);
+    if (r.ok) {
+      setGames(
+        (prev) =>
+          prev?.map((g) => (g.id === c.id ? { ...g, analysisStatus: "processing" as const } : g)) ??
+          prev,
+      );
+    } else {
+      setNote(r.message);
     }
   }
 
@@ -91,7 +86,7 @@ export function MyKifuScreen() {
   }
 
   // 解析ジョブの追従（Phase B）: 終端（settledCount）で refetch する。
-  const { settledCount, busy: analysisBusy, start: startTracking } = useAnalysisJob();
+  const { settledCount } = useAnalysisJob();
   useEffect(() => {
     if (authLoading) return;
     if (!user) {
@@ -118,18 +113,15 @@ export function MyKifuScreen() {
         .catch(() => {
           // ポーリングの失敗は無視（次の周期・settledCount で回復する）。
         });
-    }, 5000);
+    }, LIST_REFRESH_INTERVAL_MS);
     return () => clearInterval(timer);
   }, [user, hasProcessing]);
 
-  const view = useMemo(() => {
-    let arr = apply(games ?? []);
-    if (favOnly) arr = arr.filter((c) => c.viewerFaved);
-    if (status === "pub") arr = arr.filter((c) => c.publicCount > 0);
-    else if (status === "priv") arr = arr.filter((c) => c.publicCount === 0);
-    if (q) arr = arr.filter((c) => c.title.includes(q));
-    return sortMyList(arr, sort);
-  }, [games, status, sort, favOnly, q, apply]);
+  // 絞り込みの述語は @rigel/ui（mobile と共通＝挙動の同一性をコピーで担保しない）。
+  const view = useMemo(
+    () => sortMyList(filterMyKifu(apply(games ?? []), { q, status, favOnly }), sort),
+    [games, status, sort, favOnly, q, apply],
+  );
 
   // 保存上限（半荘単位）の使用数。非公開(complete)と下書きは別枠（mobile と同じ算出）。
   const limits = planKifuLimits(user?.plan ?? "free");
@@ -139,6 +131,8 @@ export function MyKifuScreen() {
   ).length;
   const quotaText = (used: number, limit: number | null) =>
     limit === null ? `${used}（無制限）` : `${used} / ${limit}半荘`;
+  // 上限到達は警告色（これ以上保存できないことに保存失敗まで気づけないため。mobile と同じ）。
+  const atLimit = (used: number, limit: number | null) => limit !== null && used >= limit;
 
   return (
     <div className={`${s.shell} themeApp`}>
@@ -148,25 +142,24 @@ export function MyKifuScreen() {
           <MyPageTabs active="kifu" />
           <div className={s.profile}>
             <div className={s.stats}>
-              <div className={s.stat}>
-                <b>{games?.length ?? 0}</b>
-                <span>牌譜</span>
-              </div>
-              <div className={s.stat}>
-                <b>{(games ?? []).filter((c) => c.publicCount > 0).length}</b>
-                <span>公開</span>
-              </div>
-              <div className={s.stat}>
-                <b>{(games ?? []).reduce((n, c) => n + c.favoriteCount, 0)}</b>
-                <span>お気に入りされた数</span>
-              </div>
+              {/* 統計3枠の定義は @rigel/ui の myKifuStats（mobile と共通）。 */}
+              {myKifuStats(games ?? []).map((st) => (
+                <div key={st.label} className={s.stat}>
+                  <b>{st.count}</b>
+                  <span>{st.label}</span>
+                </div>
+              ))}
             </div>
             {/* 作成可能数と現在数（半荘単位。free=各5 / 有料=無制限）。mobile と同一表示。 */}
             {user ? (
               <p className={s.quota}>
-                非公開 {quotaText(privateUsed, limits.private)}
+                <span className={atLimit(privateUsed, limits.private) ? s.quotaWarn : undefined}>
+                  非公開 {quotaText(privateUsed, limits.private)}
+                </span>
                 <span className={gc.sep}>·</span>
-                下書き {quotaText(draftUsed, limits.draft)}
+                <span className={atLimit(draftUsed, limits.draft) ? s.quotaWarn : undefined}>
+                  下書き {quotaText(draftUsed, limits.draft)}
+                </span>
               </p>
             ) : null}
           </div>

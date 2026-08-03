@@ -1,5 +1,6 @@
 import { useNavigation, useRoute, type RouteProp } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
+import { LIST_LOAD_ERROR_MESSAGE } from "@rigel/ui";
 import { useEffect, useState } from "react";
 import { FlatList, StyleSheet, Text, View } from "react-native";
 import { CenterState } from "../components/CenterState";
@@ -17,7 +18,7 @@ export function PublicUserScreen() {
   const nav = useNavigation<Nav>();
   const { idOrHandle } = useRoute<RouteProp<RootStackParamList, "PublicUser">>().params;
   const [profile, setProfile] = useState<PublicProfile | null>(null);
-  const [state, setState] = useState<"loading" | "ok" | "notfound">("loading");
+  const [state, setState] = useState<"loading" | "ok" | "notfound" | "error">("loading");
   // ★はサーバー保存。カードの値に、この画面での操作を重ねる（他画面と同じ流儀）。
   const { apply, toggle: toggleFav, error: favError } = useFavorites();
 
@@ -29,13 +30,15 @@ export function PublicUserScreen() {
         setProfile(p);
         setState(p ? "ok" : "notfound");
       })
-      .catch(() => active && setState("notfound"));
+      // 通信失敗を「不在（非公開）」に化けさせない（実在ユーザーが非公開と誤解される）。
+      .catch(() => active && setState("error"));
     return () => {
       active = false;
     };
   }, [idOrHandle]);
 
   if (state === "loading") return <CenterState loading />;
+  if (state === "error") return <CenterState message={LIST_LOAD_ERROR_MESSAGE} />;
   if (state === "notfound" || !profile) {
     return <CenterState message="このユーザーは見つからないか、非公開です。" />;
   }

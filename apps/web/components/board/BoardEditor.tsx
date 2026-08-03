@@ -26,7 +26,6 @@ import {
   setDoraTile,
   sortKifuHands,
   visibilityLabel,
-  analyzeErrorMessage,
   deleteConfirmText,
   DELETE_CONFIRM,
   LIMIT_MESSAGES,
@@ -41,7 +40,6 @@ import {
   deleteGameAction,
   deleteKifuAction,
   getGameAction,
-  retryAnalysisAction,
   setGameStatusAction,
   setGameVisibilityAction,
   updateGameAction,
@@ -49,7 +47,7 @@ import {
   updateKifuAction,
 } from "../../app/actions";
 import { type GameDetail, type GameLog } from "../../lib/api";
-import { useAnalysisJob } from "../../lib/use-analysis-job";
+import { useRetryAnalysis } from "../../lib/use-retry-analysis";
 import { usePlayersForm } from "./use-players-form";
 import {
   SEAT_ORDER,
@@ -438,26 +436,14 @@ function Editor(p: EditorProps) {
   }
 
   /** 追加解析の失敗を救う「もう一度解析」（Phase C。failed 全般で表示）。
-   *  202 後は Provider に追わせ、バナーは「解析中」表示に切り替える。 */
-  const { busy: analysisBusy, start: startTracking } = useAnalysisJob();
+   *  busy ガード・retry・追従開始の共通フローは useRetryAnalysis（3画面共有）。 */
+  const retryAnalysis = useRetryAnalysis();
   const [retrySent, setRetrySent] = useState(false);
   async function onRetryAnalysis() {
     if (!detail.analysisJobId) return;
-    if (analysisBusy) {
-      setSaveErr("解析はひとつずつ実行できます。進行中の解析が終わってからお試しください。");
-      return;
-    }
-    try {
-      const r = await retryAnalysisAction(detail.analysisJobId);
-      if (r.ok) {
-        startTracking({ jobId: r.jobId, startedAt: Date.now() });
-        setRetrySent(true);
-      } else {
-        setSaveErr(analyzeErrorMessage(r.status, r.reason));
-      }
-    } catch {
-      setSaveErr("通信に失敗しました。");
-    }
+    const r = await retryAnalysis(detail.analysisJobId);
+    if (r.ok) setRetrySent(true);
+    else setSaveErr(r.message);
   }
 
   /** 半荘を配下の全局ごと削除する（2度押しで確定＝誤操作防止）。成功で一覧へ戻る。 */

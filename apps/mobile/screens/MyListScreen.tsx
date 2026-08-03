@@ -1,6 +1,8 @@
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import {
+  filterMyKifu,
+  myKifuStats,
   planKifuLimits,
   sortMyList,
   DELETE_CONFIRM,
@@ -38,14 +40,11 @@ export function MyListScreen() {
   const [q, setQ] = useState("");
   const [status, setStatus] = useState<string>("all");
 
-  const shown = useMemo(() => {
-    let resolved = apply(games);
-    if (favOnly) resolved = resolved.filter((g) => g.viewerFaved);
-    if (status === "pub") resolved = resolved.filter((g) => g.publicCount > 0);
-    else if (status === "priv") resolved = resolved.filter((g) => g.publicCount === 0);
-    if (q) resolved = resolved.filter((g) => g.title.includes(q));
-    return sortMyList(resolved, sort);
-  }, [games, apply, favOnly, status, q, sort]);
+  // 絞り込みの述語は @rigel/ui（web と共通＝挙動の同一性をコピーで担保しない）。
+  const shown = useMemo(
+    () => sortMyList(filterMyKifu(apply(games), { q, status, favOnly }), sort),
+    [games, apply, favOnly, status, q, sort],
+  );
 
   // 撮影・編集から戻ったとき一覧を最新化する（静かに再取得）。
   useFocusEffect(
@@ -61,16 +60,23 @@ export function MyListScreen() {
     refetch();
   }, [settledCount, refetch]);
 
-  /** 半荘を長押しで削除（確認つき。成功で一覧を再取得）。 */
+  // 削除失敗の案内（確認まで出して押したのに無反応、を防ぐ。web の note と同じ役割）。
+  const [note, setNote] = useState<string | null>(null);
+
+  /** 半荘を長押しで削除（確認つき。成功で一覧を再取得・失敗は理由を出す）。 */
   function onDelete(gameId: string, title: string) {
     if (!token || sample) return;
     confirmDestructive({
       // 文言は web/mobile 共通の DELETE_CONFIRM（@rigel/ui）。
       ...DELETE_CONFIRM.game(title),
       onConfirm: () => {
+        setNote(null);
         deleteGame(token, gameId)
-          .then((res) => res.ok && refetch())
-          .catch(() => {});
+          .then((res) => {
+            if (res.ok) refetch();
+            else setNote("削除に失敗しました。");
+          })
+          .catch(() => setNote("削除に失敗しました。"));
       },
     });
   }
@@ -112,19 +118,18 @@ export function MyListScreen() {
         }
       />
       {favError ? <Text style={styles.favError}>{favError}</Text> : null}
-      {/* 統計ヘッダ（牌譜数/公開数/★された数。web マイページの3枠と同一。Phase D）。 */}
+      {note ? <Text style={styles.favError}>{note}</Text> : null}
+      {/* 統計ヘッダ（定義は @rigel/ui の myKifuStats。web マイページの3枠と同一。Phase D）。 */}
       {!loading && !sample && (
         <View style={styles.stats}>
-          {(
-            [
-              ["牌譜", games.length],
-              ["公開", games.filter((g) => g.publicCount > 0).length],
-              ["お気に入りされた数", games.reduce((n, g) => n + g.favoriteCount, 0)],
-            ] as const
-          ).map(([label, count]) => (
-            <View key={label} style={styles.stat} accessibilityLabel={`${label} ${count}件`}>
-              <Text style={styles.statNum}>{count}</Text>
-              <Text style={styles.statLabel}>{label}</Text>
+          {myKifuStats(games).map((st) => (
+            <View
+              key={st.label}
+              style={styles.stat}
+              accessibilityLabel={`${st.label} ${st.count}件`}
+            >
+              <Text style={styles.statNum}>{st.count}</Text>
+              <Text style={styles.statLabel}>{st.label}</Text>
             </View>
           ))}
         </View>

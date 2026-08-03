@@ -82,6 +82,7 @@ export function PublicListScreen() {
                   {
                     label: author,
                     tone: "accent",
+                    a11yLabel: `${author} のユーザーページを開く`,
                     // 投稿者名→公開ユーザーページ（web /u と対。Phase D）。
                     onPress: () =>
                       nav.navigate("PublicUser", {

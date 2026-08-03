@@ -99,8 +99,8 @@ problems/{draftId}/{jobId}/hand|river … 何切るの写真（問題/下書き�
 10. [x] 何切る: 下書き一覧（GET /problems/drafts・解析中/失敗/下書きのステータス付き）・
     マイページ表示・編集流し込み（ProblemEdit が draftId を受ける）・破棄（web/mobile）
 11. [x] プライバシーポリシー改稿
-12. [ ] tmp バケット廃止（バインディング撤去は済み。旧 rigel-analysis-tmp の残オブジェクトが
-    TTL で空になったらバケット削除）
+12. [x] tmp バケット廃止（バインディング撤去済み。旧 rigel-analysis-tmp は 2026-08-03 に
+    バケット削除済み＝オーナー実施）
 13. [ ] 本番 E2E 残り（何切る下書きの作成・復元・破棄）＋ 実機（Codemagic 再ビルド後）
 
 ## 8. リスク

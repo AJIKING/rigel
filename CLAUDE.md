@@ -116,8 +116,8 @@ rigel/
     │   ├── src/interfaces/queue/  #   解析ジョブの consumer（Worker の第2エントリ。fetch と並ぶ queue ハンドラ）
     │   ├── src/eval/              #   AI精度の指標（accuracy.ts）
     │   └── drizzle.config.ts / migrations/  #   D1 マイグレーション
-    ├── web/     web               # Next.js (App Router)。/kifu(公開牌譜一覧) /problems(公開何切る一覧) /mypage(マイページ=牌譜/何切る/お気に入り/特訓タブ) /kifu/[gameId]/[logId](盤面エディタ) /k/[gameId](公開ビューア・動的OGP=lib/og-meta+opengraph-image) /p/[id](何切る回答) /problems/new・/problems/[id]/edit(何切る編集) /settings /u/[handle] /login
-    └── mobile/  mobile            # Expo + react-navigation。タブ=牌譜/何切る/マイページ(牌譜・何切る)/設定 + Capture/GameDetail/Board/ProblemAnswer/ProblemEdit/Login
+    ├── web/     web               # Next.js (App Router)。/kifu(公開牌譜一覧) /problems(公開何切る一覧) /mypage(マイページ=牌譜/何切る/お気に入り/特訓タブ) /kifu/[gameId](0局=半荘ヘッダビュー・局あり=先頭局へ) /kifu/[gameId]/[logId](盤面エディタ) /k/[gameId](公開ビューア・動的OGP=lib/og-meta+opengraph-image) /p/[id](何切る回答) /problems/new・/problems/[id]/edit(何切る編集) /settings /u/[handle] /login
+    └── mobile/  mobile            # Expo + react-navigation。タブ=牌譜/何切る/マイページ(牌譜・何切る)/設定 + Capture/GameDetail/Board/PublicGame/PublicUser/ProblemAnswer/ProblemEdit/Login
 ```
 
 > 検証ゲート: web は `next build` + Vitest(jsdom)、mobile は `tsc`+ESLint+Jest(jest-expo/RNTL)（Expo 実機/EAS は CI 外）、

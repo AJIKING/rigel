@@ -1,9 +1,11 @@
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import {
+  filterMyProblems,
   sortMyList,
   DELETE_CONFIRM,
   LIMIT_MESSAGES,
+  LIST_REFRESH_INTERVAL_MS,
   MY_PROBLEM_STATUS_OPTIONS,
   PROBLEM_LIMIT,
   type MyListSortKey,
@@ -54,13 +56,11 @@ export function MyProblemsScreen() {
   const [q, setQ] = useState("");
   const [status, setStatus] = useState<string>("all");
 
-  const shown = useMemo(() => {
-    let resolved = apply(posts);
-    if (favOnly) resolved = resolved.filter((p) => p.viewerFaved);
-    if (status !== "all") resolved = resolved.filter((p) => p.status === status);
-    if (q) resolved = resolved.filter((p) => p.title.includes(q));
-    return sortMyList(resolved, sort);
-  }, [posts, apply, favOnly, status, q, sort]);
+  // 絞り込みの述語は @rigel/ui（web と共通＝挙動の同一性をコピーで担保しない）。
+  const shown = useMemo(
+    () => sortMyList(filterMyProblems(apply(posts), { q, status, favOnly }), sort),
+    [posts, apply, favOnly, status, q, sort],
+  );
 
   // 解析下書き（photo-retention.md）: 写真AI再現の送信で先行作成され、閉じてもここに残る。
   const [drafts, setDrafts] = useState<ProblemDraftCard[]>([]);
@@ -90,7 +90,7 @@ export function MyProblemsScreen() {
   const hasProcessing = drafts.some((d) => d.status === "processing");
   useEffect(() => {
     if (!hasProcessing) return;
-    const timer = setInterval(reload, 5000);
+    const timer = setInterval(reload, LIST_REFRESH_INTERVAL_MS);
     return () => clearInterval(timer);
   }, [hasProcessing, reload]);
 

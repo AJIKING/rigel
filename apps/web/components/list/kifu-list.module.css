@@ -222,6 +222,10 @@
   font-size: 12px;
   font-weight: 700;
 }
+/* 上限到達（これ以上保存できない）。mobile の quotaWarn と同じ役割。 */
+.quotaWarn {
+  color: var(--danger);
+}
 
 /* マイページのタブ（牌譜 / 何切る）。 */
 .mypageTabs {

@@ -37,8 +37,7 @@ Cloudflare Workers（Hono + D1）への本番デプロイ。GitHub Actions の
    写真は恒久保存で、削除はデータ削除時のみ（CLAUDE.md ルール7・[決定] 2026-08-03）。
    **TTL を設定しないこと**（付けるとユーザーの写真が消える）。バインディング
    （`PHOTOS`）は `wrangler.toml` にコミット済み。
-   旧 `rigel-analysis-tmp`（TTL 1日の一時バケット）は 2026-08-03 に役目を終え、
-   残オブジェクトが TTL で空になり次第削除する。
+   旧 `rigel-analysis-tmp`（TTL 1日の一時バケット）は 2026-08-03 に削除済み。
 5. **Stripe ダッシュボード**で Webhook を登録：`https://<デプロイ先>/billing/webhook`、
    イベント `checkout.session.completed` / `customer.subscription.deleted`。
    表示された `whsec_...` を `STRIPE_WEBHOOK_SECRET` に設定。

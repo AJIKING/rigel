@@ -1,5 +1,6 @@
 "use client";
 
+import { LIST_LOAD_ERROR_MESSAGE } from "@rigel/ui";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { getPublicProfile, type PublicProfile } from "../../lib/api";
@@ -14,7 +15,7 @@ import s from "./account.module.css";
 export function UserPageShell({ idOrHandle }: { idOrHandle: string }) {
   const router = useRouter();
   const [profile, setProfile] = useState<PublicProfile | null>(null);
-  const [state, setState] = useState<"loading" | "ok" | "notfound">("loading");
+  const [state, setState] = useState<"loading" | "ok" | "notfound" | "error">("loading");
   const { apply, toggle: toggleFav } = useFavorites();
 
   useEffect(() => {
@@ -23,7 +24,8 @@ export function UserPageShell({ idOrHandle }: { idOrHandle: string }) {
         setProfile(p);
         setState(p ? "ok" : "notfound");
       })
-      .catch(() => setState("notfound"));
+      // 通信失敗を「不在（非公開）」に化けさせない（実在ユーザーが非公開と誤解される）。
+      .catch(() => setState("error"));
   }, [idOrHandle]);
 
   return (
@@ -33,6 +35,10 @@ export function UserPageShell({ idOrHandle }: { idOrHandle: string }) {
         <div className={s.wide}>
           {state === "loading" ? (
             <p style={{ color: "#888", padding: "40px 4px" }}>読み込み中…</p>
+          ) : state === "error" ? (
+            <p className={s.loginNote} role="alert">
+              {LIST_LOAD_ERROR_MESSAGE}
+            </p>
           ) : state === "notfound" || !profile ? (
             <p className={s.loginNote}>このユーザーは見つからないか、非公開です。</p>
           ) : (

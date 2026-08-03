@@ -45,6 +45,7 @@ export function KifuPlayer({
   isPublic = false,
   initialIndex = 0,
   fav,
+  notice,
   onEdit,
 }: {
   logs: GameLog[];
@@ -58,6 +59,8 @@ export function KifuPlayer({
   initialIndex?: number;
   /** ★（お気に入り）。公開ビューアで渡す（web KifuViewer の★と対。Phase D）。 */
   fav?: { faved: boolean; count: number; onToggle: () => void };
+  /** 上部バー直下に出す案内（★のサインイン要求・失敗など。無反応にしないため）。 */
+  notice?: string | null;
   /** 自分の牌譜の編集導線（所有者のときだけ渡す。半荘詳細へ）。 */
   onEdit?: () => void;
 }) {
@@ -230,6 +233,12 @@ export function KifuPlayer({
         ) : null}
         {/* 手牌表示は下の場ナビ「手牌」トグルに一本化（目のアイコンは廃止＝機能重複の解消）。 */}
       </View>
+      {/* ★のサインイン要求・失敗など（タップを無言で握り潰さない）。 */}
+      {notice ? (
+        <Text style={styles.notice} accessibilityLiveRegion="polite">
+          {notice}
+        </Text>
+      ) : null}
 
       {/* 盤面 */}
       <View style={styles.stage}>
@@ -565,6 +574,8 @@ const NAV_ICON_PATH: Record<NavIconName, string> = {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.bg },
   vbar: { flexDirection: "row", alignItems: "center", gap: 8, height: 48, paddingHorizontal: 10 },
+  // ★のサインイン要求などの案内（エラーではなく次の行動の説明なので danger にしない）。
+  notice: { color: colors.w70, fontSize: 12, paddingHorizontal: 12, paddingBottom: 6 },
   ttl: { flex: 1, minWidth: 0 },
   title: { color: colors.white, fontSize: 13.5, fontWeight: "700" },
   sub: { flexDirection: "row", alignItems: "center", marginTop: 2 },

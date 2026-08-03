@@ -26,12 +26,36 @@ describe("SettingsShell", () => {
 });
 
 describe("UserPageShell", () => {
-  it("取得できないユーザーは非公開/不在の案内を出す", async () => {
+  it("不在ユーザー（404）は非公開/不在の案内を出す", async () => {
+    // プロフィールは 404・/api/me は未ログイン、を返すスタブ。
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL) => {
+        const url = String(input);
+        if (url.includes("/profile")) return { ok: false, status: 404 };
+        return { ok: true, status: 200, json: async () => ({ user: null }) };
+      }),
+    );
+    try {
+      render(
+        <AuthProvider>
+          <UserPageShell idOrHandle="nobody" />
+        </AuthProvider>,
+      );
+      expect(await screen.findByText(/非公開/)).toBeTruthy();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("通信失敗は「不在（非公開）」に化けさせず、読み込み失敗の理由を出す", async () => {
+    // fetch をスタブしない＝jsdom では実ネットワークに出られず reject する。
     render(
       <AuthProvider>
         <UserPageShell idOrHandle="nobody" />
       </AuthProvider>,
     );
-    expect(await screen.findByText(/非公開/)).toBeTruthy();
+    expect(await screen.findByText(/読み込めませんでした/)).toBeTruthy();
+    expect(screen.queryByText(/非公開/)).toBeNull();
   });
 });

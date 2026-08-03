@@ -18,7 +18,7 @@ export function PublicGameScreen() {
   const { user } = useAuth();
   // ★はサーバー保存。詳細レスポンスの favoriteCount/viewerFaved に画面の操作を重ねる
   // （web KifuViewer と同一。Phase D）。
-  const { apply, toggle: toggleFav } = useFavorites();
+  const { apply, toggle: toggleFav, error: favError } = useFavorites();
   const [state, setState] = useState<{ loading: boolean; detail: PublicGameDetail | null }>({
     loading: true,
     detail: null,
@@ -62,6 +62,8 @@ export function PublicGameScreen() {
         count: favCard!.favoriteCount,
         onToggle: () => toggleFav("game", favCard!),
       }}
+      // ★のサインイン要求・失敗を無言で握り潰さない（ゲストのタップに応答する）。
+      notice={favError}
       // 自分の牌譜なら編集導線（半荘詳細へ。web の「編集」リンクと対）。
       onEdit={user?.id === owner.id ? () => nav.navigate("GameDetail", { gameId }) : undefined}
     />

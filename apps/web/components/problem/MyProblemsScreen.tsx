@@ -2,12 +2,14 @@
 
 import {
   deleteConfirmText,
+  filterMyProblems,
   sortMyList,
   DELETE_CONFIRM,
   PROBLEM_KIND_LABELS,
   PROBLEM_LIMIT,
   LIMIT_MESSAGES,
   LIST_LOAD_ERROR_MESSAGE,
+  LIST_REFRESH_INTERVAL_MS,
   MY_PROBLEM_STATUS_OPTIONS,
   type MyListSortKey,
 } from "@rigel/ui";
@@ -78,7 +80,7 @@ export function MyProblemsScreen({
           if (alive) setErr("解析下書きを読み込めませんでした。");
         });
     void load();
-    const timer = hasProcessing ? setInterval(() => void load(), 5000) : null;
+    const timer = hasProcessing ? setInterval(() => void load(), LIST_REFRESH_INTERVAL_MS) : null;
     return () => {
       alive = false;
       if (timer) clearInterval(timer);
@@ -93,13 +95,11 @@ export function MyProblemsScreen({
     else setErr("下書きの破棄に失敗しました。");
   }
 
-  const view = useMemo(() => {
-    let arr = apply(posts);
-    if (favOnly) arr = arr.filter((post) => post.viewerFaved);
-    if (status !== "all") arr = arr.filter((post) => post.status === status);
-    if (q) arr = arr.filter((post) => post.title.includes(q));
-    return sortMyList(arr, sort);
-  }, [posts, status, sort, favOnly, q, apply]);
+  // 絞り込みの述語は @rigel/ui（mobile と共通＝挙動の同一性をコピーで担保しない）。
+  const view = useMemo(
+    () => sortMyList(filterMyProblems(apply(posts), { q, status, favOnly }), sort),
+    [posts, status, sort, favOnly, q, apply],
+  );
 
   /** draft⇔published の切替（楽観更新・失敗でロールバック）。 */
   async function toggleStatus(post: ProblemPost) {

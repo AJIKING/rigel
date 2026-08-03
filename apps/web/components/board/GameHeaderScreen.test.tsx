@@ -76,6 +76,17 @@ describe("GameHeaderScreen（0局の半荘ヘッダビュー。Phase C）", () =
     expect(screen.getByRole("button", { name: "半荘を削除" })).toBeTruthy();
   });
 
+  it("対局日は YYYY-MM-DD 以外を保存せずエラーを出す（mobile と同じ検証）", async () => {
+    renderScreen(detail0());
+    const input = await screen.findByLabelText("対局日");
+
+    fireEvent.change(input, { target: { value: "2026/08/03" } });
+    fireEvent.blur(input);
+
+    expect(await screen.findByText("日付は YYYY-MM-DD 形式で入力してください。")).toBeTruthy();
+    expect(h.updateGameAction).not.toHaveBeenCalled();
+  });
+
   it("半荘名は blur で保存する（未変更なら送らない）", async () => {
     renderScreen(detail0());
     const input = await screen.findByLabelText("半荘名");

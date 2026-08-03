@@ -6,6 +6,9 @@ import {
   planCardSubLabel,
   planLabel,
   planMonthlyPrice,
+  CHECKOUT_GIVEUP_MS,
+  CHECKOUT_PENDING_MESSAGES,
+  CHECKOUT_POLL_MS,
   PLAN_FEATURES,
   type PaidPlan,
 } from "@rigel/ui";
@@ -60,7 +63,7 @@ export function SettingsShell() {
     const params = new URLSearchParams(window.location.search);
     if (params.get("checkout") !== "success") return;
     setCheckoutPending(true);
-    setBillingNote("購入ありがとうございます。プランを反映しています…（数秒かかることがあります）");
+    setBillingNote(CHECKOUT_PENDING_MESSAGES.waiting);
     // リロード・再訪でお礼を再表示しない（クエリはその場で消す）。
     window.history.replaceState(null, "", "/settings");
   }, []);
@@ -69,14 +72,14 @@ export function SettingsShell() {
     if (!checkoutPending) return;
     if (paidNow) {
       setCheckoutPending(false);
-      setBillingNote("プランが反映されました");
+      setBillingNote(CHECKOUT_PENDING_MESSAGES.applied);
       return;
     }
-    const poll = setInterval(() => void refresh(), 3000);
+    const poll = setInterval(() => void refresh(), CHECKOUT_POLL_MS);
     const giveUp = setTimeout(() => {
       setCheckoutPending(false);
-      setBillingNote("反映に時間がかかっています。しばらくしてからこの画面を開き直してください");
-    }, 30000);
+      setBillingNote(CHECKOUT_PENDING_MESSAGES.timeout);
+    }, CHECKOUT_GIVEUP_MS);
     return () => {
       clearInterval(poll);
       clearTimeout(giveUp);

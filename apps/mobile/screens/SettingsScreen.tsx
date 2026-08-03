@@ -1,4 +1,13 @@
-import { planCardSubLabel, planLabel, upgradeTargets, type PaidPlan, type Plan } from "@rigel/ui";
+import {
+  planCardSubLabel,
+  planLabel,
+  upgradeTargets,
+  CHECKOUT_GIVEUP_MS,
+  CHECKOUT_PENDING_MESSAGES,
+  CHECKOUT_POLL_MS,
+  type PaidPlan,
+  type Plan,
+} from "@rigel/ui";
 import { useEffect, useState } from "react";
 import { Linking, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import Svg, { Circle, Path } from "react-native-svg";
@@ -45,14 +54,14 @@ export function SettingsScreen() {
     if (!pendingPlan) return;
     if (plan === pendingPlan) {
       setPendingPlan(null);
-      setBillingNote("プランが反映されました");
+      setBillingNote(CHECKOUT_PENDING_MESSAGES.applied);
       return;
     }
-    const poll = setInterval(() => void refresh(), 3000);
+    const poll = setInterval(() => void refresh(), CHECKOUT_POLL_MS);
     const giveUp = setTimeout(() => {
       setPendingPlan(null);
-      setBillingNote("反映に時間がかかっています。しばらくしてからこの画面を開き直してください");
-    }, 30000);
+      setBillingNote(CHECKOUT_PENDING_MESSAGES.timeout);
+    }, CHECKOUT_GIVEUP_MS);
     return () => {
       clearInterval(poll);
       clearTimeout(giveUp);
@@ -85,9 +94,7 @@ export function SettingsScreen() {
     const outcome = await purchasePlan(plan);
     if (outcome === "purchased") {
       // plan 反映はサーバ側（RevenueCat Webhook → users.plan）経由のため数秒遅れることがある。
-      setBillingNote(
-        "購入ありがとうございます。プランを反映しています…（数秒かかることがあります）",
-      );
+      setBillingNote(CHECKOUT_PENDING_MESSAGES.waiting);
       setPendingPlan(plan);
       void refresh();
     } else if (outcome === "failed") {

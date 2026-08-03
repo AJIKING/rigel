@@ -76,6 +76,14 @@ describe("PublicUserScreen（公開ユーザーページ。web /u と対。Phase
     expect(await screen.findByText("このユーザーは見つからないか、非公開です。")).toBeTruthy();
   });
 
+  it("通信失敗は「不在（非公開）」に化けさせず、読み込み失敗の理由を出す", async () => {
+    mockGetPublicProfile.mockRejectedValue(new Error("network"));
+    render(<PublicUserScreen />);
+
+    expect(await screen.findByText(/読み込めませんでした/)).toBeTruthy();
+    expect(screen.queryByText(/見つからないか、非公開/)).toBeNull();
+  });
+
   it("公開牌譜が無ければ空状態の案内を出す", async () => {
     mockGetPublicProfile.mockResolvedValue(makeProfile({ games: [] }));
     render(<PublicUserScreen />);

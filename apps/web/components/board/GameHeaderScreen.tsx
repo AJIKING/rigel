@@ -5,17 +5,13 @@
 // エディタ本体は読み込まず、半荘メタの編集と解析ステータスだけを出す
 // （mobile GameDetailScreen の 0局表示と同じ構成・文言）。
 
-import { analyzeErrorMessage, deleteConfirmText, DELETE_CONFIRM } from "@rigel/ui";
+import { deleteConfirmText, DELETE_CONFIRM, LIST_REFRESH_INTERVAL_MS } from "@rigel/ui";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
-import {
-  deleteGameAction,
-  getGameAction,
-  retryAnalysisAction,
-  updateGameAction,
-} from "../../app/actions";
+import { deleteGameAction, getGameAction, updateGameAction } from "../../app/actions";
 import { type GameDetail } from "../../lib/api";
 import { useAnalysisJob } from "../../lib/use-analysis-job";
+import { useRetryAnalysis } from "../../lib/use-retry-analysis";
 import { AppHeader } from "../AppHeader";
 import { AddKyokuModal } from "./AddKyokuModal";
 import { GamePhotosModal } from "./GamePhotosModal";
@@ -41,7 +37,7 @@ export function GameHeaderScreen({ gameId, initial }: { gameId: string; initial:
 
   // 解析追従（Phase B の Provider）: 終端で即 refetch。解析中バッジの間は 5 秒ポーリング
   //（他端末開始・復元漏れの進行も拾う。MyKifuScreen と同じ規律）。
-  const { settledCount, busy: analysisBusy, start: startTracking } = useAnalysisJob();
+  const { settledCount } = useAnalysisJob();
   const refetch = useCallback(async () => {
     const d = await getGameAction(gameId).catch(() => null);
     if (d) setDetail(d);
@@ -55,7 +51,7 @@ export function GameHeaderScreen({ gameId, initial }: { gameId: string; initial:
   const processing = detail.analysisStatus === "processing";
   useEffect(() => {
     if (!processing) return;
-    const timer = setInterval(() => void refetch(), 5000);
+    const timer = setInterval(() => void refetch(), LIST_REFRESH_INTERVAL_MS);
     return () => clearInterval(timer);
   }, [processing, refetch]);
 
@@ -85,28 +81,17 @@ export function GameHeaderScreen({ gameId, initial }: { gameId: string; initial:
     if (!res.ok) setNote("対局日の保存に失敗しました。");
   }
 
-  /** もう一度解析（Phase 2）。202 後は Provider に追わせる（完了で refetch → エディタへ）。 */
+  /** もう一度解析（Phase 2）。202 後は Provider に追わせる（完了で refetch → エディタへ）。
+   *  busy ガード・retry・追従開始の共通フローは useRetryAnalysis（3画面共有）。 */
+  const retryAnalysis = useRetryAnalysis();
   async function onRetry() {
     if (!detail.analysisJobId || retrying) return;
-    if (analysisBusy) {
-      setNote("解析はひとつずつ実行できます。進行中の解析が終わってからお試しください。");
-      return;
-    }
     setNote(null);
     setRetrying(true);
-    try {
-      const r = await retryAnalysisAction(detail.analysisJobId);
-      if (r.ok) {
-        startTracking({ jobId: r.jobId, startedAt: Date.now() });
-        setDetail((d) => ({ ...d, analysisStatus: "processing" }));
-      } else {
-        setNote(analyzeErrorMessage(r.status, r.reason));
-      }
-    } catch {
-      setNote("通信に失敗しました。");
-    } finally {
-      setRetrying(false);
-    }
+    const r = await retryAnalysis(detail.analysisJobId);
+    setRetrying(false);
+    if (r.ok) setDetail((d) => ({ ...d, analysisStatus: "processing" }));
+    else setNote(r.message);
   }
 
   /** 半荘の削除（確認あり。文言は web/mobile 共通の DELETE_CONFIRM）。 */

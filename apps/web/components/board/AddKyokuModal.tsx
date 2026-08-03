@@ -1,14 +1,15 @@
 "use client";
 
 import {
+  analysisJobFailureMessage,
   analysisQuotaLabel,
   analysisTimeoutMessage,
   analyzeErrorMessage,
   cameraLabel,
   planCanAnalyze,
-  pollAnalysisOutcome,
   roundNameForSeq,
   seatLabel,
+  ANALYSIS_BUSY_MESSAGE,
   LIMIT_MESSAGES,
   MAX_SEQ,
 } from "@rigel/ui";
@@ -74,19 +75,46 @@ export function AddKyokuModal({
   const [dora, setDora] = useState<Tile | null>(null);
   // 作成する局（東一局=1〜北四局=16）。半荘内の好きな局を1つだけ作れる。
   const [seq, setSeq] = useState(1);
-  // モーダルを閉じたらポーリングを中断し、進行中なら Provider に引き継ぐ
-  // （閉じても解析は続き、完了で一覧に自動反映される。Phase B web-mobile-parity.md）。
-  const { busy: analysisBusy, start: startTracking } = useAnalysisJob();
+  // 解析の追従は Provider に一本化（202 で即 start）。以前はモーダル内で自前ポーリングし
+  // 閉じたときだけ引き継いでいたが、その間 Provider の busy が立たず「ひとつずつ」ガードに
+  // 穴があった（品質パス 2026-08-03）。モーダルは settledCount を購読して完了/失敗を拾う。
+  const { settledCount, busy: analysisBusy, start: startTracking } = useAnalysisJob();
   const alive = useRef(true);
-  const pendingRef = useRef<{ jobId: string; startedAt: number } | null>(null);
+  const pendingJobId = useRef<string | null>(null);
   useEffect(() => {
     alive.current = true;
     return () => {
       alive.current = false;
-      if (pendingRef.current) startTracking(pendingRef.current);
     };
-    // startTracking は Provider の useCallback で安定。
-  }, [startTracking]);
+  }, []);
+
+  // ジョブの終端（settledCount の変化）: モーダルが生きていれば結果を1回だけ取り直して
+  // onDone / 失敗文言に振り分ける（閉じた後は一覧側の refetch が拾う）。
+  const settledSeen = useRef(settledCount);
+  useEffect(() => {
+    if (settledCount === settledSeen.current) return;
+    settledSeen.current = settledCount;
+    const jobId = pendingJobId.current;
+    if (!jobId) return;
+    pendingJobId.current = null;
+    void (async () => {
+      const job = await getAnalysisJobAction(jobId).catch(() => undefined);
+      if (!alive.current) return;
+      setBusy(false);
+      if (job && job.status === "done" && job.gameId && job.logId) {
+        await onDone(job.logId, job.gameId);
+        return;
+      }
+      if (job && job.status === "failed") {
+        setError(analysisJobFailureMessage(job.reason));
+        return;
+      }
+      // タイムアウト等（ジョブ自体はサーバー側で進んでいる）。
+      setError(`解析に時間がかかっています。${analysisTimeoutMessage()}`);
+    })();
+    // onDone は親から毎レンダー渡り得るが、発火条件は settledCount の変化だけ。
+    // eslint の exhaustive-deps は未導入（依存固定台帳参照）。
+  }, [settledCount, onDone]);
 
   async function onAnalyze() {
     if (!river) {
@@ -96,43 +124,35 @@ export function AddKyokuModal({
     // 解析はひとつずつ（202 の後に断るとサーバー側では課金・キュー投入が済んでいるため、
     // 送信前に見る。mobile Capture と同じ規律）。
     if (analysisBusy) {
-      setError("解析はひとつずつ実行できます。進行中の解析が終わってからお試しください。");
+      setError(ANALYSIS_BUSY_MESSAGE);
       return;
     }
     setBusy(true);
     setError(null);
     try {
-      // 解析は非同期ジョブ（202 + jobId → ポーリング。docs/plans/async-analysis.md）。
-      // 実写真の読み取りは数分に達しうるため、接続を握ったまま待たない。
+      // 解析は非同期ジョブ（202 + jobId → Provider がポーリング。docs/plans/async-analysis.md）。
       const result = await analyzeAction(
         buildAnalyzeForm({ river, cameraBottomSeat: seat, hands, gameId, handFromRiver }),
       );
       if (!result.ok) {
         setError(analyzeErrorMessage(result.status, result.reason));
+        setBusy(false);
         return;
       }
-      pendingRef.current = { jobId: result.jobId, startedAt: Date.now() };
-      const outcome = await pollAnalysisOutcome(
-        () => getAnalysisJobAction(result.jobId),
-        pendingRef.current.startedAt,
-        undefined,
-        () => !alive.current,
-      );
-      if (outcome.kind === "cancelled") return; // モーダルが閉じられた（Provider が引き継ぐ）
-      pendingRef.current = null;
-      if (outcome.kind === "done") {
-        await onDone(outcome.logId, outcome.gameId);
+      const started = startTracking({ jobId: result.jobId, startedAt: Date.now() });
+      if (!started) {
+        // まれな競合（直前に別タブが開始）。ジョブ自体は進み、一覧の解析中カードが拾う。
+        setError(ANALYSIS_BUSY_MESSAGE);
+        setBusy(false);
         return;
       }
-      setError(
-        outcome.kind === "failed"
-          ? outcome.message
-          : `解析に時間がかかっています。${analysisTimeoutMessage()}`,
-      );
+      pendingJobId.current = result.jobId;
+      // busy は終端（settled）まで維持＝ボタンは「解析中」のまま。
     } catch {
-      if (alive.current) setError("通信に失敗しました。");
-    } finally {
-      if (alive.current) setBusy(false);
+      if (alive.current) {
+        setError("通信に失敗しました。");
+        setBusy(false);
+      }
     }
   }
 

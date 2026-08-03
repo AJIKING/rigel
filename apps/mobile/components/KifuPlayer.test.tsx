@@ -80,6 +80,20 @@ describe("KifuPlayer", () => {
     expect(onToggle).toHaveBeenCalled();
   });
 
+  it("notice（★のサインイン要求など）を上部バー直下に出す（タップを無言で握り潰さない）", () => {
+    const { rerender } = render(
+      <KifuPlayer
+        logs={[log(1, emptyKifu())]}
+        isPublic
+        notice="お気に入りにはサインインが必要です。"
+      />,
+    );
+    expect(screen.getByText("お気に入りにはサインインが必要です。")).toBeTruthy();
+
+    rerender(<KifuPlayer logs={[log(1, emptyKifu())]} isPublic notice={null} />);
+    expect(screen.queryByText("お気に入りにはサインインが必要です。")).toBeNull();
+  });
+
   it("onEdit を渡すと編集ボタンが出る（自分の牌譜のみ）。渡さなければ出ない", () => {
     const onEdit = jest.fn();
     const { rerender } = render(

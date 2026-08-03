@@ -10,10 +10,24 @@ const h = vi.hoisted(() => ({
   createGameAction: vi.fn(),
 }));
 vi.mock("../../app/actions", () => h);
-// 解析追従 Provider はモック（busy ガード・閉じたときの引き継ぎを観測する）。
-const aj = vi.hoisted(() => ({ settledCount: 0, busy: false, start: vi.fn() }));
-vi.mock("../../lib/use-analysis-job", () => ({ useAnalysisJob: () => aj }));
+// 解析追従 Provider はモック（202 で start に渡ること・settled 後の完了/失敗の拾い方を観測）。
+// settledCount はテストから bump() で進める（本物の Provider が終端で増やすのを模す）。
+const aj = vi.hoisted(() => ({
+  busy: false,
+  start: vi.fn<(p: { jobId: string; startedAt: number }) => boolean>(() => true),
+  bump: () => {},
+}));
+vi.mock("../../lib/use-analysis-job", () => ({
+  useAnalysisJob: () => {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports -- vi.mock ファクトリ内
+    const { useState } = require("react") as typeof import("react");
+    const [n, setN] = useState(0);
+    aj.bump = () => setN((x) => x + 1);
+    return { settledCount: n, busy: aj.busy, start: aj.start };
+  },
+}));
 
+import { act } from "@testing-library/react";
 import { AddKyokuModal } from "./AddKyokuModal";
 
 /** /api/me をスタブしてプランを差し込む（AuthProvider が起動時に読む）。extra で残枠なども足せる。 */
@@ -37,7 +51,7 @@ function renderModal() {
 
 beforeEach(() => {
   aj.busy = false;
-  aj.start.mockReset();
+  aj.start.mockReset().mockReturnValue(true);
 });
 
 afterEach(() => {
@@ -53,7 +67,7 @@ describe("AddKyokuModal の非同期解析（202 + ポーリング。docs/plans/
     });
   }
 
-  it("解析ジョブが done になったら onDone(logId, gameId) を呼ぶ", async () => {
+  it("202 で Provider に追従を渡し、ジョブが done になったら onDone(logId, gameId) を呼ぶ", async () => {
     stubMe("next");
     h.analyzeAction.mockResolvedValue({ ok: true, jobId: "job-1" });
     h.getAnalysisJobAction.mockResolvedValue({
@@ -73,7 +87,12 @@ describe("AddKyokuModal の非同期解析（202 + ポーリング。docs/plans/
 
     pickRiver(container);
     fireEvent.click(screen.getAllByRole("button", { name: "AI再現" }).at(-1)!);
+    // 202 → 即 Provider に渡す（ポーリングは Provider の責務）。
+    await waitFor(() =>
+      expect(aj.start).toHaveBeenCalledWith({ jobId: "job-1", startedAt: expect.any(Number) }),
+    );
 
+    act(() => aj.bump()); // Provider の終端（settled）
     await waitFor(() => expect(onDone).toHaveBeenCalledWith("l1", "g1"));
   });
 
@@ -97,7 +116,9 @@ describe("AddKyokuModal の非同期解析（202 + ポーリング。docs/plans/
 
     pickRiver(container);
     fireEvent.click(screen.getAllByRole("button", { name: "AI再現" }).at(-1)!);
+    await waitFor(() => expect(aj.start).toHaveBeenCalled());
 
+    act(() => aj.bump());
     await waitFor(() => expect(screen.getByText(/30局/)).toBeTruthy());
     expect(onDone).not.toHaveBeenCalled();
   });
@@ -116,29 +137,35 @@ describe("AddKyokuModal の非同期解析（202 + ポーリング。docs/plans/
     expect(h.analyzeAction).not.toHaveBeenCalled();
   });
 
-  it("解析中に閉じたら Provider にジョブを引き継ぐ（注記も出す。Phase B）", async () => {
+  it("解析中は注記（閉じても続く）を出し、閉じても Provider の追従が生きる", async () => {
     stubMe("next");
     h.analyzeAction.mockClear().mockResolvedValue({ ok: true, jobId: "job-7" });
-    // 終端に達しない processing（モーダル内ポーリングが続く状態で閉じる）。
-    h.getAnalysisJobAction.mockResolvedValue({
-      id: "job-7",
-      status: "processing",
-      gameId: null,
-      logId: null,
-      reason: null,
-    });
     const { container, unmount } = renderModal();
     await screen.findAllByRole("button", { name: "AI再現" });
 
     pickRiver(container);
     fireEvent.click(screen.getAllByRole("button", { name: "AI再現" }).at(-1)!);
-    // 202 → 引き継ぎ記録（pendingRef）が積まれた後＝最初のポーリングまで待つ。
-    await waitFor(() => expect(h.getAnalysisJobAction).toHaveBeenCalledWith("job-7"));
+    // 202 → 即 Provider へ（モーダル内の自前ポーリングは廃止＝busy ガードの真実源を一本化）。
+    await waitFor(() =>
+      expect(aj.start).toHaveBeenCalledWith({ jobId: "job-7", startedAt: expect.any(Number) }),
+    );
     // 待たされる不安を下げる注記（閉じても続く）。
     expect(await screen.findByText(/閉じても解析は続きます/)).toBeTruthy();
 
-    unmount();
-    expect(aj.start).toHaveBeenCalledWith({ jobId: "job-7", startedAt: expect.any(Number) });
+    unmount(); // 閉じてもエラーにならない（追従は Provider 側で継続）。
+  });
+
+  it("まれな競合（start が false）でも案内を出して黙らない", async () => {
+    stubMe("next");
+    aj.start.mockReturnValue(false);
+    h.analyzeAction.mockClear().mockResolvedValue({ ok: true, jobId: "job-8" });
+    const { container } = renderModal();
+    await screen.findAllByRole("button", { name: "AI再現" });
+
+    pickRiver(container);
+    fireEvent.click(screen.getAllByRole("button", { name: "AI再現" }).at(-1)!);
+
+    expect(await screen.findByText(/解析はひとつずつ実行できます/)).toBeTruthy();
   });
 });
 

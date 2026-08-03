@@ -6,6 +6,7 @@ import {
   resultLabel,
   roundHonbaLabel,
   roundNameForSeq,
+  ANALYSIS_BUSY_MESSAGE,
   DELETE_CONFIRM,
   LIMIT_MESSAGES,
 } from "@rigel/ui";
@@ -44,7 +45,12 @@ export function GameDetailScreen() {
   const { gameId } = useRoute<RouteProp<RootStackParamList, "GameDetail">>().params;
   const { token } = useAuth();
   const { loading, detail, refetch } = useGame(gameId);
-  const [note, setNote] = useState<string | null>(null);
+  // note は「失敗（danger）」と「次の行動の案内（info）」を色で区別する
+  // （案内までエラー色だと操作を間違えたように見えるため。品質パス 2026-08-03）。
+  const [noteState, setNoteState] = useState<{ text: string; tone: "info" | "error" } | null>(null);
+  const note = noteState?.text ?? null;
+  const setNote = (text: string | null, tone: "info" | "error" = "error") =>
+    setNoteState(text === null ? null : { text, tone });
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleDraft, setTitleDraft] = useState("");
   const [savingTitle, setSavingTitle] = useState(false);
@@ -83,7 +89,7 @@ export function GameDetailScreen() {
     if (!token || !detail?.analysisJobId) return;
     // 解析はひとつずつ（Capture の送信前ガードと同じ。202 の後に断ると課金が走る）。
     if (busy) {
-      setNote("解析はひとつずつ実行できます。進行中の解析が終わってからお試しください。");
+      setNote(ANALYSIS_BUSY_MESSAGE, "info");
       return;
     }
     setNote(null);
@@ -149,7 +155,7 @@ export function GameDetailScreen() {
     if (res.ok) {
       setEditingTitle(false);
       refetch();
-    } else setNote("名称の変更に失敗しました");
+    } else setNote("半荘名の保存に失敗しました。"); // 文言は web（BoardEditor/GameHeaderScreen）と同一
   }
 
   /** 対局日（createdAt）の変更を保存する（YYYY-MM-DD。所有者のみ。一覧の並びにも反映）。 */
@@ -157,7 +163,7 @@ export function GameDetailScreen() {
     if (!token) return;
     setNote(null);
     if (!/^\d{4}-\d{2}-\d{2}$/.test(dateDraft) || Number.isNaN(Date.parse(dateDraft))) {
-      setNote("日付は YYYY-MM-DD 形式で入力してください");
+      setNote("日付は YYYY-MM-DD 形式で入力してください。"); // 文言は web と同一
       return;
     }
     setSavingDate(true);
@@ -169,7 +175,7 @@ export function GameDetailScreen() {
     if (res.ok) {
       setEditingDate(false);
       refetch();
-    } else setNote("対局日の変更に失敗しました");
+    } else setNote("対局日の保存に失敗しました。"); // 文言は web と同一
   }
 
   /** 半荘のルールを保存する（配下の全局に反映。局ごとには持たない）。 */
@@ -348,7 +354,10 @@ export function GameDetailScreen() {
             onPress={() =>
               detail.logs[0]
                 ? setRulesOpen(true)
-                : setNote("局が作成されるとルールを設定できます（解析の完了をお待ちください）。")
+                : setNote(
+                    "局が作成されるとルールを設定できます（解析の完了をお待ちください）。",
+                    "info",
+                  )
             }
           />
           <Chip
@@ -357,7 +366,10 @@ export function GameDetailScreen() {
             onPress={() =>
               detail.logs[0]
                 ? setPlayersOpen(true)
-                : setNote("局が作成されると選手情報を設定できます（解析の完了をお待ちください）。")
+                : setNote(
+                    "局が作成されると選手情報を設定できます（解析の完了をお待ちください）。",
+                    "info",
+                  )
             }
           />
           {/* 元写真（恒久保存・所有者のみ。photo-retention.md）。 */}
@@ -368,7 +380,10 @@ export function GameDetailScreen() {
             a11ySelected={false}
             onPress={() => {
               if (visibility !== "public") {
-                setNote("公開すると共有できます。「公開」に切り替えてから共有してください。");
+                setNote(
+                  "公開すると共有できます。「公開」に切り替えてから共有してください。",
+                  "info",
+                );
                 return;
               }
               const url = kifuShareUrl(gameId);
@@ -381,7 +396,9 @@ export function GameDetailScreen() {
             <DangerButton label="半荘を削除" onPress={onDeleteGame} />
           </View>
         </View>
-        {note ? <Text style={styles.note}>{note}</Text> : null}
+        {note ? (
+          <Text style={[styles.note, noteState?.tone === "info" && styles.noteInfo]}>{note}</Text>
+        ) : null}
         {/* 解析ジョブの状態（plan 8-3。サーバー導出。0局のうちはここが半荘の"中身"）。 */}
         {detail.analysisStatus === "processing" ? (
           <Text style={styles.analyzing} accessibilityLiveRegion="polite">
@@ -439,7 +456,10 @@ export function GameDetailScreen() {
                   onPress={() =>
                     canDelete
                       ? onDeleteKyoku(item.id, item.seq)
-                      : setNote("最後の1局は削除できません（半荘ごと消すには「半荘を削除」）。")
+                      : setNote(
+                          "最後の1局は削除できません（半荘ごと消すには「半荘を削除」）。",
+                          "info",
+                        )
                   }
                   accessibilityRole="button"
                   accessibilityLabel={`第${item.seq}局を削除`}
@@ -535,6 +555,8 @@ const styles = StyleSheet.create({
   retryBtnText: { color: colors.accent, fontWeight: "700", fontSize: 12 },
   // 本文エラーは danger（theme の規約。vermilion は塗り・記号用）。
   note: { color: colors.danger, fontSize: 12, marginTop: 8 },
+  // 案内（次の行動の説明）はエラー色にしない。
+  noteInfo: { color: colors.w70 },
   card: {
     flexDirection: "row",
     justifyContent: "space-between",

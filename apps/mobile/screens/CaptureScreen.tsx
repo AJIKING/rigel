@@ -8,6 +8,7 @@ import {
   planCanAnalyze,
   roundNameForSeq,
   seatLabel,
+  ANALYSIS_BUSY_MESSAGE,
   LIMIT_MESSAGES,
 } from "@rigel/ui";
 import { useState } from "react";
@@ -54,16 +55,19 @@ export function CaptureScreen() {
   const [doraOpen, setDoraOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [creating, setCreating] = useState(false); // 手入力作成。解析(submitting)とは独立。
+  // エラーは押したボタンの近くに出す（解析=写真セクション直下 / 手入力=作成ボタン直上。
+  // 長いフォームで最下部のボタンを押したのに画面中程にしか出ないと無反応に見えるため）。
   const [error, setError] = useState<string | null>(null);
+  const [manualError, setManualError] = useState<string | null>(null);
   const busy = submitting || creating;
 
   /** 写真なしの手入力作成。既存半荘には局を足し、無ければ新しい半荘を作って編集画面へ。 */
   async function onCreateManual() {
     if (!token) {
-      setError("サインインが必要です。");
+      setManualError("サインインが必要です。");
       return;
     }
-    setError(null);
+    setManualError(null);
     setCreating(true);
     try {
       // 局メタ（ドラは複数枚スキーマ。作成時は1枚だけ選べる。追加は編集画面で）。
@@ -72,11 +76,11 @@ export function CaptureScreen() {
         ? await createEmptyKifu(token, gameId, seat, meta, seq)
         : await createGame(token, seat, meta, seq);
       if (res.ok) nav.navigate("Edit", { gameId: res.gameId, logId: res.logId });
-      else if (res.status === 409) setError(LIMIT_MESSAGES.gameFull);
-      else if (res.status === 403) setError(LIMIT_MESSAGES.draftGames);
-      else setError("作成に失敗しました。");
+      else if (res.status === 409) setManualError(LIMIT_MESSAGES.gameFull);
+      else if (res.status === 403) setManualError(LIMIT_MESSAGES.draftGames);
+      else setManualError("作成に失敗しました。");
     } catch {
-      setError("通信に失敗しました。");
+      setManualError("通信に失敗しました。");
     } finally {
       setCreating(false);
     }
@@ -105,7 +109,7 @@ export function CaptureScreen() {
     // 多重送信ガードは POST の前に行う（202 の後に断ると、サーバー側では既に
     // 半荘作成・キュー投入・課金が走ってしまう）。
     if (analysisBusy) {
-      setError("解析はひとつずつ実行できます。進行中の解析が終わってからお試しください。");
+      setError(ANALYSIS_BUSY_MESSAGE);
       return;
     }
     setError(null);
@@ -132,7 +136,7 @@ export function CaptureScreen() {
       const started = await startAnalysis({ jobId: result.jobId, startedAt: Date.now(), seq });
       if (!started) {
         // 進行中のジョブがあるときは開始しない（保存枠を潰して1件目を行方不明にしない）。
-        setError("解析はひとつずつ実行できます。進行中の解析が終わってからお試しください。");
+        setError(ANALYSIS_BUSY_MESSAGE);
         return;
       }
       nav.goBack();
@@ -286,6 +290,8 @@ export function CaptureScreen() {
           ) : null}
         </View>
 
+        {/* 手入力側の失敗はボタンの直上に出す（押した場所の近く）。 */}
+        {manualError ? <Text style={styles.error}>{manualError}</Text> : null}
         {/* 写真なしの手入力作成（空の初局を作って編集画面へ）。フリーはこれが主ボタン。 */}
         <Pressable
           disabled={busy}

@@ -8,7 +8,7 @@
 //   - 進行中は start を false で拒否（「解析はひとつずつ」。202 の後に断ると
 //     サーバー側では課金・キュー投入が済んでいるため、送信前ガードに使う）
 
-import { pollAnalysisOutcome } from "@rigel/ui";
+import { parsePendingAnalysis, pollAnalysisOutcome } from "@rigel/ui";
 import {
   createContext,
   useCallback,
@@ -33,11 +33,8 @@ const STORAGE_KEY = "rigel:pendingAnalysis";
 
 function loadPending(): PendingAnalysis | null {
   try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (!raw) return null;
-    const v = JSON.parse(raw) as Partial<PendingAnalysis>;
-    if (typeof v.jobId !== "string" || typeof v.startedAt !== "number") return null;
-    return v as PendingAnalysis;
+    // 検証（壊れた記録は捨てる）は @rigel/ui の parsePendingAnalysis（mobile と共通）。
+    return parsePendingAnalysis(window.localStorage.getItem(STORAGE_KEY));
   } catch {
     return null;
   }
@@ -77,6 +74,8 @@ export function AnalysisJobProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
   const [settledCount, setSettledCount] = useState(0);
   const [busy, setBusy] = useState(false);
+  // busy のミラー（start の同期ガードで見る。state は同一ティック内の判定に使えない）。
+  const busyRef = useRef(false);
   const polling = useRef(false);
   const userRef = useRef(user);
   userRef.current = user;
@@ -93,6 +92,7 @@ export function AnalysisJobProvider({ children }: { children: ReactNode }) {
     if (!claimed) {
       if (polling.current) return;
       polling.current = true;
+      busyRef.current = true;
       setBusy(true);
     }
     const outcome = await pollAnalysisOutcome(
@@ -103,6 +103,7 @@ export function AnalysisJobProvider({ children }: { children: ReactNode }) {
     );
     polling.current = false;
     if (!alive.current) return; // ページ破棄。記録は残す（次の訪問で復元）
+    busyRef.current = false;
     setBusy(false);
     if (outcome.kind === "cancelled") return;
     clearPending();
@@ -113,9 +114,12 @@ export function AnalysisJobProvider({ children }: { children: ReactNode }) {
 
   const start = useCallback(
     (pending: PendingAnalysis): boolean => {
-      if (polling.current) return false;
+      // 「ひとつずつ」の不変条件は Provider 側で守る（呼び出し側ガードは案内表示のため）。
+      // busyRef は他タブの進行（storage イベント）も含む。
+      if (polling.current || busyRef.current) return false;
       // 同期的に予約して、二連打の両方がガードを抜けるのを防ぐ。
       polling.current = true;
+      busyRef.current = true;
       setBusy(true);
       const withUser: PendingAnalysis = {
         ...pending,
@@ -128,11 +132,12 @@ export function AnalysisJobProvider({ children }: { children: ReactNode }) {
     [track],
   );
 
-  // リロード・再訪の復元（ユーザーが確定したら一度だけ）。別ユーザーの残骸は掃除。
-  const restored = useRef(false);
+  // リロード・再訪の復元（ユーザーごとに一度）。別ユーザーの残骸は掃除。
+  // ユーザーが変わったら復元をやり直す（mobile と同じ意味論。品質パス 2026-08-03）。
+  const restoredFor = useRef<string | null>(null);
   useEffect(() => {
-    if (!user || restored.current) return;
-    restored.current = true;
+    if (!user || restoredFor.current === user.id) return;
+    restoredFor.current = user.id;
     const pending = loadPending();
     if (!pending) return;
     if (pending.userId && pending.userId !== user.id) {
@@ -147,8 +152,9 @@ export function AnalysisJobProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const onStorage = (e: StorageEvent) => {
       if (e.key !== STORAGE_KEY) return;
-      if (e.newValue && !polling.current) setBusy(true);
-      if (!e.newValue && !polling.current) setBusy(false);
+      if (polling.current) return; // 自タブ進行中は自分の状態が優先
+      busyRef.current = !!e.newValue;
+      setBusy(!!e.newValue);
     };
     window.addEventListener("storage", onStorage);
     return () => window.removeEventListener("storage", onStorage);

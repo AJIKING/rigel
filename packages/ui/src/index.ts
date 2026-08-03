@@ -282,6 +282,55 @@ export function analysisTimeoutMessage(): string {
   return "完了すると自動で牌譜一覧に追加されます。後ほどご確認ください。";
 }
 
+/** 解析の多重送信ガードの案内（web/mobile 共通・同文必須）。送信前に見せる
+ *  ＝202 の後に断るとサーバー側では課金・キュー投入が済んでいるため。 */
+export const ANALYSIS_BUSY_MESSAGE =
+  "解析はひとつずつ実行できます。進行中の解析が終わってからお試しください。";
+
+/** 一覧に「解析中」カードがある間の再取得間隔（web/mobile 共通）。 */
+export const LIST_REFRESH_INTERVAL_MS = 5000;
+
+/** 解析ジョブの永続レコード（開き直し・リロードで復元する最小情報）。 */
+export interface PendingAnalysisRecord {
+  jobId: string;
+  /** 送信時刻（epoch ms）。ポーリング予算の起点（復元しても総予算は変わらない）。 */
+  startedAt: number;
+  /** 作成する局（東一局=1〜）。「◯◯局を作成しています」表示用（任意）。 */
+  seq?: number;
+  /** 送信したユーザー。別アカウントでの復元（前ユーザーのジョブが化けて出る）を防ぐ。 */
+  userId?: string;
+}
+
+/** 永続レコードの検証つき復元（web=localStorage / mobile=SecureStore 共通）。
+ *  壊れた記録は null（黙って捨てる）。型違いの任意フィールドは落として本体は生かす。 */
+export function parsePendingAnalysis(raw: string | null): PendingAnalysisRecord | null {
+  if (!raw) return null;
+  try {
+    const v = JSON.parse(raw) as Partial<PendingAnalysisRecord>;
+    if (typeof v.jobId !== "string" || typeof v.startedAt !== "number") return null;
+    return {
+      jobId: v.jobId,
+      startedAt: v.startedAt,
+      ...(typeof v.seq === "number" ? { seq: v.seq } : {}),
+      ...(typeof v.userId === "string" ? { userId: v.userId } : {}),
+    };
+  } catch {
+    return null;
+  }
+}
+
+/** 購入反映待ちの案内（web=Stripe Checkout / mobile=IAP 共通。plan は Webhook →
+ *  users.plan 経由で数秒遅れて変わるため、/me を追いかける間に見せる）。 */
+export const CHECKOUT_PENDING_MESSAGES = {
+  waiting: "購入ありがとうございます。プランを反映しています…（数秒かかることがあります）",
+  applied: "プランが反映されました",
+  timeout: "反映に時間がかかっています。しばらくしてからこの画面を開き直してください",
+} as const;
+
+/** 購入反映待ちの /me 再取得間隔と打ち切り（web/mobile 共通）。 */
+export const CHECKOUT_POLL_MS = 3000;
+export const CHECKOUT_GIVEUP_MS = 30000;
+
 /** 解析ジョブの失敗理由（AnalysisJob.reason）の日本語メッセージ。 */
 export function analysisJobFailureMessage(reason: string | null): string {
   switch (reason) {
@@ -606,6 +655,54 @@ export const MY_PROBLEM_STATUS_OPTIONS: readonly MyListStatusOption[] = [
   { value: "published", label: "公開" },
   { value: "draft", label: "下書き" },
 ];
+
+/** マイページ一覧の絞り込み条件（検索・状態・お気に入りのみ）。 */
+export interface MyListFilter {
+  /** タイトル部分一致（空文字は絞り込みなし）。 */
+  q?: string;
+  /** MY_KIFU/MY_PROBLEM_STATUS_OPTIONS の value（"all" は素通し）。 */
+  status?: string;
+  favOnly?: boolean;
+}
+
+/**
+ * マイページ牌譜タブの絞り込み（純関数）。value（MY_KIFU_STATUS_OPTIONS）と述語を
+ * 同じ場所に置く＝web/mobile が別々に `status === "pub"` を書いて静かに乖離しないため。
+ */
+export function filterMyKifu<T extends FeedCard & { title: string; publicCount: number }>(
+  cards: readonly T[],
+  { q = "", status = "all", favOnly = false }: MyListFilter,
+): T[] {
+  let arr = [...cards];
+  if (favOnly) arr = arr.filter((c) => c.viewerFaved);
+  if (status === "pub") arr = arr.filter((c) => c.publicCount > 0);
+  else if (status === "priv") arr = arr.filter((c) => c.publicCount === 0);
+  if (q) arr = arr.filter((c) => c.title.includes(q));
+  return arr;
+}
+
+/** マイページ何切るタブの絞り込み（純関数。status は draft/published の完全一致）。 */
+export function filterMyProblems<T extends FeedCard & { title: string; status: string }>(
+  cards: readonly T[],
+  { q = "", status = "all", favOnly = false }: MyListFilter,
+): T[] {
+  let arr = [...cards];
+  if (favOnly) arr = arr.filter((c) => c.viewerFaved);
+  if (status !== "all") arr = arr.filter((c) => c.status === status);
+  if (q) arr = arr.filter((c) => c.title.includes(q));
+  return arr;
+}
+
+/** マイページ牌譜タブの統計3枠（web/mobile 共通の定義。「公開」= 公開局を持つ半荘数）。 */
+export function myKifuStats(
+  cards: readonly { publicCount: number; favoriteCount: number }[],
+): { label: string; count: number }[] {
+  return [
+    { label: "牌譜", count: cards.length },
+    { label: "公開", count: cards.filter((c) => c.publicCount > 0).length },
+    { label: "お気に入りされた数", count: cards.reduce((n, c) => n + c.favoriteCount, 0) },
+  ];
+}
 
 /** マイページ一覧の並べ替え（純関数。牌譜・何切るで共用）。 */
 export function sortMyList<T extends FeedCard>(cards: readonly T[], sort: MyListSortKey): T[] {

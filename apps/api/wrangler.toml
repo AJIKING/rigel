@@ -23,7 +23,7 @@ enabled = true
 
 # 撮影画像の恒久保存（docs/plans/photo-retention.md・[決定] 2026-08-03）。
 # 解析ジョブの画像・message.json は送信時からここへ直接入り、データ削除時にだけ消す
-# （ライフサイクルルールは設定しない）。旧 rigel-analysis-tmp（TTL 1日）は廃止予定。
+# （ライフサイクルルールは設定しない）。旧 rigel-analysis-tmp（TTL 1日）は削除済み（2026-08-03）。
 [[r2_buckets]]
 binding = "PHOTOS"                     # env.PHOTOS（src/env.ts）に対応
 bucket_name = "rigel"
