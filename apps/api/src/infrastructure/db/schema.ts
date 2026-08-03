@@ -114,6 +114,9 @@ export const problems = sqliteTable(
     status: text("status", { enum: ["draft", "published"] })
       .notNull()
       .default("draft"),
+    /** 解析下書き由来の問題の写真プレフィックス（problems/{photoDraftId}/。photo-retention.md）。
+     *  問題削除時に R2 も掃除する。手入力の問題は null。 */
+    photoDraftId: text("photo_draft_id"),
     createdAt: integer("created_at", { mode: "timestamp_ms" })
       .notNull()
       .$defaultFn(() => new Date()),
@@ -123,6 +126,27 @@ export const problems = sqliteTable(
     // 公開一覧（status=published を新着順）用。
     index("problems_status_idx").on(t.status, t.createdAt),
   ],
+);
+
+/** 何切るの解析下書き（[決定] 2026-08-03 photo-retention.md）。写真AI再現の送信で
+ *  先行作成され、解析完了で kifu（ドラフト盤面）が入る。正規保存（problems 行の作成）で
+ *  畳まれ、写真（problems/{id}/…）は問題へ引き継がれる。users への FK があるため、
+ *  退会カスケード（DrizzleAccountStore）で必ず掃除する。 */
+export const problemDrafts = sqliteTable(
+  "problem_drafts",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id),
+    /** 最新の解析ジョブ（状態導出用。FK は張らない=ジョブ行掃除と寿命が別）。 */
+    jobId: text("job_id").notNull(),
+    /** 解析結果のドラフト盤面（KifuSchema 検証済み）。解析中・失敗は null。 */
+    kifu: text("kifu", { mode: "json" }).$type<Kifu>(),
+    createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
+    updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull(),
+  },
+  (t) => [index("problem_drafts_user_idx").on(t.userId)],
 );
 
 // 何切る問題への回答。1人1回（PK = problem_id + user_id。再回答は上書き）。

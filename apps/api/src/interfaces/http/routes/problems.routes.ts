@@ -47,7 +47,8 @@ export function registerProblemRoutes(app: Hono<AppEnv>): void {
     if (!started.ok) {
       return c.json({ ok: false, reason: started.reason }, reasonStatus(started.reason));
     }
-    return c.json({ ok: true, jobId: started.jobId }, 202);
+    // draftId も返す（解析下書きの先行作成。閉じてもマイページの下書きから開ける）。
+    return c.json({ ok: true, jobId: started.jobId, draftId: started.draftId }, 202);
   });
 
   // 何切る解析ジョブの状態（所有者のみ。ポーリング用 = RL_READ の対象）。
@@ -58,6 +59,32 @@ export function registerProblemRoutes(app: Hono<AppEnv>): void {
       .getProblemAnalysisJob.execute(c.req.param("id"), c.get("userId")!);
     if (!job) return c.json({ error: "not found" }, 404);
     return c.json(job);
+  });
+
+  // 解析下書き（photo-retention.md）。写真AI再現の送信で先行作成され、閉じてもここに残る。
+  // すべて所有者のみ。※ /problems/:id より先に登録する（"drafts" を :id に食わせない）。
+  app.get("/problems/drafts", requireAuth, async (c) => {
+    const drafts = await c.get("container").listProblemDrafts.execute(c.get("userId")!);
+    return c.json({ drafts });
+  });
+
+  // 下書きの詳細（ready なら解析結果の Kifu 同梱。編集画面への流し込み用）。
+  app.get("/problems/drafts/:id", requireAuth, async (c) => {
+    const draft = await c
+      .get("container")
+      .getProblemDraft.execute(c.req.param("id"), c.get("userId")!);
+    if (!draft) return c.json({ error: "not found" }, 404);
+    return c.json(draft);
+  });
+
+  // 下書きの破棄（写真ごと消す）。
+  app.delete("/problems/drafts/:id", requireAuth, async (c) => {
+    const result = await c.get("container").deleteProblemDraft.execute({
+      userId: c.get("userId")!,
+      draftId: c.req.param("id"),
+    });
+    if (!result.ok) return c.json({ error: "not found" }, 404);
+    return c.json({ ok: true });
   });
 
   // 公開一覧（published のみ・新着順。閲覧は自由）。
@@ -83,17 +110,20 @@ export function registerProblemRoutes(app: Hono<AppEnv>): void {
   });
 
   // 作成。free は合算20問で 403（problem_limit）。
+  // draftId 指定で解析下書きから正規保存（写真を引き継ぎ、下書きを畳む）。
   app.post("/problems", requireAuth, async (c) => {
     const body = (await c.req.json().catch(() => null)) as {
       title?: unknown;
       problem?: unknown;
       status?: unknown;
+      draftId?: unknown;
     } | null;
     const result = await c.get("container").createProblem.execute({
       userId: c.get("userId")!,
       title: typeof body?.title === "string" ? body.title : "",
       problem: body?.problem,
       status: parseStatus(body?.status),
+      ...(typeof body?.draftId === "string" && body.draftId ? { draftId: body.draftId } : {}),
     });
     if (!result.ok)
       return c.json({ ok: false, reason: result.reason }, reasonStatus(result.reason));

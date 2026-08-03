@@ -51,7 +51,15 @@ function post(
   userId: string,
   status: "draft" | "published" = "published",
 ): ProblemPost {
-  return { id, userId, title: `問題${id}`, problem: makeProblemData(), status, createdAt: NOW };
+  return {
+    id,
+    userId,
+    title: `問題${id}`,
+    problem: makeProblemData(),
+    status,
+    photoDraftId: null,
+    createdAt: NOW,
+  };
 }
 
 /**

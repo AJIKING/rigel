@@ -17,5 +17,8 @@ export interface ProblemPost {
   /** 問題本体（ProblemSchema 検証済み）。 */
   problem: Problem;
   status: ProblemStatus;
+  /** 解析下書き由来の写真プレフィックス ID（photo-retention.md）。手入力の問題は null。
+   *  問題削除時に R2（problems/{photoDraftId}/）も掃除する。 */
+  photoDraftId: string | null;
   createdAt: Date;
 }

@@ -104,6 +104,7 @@ describe("DrizzleAccountStore（実 SQLite）", () => {
       title: "u1 の問題",
       problem: makeProblemData(),
       status: "published",
+      photoDraftId: null,
       createdAt: NOW,
     });
 

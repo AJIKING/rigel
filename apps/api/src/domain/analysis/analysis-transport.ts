@@ -1,8 +1,7 @@
 // domain/analysis — 非同期解析の搬送ポート（docs/plans/async-analysis.md）。
-// 画像の一時置き場（実体=R2）とジョブキュー（実体=Cloudflare Queues）。
-// 一時画像は「解析ジョブの間だけ」の存在（[決定] 2026-08-01 ハードルール変更）。
-// 牌譜ジョブは終端で deletePrefix。何切るジョブは結果（result.json）だけ残して
-// 画像を消す（結果の受け渡しも R2。[決定] 2026-08-02 オーナー承認・保険は TTL 1日）。
+// 写真の置き場（実体=R2 バケット rigel・恒久）とジョブキュー（実体=Cloudflare Queues）。
+// [決定] 2026-08-03 photo-retention.md: 画像は送信時から恒久保存し、
+// 半荘（games/…）/ 解析下書き（problems/…）に紐づけ、データ削除時にだけ消す。
 
 import type { CameraSeat, Seat } from "@rigel/schema";
 import type { ImageRef } from "../kifu/analyzer";
@@ -22,27 +21,21 @@ export function gameJobMessageKey(gameId: string, jobId: string): string {
   return `${gameJobPrefix(gameId, jobId)}message.json`;
 }
 
-/** 何切るジョブの一時オブジェクトのキー接頭辞（Task 9 で下書き紐づけへ移行予定）。 */
-export function analysisJobPrefix(jobId: string): string {
-  return `jobs/${jobId}/`;
+/** 何切るの解析下書きに紐づく写真の置き場（恒久。下書き破棄/問題削除で deletePrefix）。 */
+export function problemDraftPrefix(draftId: string): string {
+  return `problems/${draftId}/`;
 }
 
-/** 何切るジョブの結果ドラフト（Kifu JSON）の置き場。画像と同じ prefix 配下＝TTL 1日が効く。 */
-export function analysisResultKey(jobId: string): string {
-  return `${analysisJobPrefix(jobId)}result.json`;
-}
-
-/** キューへ送ったメッセージの控え（Phase 2「もう一度解析」の再 enqueue 用）。
- *  画像と同じ prefix 配下＝done の掃除・TTL 1日がそのまま効く。 */
-export function analysisMessageKey(jobId: string): string {
-  return `${analysisJobPrefix(jobId)}message.json`;
+/** 1回の解析ジョブぶんの写真（hand / river）の置き場。 */
+export function problemDraftJobPrefix(draftId: string, jobId: string): string {
+  return `${problemDraftPrefix(draftId)}${jobId}/`;
 }
 
 export interface AnalysisImageStore {
   put(key: string, image: ImageRef): Promise<void>;
-  /** 無ければ null（ライフサイクル削除・キー誤りなど）。 */
+  /** 無ければ null（旧TTLバケット世代・キー誤りなど）。 */
   get(key: string): Promise<ImageRef | null>;
-  /** 単一キーの削除（何切るジョブ: 画像だけ消して result.json を残すため）。 */
+  /** 単一キーの削除。 */
   delete(key: string): Promise<void>;
   /** prefix 配下をまとめて削除（半荘削除・退会などデータ削除時の掃除）。 */
   deletePrefix(prefix: string): Promise<void>;
@@ -68,11 +61,13 @@ export interface KifuAnalysisJobMessage {
   handFromRiver?: boolean;
 }
 
-/** 何切るの写真AI再現（保存しない・結果は R2 の result.json）のメッセージ。 */
+/** 何切るの写真AI再現のメッセージ。結果は解析下書き（problem_drafts）へ格納する。 */
 export interface ProblemAnalysisJobMessage {
   kind: "problem";
   jobId: string;
   userId: string;
+  /** 先行作成した解析下書き（photo-retention.md）。 */
+  draftId: string;
   cameraBottomSeat: Seat;
   handKey: string;
   riverKey?: string;

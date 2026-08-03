@@ -3,9 +3,11 @@
 // 検証を通っていないデータを下流に流さない）。保存上限は free 20問（draft+published 合算）。
 
 import { ProblemSchema } from "@rigel/schema";
+import { problemDraftPrefix } from "../domain/analysis/analysis-transport";
 import type { FavoriteRepository } from "../domain/favorite/favorite.repository";
 import type { ProblemPost, ProblemStatus } from "../domain/problem/problem";
 import type { ProblemAnswerRepository } from "../domain/problem/problem-answer.repository";
+import type { ProblemDraftRepository } from "../domain/problem/problem-draft.repository";
 import type { ProblemRepository } from "../domain/problem/problem.repository";
 import { problemLimit } from "../domain/user/user";
 import type { UserRepository } from "../domain/user/user.repository";
@@ -33,6 +35,8 @@ export class CreateProblem {
     private readonly deps: {
       problems: ProblemRepository;
       users: UserRepository;
+      /** 解析下書きからの正規保存（photo-retention.md）。未配線のテストは省略可。 */
+      drafts?: ProblemDraftRepository;
       now: () => Date;
       newId: () => string;
     },
@@ -43,6 +47,8 @@ export class CreateProblem {
     title: string;
     problem: unknown;
     status?: ProblemStatus;
+    /** 解析下書き由来なら指定。写真（problems/{draftId}/…）を問題へ引き継ぎ、下書きを畳む。 */
+    draftId?: string;
   }): Promise<CreateProblemResult> {
     const title = params.title.trim();
     if (title.length > TITLE_MAX) return { ok: false, reason: "invalid" };
@@ -55,6 +61,11 @@ export class CreateProblem {
     ) {
       return { ok: false, reason: "problem_limit" };
     }
+    // 解析下書きは所有者のものだけ引き継げる（他人の draftId を指されても写真を紐づけない）。
+    const draft =
+      params.draftId && this.deps.drafts
+        ? await this.deps.drafts.findForUser(params.draftId, params.userId)
+        : null;
     const id = this.deps.newId();
     await this.deps.problems.save({
       id,
@@ -62,8 +73,11 @@ export class CreateProblem {
       title,
       problem: parsed.data,
       status: params.status ?? "draft",
+      photoDraftId: draft?.id ?? null,
       createdAt: this.deps.now(),
     });
+    // 正規保存できたら下書きを畳む（写真プレフィックスは問題が引き継ぐので消さない）。
+    if (draft) await this.deps.drafts!.delete(draft.id);
     return { ok: true, problemId: id };
   }
 }
@@ -106,6 +120,8 @@ export class DeleteProblem {
     private readonly problems: ProblemRepository,
     private readonly answers: ProblemAnswerRepository,
     private readonly favorites: FavoriteRepository,
+    /** 元写真の掃除（photo-retention.md）。未配線のテストは省略可。 */
+    private readonly images: { deletePrefix(prefix: string): Promise<void> } | null = null,
   ) {}
 
   async execute(params: { userId: string; problemId: string }): Promise<DeleteProblemResult> {
@@ -115,6 +131,10 @@ export class DeleteProblem {
     // ★は対象への外部キーを持てない（ポリモーフィック）ので明示的に消す。
     await this.answers.deleteByProblem(post.id);
     await this.favorites.deleteByTarget("problem", post.id);
+    // 解析下書き由来の写真（R2）。D1 の行より先に消す（参照喪失の防止）。
+    if (post.photoDraftId && this.images) {
+      await this.images.deletePrefix(problemDraftPrefix(post.photoDraftId));
+    }
     await this.problems.deleteById(post.id);
     return { ok: true };
   }

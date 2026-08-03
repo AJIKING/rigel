@@ -14,7 +14,15 @@ function post(
   userId: string,
   status: "draft" | "published" = "published",
 ): ProblemPost {
-  return { id, userId, title: "t", problem: makeProblemData(), status, createdAt: NOW };
+  return {
+    id,
+    userId,
+    title: "t",
+    problem: makeProblemData(),
+    status,
+    photoDraftId: null,
+    createdAt: NOW,
+  };
 }
 
 function deps() {

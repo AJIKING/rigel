@@ -27,6 +27,11 @@ import {
   RunProblemAnalysisJob,
   StartProblemAnalysisJob,
 } from "./application/problem-analysis-job.usecase";
+import {
+  DeleteProblemDraft,
+  GetProblemDraft,
+  ListProblemDrafts,
+} from "./application/problem-drafts.usecase";
 import { GetKifu } from "./application/get-kifu.usecase";
 import { GetPublicGameDetail } from "./application/get-public-game-detail.usecase";
 import { GetUser } from "./application/get-user.usecase";
@@ -79,6 +84,7 @@ import { PhotonImageProcessor } from "./infrastructure/gemini/photon-image-proce
 import { RIVER_PROMPT_SINGLE } from "./infrastructure/gemini/river-prompt";
 import { DrizzleGameLogRepository } from "./infrastructure/kifu/drizzle-game-log.repository";
 import { DrizzleProblemAnswerRepository } from "./infrastructure/problem/drizzle-problem-answer.repository";
+import { DrizzleProblemDraftRepository } from "./infrastructure/problem/drizzle-problem-draft.repository";
 import { DrizzleProblemRepository } from "./infrastructure/problem/drizzle-problem.repository";
 import { DrizzleQuizSessionRepository } from "./infrastructure/quiz/drizzle-quiz-session.repository";
 import { DrizzleAccountStore } from "./infrastructure/user/drizzle-account-store";
@@ -96,10 +102,14 @@ export interface AppContainer {
   listGamePhotos: ListGamePhotos;
   getGamePhoto: GetGamePhoto;
   analyzeProblemDraft: AnalyzeProblemDraft;
-  /** 何切るの写真AI再現の非同期ジョブ化（結果は R2 の result.json。[決定] 2026-08-02）。 */
+  /** 何切るの写真AI再現の非同期ジョブ化（結果は解析下書きへ。photo-retention.md）。 */
   startProblemAnalysisJob: StartProblemAnalysisJob;
   getProblemAnalysisJob: GetProblemAnalysisJob;
   runProblemAnalysisJob: RunProblemAnalysisJob;
+  /** 解析下書き（一覧・取得・破棄）。 */
+  listProblemDrafts: ListProblemDrafts;
+  getProblemDraft: GetProblemDraft;
+  deleteProblemDraft: DeleteProblemDraft;
   getKifu: GetKifu;
   listKifu: ListKifu;
   updateKifu: UpdateKifu;
@@ -161,6 +171,7 @@ export function buildContainer(env: Env): AppContainer {
   const gameLogs = new DrizzleGameLogRepository(db);
   const gamesRepo = new DrizzleGameRepository(db);
   const problems = new DrizzleProblemRepository(db);
+  const problemDrafts = new DrizzleProblemDraftRepository(db);
   const problemAnswers = new DrizzleProblemAnswerRepository(db);
   const quizSessions = new DrizzleQuizSessionRepository(db);
   const favorites = new DrizzleFavoriteRepository(db);
@@ -283,19 +294,24 @@ export function buildContainer(env: Env): AppContainer {
     analyzeProblemDraft,
     startProblemAnalysisJob: new StartProblemAnalysisJob({
       jobs: analysisJobs,
+      drafts: problemDrafts,
       images: analysisImages,
       queue: analysisQueue,
       analyze: analyzeProblemDraft,
       now,
       newId,
     }),
-    getProblemAnalysisJob: new GetProblemAnalysisJob(analysisJobs, analysisImages),
+    getProblemAnalysisJob: new GetProblemAnalysisJob(analysisJobs, problemDrafts),
     runProblemAnalysisJob: new RunProblemAnalysisJob({
       jobs: analysisJobs,
+      drafts: problemDrafts,
       images: analysisImages,
       analyze: analyzeProblemDraft,
       now,
     }),
+    listProblemDrafts: new ListProblemDrafts(problemDrafts, analysisJobs, now),
+    getProblemDraft: new GetProblemDraft(problemDrafts, analysisJobs, now),
+    deleteProblemDraft: new DeleteProblemDraft(problemDrafts, analysisImages),
     getKifu: new GetKifu(gameLogs),
     listKifu: new ListKifu(gameLogs),
     updateKifu: new UpdateKifu(gameLogs),
@@ -345,10 +361,12 @@ export function buildContainer(env: Env): AppContainer {
     deleteAccount: new DeleteAccount(users, new DrizzleAccountStore(db), appleAuth, {
       games: gamesRepo,
       images: analysisImages,
+      drafts: problemDrafts,
+      problems,
     }),
-    createProblem: new CreateProblem({ problems, users, now, newId }),
+    createProblem: new CreateProblem({ problems, users, drafts: problemDrafts, now, newId }),
     updateProblem: new UpdateProblem(problems),
-    deleteProblem: new DeleteProblem(problems, problemAnswers, favorites),
+    deleteProblem: new DeleteProblem(problems, problemAnswers, favorites, analysisImages),
     getProblem: new GetProblem(problems),
     listMyProblems: new ListMyProblems(problems),
     listPublishedProblems: new ListPublishedProblems(problems),

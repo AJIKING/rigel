@@ -77,6 +77,7 @@ async function makeFavoritesApp() {
       title: `問題${id}`,
       problem: makeProblemData(),
       status,
+      photoDraftId: null,
       createdAt: NOW,
     });
   }

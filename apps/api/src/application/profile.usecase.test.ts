@@ -137,6 +137,7 @@ describe("DeleteAccount", () => {
       title: "",
       problem: makeProblemData(),
       status: "published" as const,
+      photoDraftId: null,
       createdAt: NOW,
     });
     await problems.save(problemOf("p1", "u1"));

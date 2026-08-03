@@ -4,8 +4,10 @@
 //   DeleteAccount: 自分の牌譜・半荘・ユーザーを削除（カスケード）。
 
 import { KIFU_LIMITS } from "@rigel/schema";
-import { gamePhotosPrefix } from "../domain/analysis/analysis-transport";
+import { gamePhotosPrefix, problemDraftPrefix } from "../domain/analysis/analysis-transport";
 import type { AppleAuthGateway } from "../domain/auth/apple-auth-gateway";
+import type { ProblemDraftRepository } from "../domain/problem/problem-draft.repository";
+import type { ProblemRepository } from "../domain/problem/problem.repository";
 import type { GameRepository } from "../domain/game/game.repository";
 import type { GameLogRepository } from "../domain/kifu/game-log.repository";
 import type { AccountStore } from "../domain/user/account-store";
@@ -106,10 +108,13 @@ export class DeleteAccount {
     private readonly store: AccountStore,
     /** Sign in with Apple のトークン失効（App Store 審査要件）。鍵未設定の環境は null。 */
     private readonly appleAuth: AppleAuthGateway | null = null,
-    /** 元写真の掃除（photo-retention.md）。半荘一覧と R2 ストア。未配線のテストは省略可。 */
+    /** 元写真の掃除（photo-retention.md）。半荘・何切る（下書き/問題）と R2 ストア。
+     *  未配線のテストは省略可。 */
     private readonly photos: {
       games: GameRepository;
       images: { deletePrefix(prefix: string): Promise<void> };
+      drafts?: ProblemDraftRepository;
+      problems?: ProblemRepository;
     } | null = null,
   ) {}
 
@@ -130,6 +135,15 @@ export class DeleteAccount {
     if (this.photos) {
       for (const game of await this.photos.games.listByUser(userId)) {
         await this.photos.images.deletePrefix(gamePhotosPrefix(game.id));
+      }
+      // 何切る: 解析下書きと、下書き由来の問題の写真（photoDraftId）。
+      for (const draft of (await this.photos.drafts?.listByUser(userId)) ?? []) {
+        await this.photos.images.deletePrefix(problemDraftPrefix(draft.id));
+      }
+      for (const post of (await this.photos.problems?.listByUser(userId)) ?? []) {
+        if (post.photoDraftId) {
+          await this.photos.images.deletePrefix(problemDraftPrefix(post.photoDraftId));
+        }
       }
     }
     // 削除は1トランザクション（回答→問題→局→半荘→ユーザー）。個別に順次消すと

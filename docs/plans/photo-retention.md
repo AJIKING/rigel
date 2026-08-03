@@ -87,7 +87,16 @@ problems/{draftId}/{jobId}/hand|river … 何切るの写真（問題/下書き�
 7. [ ] client + web UI（元写真ビュー）
 8. [ ] mobile UI（元写真ビュー）
 9. [ ] 何切る: `problem_drafts` migration + 先行作成 + done で下書きへ結果格納
-10. [ ] 何切る: 下書き一覧・編集流し込み・正規保存での引き継ぎ・破棄（web/mobile）
+   - 実装メモ（設計確定分）: `problem_drafts`(id, userId, jobId, kifu JSON nullable,
+     createdAt/updatedAt。users FK=退会カスケード追加)。写真キーは
+     `problems/{draftId}/{jobId}/hand|river`。Start が job 行→draft 行→アップロード→
+     投入の順（牌譜と同型・孤児なし）。done で draft.kifu に格納（result.json は廃止）。
+     GET /problems/analyze/jobs/:id は draft 由来で返す（契約は維持）。
+     正規保存: problems に photo_draft_id 列を追加し、createProblem(draftId?) で
+     紐づけ→draft 行を削除（写真プレフィックスは問題が引き継ぐ）。
+     削除連鎖: 下書き破棄 / DeleteProblem / 退会 → R2 prefix + D1。
+10. [ ] 何切る: 下書き一覧（GET /problems/drafts・解析中/失敗/下書きのステータス付き）・
+    マイページ表示・編集流し込み（ProblemEdit が draftId を受ける）・破棄（web/mobile）
 11. [ ] プライバシーポリシー改稿
 12. [ ] tmp バケット廃止（バインディング撤去・rigel-analysis-tmp 削除）
 13. [ ] 本番 E2E（解析→写真閲覧→削除で消える／何切る下書きの復元）

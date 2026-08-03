@@ -8,6 +8,10 @@ import type {
   AnalysisQueue,
 } from "../domain/analysis/analysis-transport";
 import type { ImageRef } from "../domain/kifu/analyzer";
+import type {
+  ProblemDraft,
+  ProblemDraftRepository,
+} from "../domain/problem/problem-draft.repository";
 
 export class InMemoryAnalysisJobRepository implements AnalysisJobRepository {
   jobs = new Map<string, AnalysisJob>();
@@ -133,6 +137,51 @@ export class InMemoryAnalysisImageStore implements AnalysisImageStore {
 
   getJson(key: string): Promise<unknown | null> {
     return Promise.resolve(this.jsons.get(key) ?? null);
+  }
+}
+
+export class InMemoryProblemDraftRepository implements ProblemDraftRepository {
+  drafts = new Map<string, ProblemDraft>();
+
+  create(params: { id: string; userId: string; jobId: string; now: Date }): Promise<void> {
+    this.drafts.set(params.id, {
+      id: params.id,
+      userId: params.userId,
+      jobId: params.jobId,
+      kifu: null,
+      createdAt: params.now,
+      updatedAt: params.now,
+    });
+    return Promise.resolve();
+  }
+
+  findForUser(id: string, userId: string): Promise<ProblemDraft | null> {
+    const d = this.drafts.get(id);
+    return Promise.resolve(d && d.userId === userId ? d : null);
+  }
+
+  findByJobForUser(jobId: string, userId: string): Promise<ProblemDraft | null> {
+    const d = [...this.drafts.values()].find((x) => x.jobId === jobId && x.userId === userId);
+    return Promise.resolve(d ?? null);
+  }
+
+  listByUser(userId: string): Promise<ProblemDraft[]> {
+    return Promise.resolve(
+      [...this.drafts.values()]
+        .filter((d) => d.userId === userId)
+        .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime()),
+    );
+  }
+
+  setKifu(id: string, params: { kifu: ProblemDraft["kifu"]; now: Date }): Promise<void> {
+    const d = this.drafts.get(id);
+    if (d) this.drafts.set(id, { ...d, kifu: params.kifu, updatedAt: params.now });
+    return Promise.resolve();
+  }
+
+  delete(id: string): Promise<void> {
+    this.drafts.delete(id);
+    return Promise.resolve();
   }
 }
 

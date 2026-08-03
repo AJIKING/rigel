@@ -16,6 +16,7 @@ function toDomain(row: ProblemRow): ProblemPost {
     title: row.title,
     problem: ProblemSchema.parse(row.problem),
     status: row.status,
+    photoDraftId: row.photoDraftId,
     createdAt: row.createdAt,
   };
 }
@@ -67,10 +68,12 @@ export class DrizzleProblemRepository implements ProblemRepository {
         title: post.title,
         problem: post.problem,
         status: post.status,
+        photoDraftId: post.photoDraftId,
         createdAt: post.createdAt,
       })
       .onConflictDoUpdate({
         target: problems.id,
+        // photoDraftId は作成時に決まり不変（更新で剥がさない）。
         set: { title: post.title, problem: post.problem, status: post.status },
       });
   }

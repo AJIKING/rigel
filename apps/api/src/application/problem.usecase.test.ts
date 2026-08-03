@@ -7,6 +7,10 @@ import {
   InMemoryProblemRepository,
   InMemoryUserRepository,
 } from "../test-support/in-memory";
+import {
+  InMemoryAnalysisImageStore,
+  InMemoryProblemDraftRepository,
+} from "../test-support/in-memory-analysis";
 import { makeProblemData, minimalProblemInput } from "../test-support/problem";
 import {
   CreateProblem,
@@ -40,6 +44,7 @@ function post(
     title: `問題${id}`,
     problem: makeProblemData(),
     status,
+    photoDraftId: null,
     createdAt: NOW,
   };
 }
@@ -52,6 +57,43 @@ function deps(plan: Plan = "free") {
   let n = 0;
   return { problems, answers, favorites, users, now: () => NOW, newId: () => `p${++n}` };
 }
+
+describe("CreateProblem（解析下書きからの正規保存。photo-retention.md）", () => {
+  it("draftId 指定で写真を引き継ぎ（photoDraftId）、下書きを畳む", async () => {
+    const d = deps();
+    const drafts = new InMemoryProblemDraftRepository();
+    await drafts.create({ id: "d-1", userId: "u1", jobId: "j1", now: NOW });
+    const uc = new CreateProblem({ ...d, drafts });
+
+    const result = await uc.execute({
+      userId: "u1",
+      title: "t",
+      problem: minimalProblemInput(),
+      draftId: "d-1",
+    });
+
+    expect(result).toEqual({ ok: true, problemId: "p1" });
+    expect((await d.problems.findById("p1"))?.photoDraftId).toBe("d-1");
+    expect(await drafts.findForUser("d-1", "u1")).toBeNull(); // 畳まれた
+  });
+
+  it("他人の draftId は無視する（写真を紐づけない・下書きも消さない）", async () => {
+    const d = deps();
+    const drafts = new InMemoryProblemDraftRepository();
+    await drafts.create({ id: "d-x", userId: "someone-else", jobId: "j1", now: NOW });
+    const uc = new CreateProblem({ ...d, drafts });
+
+    await uc.execute({
+      userId: "u1",
+      title: "t",
+      problem: minimalProblemInput(),
+      draftId: "d-x",
+    });
+
+    expect((await d.problems.findById("p1"))?.photoDraftId).toBeNull();
+    expect(await drafts.findForUser("d-x", "someone-else")).not.toBeNull();
+  });
+});
 
 describe("CreateProblem", () => {
   it("正しい問題を draft 既定で保存し problemId を返す", async () => {
@@ -159,6 +201,21 @@ describe("UpdateProblem", () => {
 });
 
 describe("DeleteProblem", () => {
+  it("解析下書き由来の問題は写真（R2）も一緒に消す（photo-retention.md）", async () => {
+    const d = deps();
+    const images = new InMemoryAnalysisImageStore();
+    await images.put("problems/d-1/j1/hand", { data: new ArrayBuffer(4), mimeType: "image/jpeg" });
+    await d.problems.save({ ...post("p1", "u1"), photoDraftId: "d-1" });
+
+    const result = await new DeleteProblem(d.problems, d.answers, d.favorites, images).execute({
+      userId: "u1",
+      problemId: "p1",
+    });
+
+    expect(result).toEqual({ ok: true });
+    expect(await images.listKeys("problems/d-1/")).toEqual([]);
+  });
+
   it("所有者は削除でき、ぶら下がる回答も他人が付けた★も消える（孤児を残さない）", async () => {
     const d = deps();
     await d.problems.save(post("p1", "u1"));

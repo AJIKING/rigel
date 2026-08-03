@@ -22,8 +22,9 @@ const problemBody: AnalysisJobMessage = {
   kind: "problem",
   jobId: "job-2",
   userId: "u1",
+  draftId: "d-1",
   cameraBottomSeat: "east",
-  handKey: "jobs/job-2/hand",
+  handKey: "problems/d-1/job-2/hand",
 };
 
 function makeBatch(message: AnalysisJobMessage, attempts = 1) {
