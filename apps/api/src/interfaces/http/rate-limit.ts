@@ -60,9 +60,15 @@ export const rateLimit: MiddlewareHandler<AppEnv> = async (c, next) => {
   if (!bucket) return next();
 
   const limiter = (c.env as unknown as Record<string, RateLimiter | undefined>)[bucket.binding];
-  if (!limiter) return next(); // 未設定＝制限なし（本番では wrangler.toml で必ず束ねる）
+  // TODO(2026-08-03・診断用/確認後に削除): 本番でレート制限が効かない原因の切り分け。
+  // バインディングの有無と limit() の戻りだけを返す（キー・IP は載せない）。
+  if (!limiter) {
+    c.header("x-rl-debug", `${bucket.binding}:missing`);
+    return next(); // 未設定＝制限なし（本番では wrangler.toml で必ず束ねる）
+  }
 
   const { success } = await limiter.limit({ key: bucket.key });
+  c.header("x-rl-debug", `${bucket.binding}:bound:${success ? "allow" : "block"}`);
   if (success) return next();
 
   return c.json({ error: "too many requests" }, 429, {
