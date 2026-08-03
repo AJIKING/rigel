@@ -62,10 +62,12 @@ export const rateLimit: MiddlewareHandler<AppEnv> = async (c, next) => {
   const limiter = (c.env as unknown as Record<string, RateLimiter | undefined>)[bucket.binding];
   if (!limiter) return next(); // 未設定＝制限なし（本番では wrangler.toml で必ず束ねる）
 
-  // ⚠️ 2026-08-03 実測: 本番ではバインディングが解決していても limit() が常に success を返し、
-  // 実際には数えていない（20連投でも block しない。namespace 振り直しでも同じ）。原因は
-  // Cloudflare 側にある疑いが濃く、調査中。**この層だけを防波堤にしない**こと
-  // （解析コストは月次の Gemini 枠、認証は署名検証と定数時間比較が本丸）。
+  // ⚠️ この層は **best-effort** で、単独の防波堤にはならない（2026-08-03 本番実測）:
+  // カウンタは isolate 単位で、**接続を張り直すたびに別 isolate に当たってリセットされる**
+  // （同一 keep-alive 接続なら 2 回目以降きちんと block、毎回新規接続だと 44 連投でも素通し）。
+  // 効くのは「同じ接続を使う普通のクライアントの暴走」まで。意図的に接続を張り替える
+  // 総当たり・DoS には**ゾーンの WAF レートリミットルール**（エッジで IP 単位に強制）が要る。
+  // 本丸の防御は別にある: 解析コストは月次 Gemini 枠、認証は署名検証＋定数時間比較。
   const { success } = await limiter.limit({ key: bucket.key });
   if (success) return next();
 

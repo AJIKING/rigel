@@ -42,11 +42,11 @@ max_concurrency = 4                    # Gemini 同時実行の暴れ抑制（�
 # 未設定だと制限なし（ローカル開発・テストはそれで通す）が、本番では必ず束ねること。
 # namespace_id はアカウント内で一意なら任意。period は 10 か 60 のみ。
 #
-# ⚠️ `[[unsafe.bindings]] type="ratelimit"` では**本番で実際に効かない**（2026-08-03 実測:
-# /auth/* に 44 回連投しても 429 ゼロ。wrangler のデプロイ表示は "Unsafe Metadata" どまり）。
-# wrangler 4 の第一級キー `[[ratelimits]]` を使うこと。変更したら本番で実測して確かめる。
-# namespace_id は 2026-08-03 に 1001-1004 → 2001-2004 へ振り直した（旧 unsafe 経由の
-# 登録が残って数えられない疑いのため。カウンタは namespace 単位で作り直される）。
+# ⚠️ `[[unsafe.bindings]] type="ratelimit"` は**バインドされない**（wrangler のデプロイ表示が
+# "Unsafe Metadata" どまりで、実行時に env.RL_* が undefined になる。2026-08-03 実測）。
+# wrangler 4 の第一級キー `[[ratelimits]]` を使うこと（表示が "Rate Limit 10 requests/60s"）。
+# なおカウンタは isolate 単位で接続を張り直すとリセットされる＝best-effort。
+# 意図的な総当たり・DoS はゾーンの WAF レートリミットルールで止める（rate-limit.ts 参照）。
 [[ratelimits]]
 name = "RL_READ"                       # 公開読み取り（認証不要・IP 単位）
 namespace_id = "2001"
