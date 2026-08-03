@@ -27,13 +27,19 @@ export interface GameLog {
   createdAt: Date;
 }
 
-/** 局が viewer に見えるか（public は誰でも、private は所有者のみ）。
- *  未ログインは viewerId=null。判定はここに集約し、HTTP ルートで再実装しない。 */
+/**
+ * 局が viewer に見えるか。所有者は常に見える。他人には **public かつ complete** のみ
+ * （[決定] 2026-08-03 オーナー。公開フィード・公開ビューア・お気に入りの canView と同じ規律に
+ * 揃えた。公開範囲は半荘単位で新局が public を引き継ぐため、status を見ないと追加解析の直後に
+ * 「目検前の AI ドラフト局」が他人へ露出する）。
+ * 未ログインは viewerId=null。判定はここに集約し、HTTP ルートで再実装しない。
+ */
 export function isVisibleTo(
-  log: Pick<GameLog, "userId" | "visibility">,
+  log: Pick<GameLog, "userId" | "visibility" | "status">,
   viewerId: string | null,
 ): boolean {
-  return log.visibility === "public" || log.userId === viewerId;
+  if (log.userId === viewerId) return true;
+  return log.visibility === "public" && log.status === "complete";
 }
 
 /** 公開フィード用の局の要約（Kifu 本体を含まない読み取りモデル）。

@@ -13,10 +13,12 @@ export interface Env {
   /** 解析ジョブのキュー（producer binding）。 */
   ANALYSIS_QUEUE: Queue<AnalysisJobMessage>;
   /** レート制限（Cloudflare Rate Limiting binding）。未設定なら制限しない＝ローカル開発。
-   *  読み取り=IP / 書き込み=userId / 解析=userId（厳しめ）。rate-limit.ts を参照。 */
+   *  読み取り=IP / 書き込み=userId / 解析=userId（厳しめ）/ 認証=IP（厳しめ）。
+   *  rate-limit.ts を参照。 */
   RL_READ?: RateLimiter;
   RL_WRITE?: RateLimiter;
   RL_ANALYZE?: RateLimiter;
+  RL_AUTH?: RateLimiter;
   /** Gemini API キー（Secret）。 */
   GEMINI_API_KEY: string;
   /** Cloudflare AI Gateway の google-ai-studio ベースURL（`/v1beta/...` の手前まで）。 */

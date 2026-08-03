@@ -103,6 +103,48 @@ describe("レート制限", () => {
     expect(res.status).toBe(429);
   });
 
+  it("/auth/* は専用の厳しい枠（総当たり対策。未ログインなので IP 単位）", async () => {
+    const { limiter, keys } = allowAll();
+    const env = { ...fakeEnv, RL_AUTH: limiter } as unknown as Env;
+    await app.request(
+      "/auth/review",
+      {
+        method: "POST",
+        headers: { "content-type": "application/json", "cf-connecting-ip": "203.0.113.9" },
+        body: JSON.stringify({ code: "wrong" }),
+      },
+      env,
+    );
+    expect(keys).toEqual(["ip:203.0.113.9"]);
+
+    const denied = { ...fakeEnv, RL_AUTH: denyAll } as unknown as Env;
+    const res = await app.request(
+      "/auth/google",
+      {
+        method: "POST",
+        headers: { "content-type": "application/json", "cf-connecting-ip": "203.0.113.9" },
+        body: JSON.stringify({ idToken: "x" }),
+      },
+      denied,
+    );
+    expect(res.status).toBe(429);
+  });
+
+  it("/auth/* は書き込みの汎用枠（RL_WRITE）を消費しない（枠を分けた意味を保つ）", async () => {
+    const { limiter, keys } = allowAll();
+    const env = { ...fakeEnv, RL_WRITE: limiter } as unknown as Env;
+    await app.request(
+      "/auth/google",
+      {
+        method: "POST",
+        headers: { "content-type": "application/json", "cf-connecting-ip": "203.0.113.9" },
+        body: JSON.stringify({ idToken: "x" }),
+      },
+      env,
+    );
+    expect(keys).toEqual([]);
+  });
+
   it("バインディング未設定（ローカル開発・テスト）では制限しない", async () => {
     const res = await app.request("/games/public", {}, fakeEnv);
     expect(res.status).not.toBe(429);

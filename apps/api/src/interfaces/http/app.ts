@@ -11,7 +11,7 @@ import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { bodyLimit } from "hono/body-limit";
 import { buildContainer, type AppContainer } from "../../composition-root";
-import { BODY_LIMIT_BYTES } from "./limits";
+import { BODY_LIMIT_BYTES, MULTIPART_LIMIT_BYTES } from "./limits";
 import { rateLimit } from "./rate-limit";
 import type { Env } from "../../env";
 import { registerAccountRoutes } from "./routes/account.routes";
@@ -22,9 +22,6 @@ import { registerKifuRoutes } from "./routes/kifu.routes";
 import { registerProblemRoutes } from "./routes/problems.routes";
 import { registerQuizRoutes } from "./routes/quiz.routes";
 import type { AppEnv } from "./shared";
-
-/** localhost 開発オリジンは常に許可する（本番ドメインは ALLOWED_ORIGINS で渡す）。 */
-const DEV_ORIGINS = ["http://localhost:3000"];
 
 export interface CreateAppOptions {
   /**
@@ -42,16 +39,15 @@ export function createApp(options: CreateAppOptions = {}): Hono<AppEnv> {
   // 許可オリジンのプリフライト/レスポンスに ACAO を返す。認証は Bearer
   // トークン方式（Cookie 不使用）なので credentials は不要。最初に置いて
   // OPTIONS プリフライトを DB 無しで処理する。
+  // 許可先は ALLOWED_ORIGINS だけ（localhost のハードコードは廃止・2026-08-03。
+  // 開発は .dev.vars の ALLOWED_ORIGINS=http://localhost:3000 で渡す）。
   app.use("*", (c, next) =>
     cors({
       origin: (origin) => {
-        const allow = [
-          ...(c.env.ALLOWED_ORIGINS ?? "")
-            .split(",")
-            .map((s) => s.trim())
-            .filter(Boolean),
-          ...DEV_ORIGINS,
-        ];
+        const allow = (c.env.ALLOWED_ORIGINS ?? "")
+          .split(",")
+          .map((s) => s.trim())
+          .filter(Boolean);
         return allow.includes(origin) ? origin : null;
       },
       allowHeaders: ["Content-Type", "Authorization"],
@@ -60,17 +56,17 @@ export function createApp(options: CreateAppOptions = {}): Hono<AppEnv> {
     })(c, next),
   );
 
-  // JSON ボディの上限（413）。multipart の解析ルートは画像ごとの上限を各ルートで見るため除外する
-  // （/problems/analyze を除外し損ねて実写真が全滅していた回帰あり・2026-08-01）。
-  // Workers 既定（~100MB）任せだと、認証済みユーザーが D1 の行や CPU を安価に焼ける。
+  // ボディ上限（413）。JSON は 256KB、multipart の解析ルートは画像5枚ぶんの 48MB。
+  // multipart を「除外」にすると Workers 既定（~100MB）まで formData() がバッファしてから
+  // 画像サイズを見ることになるため、入口で総量も止める（2026-08-03 の監査指摘）。
+  // 逆に小さすぎると実写真が全滅する（256KB を掛けた回帰あり・2026-08-01）。
   const MULTIPART_ROUTES = new Set(["/analyze", "/problems/analyze"]);
-  app.use("*", async (c, next) => {
-    if (MULTIPART_ROUTES.has(c.req.path)) return next();
-    return bodyLimit({
-      maxSize: BODY_LIMIT_BYTES,
+  app.use("*", async (c, next) =>
+    bodyLimit({
+      maxSize: MULTIPART_ROUTES.has(c.req.path) ? MULTIPART_LIMIT_BYTES : BODY_LIMIT_BYTES,
       onError: (ctx) => ctx.json({ error: "payload too large" }, 413),
-    })(c, next);
-  });
+    })(c, next),
+  );
 
   // リクエストごとに DI コンテナを組み立ててコンテキストに載せる。
   app.use("*", async (c, next) => {

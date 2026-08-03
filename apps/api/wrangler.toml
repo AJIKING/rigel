@@ -59,6 +59,12 @@ type = "ratelimit"
 namespace_id = "1003"
 simple = { limit = 6, period = 60 }
 
+[[unsafe.bindings]]
+name = "RL_AUTH"                       # 認証（/auth/*・IP 単位。合言葉/idToken の総当たり抑制）
+type = "ratelimit"
+namespace_id = "1004"
+simple = { limit = 10, period = 60 }
+
 # Secret で渡す（コミットしない。一覧の真実源は src/env.ts）:
 #   wrangler secret put GEMINI_API_KEY
 #   wrangler secret put CLOUDFLARE_AI_GATEWAY_URL   # google-ai-studio ベースURL（/v1beta の手前まで。/compat は不可）

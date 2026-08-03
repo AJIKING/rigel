@@ -22,8 +22,13 @@ async function respondAuth(
     const { sessionToken, user, created } = await run();
     return c.json({ sessionToken, created, user: userProfileJson(user) }, created ? 201 : 200);
   } catch (e) {
-    // 無効な資格情報は日常的に起きるため warn（トークン/コード本体は含めない）。
-    console.warn(`auth ${provider} verification failed`, e);
+    // 無効な資格情報は日常的に起きるため warn。**エラーオブジェクトを丸ごと渡さない**
+    // （jose の JWTExpired 等は own プロパティ payload にデコード済みクレーム＝email を持ち、
+    // Observability のログに PII が残る。ルール7-2。2026-08-03 の監査指摘）。
+    console.warn(
+      `auth ${provider} verification failed`,
+      e instanceof Error ? `${e.name}: ${e.message}` : "unknown error",
+    );
     return c.json({ error: `invalid ${provider} credential` }, 401);
   }
 }

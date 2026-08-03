@@ -9,6 +9,9 @@
 //   - 書き込み（認証必須）  : userId 単位。D1 の行を増やす操作を人ごとに抑える。
 //   - /analyze             : userId 単位で厳しめ。Gemini のコストと、枠の
 //                            オーバーシュート（TOCTOU）を実質的に抑える。
+//   - /auth/*              : IP 単位で厳しめ（未ログインなので userId が無い）。
+//                            審査ログインの合言葉・盗んだ idToken の総当たり/試行を抑える
+//                            （[決定] 2026-08-03 オーナー承認。汎用書き込み枠だと 60回/分と緩い）。
 
 import type { MiddlewareHandler } from "hono";
 import type { AppEnv } from "./shared";
@@ -30,8 +33,10 @@ function bucketOf(
   path: string,
   userId: string | undefined,
   ip: string,
-): { binding: "RL_ANALYZE" | "RL_WRITE" | "RL_READ"; key: string } | null {
+): { binding: "RL_ANALYZE" | "RL_AUTH" | "RL_WRITE" | "RL_READ"; key: string } | null {
   if (path === "/health" || WEBHOOK_PATHS.includes(path)) return null;
+  // 認証（ログイン・審査コード・Apple の form_post 中継）。未ログインなので IP で数える。
+  if (path.startsWith("/auth/")) return { binding: "RL_AUTH", key: `ip:${ip}` };
   // Gemini を呼ぶ解析系は厳しめの専用バケット（牌譜解析・何切るの写真解析・再解析）。
   if (
     path === "/analyze" ||
@@ -41,7 +46,7 @@ function bucketOf(
     return { binding: "RL_ANALYZE", key: `user:${userId ?? ip}` };
   }
   if (method === "GET" || method === "OPTIONS") return { binding: "RL_READ", key: `ip:${ip}` };
-  // 書き込み。未ログイン（/auth/google・/kifu/validate 等）は IP で数える。
+  // 書き込み。未ログイン（/kifu/validate 等）は IP で数える。
   return { binding: "RL_WRITE", key: userId ? `user:${userId}` : `ip:${ip}` };
 }
 

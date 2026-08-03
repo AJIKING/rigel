@@ -26,7 +26,7 @@ function makeUsecase(
   let n = 0;
   return new AuthenticateWithGoogle({
     users,
-    verifier: verifier({ sub, email: "a@example.com", name: null, ...identity }),
+    verifier: verifier({ sub, email: "a@example.com", ...identity }),
     session: fakeSession,
     now: () => NOW,
     newId: () => `user-${++n}`,
@@ -50,13 +50,13 @@ describe("AuthenticateWithGoogle", () => {
     const users = new InMemoryUserRepository();
     const result = await makeUsecase(users, "g1", {
       email: "rin-riichi@example.com",
-      name: "リン",
     }).execute({ idToken: "id" });
 
-    // Google の name/メールは使わない。ランダム handle を割り当て、表示名も同じにする。
+    // Google のメールは handle/表示名に使わない（表示名 name はそもそも取得しない）。
+    // ランダム handle を割り当て、表示名も同じにする。
     expect(result.user.handle).toBe("randomuser");
     expect(result.user.displayName).toBe("randomuser");
-    expect(result.user.displayName).not.toBe("リン");
+    expect(result.user.displayName).not.toContain("rin-riichi");
   });
 
   it("email は運用のため保存する（handle/表示名には使わない）", async () => {

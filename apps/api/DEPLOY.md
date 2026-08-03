@@ -26,8 +26,15 @@ Cloudflare Workers（Hono + D1）への本番デプロイ。GitHub Actions の
    | `REVENUECAT_STRIPE_PUBLIC_KEY` | RevenueCat の Stripe config Public API key（`strp_...`） |
    | `APPLE_TEAM_ID` / `APPLE_KEY_ID` / `APPLE_PRIVATE_KEY` | 退会時の Apple トークン失効（3つ未登録なら投入スキップ＝revoke だけ無効） |
 
-   公開値（`GOOGLE_CLIENT_ID` / `STRIPE_PRICE_NEXT|PRO` / `GEMINI_*_MODEL`）は
-   `wrangler.toml` の `[vars]` にコミット済み（Secrets 不要）。
+   公開値（`GOOGLE_CLIENT_ID` / `STRIPE_PRICE_NEXT|PRO` / `GEMINI_*_MODEL` /
+   `ALLOWED_ORIGINS`）は `wrangler.toml` の `[vars]` にコミット済み（Secrets 不要）。
+
+   > **`REVENUECAT_ALLOW_SANDBOX` は本番に置かないこと**（"true" だと無料の
+   > サンドボックス購入で有料プランが付く）。`wrangler secret list` に出たら
+   > `wrangler secret delete REVENUECAT_ALLOW_SANDBOX` で消す。
+   > **`ALLOWED_ORIGINS` は CORS と決済の戻り先の唯一の許可リスト**（2026-08-03 に
+   > localhost のハードコードを廃止）。ローカル開発は `.dev.vars` に
+   > `ALLOWED_ORIGINS=http://localhost:3000` を書く。
 4. **非同期解析の基盤（R2 + Queues。docs/plans/async-analysis.md / photo-retention.md）**
    （作成済み 2026-08-03）:
    ```bash

@@ -27,8 +27,10 @@ export class JoseGoogleTokenVerifier implements GoogleTokenVerifier {
     if (!payload.sub) {
       throw new Error("Google ID トークンに sub がありません");
     }
-    const email = typeof payload.email === "string" ? payload.email : null;
-    const name = typeof payload.name === "string" ? payload.name : null;
-    return { sub: payload.sub, email, name };
+    // email は運用調査専用（ルール7-2 で API には出さない）。未検証メールは保存しない
+    // （調査で別人のメールを掴まないため）。表示名（name）は Google 情報を使わない方針で取らない。
+    const verified = payload.email_verified === true || payload.email_verified === "true";
+    const email = verified && typeof payload.email === "string" ? payload.email : null;
+    return { sub: payload.sub, email };
   }
 }

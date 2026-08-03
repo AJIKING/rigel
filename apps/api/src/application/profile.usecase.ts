@@ -82,7 +82,8 @@ export class GetPublicProfile {
     for (const g of userGames) {
       const logs = await this.gameLogs.listByGame(g.id);
       const publicLogs = logs
-        .filter((l) => l.visibility === "public")
+        // 公開フィード・isVisibleTo と同じ規律（public かつ complete）。目検前のドラフトは載せない。
+        .filter((l) => l.visibility === "public" && l.status === "complete")
         .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
       if (publicLogs.length > 0) {
         cards.push({
