@@ -1,6 +1,12 @@
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import { planKifuLimits, sortMyList, DELETE_CONFIRM, type MyListSortKey } from "@rigel/ui";
+import {
+  planKifuLimits,
+  sortMyList,
+  DELETE_CONFIRM,
+  MY_KIFU_STATUS_OPTIONS,
+  type MyListSortKey,
+} from "@rigel/ui";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { FlatList, Pressable, StyleSheet, Text, View } from "react-native";
 import { CenterState } from "../components/CenterState";
@@ -28,11 +34,18 @@ export function MyListScreen() {
   const { apply, toggle: toggleFav, error: favError } = useFavorites();
   const [sort, setSort] = useState<MyListSortKey>("new");
   const [favOnly, setFavOnly] = useState(false);
+  // 検索・公開状態フィルタ（web マイページと同一条件。Phase D）。
+  const [q, setQ] = useState("");
+  const [status, setStatus] = useState<string>("all");
 
   const shown = useMemo(() => {
-    const resolved = apply(games);
-    return sortMyList(favOnly ? resolved.filter((g) => g.viewerFaved) : resolved, sort);
-  }, [games, apply, favOnly, sort]);
+    let resolved = apply(games);
+    if (favOnly) resolved = resolved.filter((g) => g.viewerFaved);
+    if (status === "pub") resolved = resolved.filter((g) => g.publicCount > 0);
+    else if (status === "priv") resolved = resolved.filter((g) => g.publicCount === 0);
+    if (q) resolved = resolved.filter((g) => g.title.includes(q));
+    return sortMyList(resolved, sort);
+  }, [games, apply, favOnly, status, q, sort]);
 
   // 撮影・編集から戻ったとき一覧を最新化する（静かに再取得）。
   useFocusEffect(
@@ -73,12 +86,16 @@ export function MyListScreen() {
 
   return (
     <View style={styles.root}>
-      <Toolbar />
+      <Toolbar search={{ value: q, onChange: setQ, placeholder: "牌譜を検索" }} />
       {/* ＋新規はツールバー右端の action スロットへ（タブ間で位置を統一。[決定] 2026-07-29）。
           クォータはツールバー直下の行に出す。 */}
       <MyListToolbar
         sort={sort}
         onSort={setSort}
+        statusLabel="公開状態で絞り込み"
+        statusOptions={MY_KIFU_STATUS_OPTIONS}
+        status={status}
+        onStatus={setStatus}
         favOnly={favOnly}
         onFavOnly={setFavOnly}
         // 作成にはサインインが必要なので、ゲスト（サンプル表示）では新規ボタンを出さない。
@@ -95,6 +112,23 @@ export function MyListScreen() {
         }
       />
       {favError ? <Text style={styles.favError}>{favError}</Text> : null}
+      {/* 統計ヘッダ（牌譜数/公開数/★された数。web マイページの3枠と同一。Phase D）。 */}
+      {!loading && !sample && (
+        <View style={styles.stats}>
+          {(
+            [
+              ["牌譜", games.length],
+              ["公開", games.filter((g) => g.publicCount > 0).length],
+              ["お気に入りされた数", games.reduce((n, g) => n + g.favoriteCount, 0)],
+            ] as const
+          ).map(([label, count]) => (
+            <View key={label} style={styles.stat} accessibilityLabel={`${label} ${count}件`}>
+              <Text style={styles.statNum}>{count}</Text>
+              <Text style={styles.statLabel}>{label}</Text>
+            </View>
+          ))}
+        </View>
+      )}
       {!loading && (
         <View style={styles.head}>
           {sample ? (
@@ -125,7 +159,9 @@ export function MyListScreen() {
             error ??
             (favOnly
               ? "お気に入りした半荘はまだありません。"
-              : "まだ半荘がありません。「＋ 新規」から撮影、または手入力で記録できます。")
+              : q || status !== "all"
+                ? "該当する半荘がありません。"
+                : "まだ半荘がありません。「＋ 新規」から撮影、または手入力で記録できます。")
           }
         />
       ) : (
@@ -184,6 +220,11 @@ const styles = StyleSheet.create({
     paddingBottom: 8,
   },
   sample: { color: colors.accent, fontSize: 12, flexShrink: 1 },
+  // 統計ヘッダ（web の .stats と同じ3枠。数字を大きく・ラベルは控えめに）。
+  stats: { flexDirection: "row", gap: 20, paddingHorizontal: 16, paddingTop: 10 },
+  stat: { gap: 1 },
+  statNum: { color: colors.white, fontSize: 17, fontWeight: "800" },
+  statLabel: { color: colors.w45, fontSize: 11 },
   favError: { color: colors.danger, fontSize: 12, paddingHorizontal: 16, paddingTop: 8 },
   feed: { paddingHorizontal: 16, paddingTop: 2, paddingBottom: 20, gap: 10 },
   quota: { flexDirection: "row", alignItems: "center", gap: 6 },

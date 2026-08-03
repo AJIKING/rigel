@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react-native";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react-native";
 import { makePost } from "./problem-test-helpers";
 import { MyProblemsScreen } from "./MyProblemsScreen";
 
@@ -97,6 +97,33 @@ describe("MyProblemsScreen（マイ何切る）", () => {
 
     expect(await screen.findByText("20 / 20問")).toBeTruthy();
     expect(screen.getByText(/無料プランの何切る問題は20問まで/)).toBeTruthy();
+  });
+
+  it("検索欄でタイトル部分一致に絞れる（web マイページと同一条件。Phase D）", async () => {
+    mockGetMyProblems.mockResolvedValue(twoPosts());
+    render(<MyProblemsScreen />);
+    await screen.findByText("下書きの問題");
+
+    fireEvent.changeText(screen.getByLabelText("問題を検索"), "公開中");
+    expect(screen.getByText("公開中の問題")).toBeTruthy();
+    expect(screen.queryByText("下書きの問題")).toBeNull();
+  });
+
+  it("状態フィルタで 公開/下書き に絞れる（web と同一の選択肢）", async () => {
+    mockGetMyProblems.mockResolvedValue(twoPosts());
+    render(<MyProblemsScreen />);
+    await screen.findByText("下書きの問題");
+
+    // シートの選択肢はカードのバッジ（公開/下書き）と同じ文言なので、シート内で探す。
+    fireEvent.press(screen.getByLabelText("状態で絞り込み"));
+    fireEvent.press(within(screen.getByTestId("bottom-sheet-card")).getByText("公開"));
+    expect(screen.getByText("公開中の問題")).toBeTruthy();
+    expect(screen.queryByText("下書きの問題")).toBeNull();
+
+    fireEvent.press(screen.getByLabelText("状態で絞り込み"));
+    fireEvent.press(within(screen.getByTestId("bottom-sheet-card")).getByText("下書き"));
+    expect(screen.getByText("下書きの問題")).toBeTruthy();
+    expect(screen.queryByText("公開中の問題")).toBeNull();
   });
 
   it("未ログイン時はログイン案内を出す（取得は呼ばない）", () => {

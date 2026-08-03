@@ -4,6 +4,7 @@ import {
   sortMyList,
   DELETE_CONFIRM,
   LIMIT_MESSAGES,
+  MY_PROBLEM_STATUS_OPTIONS,
   PROBLEM_LIMIT,
   type MyListSortKey,
 } from "@rigel/ui";
@@ -14,6 +15,7 @@ import { Chip } from "../components/Chip";
 import { DangerButton } from "../components/DangerButton";
 import { MyListToolbar } from "../components/MyListToolbar";
 import { StarButton } from "../components/StarButton";
+import { Toolbar } from "../components/Toolbar";
 import type { ProblemDraftCard } from "@rigel/client";
 import {
   deleteProblem,
@@ -48,11 +50,17 @@ export function MyProblemsScreen() {
   const { apply, toggle: toggleFav, error: favError } = useFavorites();
   const [sort, setSort] = useState<MyListSortKey>("new");
   const [favOnly, setFavOnly] = useState(false);
+  // 検索・状態フィルタ（web マイページと同一条件。Phase D）。
+  const [q, setQ] = useState("");
+  const [status, setStatus] = useState<string>("all");
 
   const shown = useMemo(() => {
-    const resolved = apply(posts);
-    return sortMyList(favOnly ? resolved.filter((p) => p.viewerFaved) : resolved, sort);
-  }, [posts, apply, favOnly, sort]);
+    let resolved = apply(posts);
+    if (favOnly) resolved = resolved.filter((p) => p.viewerFaved);
+    if (status !== "all") resolved = resolved.filter((p) => p.status === status);
+    if (q) resolved = resolved.filter((p) => p.title.includes(q));
+    return sortMyList(resolved, sort);
+  }, [posts, apply, favOnly, status, q, sort]);
 
   // 解析下書き（photo-retention.md）: 写真AI再現の送信で先行作成され、閉じてもここに残る。
   const [drafts, setDrafts] = useState<ProblemDraftCard[]>([]);
@@ -144,11 +152,16 @@ export function MyProblemsScreen() {
 
   return (
     <View style={styles.root}>
+      <Toolbar search={{ value: q, onChange: setQ, placeholder: "問題を検索" }} />
       {/* ＋新規はツールバー右端の action スロットへ（タブ間で位置を統一。[決定] 2026-07-29）。
           クォータはツールバー直下の行に出す。 */}
       <MyListToolbar
         sort={sort}
         onSort={setSort}
+        statusLabel="状態で絞り込み"
+        statusOptions={MY_PROBLEM_STATUS_OPTIONS}
+        status={status}
+        onStatus={setStatus}
         favOnly={favOnly}
         onFavOnly={setFavOnly}
         action={
@@ -182,7 +195,9 @@ export function MyProblemsScreen() {
           message={
             favOnly
               ? "お気に入りした問題はまだありません。"
-              : "まだ問題がありません。「＋ 新規」から作成できます。"
+              : q || status !== "all"
+                ? "該当する問題がありません。"
+                : "まだ問題がありません。「＋ 新規」から作成できます。"
           }
         />
       ) : (

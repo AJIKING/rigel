@@ -34,6 +34,7 @@ import { BoardTable } from "./BoardTable";
 import { BottomSheet } from "./BottomSheet";
 import { CenterState } from "./CenterState";
 import { MiniTile } from "./MiniTile";
+import { StarButton } from "./StarButton";
 
 /** 半荘（局の並び）の読み取り専用プレイヤー。局送り・巡送り・1手送り・手牌トグル・情報・和了。 */
 export function KifuPlayer({
@@ -43,6 +44,8 @@ export function KifuPlayer({
   ownerName,
   isPublic = false,
   initialIndex = 0,
+  fav,
+  onEdit,
 }: {
   logs: GameLog[];
   /** 半荘タイトル（上部バー）。 */
@@ -53,6 +56,10 @@ export function KifuPlayer({
   ownerName?: string | null;
   isPublic?: boolean;
   initialIndex?: number;
+  /** ★（お気に入り）。公開ビューアで渡す（web KifuViewer の★と対。Phase D）。 */
+  fav?: { faved: boolean; count: number; onToggle: () => void };
+  /** 自分の牌譜の編集導線（所有者のときだけ渡す。半荘詳細へ）。 */
+  onEdit?: () => void;
 }) {
   const { width, height } = useWindowDimensions();
   const insets = useSafeAreaInsets();
@@ -210,6 +217,12 @@ export function KifuPlayer({
             <Text style={styles.subText}>{logs.length}局</Text>
           </View>
         </View>
+        {onEdit ? (
+          <IconButton label="編集" onPress={onEdit}>
+            <EditIcon color={colors.w70} />
+          </IconButton>
+        ) : null}
+        {fav ? <StarButton on={fav.faved} count={fav.count} onPress={fav.onToggle} /> : null}
         {isPublic ? (
           <IconButton label="共有" onPress={() => void onShare()}>
             <ShareIcon color={colors.w70} />
@@ -498,6 +511,21 @@ function IconButton({
 }
 
 /* ---------- アイコン ---------- */
+/** 編集（鉛筆。web KifuViewer の編集リンクと同じモチーフ）。 */
+function EditIcon({ color }: { color: string }) {
+  return (
+    <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
+      <Path
+        d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"
+        stroke={color}
+        strokeWidth={1.9}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </Svg>
+  );
+}
+
 function ShareIcon({ color }: { color: string }) {
   return (
     <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">

@@ -18,6 +18,7 @@ export type {
   ProblemPost,
   ProblemStats,
   ProblemStatus,
+  PublicProfile,
   QuizSessionDto,
 } from "@rigel/client";
 
@@ -57,6 +58,7 @@ export const {
   setGameStatus,
   setGameVisibility,
   updateProfile,
+  getPublicProfile,
   deleteAccount,
   getPublicProblems,
   getMyProblems,

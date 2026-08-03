@@ -7,6 +7,8 @@ export interface CardBadge {
   label: string;
   /** accent=オレンジ(公開/著者), muted=灰(非公開/編集済), warn=朱(下書きあり)。 */
   tone: "accent" | "muted" | "warn";
+  /** バッジ押下（例: 著者名→ユーザーページ）。指定時のみ押せる。 */
+  onPress?: () => void;
 }
 
 const BADGE_STYLE: Record<CardBadge["tone"], object> = {
@@ -50,7 +52,13 @@ export function KifuCard({
         <View style={styles.meta}>
           {badges.map((b) => (
             <View key={b.label} style={styles.metaItem}>
-              <Text style={BADGE_STYLE[b.tone]}>{b.label}</Text>
+              {b.onPress ? (
+                <Pressable onPress={b.onPress} accessibilityRole="button" hitSlop={6}>
+                  <Text style={BADGE_STYLE[b.tone]}>{b.label}</Text>
+                </Pressable>
+              ) : (
+                <Text style={BADGE_STYLE[b.tone]}>{b.label}</Text>
+              )}
               <View style={styles.dotsep} />
             </View>
           ))}

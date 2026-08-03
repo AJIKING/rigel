@@ -104,6 +104,13 @@ describe("PublicListScreen（公開フィードの絞り込み）", () => {
 });
 
 describe("PublicListScreen（取得失敗を空状態に化けさせない）", () => {
+  it("投稿者名を押すと公開ユーザーページへ遷移する（web /u と対。Phase D）", () => {
+    render(<PublicListScreen />);
+
+    fireEvent.press(screen.getAllByText("@taro")[0]!);
+    expect(mockNavigate).toHaveBeenCalledWith("PublicUser", { idOrHandle: "taro" });
+  });
+
   it("失敗したら理由を出す（「まだ公開牌譜がありません」と言わない）", () => {
     mockUsePublicGames.mockReturnValue({
       loading: false,

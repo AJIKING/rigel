@@ -52,6 +52,7 @@ import { MiniTile } from "../components/MiniTile";
 import { Segment } from "../components/Segment";
 import { Stepper } from "../components/Stepper";
 import { ProblemPhotosSheet } from "../components/ProblemPhotosSheet";
+import { RulesSheet } from "../components/editor/RulesSheet";
 import { TilePickerSheet } from "../components/editor/TilePickerSheet";
 import {
   analyzeProblem,
@@ -164,8 +165,9 @@ function EditorBody({
     west: String(p0?.scores?.west ?? 25000),
     north: String(p0?.scores?.north ?? 25000),
   });
-  // ルールは編集UIを持たない（既存問題の設定は保持・新規は既定=Mリーグ相当）。
-  const [rules] = useState(() => p0?.rules ?? RulesSchema.parse({}));
+  // ルール設定（web ProblemEditorScreen の RulesDialog と対。RulesSheet を流用。Phase D）。
+  const [rules, setRules] = useState(() => p0?.rules ?? RulesSchema.parse({}));
+  const [rulesOpen, setRulesOpen] = useState(false);
 
   const [title, setTitle] = useState(initial?.title ?? "");
   const [explanation, setExplanation] = useState(p0?.explanation ?? "");
@@ -576,6 +578,12 @@ function EditorBody({
           <Stepper label="供託" unit="本" value={kyotaku} min={0} max={9} onChange={setKyotaku} />
         </View>
 
+        {/* ルール設定（点数計算の前提。問題にも保存される）。 */}
+        <View style={styles.segRow}>
+          <Text style={styles.rowLabel}>ルール</Text>
+          <Chip label="ルール設定" a11ySelected={false} onPress={() => setRulesOpen(true)} />
+        </View>
+
         {/* 点数状況 */}
         <View style={styles.segRow}>
           <Text style={styles.rowLabel}>点数状況</Text>
@@ -779,6 +787,17 @@ function EditorBody({
                 }
               : undefined
           }
+        />
+      ) : null}
+
+      {rulesOpen ? (
+        <RulesSheet
+          rules={rules}
+          onSave={(r) => {
+            setRules(r);
+            setRulesOpen(false);
+          }}
+          onClose={() => setRulesOpen(false)}
         />
       ) : null}
 

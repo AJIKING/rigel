@@ -1,6 +1,6 @@
 import { KifuSchema, type Kifu } from "@rigel/schema";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react-native";
-import { Alert } from "react-native";
+import { Alert, Share } from "react-native";
 import type { GameDetail } from "../lib/api";
 import { GameDetailScreen } from "./GameDetailScreen";
 
@@ -68,6 +68,32 @@ function makeDetail(logs: { id: string; seq: number; honba?: number }[]): GameDe
 
 describe("GameDetailScreen（半荘詳細の局一覧）", () => {
   beforeEach(() => jest.clearAllMocks());
+
+  it("公開の半荘は「共有」で OS 共有シートを開く（/k の公開URL。Phase D）", async () => {
+    const detail = makeDetail([{ id: "l1", seq: 1 }]);
+    detail.logs[0]!.visibility = "public";
+    mockUseGame.mockReturnValue({ loading: false, detail, refetch: jest.fn() });
+    const share = jest.spyOn(Share, "share").mockResolvedValue({ action: "sharedAction" });
+    render(<GameDetailScreen />);
+
+    fireEvent.press(screen.getByText("共有"));
+    await waitFor(() =>
+      expect(share).toHaveBeenCalledWith(
+        expect.objectContaining({ url: expect.stringContaining("/k/g1") }),
+      ),
+    );
+  });
+
+  it("非公開の半荘の「共有」は公開を促す案内を出す（シートは開かない）", () => {
+    const detail = makeDetail([{ id: "l1", seq: 1 }]);
+    mockUseGame.mockReturnValue({ loading: false, detail, refetch: jest.fn() });
+    const share = jest.spyOn(Share, "share").mockResolvedValue({ action: "sharedAction" });
+    render(<GameDetailScreen />);
+
+    fireEvent.press(screen.getByText("共有"));
+    expect(screen.getByText(/公開すると共有できます/)).toBeTruthy();
+    expect(share).not.toHaveBeenCalled();
+  });
 
   it("連荘（同じ局順で本場違い）は局一覧で本場つきで区別できる", () => {
     mockUseGame.mockReturnValue({

@@ -1,6 +1,6 @@
 import { useNavigation, useRoute, type RouteProp } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import { SeatSchema, type Seat } from "@rigel/schema";
+import { SeatSchema, type Seat, type Tile } from "@rigel/schema";
 import {
   analysisQuotaLabel,
   analyzeErrorMessage,
@@ -12,7 +12,10 @@ import {
 } from "@rigel/ui";
 import { useState } from "react";
 import { Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { MiniTile } from "../components/MiniTile";
 import { RoundPicker } from "../components/RoundPicker";
+import { Stepper } from "../components/Stepper";
+import { TilePickerSheet } from "../components/editor/TilePickerSheet";
 import { analyze, createEmptyKifu, createGame } from "../lib/api";
 import { useAuth } from "../lib/auth";
 import type { RootStackParamList } from "../lib/navigation";
@@ -44,6 +47,11 @@ export function CaptureScreen() {
   // 1枚モード: 河写真に自分の手牌も写して、その1枚から手前の手牌も読む
   // （docs/plans/one-shot-hand.md。解析回数 +1）。ON 中は「あなたの手牌」欄を隠す。
   const [handFromRiver, setHandFromRiver] = useState(false);
+  // 手入力で焼き込む局メタ（本場/供託/ドラ。web AddKyokuModal の手動タブと同一。Phase D）。
+  const [honba, setHonba] = useState(0);
+  const [kyotaku, setKyotaku] = useState(0);
+  const [dora, setDora] = useState<Tile | null>(null);
+  const [doraOpen, setDoraOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [creating, setCreating] = useState(false); // 手入力作成。解析(submitting)とは独立。
   const [error, setError] = useState<string | null>(null);
@@ -58,10 +66,11 @@ export function CaptureScreen() {
     setError(null);
     setCreating(true);
     try {
-      // 手入力の手前席は東固定（席は編集画面で自由に触れるため選択は不要）。
+      // 局メタ（ドラは複数枚スキーマ。作成時は1枚だけ選べる。追加は編集画面で）。
+      const meta = { honba, kyotaku, dora: dora ? [dora] : [] };
       const res = gameId
-        ? await createEmptyKifu(token, gameId, "east", undefined, seq)
-        : await createGame(token, "east", undefined, seq);
+        ? await createEmptyKifu(token, gameId, seat, meta, seq)
+        : await createGame(token, seat, meta, seq);
       if (res.ok) nav.navigate("Edit", { gameId: res.gameId, logId: res.logId });
       else if (res.status === 409) setError(LIMIT_MESSAGES.gameFull);
       else if (res.status === 403) setError(LIMIT_MESSAGES.draftGames);
@@ -135,138 +144,184 @@ export function CaptureScreen() {
   }
 
   return (
-    <ScrollView style={styles.root} contentContainerStyle={styles.container}>
-      {gameId ? (
-        <Text style={styles.addNote}>
-          この半荘に局を追加します{canAnalyze ? "（写真解析 または 手入力）" : "（手入力）"}。
-        </Text>
-      ) : null}
-      {/* 作成する局（半荘内の好きな局を1つだけ作れる）。 */}
-      <Text style={styles.label}>作成する局（{roundNameForSeq(seq)}）</Text>
-      <RoundPicker value={seq} onChange={setSeq} />
+    // シート（BottomSheet=absoluteFill）はスクロール内容の外に置くため、ルートは View。
+    <View style={styles.root}>
+      <ScrollView style={styles.scroll} contentContainerStyle={styles.container}>
+        {gameId ? (
+          <Text style={styles.addNote}>
+            この半荘に局を追加します{canAnalyze ? "（写真解析 または 手入力）" : "（手入力）"}。
+          </Text>
+        ) : null}
+        {/* 作成する局（半荘内の好きな局を1つだけ作れる）。 */}
+        <Text style={styles.label}>作成する局（{roundNameForSeq(seq)}）</Text>
+        <RoundPicker value={seq} onChange={setSeq} />
 
-      {/* 写真からのAI再現は有料プランのみ（free は枠0）。フリーには写真入力を出さない。 */}
-      {canAnalyze ? (
-        <>
-          {quotaLabel ? <Text style={styles.quota}>{quotaLabel}</Text> : null}
+        {/* 手前席は全プラン共通で選べる（手入力にも使う。以前は手入力=東固定。Phase D）。
+          写真解析では相対→絶対変換にも使うため、有料は撮影時の向きが分かる文言にする。 */}
+        <Text style={styles.label}>{canAnalyze ? "撮影時に手前だった席" : "手前の席"}</Text>
+        <View style={styles.seatRow}>
+          {SeatSchema.options.map((s) => (
+            <Pressable
+              key={s}
+              onPress={() => setSeat(s)}
+              style={[styles.seatBtn, seat === s && styles.seatActive]}
+            >
+              <Text style={seat === s ? styles.seatActiveText : undefined}>{seatLabel(s)}</Text>
+            </Pressable>
+          ))}
+        </View>
 
-          {/* 席は写真の向き（相対→絶対変換）にだけ必要。手入力は東固定で選択不要。 */}
-          <Text style={styles.label}>撮影時に手前だった席</Text>
-          <View style={styles.seatRow}>
-            {SeatSchema.options.map((s) => (
-              <Pressable
-                key={s}
-                onPress={() => setSeat(s)}
-                style={[styles.seatBtn, seat === s && styles.seatActive]}
-              >
-                <Text style={seat === s ? styles.seatActiveText : undefined}>{seatLabel(s)}</Text>
-              </Pressable>
-            ))}
-          </View>
+        {/* 写真からのAI再現は有料プランのみ（free は枠0）。フリーには写真入力を出さない。 */}
+        {canAnalyze ? (
+          <>
+            {quotaLabel ? <Text style={styles.quota}>{quotaLabel}</Text> : null}
 
-          <Text style={styles.label}>河（卓を上から1枚）*</Text>
-          <Pressable style={styles.pick} onPress={() => void pickInto(setRiver)}>
-            {river ? (
-              <Image source={{ uri: river.uri }} style={styles.thumb} />
+            <Text style={styles.label}>河（卓を上から1枚）*</Text>
+            <Pressable style={styles.pick} onPress={() => void pickInto(setRiver)}>
+              {river ? (
+                <Image source={{ uri: river.uri }} style={styles.thumb} />
+              ) : (
+                <Text style={styles.pickText}>河の写真を選ぶ</Text>
+              )}
+            </Pressable>
+
+            {/* 1枚モードのトグル（河ピッカー直下。[決定] 2026-08-02 四家対応・文言は「手牌を含む」）。
+              対局終了時に全員が手牌を開けて撮った1枚から、四家の手牌もまとめて読む。 */}
+            <Pressable
+              style={styles.tgl}
+              onPress={() => {
+                setHandFromRiver((v) => !v);
+                // 二重指定の混乱を防ぐ: モード切替時は明示の手牌選択を破棄。
+                setHands({});
+              }}
+              accessibilityRole="switch"
+              accessibilityState={{ checked: handFromRiver }}
+              accessibilityLabel="手牌を含む"
+              accessibilityHint="写真に写っている各家の手牌もこの1枚から読み取ります。解析回数を最大4回分多く使います"
+            >
+              <View style={[styles.tglBox, handFromRiver && styles.tglBoxOn]}>
+                {handFromRiver ? <Text style={styles.tglTick}>✓</Text> : null}
+              </View>
+              <View style={styles.tglBody}>
+                <Text style={styles.tglLabel}>手牌を含む</Text>
+                <Text style={styles.tglSub}>
+                  写真に写っている各家の手牌もこの1枚から読み取ります（解析回数を最大4回分多く使います）
+                </Text>
+              </View>
+            </Pressable>
+
+            {/* 1枚モード ON では個別の手牌写真は不要（明示指定は API 側で優先されるが UI は簡潔に）。 */}
+            {handFromRiver ? null : (
+              <>
+                <Text style={styles.label}>各家の手牌（任意）</Text>
+                {CAMS.map((cam) => (
+                  <Pressable
+                    key={cam}
+                    style={styles.handRow}
+                    onPress={() => void pickInto((p) => setHands((h) => ({ ...h, [cam]: p })))}
+                  >
+                    <Text style={styles.handLabel}>{cameraLabel(cam)}</Text>
+                    {hands[cam] ? (
+                      <Image source={{ uri: hands[cam]?.uri }} style={styles.thumbSmall} />
+                    ) : (
+                      <Text style={styles.pickText}>選ぶ</Text>
+                    )}
+                  </Pressable>
+                ))}
+              </>
+            )}
+          </>
+        ) : null}
+
+        {error ? <Text style={styles.error}>{error}</Text> : null}
+
+        {canAnalyze ? (
+          <>
+            <Pressable
+              disabled={busy || !river}
+              onPress={() => void onSubmit()}
+              style={[styles.submit, (busy || !river) && styles.submitDisabled]}
+              accessibilityRole="button"
+            >
+              {/* 非同期化後は待つのは送信（アップロード）だけ。解析の進行は一覧のカードが示す。 */}
+              <Text style={styles.submitText}>{submitting ? "送信中…" : "解析して保存"}</Text>
+            </Pressable>
+
+            {/* 解析とは別導線。区切りを置いて誤タップ・状態の取り違えを防ぐ。 */}
+            <View style={styles.orRow}>
+              <View style={styles.orLine} />
+              <Text style={styles.orText}>または</Text>
+              <View style={styles.orLine} />
+            </View>
+          </>
+        ) : null}
+
+        {/* 手入力の局メタ（本場/供託/ドラ。web AddKyokuModal の手動タブと同一。任意）。 */}
+        <Text style={styles.label}>手入力の局情報（任意。写真解析では使いません）</Text>
+        <Stepper label="本場" unit="本場" value={honba} min={0} max={19} onChange={setHonba} />
+        <Stepper label="供託" unit="本" value={kyotaku} min={0} max={9} onChange={setKyotaku} />
+        <View style={styles.doraRow}>
+          <Text style={styles.doraLabel}>ドラ表示牌</Text>
+          <Pressable
+            style={styles.doraBtn}
+            onPress={() => setDoraOpen(true)}
+            accessibilityRole="button"
+            accessibilityLabel="ドラ表示牌を選ぶ"
+          >
+            {dora ? (
+              <MiniTile code={dora} w={28} h={38} />
             ) : (
-              <Text style={styles.pickText}>河の写真を選ぶ</Text>
+              <Text style={styles.pickText}>選ぶ</Text>
             )}
           </Pressable>
+          {dora ? (
+            <Pressable
+              onPress={() => setDora(null)}
+              accessibilityRole="button"
+              accessibilityLabel="ドラ表示牌を外す"
+              hitSlop={8}
+            >
+              <Text style={styles.doraClear}>外す</Text>
+            </Pressable>
+          ) : null}
+        </View>
 
-          {/* 1枚モードのトグル（河ピッカー直下。[決定] 2026-08-02 四家対応・文言は「手牌を含む」）。
-              対局終了時に全員が手牌を開けて撮った1枚から、四家の手牌もまとめて読む。 */}
-          <Pressable
-            style={styles.tgl}
-            onPress={() => {
-              setHandFromRiver((v) => !v);
-              // 二重指定の混乱を防ぐ: モード切替時は明示の手牌選択を破棄。
-              setHands({});
-            }}
-            accessibilityRole="switch"
-            accessibilityState={{ checked: handFromRiver }}
-            accessibilityLabel="手牌を含む"
-            accessibilityHint="写真に写っている各家の手牌もこの1枚から読み取ります。解析回数を最大4回分多く使います"
-          >
-            <View style={[styles.tglBox, handFromRiver && styles.tglBoxOn]}>
-              {handFromRiver ? <Text style={styles.tglTick}>✓</Text> : null}
-            </View>
-            <View style={styles.tglBody}>
-              <Text style={styles.tglLabel}>手牌を含む</Text>
-              <Text style={styles.tglSub}>
-                写真に写っている各家の手牌もこの1枚から読み取ります（解析回数を最大4回分多く使います）
-              </Text>
-            </View>
-          </Pressable>
+        {/* 写真なしの手入力作成（空の初局を作って編集画面へ）。フリーはこれが主ボタン。 */}
+        <Pressable
+          disabled={busy}
+          onPress={() => void onCreateManual()}
+          style={[canAnalyze ? styles.manual : styles.submit, busy && styles.submitDisabled]}
+          accessibilityRole="button"
+        >
+          <Text style={canAnalyze ? styles.manualText : styles.submitText}>
+            {creating ? "作成中…" : "手入力で作成"}
+          </Text>
+        </Pressable>
 
-          {/* 1枚モード ON では個別の手牌写真は不要（明示指定は API 側で優先されるが UI は簡潔に）。 */}
-          {handFromRiver ? null : (
-            <>
-              <Text style={styles.label}>各家の手牌（任意）</Text>
-              {CAMS.map((cam) => (
-                <Pressable
-                  key={cam}
-                  style={styles.handRow}
-                  onPress={() => void pickInto((p) => setHands((h) => ({ ...h, [cam]: p })))}
-                >
-                  <Text style={styles.handLabel}>{cameraLabel(cam)}</Text>
-                  {hands[cam] ? (
-                    <Image source={{ uri: hands[cam]?.uri }} style={styles.thumbSmall} />
-                  ) : (
-                    <Text style={styles.pickText}>選ぶ</Text>
-                  )}
-                </Pressable>
-              ))}
-            </>
-          )}
-        </>
+        {!canAnalyze ? (
+          <Text style={styles.upsell}>
+            写真からのAI再現（撮影→自動で牌譜化）は有料プラン（Next / Pro）で利用できます。
+          </Text>
+        ) : null}
+      </ScrollView>
+
+      {doraOpen ? (
+        <TilePickerSheet
+          title="ドラ表示牌"
+          onPick={(t) => {
+            setDora(t);
+            setDoraOpen(false);
+          }}
+          onClose={() => setDoraOpen(false)}
+        />
       ) : null}
-
-      {error ? <Text style={styles.error}>{error}</Text> : null}
-
-      {canAnalyze ? (
-        <>
-          <Pressable
-            disabled={busy || !river}
-            onPress={() => void onSubmit()}
-            style={[styles.submit, (busy || !river) && styles.submitDisabled]}
-            accessibilityRole="button"
-          >
-            {/* 非同期化後は待つのは送信（アップロード）だけ。解析の進行は一覧のカードが示す。 */}
-            <Text style={styles.submitText}>{submitting ? "送信中…" : "解析して保存"}</Text>
-          </Pressable>
-
-          {/* 解析とは別導線。区切りを置いて誤タップ・状態の取り違えを防ぐ。 */}
-          <View style={styles.orRow}>
-            <View style={styles.orLine} />
-            <Text style={styles.orText}>または</Text>
-            <View style={styles.orLine} />
-          </View>
-        </>
-      ) : null}
-
-      {/* 写真なしの手入力作成（空の初局を作って編集画面へ）。フリーはこれが主ボタン。 */}
-      <Pressable
-        disabled={busy}
-        onPress={() => void onCreateManual()}
-        style={[canAnalyze ? styles.manual : styles.submit, busy && styles.submitDisabled]}
-        accessibilityRole="button"
-      >
-        <Text style={canAnalyze ? styles.manualText : styles.submitText}>
-          {creating ? "作成中…" : "手入力で作成"}
-        </Text>
-      </Pressable>
-
-      {!canAnalyze ? (
-        <Text style={styles.upsell}>
-          写真からのAI再現（撮影→自動で牌譜化）は有料プラン（Next / Pro）で利用できます。
-        </Text>
-      ) : null}
-    </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.bg },
+  scroll: { flex: 1 },
   container: { padding: 16, gap: 10 },
   addNote: { color: colors.accent, fontSize: 12.5, fontWeight: "700" },
   quota: { color: colors.w45, fontSize: 12 },
@@ -342,5 +397,21 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   manualText: { color: colors.accent, fontSize: 14, fontWeight: "700" },
+  // 手入力の局メタ: ドラ表示牌の選択行。
+  doraRow: { flexDirection: "row", alignItems: "center", gap: 12 },
+  doraLabel: { color: colors.w70, fontSize: 13 },
+  doraBtn: {
+    minWidth: 52,
+    minHeight: 46,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.line,
+    borderRadius: 8,
+    backgroundColor: colors.chrome,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+  },
+  doraClear: { color: colors.w45, fontSize: 12.5, fontWeight: "700" },
   upsell: { color: colors.w45, fontSize: 12, lineHeight: 17, marginTop: 6 },
 });

@@ -62,7 +62,7 @@ web には半荘詳細画面が無く、0局半荘が開けない。**専用ペ�
 廃止）。削除ボタンは一覧では 0局限定のまま（局がある半荘はエディタ/ヘッダビューに寄せる）。
 エディタの局操作欄に failed バナー＋「もう一度解析」（202 で Provider に追わせる）。
 
-## フェーズ D: mobile の機能差（設計）
+## フェーズ D: mobile の機能差（設計）— **完了 2026-08-03**
 
 1. マイページ一覧（牌譜/何切る）に**検索＋公開状態フィルタ**: `MyListToolbar` に
    web MyListToolbar と同じ props（q/status）を追加。選択肢は web と同一定数を @rigel/ui へ
@@ -74,6 +74,16 @@ web には半荘詳細画面が無く、0局半荘が開けない。**専用ペ�
 6. 何切る編集に**ルール設定**（web RulesDialog 相当 = 既存 RulesSheet を流用）
 7. Capture の手入力に**局メタ（本場/供託/ドラ）**と free でも**手前席選択**
    （web AddKyokuModal の手動タブと同じ構成）
+
+実装メモ（2026-08-03）: 全7項目実装済み。状態フィルタの選択肢は @rigel/ui の
+`MY_KIFU_STATUS_OPTIONS` / `MY_PROBLEM_STATUS_OPTIONS` に一元化（web も同定数へ寄せた）。
+mobile MyListToolbar は sort と同じ「現在値ボタン＋ボトムシート」で status を選ぶ。
+KifuPlayer は `fav`（★）と `onEdit`（所有者のみ・半荘詳細へ）を props で受け、
+PublicGameScreen が useFavorites/useAuth で配線。PublicUserScreen 新設
+（route `PublicUser`、公開一覧カードの投稿者名バッジから遷移。KifuCard バッジに onPress 追加）。
+ProblemEdit のルールは既存 RulesSheet を開くだけ（rules は元々 problem に保存されていた）。
+Capture はルートを View+ScrollView に変えて TilePickerSheet（ドラ）を重ねる。
+手入力の席は選択式になった（以前は東固定）。
 
 ## フェーズ E: その他
 

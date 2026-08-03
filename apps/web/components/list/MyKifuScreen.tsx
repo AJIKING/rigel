@@ -7,6 +7,7 @@ import {
   sortMyList,
   DELETE_CONFIRM,
   LIST_LOAD_ERROR_MESSAGE,
+  MY_KIFU_STATUS_OPTIONS,
   type MyListSortKey,
 } from "@rigel/ui";
 import Link from "next/link";
@@ -24,13 +25,6 @@ import { MyPageTabs } from "../mypage/MyPageTabs";
 import { MyListToolbar } from "./MyListToolbar";
 import gc from "../game-card.module.css";
 import s from "./kifu-list.module.css";
-
-/** 公開状態フィルタ（お気に入りは独立トグルなのでここには入れない）。 */
-const STATUS_OPTIONS = [
-  { value: "all", label: "すべて" },
-  { value: "pub", label: "公開" },
-  { value: "priv", label: "非公開" },
-] as const;
 
 /**
  * マイページの牌譜タブ（/mypage・要ログイン・noindex）。
@@ -186,7 +180,7 @@ export function MyKifuScreen() {
             searchLabel="自分の牌譜を検索"
             searchPlaceholder="牌譜を検索"
             statusLabel="公開状態で絞り込み"
-            statusOptions={STATUS_OPTIONS}
+            statusOptions={MY_KIFU_STATUS_OPTIONS}
             status={status}
             onStatus={setStatus}
             sort={sort}

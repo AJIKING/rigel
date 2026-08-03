@@ -10,7 +10,7 @@ import {
   LIMIT_MESSAGES,
 } from "@rigel/ui";
 import { useCallback, useEffect, useState } from "react";
-import { FlatList, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { FlatList, Pressable, Share, StyleSheet, Text, TextInput, View } from "react-native";
 import { CenterState } from "../components/CenterState";
 import { Chip } from "../components/Chip";
 import { DangerButton } from "../components/DangerButton";
@@ -32,6 +32,7 @@ import { useAuth } from "../lib/auth";
 import { useAnalysisJob } from "../lib/use-analysis-job";
 import { confirmDestructive } from "../lib/confirm";
 import { fmtDate } from "../lib/format";
+import { kifuShareUrl } from "../lib/site";
 import { colors, radius } from "../lib/theme";
 import type { RootStackParamList } from "../lib/navigation";
 import { useGame } from "../lib/use-kifu-data";
@@ -361,6 +362,21 @@ export function GameDetailScreen() {
           />
           {/* 元写真（恒久保存・所有者のみ。photo-retention.md）。 */}
           <Chip label="元写真" a11ySelected={false} onPress={() => setPhotosOpen(true)} />
+          {/* 共有（公開時のみ OS シート。非公開は公開を促す。web の共有URLコピーと対。Phase D）。 */}
+          <Chip
+            label="共有"
+            a11ySelected={false}
+            onPress={() => {
+              if (visibility !== "public") {
+                setNote("公開すると共有できます。「公開」に切り替えてから共有してください。");
+                return;
+              }
+              const url = kifuShareUrl(gameId);
+              void Share.share({ message: `${detail.game.title || "牌譜"}\n${url}`, url }).catch(
+                () => {},
+              );
+            }}
+          />
           <View style={styles.delWrap}>
             <DangerButton label="半荘を削除" onPress={onDeleteGame} />
           </View>

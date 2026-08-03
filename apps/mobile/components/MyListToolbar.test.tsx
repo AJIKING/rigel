@@ -55,6 +55,39 @@ describe("MyListToolbar（再設計）", () => {
     }
   });
 
+  it("状態フィルタは現在値ボタン＋シートで選ぶ（onStatus に渡って閉じる）", () => {
+    const onStatus = jest.fn();
+    render(
+      <MyListToolbar
+        sort="new"
+        onSort={jest.fn()}
+        statusLabel="公開状態で絞り込み"
+        statusOptions={[
+          { value: "all", label: "すべて" },
+          { value: "pub", label: "公開" },
+          { value: "priv", label: "非公開" },
+        ]}
+        status="all"
+        onStatus={onStatus}
+      />,
+    );
+
+    const btn = screen.getByLabelText("公開状態で絞り込み");
+    expect(screen.getByText(/すべて/)).toBeTruthy();
+
+    fireEvent.press(btn);
+    fireEvent.press(screen.getByText("公開"));
+
+    expect(onStatus).toHaveBeenCalledWith("pub");
+    // 選択後はシートが閉じる（他の選択肢が消える）。
+    expect(screen.queryByText("非公開")).toBeNull();
+  });
+
+  it("statusOptions を渡さなければ状態フィルタを出さない（従来と同じ表示）", () => {
+    render(<MyListToolbar sort="new" onSort={jest.fn()} />);
+    expect(screen.queryByLabelText("公開状態で絞り込み")).toBeNull();
+  });
+
   it("action スロット（＋新規など）を同じ行に描画する", () => {
     render(
       <MyListToolbar

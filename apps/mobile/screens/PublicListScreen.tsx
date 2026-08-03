@@ -78,7 +78,17 @@ export function PublicListScreen() {
             return (
               <KifuCard
                 title={item.title || "（無題の半荘）"}
-                badges={[{ label: author, tone: "accent" }]}
+                badges={[
+                  {
+                    label: author,
+                    tone: "accent",
+                    // 投稿者名→公開ユーザーページ（web /u と対。Phase D）。
+                    onPress: () =>
+                      nav.navigate("PublicUser", {
+                        idOrHandle: item.ownerHandle ?? item.ownerId,
+                      }),
+                  },
+                ]}
                 metaParts={[relativeTime(item.createdAt), `${item.kyokuCount}局`]}
                 fav={item.viewerFaved}
                 favCount={item.favoriteCount}

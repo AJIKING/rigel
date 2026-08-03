@@ -58,6 +58,32 @@ function log(seq: number, kifu: Kifu): GameLog {
 }
 
 describe("KifuPlayer", () => {
+  it("fav を渡すと★ボタンが出て、押すと onToggle が呼ばれる（web ビューアの★と対。Phase D）", () => {
+    const onToggle = jest.fn();
+    render(
+      <KifuPlayer
+        logs={[log(1, emptyKifu())]}
+        isPublic
+        fav={{ faved: false, count: 3, onToggle }}
+      />,
+    );
+
+    fireEvent.press(screen.getByLabelText("お気に入りに追加/解除（3件）"));
+    expect(onToggle).toHaveBeenCalled();
+  });
+
+  it("onEdit を渡すと編集ボタンが出る（自分の牌譜のみ）。渡さなければ出ない", () => {
+    const onEdit = jest.fn();
+    const { rerender } = render(
+      <KifuPlayer logs={[log(1, emptyKifu())]} isPublic onEdit={onEdit} />,
+    );
+    fireEvent.press(screen.getByLabelText("編集"));
+    expect(onEdit).toHaveBeenCalled();
+
+    rerender(<KifuPlayer logs={[log(1, emptyKifu())]} isPublic />);
+    expect(screen.queryByLabelText("編集")).toBeNull();
+  });
+
   it("ロン: 最後の打牌まで進めても和了はまだ出ず、次ボタンで和了演出（役）が現れる", () => {
     render(<KifuPlayer logs={[log(1, kifuWithAgari())]} />);
     // 初期の全表示では和了は出さない（リロード時のポップ防止）。

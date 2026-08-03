@@ -20,10 +20,11 @@ let mockAuth: {
 jest.mock("../lib/auth", () => ({ useAuth: () => mockAuth }));
 
 const mockAnalyze = jest.fn<Promise<unknown>, unknown[]>();
+const mockCreateGame = jest.fn<Promise<unknown>, unknown[]>();
 jest.mock("../lib/api", () => ({
   analyze: (...a: unknown[]) => mockAnalyze(...a),
   createEmptyKifu: jest.fn(),
-  createGame: jest.fn(),
+  createGame: (...a: unknown[]) => mockCreateGame(...a),
 }));
 const mockPickImage = jest.fn<Promise<unknown>, []>();
 jest.mock("../lib/pick-image", () => ({ pickImage: () => mockPickImage() }));
@@ -51,6 +52,41 @@ describe("CaptureScreen（解析枠の表示）", () => {
     render(<CaptureScreen />);
 
     expect(screen.queryByText(/解析枠/)).toBeNull();
+  });
+});
+
+describe("CaptureScreen（手入力の局メタと手前席。web AddKyokuModal の手動タブと対。Phase D）", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockAuth = { token: "t", user: { plan: "free" } };
+  });
+
+  it("free でも手前の席を選べる（以前は手入力=東固定）", () => {
+    render(<CaptureScreen />);
+    expect(screen.getByText("手前の席")).toBeTruthy();
+    expect(screen.getByText("南")).toBeTruthy();
+  });
+
+  it("選んだ席と局メタ（本場/供託/ドラ）が手入力作成に載る", async () => {
+    mockCreateGame.mockResolvedValue({ ok: true, gameId: "g1", logId: "l1" });
+    render(<CaptureScreen />);
+
+    fireEvent.press(screen.getByText("南"));
+    fireEvent.press(screen.getByLabelText("本場を増やす"));
+    fireEvent.press(screen.getByLabelText("供託を増やす"));
+    // ドラ表示牌はピッカーシートから選ぶ。
+    fireEvent.press(screen.getByLabelText("ドラ表示牌を選ぶ"));
+    fireEvent.press(screen.getByLabelText("5萬"));
+
+    fireEvent.press(screen.getByText("手入力で作成"));
+    await waitFor(() => expect(mockCreateGame).toHaveBeenCalledTimes(1));
+    expect(mockCreateGame).toHaveBeenCalledWith(
+      "t",
+      "south",
+      { honba: 1, kyotaku: 1, dora: ["5m"] },
+      1,
+    );
+    expect(mockNavigate).toHaveBeenCalledWith("Edit", { gameId: "g1", logId: "l1" });
   });
 });
 

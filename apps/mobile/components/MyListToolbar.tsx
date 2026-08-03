@@ -1,4 +1,4 @@
-import { MY_LIST_SORTS, type MyListSortKey } from "@rigel/ui";
+import { MY_LIST_SORTS, type MyListSortKey, type MyListStatusOption } from "@rigel/ui";
 import { useState, type ReactNode } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import Svg, { Path } from "react-native-svg";
@@ -17,19 +17,31 @@ import { BottomSheet, SheetCloseButton } from "./BottomSheet";
 export function MyListToolbar({
   sort,
   onSort,
+  statusLabel,
+  statusOptions,
+  status,
+  onStatus,
   favOnly,
   onFavOnly,
   action,
 }: {
   sort: MyListSortKey;
   onSort: (value: MyListSortKey) => void;
+  /** 状態フィルタ（web MyListToolbar の statusOptions と対）。省略時は非表示。 */
+  statusLabel?: string;
+  statusOptions?: readonly MyListStatusOption[];
+  status?: string;
+  onStatus?: (value: string) => void;
   favOnly?: boolean;
   onFavOnly?: (value: boolean) => void;
   /** 右端に置く主要アクション（＋新規など）。省略可。 */
   action?: ReactNode;
 }) {
   const [sortOpen, setSortOpen] = useState(false);
+  const [statusOpen, setStatusOpen] = useState(false);
   const current = MY_LIST_SORTS.find((s) => s.key === sort)?.label ?? "";
+  const currentStatus = statusOptions?.find((o) => o.value === status)?.label ?? "";
+  const showStatus = !!statusOptions && statusOptions.length > 0 && !!onStatus;
 
   return (
     // シートは行の「外」に置く（BottomSheet の overlay は absoluteFill = 親基準。
@@ -46,6 +58,19 @@ export function MyListToolbar({
             {current} ▾
           </Text>
         </Pressable>
+
+        {showStatus ? (
+          <Pressable
+            style={styles.sortBtn}
+            onPress={() => setStatusOpen(true)}
+            accessibilityRole="button"
+            accessibilityLabel={statusLabel ?? "状態で絞り込み"}
+          >
+            <Text style={styles.sortText} numberOfLines={1}>
+              {currentStatus} ▾
+            </Text>
+          </Pressable>
+        ) : null}
 
         {onFavOnly ? (
           <Pressable
@@ -70,6 +95,30 @@ export function MyListToolbar({
 
         {action ? <View style={styles.action}>{action}</View> : null}
       </View>
+
+      {statusOpen && statusOptions ? (
+        <BottomSheet onClose={() => setStatusOpen(false)} maxHeight="60%">
+          <Text style={styles.sheetTitle}>{statusLabel ?? "状態で絞り込み"}</Text>
+          {statusOptions.map((o) => (
+            <Pressable
+              key={o.value}
+              style={[styles.opt, o.value === status && styles.optOn]}
+              onPress={() => {
+                onStatus?.(o.value);
+                setStatusOpen(false);
+              }}
+              accessibilityRole="button"
+              accessibilityState={{ selected: o.value === status }}
+            >
+              <Text style={[styles.optText, o.value === status && styles.optTextOn]}>
+                {o.label}
+              </Text>
+              {o.value === status ? <Text style={styles.optCheck}>✓</Text> : null}
+            </Pressable>
+          ))}
+          <SheetCloseButton onPress={() => setStatusOpen(false)} />
+        </BottomSheet>
+      ) : null}
 
       {sortOpen ? (
         <BottomSheet onClose={() => setSortOpen(false)} maxHeight="60%">

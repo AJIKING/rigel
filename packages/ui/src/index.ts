@@ -587,6 +587,26 @@ export const MY_LIST_SORTS: readonly { key: MyListSortKey; label: string }[] = [
   { key: "fav", label: "お気に入りが多い順" },
 ];
 
+/** マイページ一覧の状態フィルタの選択肢（value はフィルタキー・label は表示名）。 */
+export interface MyListStatusOption {
+  value: string;
+  label: string;
+}
+
+/** マイページ牌譜タブの公開状態フィルタ（web/mobile 共通。お気に入りは独立トグル）。 */
+export const MY_KIFU_STATUS_OPTIONS: readonly MyListStatusOption[] = [
+  { value: "all", label: "すべて" },
+  { value: "pub", label: "公開" },
+  { value: "priv", label: "非公開" },
+];
+
+/** マイページ何切るタブの状態フィルタ（web/mobile 共通。draft/published の二択）。 */
+export const MY_PROBLEM_STATUS_OPTIONS: readonly MyListStatusOption[] = [
+  { value: "all", label: "すべて" },
+  { value: "published", label: "公開" },
+  { value: "draft", label: "下書き" },
+];
+
 /** マイページ一覧の並べ替え（純関数。牌譜・何切るで共用）。 */
 export function sortMyList<T extends FeedCard>(cards: readonly T[], sort: MyListSortKey): T[] {
   const arr = [...cards];

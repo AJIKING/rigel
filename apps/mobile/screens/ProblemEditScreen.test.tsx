@@ -155,6 +155,25 @@ describe("ProblemEditScreen（何切る問題の作成/編集）", () => {
     await waitFor(() => expect(mockGoBack).toHaveBeenCalled());
   });
 
+  it("ルール設定シートで変えたルールが保存 problem の rules に乗る（web と対。Phase D）", async () => {
+    mockCreateProblem.mockResolvedValue({ ok: true, status: 200 });
+    render(<ProblemEditScreen />);
+
+    fireEvent.press(screen.getByText("ルール設定"));
+    // 既定は Mリーグ相当（赤5=各1）。「なし」へ変更して保存する。
+    fireEvent.press(screen.getByText("なし"));
+    fireEvent.press(screen.getByLabelText("ルールを保存"));
+
+    fireEvent.changeText(screen.getByLabelText("タイトル"), "ルールつき");
+    inputFullHand();
+    inputDrawn5p();
+    fireEvent.press(screen.getByText("公開して保存"));
+
+    await waitFor(() => expect(mockCreateProblem).toHaveBeenCalledTimes(1));
+    const [, input] = mockCreateProblem.mock.calls[0] as [string, { problem: Problem }];
+    expect(input.problem.rules.aka).toBe("none");
+  });
+
   it("手牌が13枚に達するとピッカーがツモ牌入力へ自動で切り替わる（切替忘れ防止）", async () => {
     render(<ProblemEditScreen />);
     fireEvent.press(screen.getByLabelText("手牌に追加"));

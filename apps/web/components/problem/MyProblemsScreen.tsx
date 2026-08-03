@@ -8,6 +8,7 @@ import {
   PROBLEM_LIMIT,
   LIMIT_MESSAGES,
   LIST_LOAD_ERROR_MESSAGE,
+  MY_PROBLEM_STATUS_OPTIONS,
   type MyListSortKey,
 } from "@rigel/ui";
 import type { ProblemDraftCard } from "@rigel/client";
@@ -31,13 +32,6 @@ import { ProblemThumb } from "./ProblemThumb";
 import gc from "../game-card.module.css";
 import s from "../list/kifu-list.module.css";
 import p9 from "./problem.module.css";
-
-/** マイページ 何切るタブの状態フィルタ（牌譜タブと同じ形。お気に入りは独立トグル）。 */
-const STATUS_OPTIONS = [
-  { value: "all", label: "すべて" },
-  { value: "published", label: "公開" },
-  { value: "draft", label: "下書き" },
-] as const;
 
 /**
  * マイ何切る（自分の問題の管理）。牌譜のマイページ（/kifu）と同じ構造
@@ -167,7 +161,7 @@ export function MyProblemsScreen({
             searchLabel="自分の問題を検索"
             searchPlaceholder="問題を検索"
             statusLabel="状態で絞り込み"
-            statusOptions={STATUS_OPTIONS}
+            statusOptions={MY_PROBLEM_STATUS_OPTIONS}
             status={status}
             onStatus={setStatus}
             sort={sort}

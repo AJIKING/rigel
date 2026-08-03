@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react-native";
+import { fireEvent, render, screen, within } from "@testing-library/react-native";
 import type { MyGameCard } from "../lib/api";
 import { MyListScreen } from "./MyListScreen";
 
@@ -168,6 +168,49 @@ describe("MyListScreen（マイ牌譜一覧）", () => {
     fireEvent.press(screen.getByLabelText("お気に入りのみ表示"));
     expect(screen.getByText("スター付き")).toBeTruthy();
     expect(screen.queryByText("ふつう")).toBeNull();
+  });
+
+  it("統計ヘッダ（牌譜数・公開数・★された数）を出す（web マイページと同一。Phase D）", () => {
+    setGames([
+      makeGame({ id: "g1", title: "半荘A", publicCount: 2, favoriteCount: 3 }),
+      makeGame({ id: "g2", title: "半荘B", publicCount: 0, favoriteCount: 1 }),
+    ]);
+    render(<MyListScreen />);
+
+    expect(screen.getByLabelText("牌譜 2件")).toBeTruthy();
+    expect(screen.getByLabelText("公開 1件")).toBeTruthy();
+    expect(screen.getByLabelText("お気に入りされた数 4件")).toBeTruthy();
+  });
+
+  it("検索欄でタイトル部分一致に絞れる（web マイページと同一条件。Phase D）", () => {
+    setGames([
+      makeGame({ id: "g1", title: "金曜セット" }),
+      makeGame({ id: "g2", title: "大会予選" }),
+    ]);
+    render(<MyListScreen />);
+
+    fireEvent.changeText(screen.getByLabelText("牌譜を検索"), "大会");
+    expect(screen.getByText("大会予選")).toBeTruthy();
+    expect(screen.queryByText("金曜セット")).toBeNull();
+  });
+
+  it("公開状態フィルタで 公開/非公開 に絞れる（web と同一の選択肢）", () => {
+    setGames([
+      makeGame({ id: "g1", title: "公開済みの半荘", publicCount: 2 }),
+      makeGame({ id: "g2", title: "非公開の半荘", publicCount: 0 }),
+    ]);
+    render(<MyListScreen />);
+
+    // シートの選択肢はカードのバッジ（公開/非公開）と同じ文言なので、シート内で探す。
+    fireEvent.press(screen.getByLabelText("公開状態で絞り込み"));
+    fireEvent.press(within(screen.getByTestId("bottom-sheet-card")).getByText("公開"));
+    expect(screen.getByText("公開済みの半荘")).toBeTruthy();
+    expect(screen.queryByText("非公開の半荘")).toBeNull();
+
+    fireEvent.press(screen.getByLabelText("公開状態で絞り込み"));
+    fireEvent.press(within(screen.getByTestId("bottom-sheet-card")).getByText("非公開"));
+    expect(screen.getByText("非公開の半荘")).toBeTruthy();
+    expect(screen.queryByText("公開済みの半荘")).toBeNull();
   });
 
   it("カードの★を押すとサーバー保存の toggle が種別つきで呼ばれる", () => {

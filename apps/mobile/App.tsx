@@ -17,6 +17,7 @@ import { LoginScreen } from "./screens/LoginScreen";
 import { ProblemAnswerScreen } from "./screens/ProblemAnswerScreen";
 import { ProblemEditScreen } from "./screens/ProblemEditScreen";
 import { PublicGameScreen } from "./screens/PublicGameScreen";
+import { PublicUserScreen } from "./screens/PublicUserScreen";
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
@@ -72,6 +73,11 @@ function Root() {
           name="PublicGame"
           component={PublicGameScreen}
           options={{ title: "公開牌譜" }}
+        />
+        <Stack.Screen
+          name="PublicUser"
+          component={PublicUserScreen}
+          options={{ title: "ユーザー" }}
         />
         <Stack.Screen
           name="Capture"
