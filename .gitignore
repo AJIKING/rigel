@@ -43,3 +43,6 @@ apps/api/eval-fixtures/last-report.txt
 *.log
 # ツール実行の残骸（リポジトリ直下に生成されることがある）
 channels-log.txt
+
+# 作業用スクショ（オーナーが会話添付に使う一時ファイル）
+docs/image*.png
