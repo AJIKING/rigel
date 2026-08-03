@@ -67,23 +67,32 @@ export function MyProblemsScreen({
   const publishedCount = posts.filter((post) => post.status === "published").length;
 
   // 解析下書き（photo-retention.md）: 写真AI再現の送信で先行作成され、閉じてもここに残る。
+  // 解析中のものがある間は 5 秒間隔で再取得（完了・失敗をユーザー操作なしで反映する）。
   const [drafts, setDrafts] = useState<ProblemDraftCard[]>([]);
+  const hasProcessing = drafts.some((d) => d.status === "processing");
   useEffect(() => {
     if (!user) return;
     let alive = true;
-    getProblemDraftsAction()
-      .then((d) => {
-        if (alive) setDrafts(d);
-      })
-      .catch(() => {});
+    const load = () =>
+      getProblemDraftsAction()
+        .then((d) => {
+          if (alive) setDrafts(d);
+        })
+        .catch(() => {
+          // 取得失敗を「下書きなし」に化けさせない（牌譜一覧の loadFailed と同じ思想）。
+          if (alive) setErr("解析下書きを読み込めませんでした。");
+        });
+    void load();
+    const timer = hasProcessing ? setInterval(() => void load(), 5000) : null;
     return () => {
       alive = false;
+      if (timer) clearInterval(timer);
     };
-  }, [user]);
+  }, [user, hasProcessing]);
 
   /** 解析下書きの破棄（写真ごと消える）。 */
   async function onDiscardDraft(id: string) {
-    if (!window.confirm("この解析下書きを破棄しますか？（写真も削除されます）")) return;
+    if (!window.confirm("この解析下書きを破棄しますか？写真も削除され、元に戻せません。")) return;
     const res = await deleteProblemDraftAction(id).catch(() => ({ ok: false, status: 0 }));
     if (res.ok) setDrafts((cur) => cur.filter((d) => d.id !== id));
     else setErr("下書きの破棄に失敗しました。");
@@ -173,7 +182,8 @@ export function MyProblemsScreen({
             newDisabled={atLimit}
           />
 
-          {/* 解析下書き（写真AI再現の受け皿）。通常の問題カードの上に出す。 */}
+          {/* 解析下書き（写真AI再現の受け皿）。通常の問題カードの上に出す。
+              「下書き」バッジは通常問題の draft と紛れるので「解析完了」と呼び分ける。 */}
           {drafts.length > 0 && (
             <div className={gc.feed}>
               {drafts.map((d) => (
@@ -182,18 +192,24 @@ export function MyProblemsScreen({
                   title="解析下書き"
                   badge={
                     d.status === "ready" ? (
-                      <span className={`${gc.badge} ${gc.draft}`}>下書き</span>
+                      <span className={`${gc.badge} ${gc.pub}`}>解析完了</span>
                     ) : d.status === "processing" ? (
-                      <span className={`${gc.badge} ${gc.pub}`}>解析中…</span>
+                      <span className={`${gc.badge} ${gc.priv}`}>解析中…</span>
                     ) : (
-                      <span className={`${gc.badge} ${gc.draft}`}>解析失敗</span>
+                      <span className={`${gc.badge} ${gc.fail}`}>解析失敗</span>
                     )
                   }
                   meta={fmtDateSlash(d.createdAt)}
-                  faved={false}
-                  onToggleFav={() => {}}
                   onOpen={() => {
-                    if (d.status === "ready") router.push(`/problems/new?draft=${d.id}`);
+                    if (d.status === "ready") {
+                      router.push(`/problems/new?draft=${d.id}`);
+                    } else {
+                      setErr(
+                        d.status === "processing"
+                          ? "解析中です。完了するとタップして編集できます。"
+                          : "解析に失敗しました。不要であれば「破棄」してください。",
+                      );
+                    }
                   }}
                   actions={
                     <button

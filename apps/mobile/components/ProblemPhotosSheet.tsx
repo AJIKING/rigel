@@ -1,14 +1,10 @@
 import { problemPhotoPath, type ProblemPhotoMeta, type ProblemPhotoRef } from "@rigel/client";
+import { problemPhotoLabel, PHOTOS_OWNER_ONLY_NOTE } from "@rigel/ui";
 import { useEffect, useState } from "react";
 import { Image, ScrollView, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 import { listProblemPhotos, API_BASE_URL } from "../lib/api";
 import { colors, radius } from "../lib/theme";
 import { BottomSheet } from "./BottomSheet";
-
-/** 写真ラベル（web ProblemPhotosModal と同一文言）。 */
-function photoLabel(p: ProblemPhotoMeta): string {
-  return p.kind === "hand" ? "自分の手牌" : "河（卓全景）";
-}
 
 /**
  * 何切るの元写真シート（恒久保存・所有者のみ。photo-retention.md）。
@@ -64,17 +60,21 @@ export function ProblemPhotosSheet({
                   uri: `${API_BASE_URL}${problemPhotoPath(refValue, p)}`,
                   headers: { Authorization: `Bearer ${token}` },
                 }}
-                style={{ width: imgW, height: (imgW * 3) / 4, borderRadius: radius.base }}
+                style={{
+                  width: imgW,
+                  height: (imgW * 3) / 4,
+                  borderRadius: radius.base,
+                  // 4:3 固定の contain 表示（縦長写真は左右に余白）。枠だと分かる下地を敷く。
+                  backgroundColor: colors.chrome2,
+                }}
                 resizeMode="contain"
-                accessibilityLabel={photoLabel(p)}
+                accessibilityLabel={problemPhotoLabel(p.kind)}
               />
-              <Text style={styles.caption}>{photoLabel(p)}</Text>
+              <Text style={styles.caption}>{problemPhotoLabel(p.kind)}</Text>
             </View>
           ))
         )}
-        <Text style={styles.note}>
-          元写真はあなたにだけ表示されます（公開しても公開されません）。
-        </Text>
+        <Text style={styles.note}>{PHOTOS_OWNER_ONLY_NOTE}</Text>
       </ScrollView>
     </BottomSheet>
   );

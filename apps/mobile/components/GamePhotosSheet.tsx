@@ -1,16 +1,10 @@
 import { gamePhotoPath, type GamePhotoMeta } from "@rigel/client";
-import { cameraLabel } from "@rigel/ui";
+import { gamePhotoLabel, PHOTOS_OWNER_ONLY_NOTE } from "@rigel/ui";
 import { useEffect, useState } from "react";
 import { Image, ScrollView, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 import { listGamePhotos, API_BASE_URL } from "../lib/api";
 import { colors, radius } from "../lib/theme";
 import { BottomSheet } from "./BottomSheet";
-
-/** 写真ラベル（河=卓全景、手牌はカメラ相対位置。web GamePhotosModal と同一文言）。 */
-function photoLabel(p: GamePhotoMeta): string {
-  if (p.kind === "river") return "卓全景（河）";
-  return `手牌：${cameraLabel(p.kind.replace("hand_", "") as "bottom" | "right" | "top" | "left")}`;
-}
 
 /**
  * 半荘の元写真シート（恒久保存・所有者のみ。photo-retention.md）。
@@ -65,17 +59,21 @@ export function GamePhotosSheet({
                   uri: `${API_BASE_URL}${gamePhotoPath(gameId, p)}`,
                   headers: { Authorization: `Bearer ${token}` },
                 }}
-                style={{ width: imgW, height: (imgW * 3) / 4, borderRadius: radius.base }}
+                style={{
+                  width: imgW,
+                  height: (imgW * 3) / 4,
+                  borderRadius: radius.base,
+                  // 4:3 固定の contain 表示（縦長写真は左右に余白）。枠だと分かる下地を敷く。
+                  backgroundColor: colors.chrome2,
+                }}
                 resizeMode="contain"
-                accessibilityLabel={photoLabel(p)}
+                accessibilityLabel={gamePhotoLabel(p.kind)}
               />
-              <Text style={styles.caption}>{photoLabel(p)}</Text>
+              <Text style={styles.caption}>{gamePhotoLabel(p.kind)}</Text>
             </View>
           ))
         )}
-        <Text style={styles.note}>
-          元写真はあなたにだけ表示されます（公開半荘でも公開されません）。
-        </Text>
+        <Text style={styles.note}>{PHOTOS_OWNER_ONLY_NOTE}</Text>
       </ScrollView>
     </BottomSheet>
   );

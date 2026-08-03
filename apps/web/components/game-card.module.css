@@ -207,6 +207,12 @@
   background: color-mix(in srgb, var(--vermilion) 12%, transparent);
   border: 1px solid color-mix(in srgb, var(--vermilion) 45%, transparent);
 }
+/* 解析失敗（photo-retention.md の失敗バッジ）。下書き（注意色）と混同しない danger 系。 */
+.badge.fail {
+  color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--danger) 45%, transparent);
+}
 .cmeta {
   display: flex;
   align-items: center;

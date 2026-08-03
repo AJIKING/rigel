@@ -28,14 +28,17 @@ Cloudflare Workers（Hono + D1）への本番デプロイ。GitHub Actions の
 
    公開値（`GOOGLE_CLIENT_ID` / `STRIPE_PRICE_NEXT|PRO` / `GEMINI_*_MODEL`）は
    `wrangler.toml` の `[vars]` にコミット済み（Secrets 不要）。
-4. **非同期解析の基盤（R2 + Queues。docs/plans/async-analysis.md）**（作成済み 2026-08-01）:
+4. **非同期解析の基盤（R2 + Queues。docs/plans/async-analysis.md / photo-retention.md）**
+   （作成済み 2026-08-03）:
    ```bash
-   wrangler r2 bucket create rigel-analysis-tmp
-   wrangler r2 bucket lifecycle add rigel-analysis-tmp --name expire-1d --expire-days 1
+   wrangler r2 bucket create rigel        # 元写真の恒久保存（ライフサイクルは設定しない）
    wrangler queues create rigel-analysis-jobs
    ```
-   ライフサイクル1日は「一時画像の消し漏れ」の保険（本線は consumer が処理後に即削除。
-   CLAUDE.md ルール7）。バインディングは `wrangler.toml` にコミット済み。
+   写真は恒久保存で、削除はデータ削除時のみ（CLAUDE.md ルール7・[決定] 2026-08-03）。
+   **TTL を設定しないこと**（付けるとユーザーの写真が消える）。バインディング
+   （`PHOTOS`）は `wrangler.toml` にコミット済み。
+   旧 `rigel-analysis-tmp`（TTL 1日の一時バケット）は 2026-08-03 に役目を終え、
+   残オブジェクトが TTL で空になり次第削除する。
 5. **Stripe ダッシュボード**で Webhook を登録：`https://<デプロイ先>/billing/webhook`、
    イベント `checkout.session.completed` / `customer.subscription.deleted`。
    表示された `whsec_...` を `STRIPE_WEBHOOK_SECRET` に設定。

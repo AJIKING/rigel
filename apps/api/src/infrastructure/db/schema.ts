@@ -3,7 +3,8 @@
 // ------------------------------------------------------------
 // 設計ドキュメント 5章の D1 テーブルを Drizzle で定義する。
 // 牌譜本体(kifu)は背骨スキーマ(@rigel/schema)の Kifu を JSON 列として保持する。
-// 撮影画像は保存しない（game_logs に入るのは解析後の Kifu JSON のみ）。
+// 撮影画像は D1 には入れない（R2 バケット rigel に恒久保存。photo-retention.md）。
+// game_logs に入るのは解析後の Kifu JSON のみ。
 //
 // マイグレーション: `pnpm --filter api db:generate`（drizzle-kit）→ migrations/ に SQL 出力。
 //                   `pnpm --filter api db:migrate:local|db:migrate`（wrangler d1）で適用。

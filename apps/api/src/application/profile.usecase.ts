@@ -107,15 +107,15 @@ export class DeleteAccount {
     private readonly users: UserRepository,
     private readonly store: AccountStore,
     /** Sign in with Apple のトークン失効（App Store 審査要件）。鍵未設定の環境は null。 */
-    private readonly appleAuth: AppleAuthGateway | null = null,
+    private readonly appleAuth: AppleAuthGateway | null,
     /** 元写真の掃除（photo-retention.md）。半荘・何切る（下書き/問題）と R2 ストア。
-     *  未配線のテストは省略可。 */
+     *  必須＝配線漏れをコンパイラで検出する（テストは InMemory 実装を渡す）。 */
     private readonly photos: {
       games: GameRepository;
       images: { deletePrefix(prefix: string): Promise<void> };
-      drafts?: ProblemDraftRepository;
-      problems?: ProblemRepository;
-    } | null = null,
+      drafts: ProblemDraftRepository;
+      problems: ProblemRepository;
+    },
   ) {}
 
   async execute(userId: string): Promise<DeleteAccountResult> {
@@ -132,18 +132,16 @@ export class DeleteAccount {
     // 元写真の掃除（[決定] 2026-08-03: 削除はデータ削除時 = 退会もその一つ）。
     // R2 は D1 とトランザクションを張れないので先に消す（途中失敗は退会自体を失敗させ、
     // 再リクエストで回収する。D1 を先に消すと写真への参照が失われ回収不能になる）。
-    if (this.photos) {
-      for (const game of await this.photos.games.listByUser(userId)) {
-        await this.photos.images.deletePrefix(gamePhotosPrefix(game.id));
-      }
-      // 何切る: 解析下書きと、下書き由来の問題の写真（photoDraftId）。
-      for (const draft of (await this.photos.drafts?.listByUser(userId)) ?? []) {
-        await this.photos.images.deletePrefix(problemDraftPrefix(draft.id));
-      }
-      for (const post of (await this.photos.problems?.listByUser(userId)) ?? []) {
-        if (post.photoDraftId) {
-          await this.photos.images.deletePrefix(problemDraftPrefix(post.photoDraftId));
-        }
+    for (const game of await this.photos.games.listByUser(userId)) {
+      await this.photos.images.deletePrefix(gamePhotosPrefix(game.id));
+    }
+    // 何切る: 解析下書きと、下書き由来の問題の写真（photoDraftId）。
+    for (const draft of await this.photos.drafts.listByUser(userId)) {
+      await this.photos.images.deletePrefix(problemDraftPrefix(draft.id));
+    }
+    for (const post of await this.photos.problems.listByUser(userId)) {
+      if (post.photoDraftId) {
+        await this.photos.images.deletePrefix(problemDraftPrefix(post.photoDraftId));
       }
     }
     // 削除は1トランザクション（回答→問題→局→半荘→ユーザー）。個別に順次消すと

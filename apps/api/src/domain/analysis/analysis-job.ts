@@ -39,4 +39,6 @@ export interface AnalysisJobRepository {
   /** 半荘削除時の掃除。processing の行も消す＝キャンセル扱い
    *  （consumer は行が無ければ何もしないので、進行中でも安全に消せる）。 */
   deleteByGame(gameId: string): Promise<void>;
+  /** 何切るの下書き破棄・正規保存時の掃除（同上キャンセル扱い。行を堆積させない）。 */
+  deleteById(id: string): Promise<void>;
 }

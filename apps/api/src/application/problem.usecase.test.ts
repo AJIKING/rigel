@@ -9,6 +9,7 @@ import {
 } from "../test-support/in-memory";
 import {
   InMemoryAnalysisImageStore,
+  InMemoryAnalysisJobRepository,
   InMemoryProblemDraftRepository,
 } from "../test-support/in-memory-analysis";
 import { makeProblemData, minimalProblemInput } from "../test-support/problem";
@@ -54,8 +55,19 @@ function deps(plan: Plan = "free") {
   const answers = new InMemoryProblemAnswerRepository();
   const favorites = new InMemoryFavoriteRepository();
   const users = new InMemoryUserRepository([user(plan)]);
+  const drafts = new InMemoryProblemDraftRepository();
+  const jobs = new InMemoryAnalysisJobRepository();
   let n = 0;
-  return { problems, answers, favorites, users, now: () => NOW, newId: () => `p${++n}` };
+  return {
+    problems,
+    answers,
+    favorites,
+    users,
+    drafts,
+    jobs,
+    now: () => NOW,
+    newId: () => `p${++n}`,
+  };
 }
 
 describe("CreateProblem（解析下書きからの正規保存。photo-retention.md）", () => {
@@ -240,7 +252,12 @@ describe("DeleteProblem", () => {
       createdAt: NOW,
     });
 
-    const result = await new DeleteProblem(d.problems, d.answers, d.favorites).execute({
+    const result = await new DeleteProblem(
+      d.problems,
+      d.answers,
+      d.favorites,
+      new InMemoryAnalysisImageStore(),
+    ).execute({
       userId: "u1",
       problemId: "p1",
     });
@@ -255,7 +272,12 @@ describe("DeleteProblem", () => {
     const d = deps();
     await d.problems.save(post("p1", "owner"));
     expect(
-      await new DeleteProblem(d.problems, d.answers, d.favorites).execute({
+      await new DeleteProblem(
+        d.problems,
+        d.answers,
+        d.favorites,
+        new InMemoryAnalysisImageStore(),
+      ).execute({
         userId: "attacker",
         problemId: "p1",
       }),

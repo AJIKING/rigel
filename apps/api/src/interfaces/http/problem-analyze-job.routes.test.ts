@@ -59,7 +59,7 @@ function makeApp(opts: { preflightOk?: boolean } = {}) {
     getProblemAnalysisJob: new GetProblemAnalysisJob(jobs, drafts),
     listProblemDrafts: new ListProblemDrafts(drafts, jobs, () => NOW),
     getProblemDraft: new GetProblemDraft(drafts, jobs, () => NOW),
-    deleteProblemDraft: new DeleteProblemDraft(drafts, images),
+    deleteProblemDraft: new DeleteProblemDraft(drafts, images, jobs),
     problemPhotos: new ProblemPhotos(problems, drafts, images),
   } as unknown as AppContainer;
   return { app: createApp({ container: () => container }), jobs, drafts, images, queue, problems };

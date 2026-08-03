@@ -40,7 +40,7 @@ const SECTIONS: LegalSection[] = [
     no: "4.",
     title: "AI による画像解析",
     paras: [
-      "撮影画像の解析には Google LLC の生成AIサービス（Gemini API）を使用します。画像は解析のためにのみ送信され、当社が画像を保存することはありません。",
+      "撮影画像の解析には Google LLC の生成AIサービス（Gemini API）を使用します。画像は解析のために送信され、当社サーバーには第2条のとおり元写真として保存されます（Google 側での取り扱いは同社のポリシーに従います）。",
     ],
   },
   {
@@ -110,7 +110,7 @@ export function PrivacyScreen() {
       en="Privacy Policy"
       intro={INTRO}
       sections={SECTIONS}
-      enacted="2026年7月17日 制定"
+      enacted="2026年7月17日 制定 / 2026年8月3日 改定（撮影画像の保存方針の変更）"
       related={{ href: "/terms", label: "利用規約" }}
     />
   );

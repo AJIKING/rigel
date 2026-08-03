@@ -1,14 +1,10 @@
 "use client";
 
 import { type ProblemPhotoMeta, type ProblemPhotoRef } from "@rigel/client";
+import { problemPhotoLabel, PHOTOS_OWNER_ONLY_NOTE } from "@rigel/ui";
 import { useEffect, useState } from "react";
 import { getProblemPhotosAction } from "../../app/actions";
 import s from "../board/board-editor.module.css";
-
-/** 写真ラベル（web/mobile 共通の文言）。 */
-function photoLabel(p: ProblemPhotoMeta): string {
-  return p.kind === "hand" ? "自分の手牌" : "河（卓全景）";
-}
 
 /**
  * 何切るの元写真ビュー（恒久保存・所有者のみ。photo-retention.md）。
@@ -44,11 +40,21 @@ export function ProblemPhotosModal({
     };
   }, [refKey, refType]);
 
+  // Escape で閉じる（GamePhotosModal と同じ操作感）。
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
   return (
     <div className={s.modalOv} onClick={onClose}>
       <div
-        className={s.modal}
+        className={`${s.modal} ${s.modalScroll}`}
         role="dialog"
+        aria-modal="true"
         aria-label="元写真"
         onClick={(e) => e.stopPropagation()}
       >
@@ -72,14 +78,14 @@ export function ProblemPhotosModal({
                   {/* BFF プロキシの動的画像（Cookie 認証・本人専用）。next/image の最適化に載せない。 */}
                   <img
                     src={`/api/problem-photos/${refType}/${refKey}/${p.jobId}/${p.kind}`}
-                    alt={photoLabel(p)}
+                    alt={problemPhotoLabel(p.kind)}
                   />
-                  <figcaption>{photoLabel(p)}</figcaption>
+                  <figcaption>{problemPhotoLabel(p.kind)}</figcaption>
                 </figure>
               ))}
             </div>
           )}
-          <p className={s.note}>元写真はあなたにだけ表示されます（公開しても公開されません）。</p>
+          <p className={s.note}>{PHOTOS_OWNER_ONLY_NOTE}</p>
         </div>
         <div className={s.modalFoot}>
           <button className={s.btnGhost} onClick={onClose}>

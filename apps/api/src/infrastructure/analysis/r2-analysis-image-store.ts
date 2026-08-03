@@ -1,6 +1,7 @@
-// infrastructure/analysis — 一時画像ストアの R2 実装（docs/plans/async-analysis.md）。
-// 画像は「解析ジョブの間だけ」の存在。MIME は R2 の httpMetadata.contentType で往復させる。
-// deletePrefix は list のページングに追従して確実に消す（保険はバケットのライフサイクル1日）。
+// infrastructure/analysis — 元写真ストアの R2 実装（バケット rigel・恒久保存。
+// [決定] 2026-08-03 photo-retention.md）。TTL は無く、削除はデータ削除時の
+// deletePrefix のみ（list のページングに追従して確実に消す）。
+// MIME は R2 の httpMetadata.contentType で往復させる。
 
 import type { AnalysisImageStore } from "../../domain/analysis/analysis-transport";
 import type { ImageRef } from "../../domain/kifu/analyzer";

@@ -10,7 +10,14 @@ import {
   type ProblemPhotoRef,
 } from "../../../application/problem-photos.usecase";
 import { asFile, isValidImageFile, toImageRef, MAX_IMAGE_COUNT } from "../limits";
-import { reasonStatus, requireAuth, withFavorites, type AppEnv } from "../shared";
+import {
+  photoBody,
+  problemJson,
+  reasonStatus,
+  requireAuth,
+  withFavorites,
+  type AppEnv,
+} from "../shared";
 
 /** body から status を安全に取り出す（不正値は undefined）。 */
 function parseStatus(v: unknown): "draft" | "published" | undefined {
@@ -27,18 +34,13 @@ async function serveProblemPhoto(
   if (!isProblemPhotoKind(kind)) return c.json({ error: "not found" }, 404);
   const photo = await c.get("container").problemPhotos.get(c.get("userId")!, ref, jobId, kind);
   if (!photo) return c.json({ error: "not found" }, 404);
-  return c.body(photo.data, 200, {
-    "content-type": photo.mimeType,
-    // 本人専用・不変オブジェクト（games の配信と同じ方針）。
-    "cache-control": "private, max-age=86400",
-  });
+  return photoBody(c, photo);
 }
 
 export function registerProblemRoutes(app: Hono<AppEnv>): void {
-  // 撮影画像 → 何切るドラフト（**保存しない**。画像も恒久保存しない）。
-  // 非同期ジョブ化（docs/plans/async-analysis.md Task 8・[決定] 2026-08-02）: 実写真の
-  // Gemini 読み取りは数分に達しうるため 202 + jobId を即返し、結果ドラフト（Kifu 形）は
-  // R2 の result.json に置いて GET /problems/analyze/jobs/:id が返す。
+  // 撮影画像 → 何切るの解析下書き（photo-retention.md・[決定] 2026-08-03）。
+  // 送信時に下書きを先行作成し、写真は R2（problems/{draftId}/…）へ恒久保存。
+  // 202 + jobId + draftId を即返し、解析結果（Kifu 形）は下書き（problem_drafts）に入る。
   // フォーム: hand(file 必須=自分の手牌), river(file 任意), cameraBottomSeat(任意・既定 east=出題視点)。
   app.post("/problems/analyze", requireAuth, async (c) => {
     const userId = c.get("userId")!;
@@ -124,7 +126,8 @@ export function registerProblemRoutes(app: Hono<AppEnv>): void {
   // カードにはお気に入り数（人気順の並べ替えに使う）と自分が付けたかを載せる。
   app.get("/problems", async (c) => {
     const posts = await c.get("container").listPublishedProblems.execute();
-    return c.json(await withFavorites(c, "problem", posts));
+    const withFav = await withFavorites(c, "problem", posts);
+    return c.json(withFav.map((p) => problemJson(p, c.get("userId"))));
   });
 
   // 自分の一覧（draft 含む）。
@@ -156,7 +159,7 @@ export function registerProblemRoutes(app: Hono<AppEnv>): void {
     const post = await c.get("container").getProblem.execute(c.req.param("id"), c.get("userId"));
     if (!post) return c.json({ error: "not found" }, 404);
     const [withFav] = await withFavorites(c, "problem", [post]);
-    return c.json(withFav);
+    return c.json(problemJson(withFav!, c.get("userId")));
   });
 
   // 作成。free は合算20問で 403（problem_limit）。

@@ -80,7 +80,7 @@ describe("MyKifuScreen（マイページの牌譜タブ）", () => {
     expect(screen.queryByText(/該当する牌譜がありません/)).toBeNull();
   });
 
-  it("解析中の0局半荘は「解析中…」バッジだけを出し、開こうとしても遷移しない（開く先の局が無い）", async () => {
+  it("解析中の0局半荘はタップで遷移せず、案内をインラインで出す（開く先の局が無い）", async () => {
     stubMe("free");
     h.getMyGamesAction.mockResolvedValue([
       card("g1", { kyokuCount: 0, analysisStatus: "processing" }),
@@ -96,12 +96,11 @@ describe("MyKifuScreen（マイページの牌譜タブ）", () => {
 
     fireEvent.click(screen.getByText("半荘g1"));
     expect(push).not.toHaveBeenCalled();
+    expect(screen.getByText(/AI解析中です/)).toBeTruthy();
   });
 
-  it("解析失敗の0局半荘（ジョブIDあり）は、開こうとしたら「もう一度解析」を確認→承諾で解析中バッジへ", async () => {
+  it("解析失敗の0局半荘には「もう一度解析」「削除」ボタンが付き、再解析で解析中バッジへ", async () => {
     stubMe("free");
-    const confirm = vi.fn(() => true); // 最初の確認（もう一度解析）で承諾
-    vi.stubGlobal("confirm", confirm);
     h.getMyGamesAction.mockResolvedValue([
       card("g1", { kyokuCount: 0, analysisStatus: "failed", analysisJobId: "j1" }),
     ]);
@@ -112,17 +111,14 @@ describe("MyKifuScreen（マイページの牌譜タブ）", () => {
     );
     expect(await screen.findByText("解析失敗")).toBeTruthy();
 
-    fireEvent.click(screen.getByText("半荘g1"));
-    expect(confirm).toHaveBeenCalledWith(expect.stringContaining("もう一度解析"));
+    fireEvent.click(screen.getByRole("button", { name: "もう一度解析" }));
     await waitFor(() => expect(h.retryAnalysisAction).toHaveBeenCalledWith("j1"));
     await waitFor(() => expect(screen.getByText("解析中…")).toBeTruthy());
     expect(h.deleteGameAction).not.toHaveBeenCalled();
-    expect(push).not.toHaveBeenCalled();
   });
 
-  it("「もう一度解析」を断ったら削除の確認→削除で一覧から消す", async () => {
+  it("「削除」ボタンは確認のうえで一覧から消す（キャンセルなら何もしない）", async () => {
     stubMe("free");
-    // 1回目（もう一度解析）は断り、2回目（削除）で承諾。
     const confirm = vi.fn().mockReturnValueOnce(false).mockReturnValueOnce(true);
     vi.stubGlobal("confirm", confirm);
     h.getMyGamesAction.mockResolvedValue([
@@ -133,42 +129,18 @@ describe("MyKifuScreen（マイページの牌譜タブ）", () => {
         <MyKifuScreen />
       </AuthProvider>,
     );
-    fireEvent.click(await screen.findByText("半荘g1"));
+    await screen.findByText("解析失敗");
 
-    expect(confirm).toHaveBeenNthCalledWith(2, expect.stringContaining("削除"));
+    fireEvent.click(screen.getByRole("button", { name: "削除" }));
+    expect(h.deleteGameAction).not.toHaveBeenCalled(); // キャンセル
+
+    fireEvent.click(screen.getByRole("button", { name: "削除" }));
     await waitFor(() => expect(h.deleteGameAction).toHaveBeenCalledWith("g1"));
     await waitFor(() => expect(screen.queryByText("半荘g1")).toBeNull());
-    expect(h.retryAnalysisAction).not.toHaveBeenCalled();
   });
 
-  it("両方の確認をキャンセルしたら何もしない", async () => {
+  it("再解析の期限切れ（retry_expired）はインラインで写真からの再送信を促す", async () => {
     stubMe("free");
-    vi.stubGlobal(
-      "confirm",
-      vi.fn(() => false),
-    );
-    h.getMyGamesAction.mockResolvedValue([
-      card("g1", { kyokuCount: 0, analysisStatus: "failed", analysisJobId: "j1" }),
-    ]);
-    render(
-      <AuthProvider>
-        <MyKifuScreen />
-      </AuthProvider>,
-    );
-    fireEvent.click(await screen.findByText("半荘g1"));
-    expect(h.deleteGameAction).not.toHaveBeenCalled();
-    expect(h.retryAnalysisAction).not.toHaveBeenCalled();
-    expect(screen.getByText("半荘g1")).toBeTruthy();
-  });
-
-  it("再解析の期限切れ（retry_expired）は写真からの再送信を促す（alert）", async () => {
-    stubMe("free");
-    vi.stubGlobal(
-      "confirm",
-      vi.fn(() => true),
-    );
-    const alert = vi.fn();
-    vi.stubGlobal("alert", alert);
     h.retryAnalysisAction.mockResolvedValue({ ok: false, status: 400, reason: "retry_expired" });
     h.getMyGamesAction.mockResolvedValue([
       card("g1", { kyokuCount: 0, analysisStatus: "failed", analysisJobId: "j1" }),
@@ -178,11 +150,11 @@ describe("MyKifuScreen（マイページの牌譜タブ）", () => {
         <MyKifuScreen />
       </AuthProvider>,
     );
-    fireEvent.click(await screen.findByText("半荘g1"));
+    await screen.findByText("解析失敗");
 
-    await waitFor(() =>
-      expect(alert).toHaveBeenCalledWith(expect.stringContaining("もう一度写真から送信")),
-    );
+    fireEvent.click(screen.getByRole("button", { name: "もう一度解析" }));
+
+    expect(await screen.findByText(/もう一度写真から送信/)).toBeTruthy();
     expect(screen.getByText("解析失敗")).toBeTruthy(); // 状態は変えない
   });
 

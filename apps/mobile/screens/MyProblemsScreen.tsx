@@ -1,7 +1,7 @@
-import { useNavigation } from "@react-navigation/native";
+import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { LIMIT_MESSAGES, PROBLEM_LIMIT, sortMyList, type MyListSortKey } from "@rigel/ui";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { FlatList, Pressable, StyleSheet, Text, View } from "react-native";
 import { CenterState } from "../components/CenterState";
 import { Chip } from "../components/Chip";
@@ -51,26 +51,34 @@ export function MyProblemsScreen() {
   // 解析下書き（photo-retention.md）: 写真AI再現の送信で先行作成され、閉じてもここに残る。
   const [drafts, setDrafts] = useState<ProblemDraftCard[]>([]);
 
-  useEffect(() => {
+  const reload = useCallback(() => {
     if (!token) return;
-    let active = true;
     getMyProblems(token)
       .catch(() => [] as ProblemPost[])
       .then((list) => {
-        if (active) {
-          setPosts(list);
-          setLoading(false);
-        }
+        setPosts(list);
+        setLoading(false);
       });
     listProblemDrafts(token)
-      .catch(() => [] as ProblemDraftCard[])
-      .then((list) => {
-        if (active) setDrafts(list);
-      });
-    return () => {
-      active = false;
-    };
+      .then(setDrafts)
+      // 取得失敗を「下書きなし」に化けさせない（解析中の下書きが消えたと誤解される）。
+      .catch(() => setErr("解析下書きを読み込めませんでした。"));
   }, [token]);
+
+  // 編集・作成から戻ったとき一覧を最新化する（牌譜セグメントと同じ流儀）。
+  useFocusEffect(
+    useCallback(() => {
+      reload();
+    }, [reload]),
+  );
+
+  // 解析中の下書きがある間は 5 秒間隔で再取得（完了・失敗を操作なしで反映）。
+  const hasProcessing = drafts.some((d) => d.status === "processing");
+  useEffect(() => {
+    if (!hasProcessing) return;
+    const timer = setInterval(reload, 5000);
+    return () => clearInterval(timer);
+  }, [hasProcessing, reload]);
 
   /** 解析下書きの破棄（写真ごと消える）。 */
   function onDiscardDraft(id: string) {
@@ -161,37 +169,9 @@ export function MyProblemsScreen() {
       {err ? <Text style={styles.err}>{err}</Text> : null}
       {favError ? <Text style={styles.err}>{favError}</Text> : null}
 
-      {/* 解析下書き（写真AI再現の受け皿）。通常の問題カードの上に出す。 */}
-      {drafts.map((d) => (
-        <View key={d.id} style={styles.card}>
-          <Pressable
-            onPress={() => {
-              if (d.status === "ready") nav.navigate("ProblemEdit", { draftId: d.id });
-            }}
-            accessibilityRole="button"
-            accessibilityLabel="解析下書き"
-          >
-            <Text style={styles.cardTitle}>解析下書き</Text>
-            <View style={styles.metaRow}>
-              <Text style={d.status === "processing" ? styles.badgePub : styles.badgeDraft}>
-                {d.status === "ready"
-                  ? "下書き"
-                  : d.status === "processing"
-                    ? "解析中…"
-                    : "解析失敗"}
-              </Text>
-              <Text style={styles.meta}>{relativeTime(d.createdAt)}</Text>
-            </View>
-          </Pressable>
-          <View style={styles.acts}>
-            <Chip label="破棄" a11ySelected={false} onPress={() => onDiscardDraft(d.id)} />
-          </View>
-        </View>
-      ))}
-
       {loading ? (
         <CenterState loading />
-      ) : shown.length === 0 ? (
+      ) : shown.length === 0 && drafts.length === 0 ? (
         <CenterState
           message={
             favOnly
@@ -204,6 +184,62 @@ export function MyProblemsScreen() {
           data={shown}
           keyExtractor={(p) => p.id}
           contentContainerStyle={styles.feed}
+          // 解析下書き（写真AI再現の受け皿）はリストのヘッダに出す
+          // （直置きだと下書きが溜まったとき本体一覧がスクロールできなくなる）。
+          // 「下書き」バッジは通常問題の draft と紛れるので「解析完了」と呼び分ける。
+          ListHeaderComponent={
+            drafts.length > 0 ? (
+              <View style={styles.feedHead}>
+                {drafts.map((d) => (
+                  <View key={d.id} style={styles.card}>
+                    <Pressable
+                      onPress={() => {
+                        if (d.status === "ready") {
+                          nav.navigate("ProblemEdit", { draftId: d.id });
+                        } else {
+                          setErr(
+                            d.status === "processing"
+                              ? "解析中です。完了するとタップして編集できます。"
+                              : "解析に失敗しました。不要であれば「破棄」してください。",
+                          );
+                        }
+                      }}
+                      accessibilityRole="button"
+                      accessibilityLabel="解析下書き"
+                      accessibilityState={{ disabled: d.status !== "ready" }}
+                    >
+                      <Text style={styles.cardTitle}>解析下書き</Text>
+                      <View style={styles.metaRow}>
+                        <Text
+                          style={
+                            d.status === "ready"
+                              ? styles.badgePub
+                              : d.status === "processing"
+                                ? styles.meta
+                                : styles.badgeFail
+                          }
+                        >
+                          {d.status === "ready"
+                            ? "解析完了"
+                            : d.status === "processing"
+                              ? "解析中…"
+                              : "解析失敗"}
+                        </Text>
+                        <Text style={styles.meta}>{relativeTime(d.createdAt)}</Text>
+                      </View>
+                    </Pressable>
+                    <View style={styles.acts}>
+                      <Chip
+                        label="破棄"
+                        a11ySelected={false}
+                        onPress={() => onDiscardDraft(d.id)}
+                      />
+                    </View>
+                  </View>
+                ))}
+              </View>
+            ) : null
+          }
           renderItem={({ item }) => (
             <View style={styles.card}>
               <Pressable
@@ -283,6 +319,10 @@ const styles = StyleSheet.create({
   kind: { color: colors.accent, fontSize: 11.5, fontWeight: "700" },
   badgeDraft: { color: colors.vermilion, fontSize: 11.5, fontWeight: "700" },
   badgePub: { color: colors.accent, fontSize: 11.5, fontWeight: "700" },
+  /* 解析失敗（下書きの注意色と混同しない danger 系）。 */
+  badgeFail: { color: colors.danger, fontSize: 11.5, fontWeight: "700" },
+  /* 解析下書きのヘッダ枠（FlatList の ListHeaderComponent。本体カードと同じ間隔）。 */
+  feedHead: { gap: 10, marginBottom: 10 },
   meta: { color: colors.w45, fontSize: 11.5 },
   acts: { flexDirection: "row", alignItems: "center", gap: 8 },
   star: { position: "absolute", top: 8, right: 8 },

@@ -50,6 +50,11 @@ export class InMemoryAnalysisJobRepository implements AnalysisJobRepository {
     return Promise.resolve();
   }
 
+  deleteById(id: string): Promise<void> {
+    this.jobs.delete(id);
+    return Promise.resolve();
+  }
+
   markDone(
     id: string,
     params: { gameId: string | null; logId: string | null; now: Date },

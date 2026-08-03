@@ -45,7 +45,7 @@ export function GameCard({
   title,
   badge,
   meta,
-  faved,
+  faved = false,
   favCount = 0,
   onToggleFav,
   onOpen,
@@ -55,10 +55,11 @@ export function GameCard({
   title: string;
   badge?: ReactNode;
   meta: ReactNode;
-  faved: boolean;
+  faved?: boolean;
   /** お気に入り数（サーバー集計）。0 なら数字を出さない。 */
   favCount?: number;
-  onToggleFav: () => void;
+  /** 省略時は★ボタン自体を出さない（お気に入り対象でないカード=解析下書き等）。 */
+  onToggleFav?: () => void;
   onOpen: () => void;
   actions?: ReactNode;
   /** サムネイルの差し替え（何切る=手牌サムネ等）。省略時は卓チップ。 */
@@ -79,7 +80,7 @@ export function GameCard({
         }
       }}
     >
-      <FavButton on={faved} count={favCount} onToggle={onToggleFav} />
+      {onToggleFav && <FavButton on={faved} count={favCount} onToggle={onToggleFav} />}
       {thumb ?? <Thumb />}
       <div className={s.ctop}>
         <h3 className={s.ctitle}>{title}</h3>

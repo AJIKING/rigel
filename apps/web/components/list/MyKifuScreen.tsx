@@ -51,6 +51,42 @@ export function MyKifuScreen() {
   const [sort, setSort] = useState<MyListSortKey>("new");
   const [favOnly, setFavOnly] = useState(false);
   const [q, setQ] = useState("");
+  // 解析失敗カードの操作結果・案内（インライン表示。alert は使わない）。
+  const [note, setNote] = useState<string | null>(null);
+
+  /** もう一度解析（Phase 2）。202 で即「解析中…」バッジへ。 */
+  async function onRetry(c: MyGameCard) {
+    if (!c.analysisJobId) return;
+    setNote(null);
+    try {
+      const r = await retryAnalysisAction(c.analysisJobId);
+      if (r.ok) {
+        setGames(
+          (prev) =>
+            prev?.map((g) =>
+              g.id === c.id ? { ...g, analysisStatus: "processing" as const } : g,
+            ) ?? prev,
+        );
+      } else {
+        setNote(analyzeErrorMessage(r.status, r.reason));
+      }
+    } catch {
+      setNote("通信に失敗しました。");
+    }
+  }
+
+  /** 0局の失敗半荘の削除（確認あり）。 */
+  async function onDeleteFailed(c: MyGameCard) {
+    if (!window.confirm("この半荘を削除しますか？（元に戻せません）")) return;
+    setNote(null);
+    try {
+      const r = await deleteGameAction(c.id);
+      if (r.ok) setGames((prev) => prev?.filter((g) => g.id !== c.id) ?? prev);
+      else setNote("削除に失敗しました。");
+    } catch {
+      setNote("削除に失敗しました。");
+    }
+  }
 
   useEffect(() => {
     if (authLoading) return;
@@ -116,6 +152,7 @@ export function MyKifuScreen() {
           </div>
 
           {favError && <p className={s.favError}>{favError}</p>}
+          {note && <p className={s.favError}>{note}</p>}
 
           <MyListToolbar
             q={q}
@@ -161,7 +198,7 @@ export function MyKifuScreen() {
                         <span className={`${gc.badge} ${gc.pub}`}>解析中…</span>
                       )}
                       {c.analysisStatus === "failed" && (
-                        <span className={`${gc.badge} ${gc.draft}`}>解析失敗</span>
+                        <span className={`${gc.badge} ${gc.fail}`}>解析失敗</span>
                       )}
                       {/* 0局の解析中/失敗カードに「非公開・編集済」を並べない（mobile と同じ）。 */}
                       {!(c.analysisStatus && c.kyokuCount === 0) && (
@@ -192,46 +229,36 @@ export function MyKifuScreen() {
                   favCount={c.favoriteCount}
                   onToggleFav={() => toggleFav("game", c)}
                   onOpen={() => {
-                    // 0局の解析中/失敗半荘は開く先（局）が無い。失敗は「もう一度解析」
-                    // （Phase 2。画像は R2 に1日残っている）→ 断ったら削除、の受け皿にする
-                    // （web には他に削除導線が無く「消せないカード」が溜まるため。監査 2026-08-02）。
+                    // 0局の解析中/失敗半荘は開く先（局）が無い。失敗時の操作は actions の
+                    // ボタン（もう一度解析/削除）で行う（連鎖 confirm は誤操作のもと）。
                     if (c.kyokuCount === 0 && c.analysisStatus) {
-                      if (c.analysisStatus !== "failed") return;
-                      if (
-                        c.analysisJobId &&
-                        window.confirm("この半荘は解析に失敗しました。もう一度解析しますか？")
-                      ) {
-                        void retryAnalysisAction(c.analysisJobId)
-                          .then((r) => {
-                            if (r.ok) {
-                              // すぐ「解析中…」バッジへ（次回取得からはサーバー導出が真実源）。
-                              setGames(
-                                (prev) =>
-                                  prev?.map((g) =>
-                                    g.id === c.id
-                                      ? { ...g, analysisStatus: "processing" as const }
-                                      : g,
-                                  ) ?? prev,
-                              );
-                            } else {
-                              window.alert(analyzeErrorMessage(r.status, r.reason));
-                            }
-                          })
-                          .catch(() => window.alert("通信に失敗しました。"));
-                        return;
-                      }
-                      if (window.confirm("この半荘を削除しますか？（元に戻せません）")) {
-                        void deleteGameAction(c.id)
-                          .then((r) => {
-                            if (r.ok)
-                              setGames((prev) => prev?.filter((g) => g.id !== c.id) ?? prev);
-                          })
-                          .catch(() => {});
-                      }
+                      setNote(
+                        c.analysisStatus === "processing"
+                          ? "AI解析中です。完了すると開けるようになります。"
+                          : "解析に失敗しました。「もう一度解析」か「削除」を選んでください。",
+                      );
                       return;
                     }
                     router.push(`/kifu/${c.id}`);
                   }}
+                  actions={
+                    c.kyokuCount === 0 && c.analysisStatus === "failed" ? (
+                      <>
+                        {c.analysisJobId && (
+                          <button type="button" onClick={() => void onRetry(c)}>
+                            もう一度解析
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          className={gc.danger}
+                          onClick={() => void onDeleteFailed(c)}
+                        >
+                          削除
+                        </button>
+                      </>
+                    ) : undefined
+                  }
                 />
               ))
             )}

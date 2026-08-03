@@ -7,7 +7,11 @@ import { MyPageScreen, type MyPageSegment } from "./MyPageScreen";
 const mockNavigate = jest.fn();
 jest.mock("@react-navigation/native", () => ({
   useNavigation: () => ({ navigate: mockNavigate }),
-  useFocusEffect: () => {},
+  // フォーカス時の再取得はマウント時の実行で代替（MyProblems の初回読み込みがこれに乗る）。
+  useFocusEffect: (cb: () => void | (() => void)) => {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports -- jest.mock ファクトリ内
+    require("react").useEffect(cb, [cb]);
+  },
 }));
 
 jest.mock("../lib/auth", () => ({

@@ -11,7 +11,10 @@ import {
   InMemoryProblemRepository,
   InMemoryUserRepository,
 } from "../test-support/in-memory";
-import { InMemoryAnalysisImageStore } from "../test-support/in-memory-analysis";
+import {
+  InMemoryAnalysisImageStore,
+  InMemoryProblemDraftRepository,
+} from "../test-support/in-memory-analysis";
 import { validKifu } from "../test-support/kifu";
 import { makeProblemData } from "../test-support/problem";
 import { DeleteAccount, GetPublicProfile, UpdateProfile } from "./profile.usecase";
@@ -123,6 +126,19 @@ describe("DeleteAccount", () => {
     return { problems, answers };
   }
 
+  /** 写真掃除の依存（必須化に伴うスタブ。R2 掃除の中身は専用テストで見る）。 */
+  function photosStub(
+    over: Partial<ConstructorParameters<typeof DeleteAccount>[3]> = {},
+  ): ConstructorParameters<typeof DeleteAccount>[3] {
+    return {
+      games: new InMemoryGameRepository(),
+      images: new InMemoryAnalysisImageStore(),
+      drafts: new InMemoryProblemDraftRepository(),
+      problems: new InMemoryProblemRepository(),
+      ...over,
+    };
+  }
+
   it("自分の牌譜・半荘・何切る（回答含む）・ユーザーを削除する", async () => {
     const users = new InMemoryUserRepository([mkUser("u1", "x"), mkUser("u2", "y")]);
     const games = new InMemoryGameRepository([game("g1", "u1"), game("g2", "u2")]);
@@ -155,6 +171,8 @@ describe("DeleteAccount", () => {
     const r = await new DeleteAccount(
       users,
       new InMemoryAccountStore(users, games, gameLogs, problems, answers),
+      null,
+      photosStub({ games, problems }),
     ).execute("u1");
 
     expect(r).toEqual({ ok: true });
@@ -181,7 +199,7 @@ describe("DeleteAccount", () => {
       users,
       new InMemoryAccountStore(users, games, new InMemoryGameLogRepository(), problems, answers),
       null,
-      { games, images },
+      photosStub({ games, images }),
     ).execute("u1");
 
     expect(r).toEqual({ ok: true });
@@ -219,6 +237,7 @@ describe("DeleteAccount", () => {
         answers,
       ),
       appleAuth,
+      photosStub(),
     ).execute("u1");
 
     expect(r).toEqual({ ok: true });
@@ -236,6 +255,8 @@ describe("DeleteAccount", () => {
     const r = await new DeleteAccount(
       users,
       new InMemoryAccountStore(users, games, gameLogs, problems, answers),
+      null,
+      photosStub({ games, problems }),
     ).execute("u1");
 
     expect(r).toEqual({ ok: false, reason: "paid_plan" });

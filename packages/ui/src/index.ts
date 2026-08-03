@@ -186,7 +186,7 @@ export function analyzeErrorMessage(status: number, reason?: string): string {
   if (reason === "game_analyzing") {
     return "この半荘は解析中です。完了してからもう一度お試しください。";
   }
-  // もう一度解析（Phase 2）の期限切れ: R2 の一時データ（TTL 1日）が消えている。
+  // もう一度解析の期限切れ: R2 の控えが無い（旧TTLバケット世代のジョブ・手動削除）。
   if (reason === "retry_expired") {
     return "再解析できる期限が切れています。もう一度写真から送信してください。";
   }
@@ -346,6 +346,27 @@ export async function pollProblemAnalysisOutcome(
 export function problemAnalysisTimeoutMessage(): string {
   return "解析に時間がかかっています。時間をおいてもう一度お試しください。";
 }
+
+// ------------------------------------------------------------
+// 元写真（恒久保存。photo-retention.md）。ラベル・注記は web/mobile 共通の単一実装。
+// ------------------------------------------------------------
+
+/** 半荘の元写真ラベル（河=卓全景・手牌はカメラ相対位置）。 */
+export function gamePhotoLabel(
+  kind: "river" | "hand_bottom" | "hand_right" | "hand_top" | "hand_left",
+): string {
+  if (kind === "river") return "卓全景（河）";
+  return `手牌：${cameraLabel(kind.replace("hand_", "") as CameraSeat)}`;
+}
+
+/** 何切るの元写真ラベル（hand=自分の手牌・river=卓全景）。 */
+export function problemPhotoLabel(kind: "hand" | "river"): string {
+  return kind === "hand" ? "自分の手牌" : "河（卓全景）";
+}
+
+/** 元写真の所有者限定の注記（半荘・何切る共通）。 */
+export const PHOTOS_OWNER_ONLY_NOTE =
+  "元写真はあなたにだけ表示されます。公開しても他の人には表示されません。";
 
 /** 課金 Checkout 開始に失敗したときの日本語メッセージ（web/mobile 共通）。
  *  501=未設定、409=加入中（変更・解約は決済ポータルで行う）。 */

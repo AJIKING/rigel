@@ -109,9 +109,9 @@ rigel/
 │   └── client/  @rigel/client     # api クライアント + DTO（createApiClient(baseUrl)。web/mobile 共有）
 └── apps/
     ├── api/     api               # Cloudflare Workers。Hono + Drizzle + D1 + Queues + R2。DDD レイヤード
-    │   ├── src/domain/            #   user / game / kifu(GameLog,Analyzer) / auth / analysis(原子化・ジョブ・搬送ポート) / favorite
+    │   ├── src/domain/            #   user / game / kifu(GameLog,Analyzer) / auth / analysis(原子化・ジョブ・搬送ポート) / problem(投稿・解析下書き) / favorite
     │   ├── src/application/       #   Analyze/Update/Get/List Kifu, Games, Authenticate, Start/Run AnalysisJob…
-    │   ├── src/infrastructure/    #   drizzle 各repo / gemini パイプライン / auth(jose) / analysis(D1 batch・R2 一時画像)
+    │   ├── src/infrastructure/    #   drizzle 各repo / gemini パイプライン / auth(jose) / analysis(D1 batch・R2 恒久写真=バケット rigel)
     │   ├── src/interfaces/http/   #   Hono アプリ（app.ts=横断MW、routes/=account/games/kifu/problems/quiz/favorites/billing）
     │   ├── src/interfaces/queue/  #   解析ジョブの consumer（Worker の第2エントリ。fetch と並ぶ queue ハンドラ）
     │   ├── src/eval/              #   AI精度の指標（accuracy.ts）
@@ -135,12 +135,12 @@ rigel/
 | UI共有手段 | **[未確定]** | Tamagui / RN Web / 自前SVG。牌は SVG 描画想定 |
 | バックエンド | **Cloudflare Workers (TS) + Hono** | HTTP は Hono。api は DDD レイヤード（[開発ガイド/05](docs/開発ガイド/05_APIアーキテクチャ.md)） |
 | DB / ORM | **Cloudflare D1 (SQLite) + Drizzle** | 永続化は `Kifu` JSON のみ（画像はルール7＝R2一時のみ）。スキーマ=`apps/api/src/infrastructure/db/schema.ts` |
-| 非同期解析 | **Cloudflare Queues + R2**（[決定] 2026-08-01） | /analyze は 202+jobId。R2=解析ジョブ間の一時画像（処理後削除＋TTL1日）、Queues=consumer 実行（最長15分）。[docs/plans/async-analysis.md](docs/plans/async-analysis.md) |
+| 非同期解析 | **Cloudflare Queues + R2**（[決定] 2026-08-01） | /analyze は 202+jobId。R2=元写真の恒久保存（バケット rigel・[決定] 2026-08-03 で一時保存から転換）、Queues=consumer 実行（最長15分）。[docs/plans/async-analysis.md](docs/plans/async-analysis.md) |
 | 認証 | **Google + Sign in with Apple** | App Store 審査要件 4.8 で Apple 併設必須（2026-07-17 決定・実装済み）。Android の Apple ログインは web フロー（api の `/auth/apple/callback` が form_post をアプリ scheme へ中継。2026-07-28 決定・実装済み）。退会時は Apple トークンを revoke |
 | 課金 | **Web=Stripe / アプリ=IAP（RevenueCat SDK）** | **真実源=RevenueCat**（Webhook だけが plan を書く）。`users.plan` は D1 射影。設計7章・[docs/plans/billing-revenuecat.md](docs/plans/billing-revenuecat.md) |
 | AI | **Gemini API + Cloudflare AI Gateway** | モデル名はハードコードしない。河・手牌とも Flash 系（手牌の Lite は eval 実測で力不足 → Flash に変更・2026-07-24） |
 | 計測 | **GA4 に統一**（web=gtag 実装済み / アプリ=Firebase Analytics はビルド検証後） | 1プロパティ3ストリーム。イベント名は @rigel/ui の ANALYTICS_EVENTS が真実源。**PII は送らない・広告用途に使わない**。[docs/plans/analytics.md](docs/plans/analytics.md) |
-| 画像保存 | **恒久保存はしない**（解析ジョブ間の R2 一時保存のみ） | 解析後 JSON のみ永続化。一時画像は処理後削除＋TTL（[決定] 2026-08-01） |
+| 画像保存 | **恒久保存する**（R2 バケット rigel・所有者のみ閲覧・データ削除で掃除） | ルール7参照（[決定] 2026-08-03 転換。[docs/plans/photo-retention.md](docs/plans/photo-retention.md)） |
 | モノレポ | turborepo / pnpm workspace | `packages/schema`,`packages/ui`,`apps/{mobile,web,api}` |
 
 `[未確定]` の主要項目（設計ドキュメント 9章 TODO一覧）：`toAbsoluteSeat` の回転方向 / Agentic Vision の要否 /

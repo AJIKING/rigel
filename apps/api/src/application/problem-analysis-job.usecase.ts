@@ -82,6 +82,8 @@ export class StartProblemAnalysisJob {
         handKey,
         ...(riverKey ? { riverKey } : {}),
       };
+      // 牌譜ジョブと違い message.json の控えは置かない＝「もう一度解析」対象外（意図的。
+      // 何切るは編集画面から写真を再送信すれば済み、失敗下書きは破棄が導線）。
       await queue.send(message);
       return { ok: true, jobId, draftId };
     } catch (e) {

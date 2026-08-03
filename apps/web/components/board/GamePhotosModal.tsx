@@ -1,16 +1,10 @@
 "use client";
 
 import { type GamePhotoMeta } from "@rigel/client";
-import { cameraLabel } from "@rigel/ui";
+import { gamePhotoLabel, PHOTOS_OWNER_ONLY_NOTE } from "@rigel/ui";
 import { useEffect, useState } from "react";
 import { getGamePhotosAction } from "../../app/actions";
 import s from "./board-editor.module.css";
-
-/** 写真ラベル（河=卓全景、手牌はカメラ相対位置）。 */
-function photoLabel(p: GamePhotoMeta): string {
-  if (p.kind === "river") return "卓全景（河）";
-  return `手牌：${cameraLabel(p.kind.replace("hand_", "") as "bottom" | "right" | "top" | "left")}`;
-}
 
 /**
  * 半荘の元写真ビュー（恒久保存・所有者のみ。photo-retention.md）。
@@ -35,11 +29,21 @@ export function GamePhotosModal({ gameId, onClose }: { gameId: string; onClose: 
     };
   }, [gameId]);
 
+  // Escape で閉じる（RulesDialog 等の既存モーダルと同じ操作感）。
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
   return (
     <div className={s.modalOv} onClick={onClose}>
       <div
-        className={s.modal}
+        className={`${s.modal} ${s.modalScroll}`}
         role="dialog"
+        aria-modal="true"
         aria-label="元写真"
         onClick={(e) => e.stopPropagation()}
       >
@@ -63,13 +67,16 @@ export function GamePhotosModal({ gameId, onClose }: { gameId: string; onClose: 
               {photos.map((p) => (
                 <figure key={`${p.jobId}/${p.kind}`} className={s.photoItem}>
                   {/* BFF プロキシの動的画像（Cookie 認証・本人専用）。next/image の最適化に載せない。 */}
-                  <img src={`/api/photos/${gameId}/${p.jobId}/${p.kind}`} alt={photoLabel(p)} />
-                  <figcaption>{photoLabel(p)}</figcaption>
+                  <img
+                    src={`/api/photos/${gameId}/${p.jobId}/${p.kind}`}
+                    alt={gamePhotoLabel(p.kind)}
+                  />
+                  <figcaption>{gamePhotoLabel(p.kind)}</figcaption>
                 </figure>
               ))}
             </div>
           )}
-          <p className={s.note}>元写真はあなたにだけ表示されます（公開半荘でも公開されません）。</p>
+          <p className={s.note}>{PHOTOS_OWNER_ONLY_NOTE}</p>
         </div>
         <div className={s.modalFoot}>
           <button className={s.btnGhost} onClick={onClose}>

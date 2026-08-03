@@ -42,6 +42,26 @@ export async function withFavorites<T extends { id: string }>(
   }));
 }
 
+/** 元写真バイトの配信レスポンス（半荘・何切る共通）。本人専用・不変オブジェクトなので
+ *  ブラウザキャッシュのみ許可（**共有キャッシュに乗せない**。photo-retention.md）。 */
+export function photoBody(c: Context<AppEnv>, photo: { data: ArrayBuffer; mimeType: string }) {
+  return c.body(photo.data, 200, {
+    "content-type": photo.mimeType,
+    "cache-control": "private, max-age=86400",
+  });
+}
+
+/** 問題の JSON 整形。photoDraftId（R2 プレフィックスの内部 ID）は所有者にだけ返す
+ *  （最小露出。写真配信自体は所有者ガード済みだが、内部識別子を公開ペイロードに出さない）。 */
+export function problemJson<T extends { userId: string; photoDraftId?: string | null }>(
+  post: T,
+  viewerId: string | null | undefined,
+): Omit<T, "photoDraftId"> & { photoDraftId?: string | null } {
+  if (post.userId === viewerId) return post;
+  const { photoDraftId: _omit, ...rest } = post;
+  return rest;
+}
+
 /** 認証必須ルートのガード。userId（認証ミドルウェアが載せる）が無ければ 401。 */
 export const requireAuth: MiddlewareHandler<AppEnv> = async (c, next) => {
   if (!c.get("userId")) return c.json({ error: "unauthorized" }, 401);

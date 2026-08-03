@@ -41,9 +41,9 @@ export interface AnalysisImageStore {
   deletePrefix(prefix: string): Promise<void>;
   /** prefix 配下のキー一覧（元写真の一覧表示用。件数は1半荘ぶんの想定）。 */
   listKeys(prefix: string): Promise<string[]>;
-  /** JSON 値の置き場（何切るジョブの結果ドラフト用。画像と同じバケット）。 */
+  /** JSON 値の置き場（再解析用の message.json 控え。画像と同じバケット・同じ寿命）。 */
   putJson(key: string, value: unknown): Promise<void>;
-  /** 無ければ null（TTL 削除済みなど）。 */
+  /** 無ければ null（旧TTLバケット世代・手動削除など）。 */
   getJson(key: string): Promise<unknown | null>;
 }
 

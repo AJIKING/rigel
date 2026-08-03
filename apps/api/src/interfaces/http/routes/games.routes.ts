@@ -6,7 +6,7 @@ import { KifuSchema, PlayersSchema, RulesSchema, SeatSchema } from "@rigel/schem
 import type { Context, Hono } from "hono";
 import { isPhotoKind } from "../../../application/game-photos.usecase";
 import { MAX_SEQ } from "../../../application/update-kifu.usecase";
-import { reasonStatus, requireAuth, withFavorites, type AppEnv } from "../shared";
+import { photoBody, reasonStatus, requireAuth, withFavorites, type AppEnv } from "../shared";
 
 /** 空の局を作る POST 共通処理。gameId 無し=新半荘、有り=既存半荘に追加。
  *  body: { cameraBottomSeat, meta?: { honba, kyotaku, dora, junme } }。meta は記録のみ。 */
@@ -66,11 +66,7 @@ export function registerGameRoutes(app: Hono<AppEnv>): void {
       viewerId: c.get("userId")!,
     });
     if (!photo) return c.json({ error: "not found" }, 404);
-    return c.body(photo.data, 200, {
-      "content-type": photo.mimeType,
-      // 本人専用・不変オブジェクト。ブラウザキャッシュは許可（共有キャッシュには乗せない）。
-      "cache-control": "private, max-age=86400",
-    });
+    return photoBody(c, photo);
   });
 
   // 公開牌譜フィード: 公開局を含む半荘を新着順に（全ユーザー・閲覧は自由）。

@@ -68,8 +68,8 @@ POST /analyze（要認証 / multipart: river, cameraBottomSeat, hand_*?, gameId?
   → Hono(app.ts) が File→ImageRef 変換して container.startAnalysisJob.start を呼ぶ
   → StartAnalysisJob.start（同期部分。ここまでで応答を返す）:
       1. AnalyzeAndSaveKifu.preflight（枠・半荘の所有/上限。NG は 402/404/409）
-      2. 画像を R2 一時ストアへ（jobs/{jobId}/…。恒久保存ではない＝ルール7）
-      3. analysis_jobs に processing のジョブ行を作成
+      2. analysis_jobs に processing のジョブ行 → 半荘行を作成（行が先＝孤児画像を作らない）
+      3. 画像を R2 へ恒久保存（games/{gameId}/{jobId}/…。[決定] 2026-08-03 ルール7転換）
       4. Queues へ {jobId, 画像キー…} を送信
   → 202 { jobId }（クライアントは GET /analyze/jobs/:id をポーリング）
 
@@ -77,9 +77,9 @@ queue consumer（interfaces/queue → RunAnalysisJob。実写真の Gemini は 1
       1. ジョブが processing でなければ何もしない（再送との競合で二重実行しない）
       2. R2 から画像を取得（無ければ failed: images_missing）
       3. AnalyzeAndSaveKifu.execute（Zod 検証・原子的保存・成功時のみ課金は従来どおり）
-      4. done/failed をジョブへ書き、一時画像を必ず削除
-         （終端書き込みの失敗は再送に乗せない＝二重課金防止。processing のまま残り
-          クライアントはタイムアウト表示）
+      4. done/failed をジョブへ書く。写真は消さない（元写真として半荘に残る。
+          掃除は半荘削除・退会時のみ。終端書き込みの失敗は再送に乗せない＝二重課金防止。
+          processing のまま残りクライアントはタイムアウト表示）
 ```
 
 ---
@@ -122,7 +122,7 @@ GeminiAnalyzer.analyze(input):
 | AI出力を使う前に Zod 検証 | `read-river` が `AiRiverResponseSchema.parse`、`assemble` が `KifuSchema.parse` / `interfaces/http/validate.ts` |
 | 推測で埋めない（null 白旗） | `@rigel/schema`（`ReadTile`/`Discard`）+ 河プロンプトの指示 |
 | 課金は成功時のみ加算 | `domain/user`（`recordSuccessfulAnalysis`）+ `AnalyzeAndSaveKifu` の手順 |
-| 画像を恒久保存しない | `GameLog`/`game_logs` に画像列を持たない（`kifu` JSON のみ）。[決定] 2026-08-01: 非同期解析のための **R2 一時保存のみ可**（ジョブ期間だけ。終端で `deletePrefix` 必須＝`RunAnalysisJob`・保険はバケットのライフサイクル1日。`domain/analysis/analysis-transport.ts`） |
+| 画像は恒久保存・所有者のみ・データ削除で掃除 | [決定] 2026-08-03（photo-retention.md）。D1 に画像列は持たず R2（バケット rigel）へ。配信は所有者ガード必須（`ListGamePhotos`/`ProblemPhotos`）。削除連鎖は `DeleteGame`/`DeleteProblem`/`DeleteProblemDraft`/`DeleteAccount` が R2 を D1 より先に掃除 |
 
 ---
 

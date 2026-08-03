@@ -5,6 +5,11 @@ import { MyProblemsScreen } from "./MyProblemsScreen";
 const mockNavigate = jest.fn();
 jest.mock("@react-navigation/native", () => ({
   useNavigation: () => ({ navigate: mockNavigate }),
+  // フォーカス時の再取得はマウント時の実行で代替する（初回読み込みがこれに乗るため no-op にしない）。
+  useFocusEffect: (cb: () => void | (() => void)) => {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports -- jest.mock ファクトリ内
+    require("react").useEffect(cb, [cb]);
+  },
 }));
 
 let mockAuth: { token: string | null; user: { plan: string } | null };

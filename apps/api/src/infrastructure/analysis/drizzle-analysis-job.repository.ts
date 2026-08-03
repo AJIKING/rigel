@@ -90,4 +90,8 @@ export class DrizzleAnalysisJobRepository implements AnalysisJobRepository {
   async deleteByGame(gameId: string): Promise<void> {
     await this.db.delete(analysisJobs).where(eq(analysisJobs.gameId, gameId));
   }
+
+  async deleteById(id: string): Promise<void> {
+    await this.db.delete(analysisJobs).where(eq(analysisJobs.id, id));
+  }
 }

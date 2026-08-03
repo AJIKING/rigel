@@ -206,7 +206,7 @@ function EditorBody({
         else setErr("この下書きは解析に失敗しています。写真からやり直してください。");
       })
       .catch(() => setErr("解析下書きを読み込めませんでした。"));
-  });
+  }, [draftId, token]);
 
   /** 写真を選んで onPicked に渡す（Capture と同じ流儀）。 */
   async function pickInto(onPicked: (file: PickedImage) => void) {
@@ -263,7 +263,8 @@ function EditorBody({
         return;
       }
       // 解析下書きが先行作成される（photo-retention.md）。保存時に写真を引き継ぐ。
-      setLinkedDraftId(result.draftId ?? null);
+      // 旧 API 応答（draftId なし）で既存のリンクを潰さない。
+      if (result.draftId) setLinkedDraftId(result.draftId);
       const outcome = await pollProblemAnalysisOutcome(
         () => getProblemAnalysisJob(token, result.jobId),
         Date.now(),
@@ -503,7 +504,7 @@ function EditorBody({
         {/* 元写真（恒久保存・所有者のみ）。解析下書き由来のときだけ出す。 */}
         {linkedDraftId || initial?.photoDraftId ? (
           <View style={styles.segRow}>
-            <Chip label="元写真を見る" a11ySelected={false} onPress={() => setPhotosOpen(true)} />
+            <Chip label="元写真" a11ySelected={false} onPress={() => setPhotosOpen(true)} />
           </View>
         ) : null}
 

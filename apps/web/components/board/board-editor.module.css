@@ -1248,7 +1248,17 @@
   grid-template-columns: 1fr 1fr;
   gap: 10px;
 }
-/* 元写真ビュー（photo-retention.md）。縦積み・原寸比率のサムネ＋ラベル。 */
+/* 元写真ビュー（photo-retention.md）。縦積み・原寸比率のサムネ＋ラベル。
+   写真は枚数が多くなる（半荘は局ごとに増える）ので、モーダル内でスクロールさせる。 */
+.modalScroll {
+  max-height: calc(100vh - 40px);
+  display: flex;
+  flex-direction: column;
+}
+.modalScroll .modalBody {
+  overflow-y: auto;
+  min-height: 0;
+}
 .photoList {
   display: flex;
   flex-direction: column;
@@ -1265,7 +1275,7 @@
 }
 .photoItem figcaption {
   font-size: 11px;
-  color: var(--ink-soft, #667);
+  color: var(--w70);
   margin-top: 4px;
 }
 /* 1枚モードのトグル行（手牌を含む）。チェックボックス＋タイトル/補足の2行。 */
@@ -1287,7 +1297,7 @@
 .oneTgl small {
   display: block;
   font-size: 11px;
-  color: var(--ink-soft, #667);
+  color: var(--w70);
   line-height: 1.5;
 }
 .modalFoot {

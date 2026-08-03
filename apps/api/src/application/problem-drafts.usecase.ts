@@ -87,6 +87,7 @@ export class DeleteProblemDraft {
   constructor(
     private readonly drafts: ProblemDraftRepository,
     private readonly images: AnalysisImageStore,
+    private readonly jobs: AnalysisJobRepository,
   ) {}
 
   async execute(params: { userId: string; draftId: string }): Promise<DeleteProblemDraftResult> {
@@ -94,6 +95,9 @@ export class DeleteProblemDraft {
     if (!d) return { ok: false, reason: "not_found" };
     // 写真（R2）は D1 の行より先に消す（参照喪失の防止。削除はデータ削除時＝これ）。
     await this.images.deletePrefix(problemDraftPrefix(d.id));
+    // 解析ジョブ行も掃除（processing はキャンセル扱い: consumer は行が無ければ何もしない。
+    // DeleteGame の deleteByGame と同じ規律。放置すると退会まで堆積する）。
+    await this.jobs.deleteById(d.jobId);
     await this.drafts.delete(d.id);
     return { ok: true };
   }

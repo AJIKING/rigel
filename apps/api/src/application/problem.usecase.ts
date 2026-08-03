@@ -3,6 +3,7 @@
 // 検証を通っていないデータを下流に流さない）。保存上限は free 20問（draft+published 合算）。
 
 import { ProblemSchema } from "@rigel/schema";
+import type { AnalysisJobRepository } from "../domain/analysis/analysis-job";
 import { problemDraftPrefix } from "../domain/analysis/analysis-transport";
 import type { FavoriteRepository } from "../domain/favorite/favorite.repository";
 import type { ProblemPost, ProblemStatus } from "../domain/problem/problem";
@@ -35,8 +36,10 @@ export class CreateProblem {
     private readonly deps: {
       problems: ProblemRepository;
       users: UserRepository;
-      /** 解析下書きからの正規保存（photo-retention.md）。未配線のテストは省略可。 */
-      drafts?: ProblemDraftRepository;
+      /** 解析下書きからの正規保存（photo-retention.md）。 */
+      drafts: ProblemDraftRepository;
+      /** 下書きを畳むとき解析ジョブ行も掃除する（堆積させない）。 */
+      jobs: AnalysisJobRepository;
       now: () => Date;
       newId: () => string;
     },
@@ -62,10 +65,9 @@ export class CreateProblem {
       return { ok: false, reason: "problem_limit" };
     }
     // 解析下書きは所有者のものだけ引き継げる（他人の draftId を指されても写真を紐づけない）。
-    const draft =
-      params.draftId && this.deps.drafts
-        ? await this.deps.drafts.findForUser(params.draftId, params.userId)
-        : null;
+    const draft = params.draftId
+      ? await this.deps.drafts.findForUser(params.draftId, params.userId)
+      : null;
     const id = this.deps.newId();
     await this.deps.problems.save({
       id,
@@ -77,7 +79,11 @@ export class CreateProblem {
       createdAt: this.deps.now(),
     });
     // 正規保存できたら下書きを畳む（写真プレフィックスは問題が引き継ぐので消さない）。
-    if (draft) await this.deps.drafts!.delete(draft.id);
+    // 解析ジョブ行も掃除（DeleteProblemDraft と同じ。堆積させない）。
+    if (draft) {
+      await this.deps.jobs.deleteById(draft.jobId);
+      await this.deps.drafts.delete(draft.id);
+    }
     return { ok: true, problemId: id };
   }
 }
@@ -120,8 +126,8 @@ export class DeleteProblem {
     private readonly problems: ProblemRepository,
     private readonly answers: ProblemAnswerRepository,
     private readonly favorites: FavoriteRepository,
-    /** 元写真の掃除（photo-retention.md）。未配線のテストは省略可。 */
-    private readonly images: { deletePrefix(prefix: string): Promise<void> } | null = null,
+    /** 元写真の掃除（photo-retention.md）。必須＝配線漏れをコンパイラで検出する。 */
+    private readonly images: { deletePrefix(prefix: string): Promise<void> },
   ) {}
 
   async execute(params: { userId: string; problemId: string }): Promise<DeleteProblemResult> {
@@ -132,7 +138,7 @@ export class DeleteProblem {
     await this.answers.deleteByProblem(post.id);
     await this.favorites.deleteByTarget("problem", post.id);
     // 解析下書き由来の写真（R2）。D1 の行より先に消す（参照喪失の防止）。
-    if (post.photoDraftId && this.images) {
+    if (post.photoDraftId) {
       await this.images.deletePrefix(problemDraftPrefix(post.photoDraftId));
     }
     await this.problems.deleteById(post.id);

@@ -112,8 +112,8 @@ export function registerKifuRoutes(app: Hono<AppEnv>): void {
     const handFromRiver = form?.get("handFromRiver") === "true";
 
     // 非同期ジョブ化（docs/plans/async-analysis.md）: 実写真の Gemini 読み取りは数分に
-    // 達しうるため、接続を握ったまま解析しない。画像を R2 に一時保存（[決定] 2026-08-01
-    // ハードルール変更・処理後に即削除）してキューへ投入し、202 + jobId を即返す。
+    // 達しうるため、接続を握ったまま解析しない。画像は R2（games/{gameId}/…）へ
+    // 恒久保存（[決定] 2026-08-03 photo-retention.md）してキューへ投入し、202 を即返す。
     // 結果はポーリング（GET /analyze/jobs/:id）で取る。
     const started = await c.get("container").startAnalysisJob.start({
       userId,
