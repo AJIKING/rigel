@@ -85,11 +85,18 @@ ProblemEdit のルールは既存 RulesSheet を開くだけ（rules は元々 p
 Capture はルートを View+ScrollView に変えて TilePickerSheet（ドラ）を重ねる。
 手入力の席は選択式になった（以前は東固定）。
 
-## フェーズ E: その他
+## フェーズ E: その他 — **完了 2026-08-03**
 
 - web 設定に**購入反映待ちの案内**（Stripe Checkout から戻ったら /me を短時間ポーリングし
   「プランを反映しています…」。mobile SettingsScreen と同じ 30 秒打ち切り）
 - 公開ビューアの情報パネル差（最終巡目行の mobile 追加）
+
+実装メモ（2026-08-03）: web auth-context に `refresh()` を追加（/api/me 再取得）。
+Checkout の successUrl を `?checkout=success` にし、SettingsShell が検知して案内＋3秒ポーリング
+（反映で「プランが反映されました」・30秒で打ち切り文言。クエリは history.replaceState で即消す）。
+mobile KifuPlayer の情報シート局情報に「最終巡目」行（frame.maxTurn）を追加。
+
+**全フェーズ完了（A〜E）。** mobile 変更はストア再ビルド（Codemagic）が必要。
 
 ## 備考
 

@@ -58,6 +58,14 @@ function log(seq: number, kifu: Kifu): GameLog {
 }
 
 describe("KifuPlayer", () => {
+  it("情報シートの局情報に最終巡目を出す（web の情報パネルと同じ行。Phase E）", () => {
+    render(<KifuPlayer logs={[log(1, kifuTwoDiscards())]} />);
+
+    fireEvent.press(screen.getByText("情報"));
+    expect(screen.getByText("最終巡目")).toBeTruthy();
+    expect(screen.getByText("2巡")).toBeTruthy();
+  });
+
   it("fav を渡すと★ボタンが出て、押すと onToggle が呼ばれる（web ビューアの★と対。Phase D）", () => {
     const onToggle = jest.fn();
     render(

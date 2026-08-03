@@ -70,7 +70,8 @@ describe("SettingsShell: プラン購入（free → 有料）", () => {
       await waitFor(() =>
         expect(h.createCheckoutAction).toHaveBeenCalledWith({
           plan,
-          successUrl: `${window.location.origin}/settings`,
+          // 戻りURLの ?checkout=success が「購入反映待ち」の案内とポーリングを起動する。
+          successUrl: `${window.location.origin}/settings?checkout=success`,
           cancelUrl: `${window.location.origin}/settings`,
         }),
       );
@@ -102,6 +103,64 @@ describe("SettingsShell: プラン購入（free → 有料）", () => {
       expect(screen.queryByRole("button", { name: "このプランにする" })).toBeNull();
     },
   );
+});
+
+describe("SettingsShell: 購入反映待ち（?checkout=success で戻ったとき。Phase E）", () => {
+  afterEach(() => {
+    // URL をテスト間で持ち越さない。
+    window.history.replaceState(null, "", "/");
+  });
+
+  it("反映待ちの案内を出し、/me の再取得で有料プランになったら「反映されました」に変わる", async () => {
+    window.history.replaceState(null, "", "/settings?checkout=success");
+    // 初回 /me は free（webhook 未反映）→ 3秒後のポーリングで next になる想定。
+    let plan = "free";
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => ({
+        ok: true,
+        json: async () => ({ user: { id: "u1", plan } }),
+      })),
+    );
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      render(
+        <AuthProvider>
+          <SettingsShell />
+        </AuthProvider>,
+      );
+      await screen.findByRole("heading", { name: "設定", level: 1 });
+      expect(screen.getByText(/プランを反映しています/)).toBeTruthy();
+      // クエリはその場で消す（リロードでお礼を再表示しない）。
+      expect(window.location.search).toBe("");
+
+      plan = "next";
+      await vi.advanceTimersByTimeAsync(3100);
+      await waitFor(() => expect(screen.getByText("プランが反映されました")).toBeTruthy());
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("30秒たっても反映されなければ打ち切りの案内に変える", async () => {
+    window.history.replaceState(null, "", "/settings?checkout=success");
+    stubMe("free");
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      render(
+        <AuthProvider>
+          <SettingsShell />
+        </AuthProvider>,
+      );
+      await screen.findByRole("heading", { name: "設定", level: 1 });
+      expect(screen.getByText(/プランを反映しています/)).toBeTruthy();
+
+      await vi.advanceTimersByTimeAsync(30100);
+      await waitFor(() => expect(screen.getByText(/反映に時間がかかっています/)).toBeTruthy());
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 });
 
 describe("SettingsShell: 料金プランカードの提供内容", () => {

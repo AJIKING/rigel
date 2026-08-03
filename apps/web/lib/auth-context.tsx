@@ -15,6 +15,8 @@ interface AuthState {
   signInWithApple: (idToken: string, authorizationCode?: string) => Promise<void>;
   /** セッション Cookie を破棄する。 */
   signOut: () => Promise<void>;
+  /** /api/me を再取得して user を最新化する（購入反映待ちなど。mobile の refresh と対）。 */
+  refresh: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthState | null>(null);
@@ -76,8 +78,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
   }, []);
 
+  const refresh = useCallback(async () => {
+    const res = await fetch("/api/me", { cache: "no-store" }).catch(() => null);
+    if (!res?.ok) return;
+    const d = (await res.json()) as { user: AuthUser | null };
+    setUser(d.user);
+  }, []);
+
   return (
-    <AuthContext.Provider value={{ user, loading, signInWithGoogle, signInWithApple, signOut }}>
+    <AuthContext.Provider
+      value={{ user, loading, signInWithGoogle, signInWithApple, signOut, refresh }}
+    >
       {children}
     </AuthContext.Provider>
   );

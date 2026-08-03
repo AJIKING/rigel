@@ -113,7 +113,7 @@ export function KifuPlayer({
   if (!log || !kifu || !frame || !step)
     return <CenterState message="この半荘には局がありません。" />;
 
-  const { order, junmeStops, curJunme, startPoints, viewKifu, bottomSeat, dealer } = frame;
+  const { order, junmeStops, curJunme, maxTurn, startPoints, viewKifu, bottomSeat, dealer } = frame;
   // 卓の表示物（局面・右端スロット・drop 対象）はフェーズ写像（@rigel/ui）から得る。
   const { kifu: boardKifu, drawnTile, animateDiscard } = step;
 
@@ -320,6 +320,8 @@ export function KifuPlayer({
           <ScrollView contentContainerStyle={styles.sheetBody}>
             <Section title="局情報" defaultOpen>
               <KV k="親" v={`${windOf(dealer, dealer)}家`} />
+              {/* 最終巡目（この局が何巡で終わったか。web の情報パネルと同じ行。Phase E）。 */}
+              <KV k="最終巡目" v={`${maxTurn}巡`} />
               <View style={styles.kv}>
                 <Text style={styles.kvK}>ドラ表示牌</Text>
                 <View style={styles.kvTiles}>

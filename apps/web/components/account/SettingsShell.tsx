@@ -33,7 +33,7 @@ const PLAN_CARDS: { key: Plan; reco?: boolean; feats: readonly string[] }[] = [
 ];
 
 export function SettingsShell() {
-  const { user, loading: authLoading, signOut } = useAuth();
+  const { user, loading: authLoading, signOut, refresh } = useAuth();
   const router = useRouter();
 
   const [handle, setHandle] = useState("");
@@ -51,6 +51,37 @@ export function SettingsShell() {
     setHandle(user.handle ?? "");
     setDisplayName(user.displayName ?? "");
   }, [user]);
+
+  // 購入反映待ち（Phase E）: Checkout の successUrl（?checkout=success）で戻ったら、
+  // plan が RevenueCat/Stripe Webhook → users.plan 経由で数秒遅れて変わるまで /me を追いかける。
+  // mobile SettingsScreen と同じ 3 秒間隔・30 秒打ち切り。
+  const [checkoutPending, setCheckoutPending] = useState(false);
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("checkout") !== "success") return;
+    setCheckoutPending(true);
+    setBillingNote("購入ありがとうございます。プランを反映しています…（数秒かかることがあります）");
+    // リロード・再訪でお礼を再表示しない（クエリはその場で消す）。
+    window.history.replaceState(null, "", "/settings");
+  }, []);
+  const paidNow = !!user && user.plan !== "free";
+  useEffect(() => {
+    if (!checkoutPending) return;
+    if (paidNow) {
+      setCheckoutPending(false);
+      setBillingNote("プランが反映されました");
+      return;
+    }
+    const poll = setInterval(() => void refresh(), 3000);
+    const giveUp = setTimeout(() => {
+      setCheckoutPending(false);
+      setBillingNote("反映に時間がかかっています。しばらくしてからこの画面を開き直してください");
+    }, 30000);
+    return () => {
+      clearInterval(poll);
+      clearTimeout(giveUp);
+    };
+  }, [checkoutPending, paidNow, refresh]);
 
   if (authLoading) return <Shell>{<p style={{ color: "#888", padding: 24 }}>…</p>}</Shell>;
   if (!user)
@@ -111,7 +142,8 @@ export function SettingsShell() {
     const origin = window.location.origin;
     const res = await createCheckoutAction({
       plan: target as PaidPlan,
-      successUrl: `${origin}/settings`,
+      // ?checkout=success で「購入反映待ち」の案内とポーリングを起動する（上の効果）。
+      successUrl: `${origin}/settings?checkout=success`,
       cancelUrl: `${origin}/settings`,
     });
     if (res.ok) redirectTo(res.url);
