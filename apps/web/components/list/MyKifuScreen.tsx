@@ -54,7 +54,7 @@ export function MyKifuScreen() {
   // 解析失敗カードの操作結果・案内（インライン表示。alert は使わない）。
   const [note, setNote] = useState<string | null>(null);
 
-  /** もう一度解析（Phase 2）。202 で即「解析中…」バッジへ。 */
+  /** もう一度解析（Phase 2）。202 で即「解析中」バッジへ。 */
   async function onRetry(c: MyGameCard) {
     if (!c.analysisJobId) return;
     setNote(null);
@@ -195,7 +195,7 @@ export function MyKifuScreen() {
                     <>
                       {/* 解析ジョブの状態（plan 8-3。サーバー導出。mobile と同一表示）。 */}
                       {c.analysisStatus === "processing" && (
-                        <span className={`${gc.badge} ${gc.pub}`}>解析中…</span>
+                        <span className={`${gc.badge} ${gc.pub}`}>解析中</span>
                       )}
                       {c.analysisStatus === "failed" && (
                         <span className={`${gc.badge} ${gc.fail}`}>解析失敗</span>

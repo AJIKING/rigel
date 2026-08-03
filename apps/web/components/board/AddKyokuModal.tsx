@@ -288,7 +288,7 @@ export function AddKyokuModal({
           {effMode === "ai" ? (
             <button className={s.btnPrimary} disabled={busy} onClick={() => void onAnalyze()}>
               {busy && <span className={s.spinner} />}
-              {busy ? "解析中…" : "AI再現"}
+              {busy ? "解析中" : "AI再現"}
             </button>
           ) : (
             <button className={s.btnPrimary} disabled={busy} onClick={() => void onManualCreate()}>

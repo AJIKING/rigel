@@ -491,7 +491,7 @@ function EditorBody({
                   onPress={() => void onAnalyzePhotos()}
                   accessibilityRole="button"
                 >
-                  <Text style={styles.photoGoText}>{analyzing ? "解析中…" : "AI再現"}</Text>
+                  <Text style={styles.photoGoText}>{analyzing ? "解析中" : "AI再現"}</Text>
                 </Pressable>
                 <Text style={styles.hint}>読み違いは下の編集で直せます。</Text>
               </>

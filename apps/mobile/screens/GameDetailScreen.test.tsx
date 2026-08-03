@@ -109,6 +109,19 @@ describe("GameDetailScreen（半荘詳細の局一覧）", () => {
     expect(screen.getByText(/解析に失敗しました/)).toBeTruthy();
   });
 
+  it("0局（解析中）のルール設定・選手情報は無言で無反応にせず案内を出す", () => {
+    const detail = makeDetail([]);
+    detail.analysisStatus = "processing";
+    mockUseGame.mockReturnValue({ loading: false, detail, refetch: jest.fn() });
+    render(<GameDetailScreen />);
+
+    fireEvent.press(screen.getByText("ルール設定"));
+    expect(screen.getByText(/局が作成されるとルールを設定できます/)).toBeTruthy();
+
+    fireEvent.press(screen.getByText("選手情報"));
+    expect(screen.getByText(/局が作成されると選手情報を設定できます/)).toBeTruthy();
+  });
+
   it("「元写真」チップでシートが開き、所有者限定の注記と空状態を出す（photo-retention.md）", async () => {
     mockUseGame.mockReturnValue({ loading: false, detail: makeDetail([]), refetch: jest.fn() });
     render(<GameDetailScreen />);

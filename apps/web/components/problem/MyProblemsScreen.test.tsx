@@ -57,7 +57,7 @@ describe("MyProblemsScreen の解析下書き", () => {
     ]);
     renderScreen();
 
-    expect(await screen.findByText("解析中…")).toBeTruthy();
+    expect(await screen.findByText("解析中")).toBeTruthy();
     fireEvent.click(screen.getByText("解析下書き"));
     expect(push).not.toHaveBeenCalled();
     expect(screen.getByText(/解析中です/)).toBeTruthy();

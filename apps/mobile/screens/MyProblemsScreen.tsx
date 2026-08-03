@@ -222,7 +222,7 @@ export function MyProblemsScreen() {
                           {d.status === "ready"
                             ? "解析完了"
                             : d.status === "processing"
-                              ? "解析中…"
+                              ? "解析中"
                               : "解析失敗"}
                         </Text>
                         <Text style={styles.meta}>{relativeTime(d.createdAt)}</Text>

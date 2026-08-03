@@ -68,11 +68,11 @@ describe("MyListScreen（マイ牌譜一覧）", () => {
     mockJob = { settledCount: 0 };
   });
 
-  it("解析中の半荘はカードに「解析中…」バッジが付く（サーバーの analysisStatus が真実源）", () => {
+  it("解析中の半荘はカードに「解析中」バッジが付く（サーバーの analysisStatus が真実源）", () => {
     setGames([makeGame({ analysisStatus: "processing", kyokuCount: 0 })]);
     render(<MyListScreen />);
 
-    expect(screen.getByText("解析中…")).toBeTruthy();
+    expect(screen.getByText("解析中")).toBeTruthy();
   });
 
   it("解析に失敗した半荘はカードに「解析失敗」バッジが付く（0局のまま残る。plan 8-3）", () => {

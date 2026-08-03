@@ -78,7 +78,39 @@ const GEO = {
   seatH: 0.44, // 席ボックスの高さ
   seatOffset: 0.31, // 盤面中心から各席中心までの距離
   tileAspect: 1.4, // 牌の高さ/幅
+  /** 河の風車オフセット（席ローカル +X への平行移動。実卓の河と同じずらし配置）。
+   *  河は席軸に中央揃えのため、隣家の河と1段目両端の角が交差する（必要シフト量は
+   *  rowW/2 − 内周距離 ≈ 0.059B）。全席を同方向（ローカル +X）へずらすと回転対称に
+   *  より各コーナーで軸のどちらかが必ず離れ、交差が消える（検証は board-geometry.test）。 */
+  riverShift: 0.065,
 } as const;
+
+/** 盤面座標系での各席の河の外接矩形（重なり検証用の純関数。描画と同じ式を使う）。
+ *  席は中心 seatOffset・回転 ROT で配置され、河は席コンテンツ列の中央上端に載る。 */
+export function riverRects(size: number): Record<CameraSeat, Rect> {
+  const B = size;
+  const rtW = B * GEO.riverTileW;
+  const rtHt = rtW * GEO.tileAspect;
+  const GAP = 1.5;
+  const depth = rtHt * RIVER_ROWS + GAP * (RIVER_ROWS - 1);
+  const rowW = rtW * RIVER_COLS + GAP * (RIVER_COLS - 1) + (rtHt - rtW);
+  const shift = B * GEO.riverShift;
+  // 席コンテンツ（河+プレート+手牌）はおおむね席ボックス内周側から始まる。
+  // 保守的に「河の内周エッジ = 中心から seatOffset - seatH/2 + margin」で近似する
+  //（実際の内周エッジは column 中央揃えでこれより外側＝この矩形は実物より厳しい）。
+  const inner = B * (GEO.seatOffset - GEO.seatH / 2);
+  const c = B / 2;
+  return {
+    bottom: { x: c - rowW / 2 + shift, y: c + inner, w: rowW, h: depth },
+    top: { x: c - rowW / 2 - shift, y: c - inner - depth, w: rowW, h: depth },
+    // rotate(90deg)=時計回り: ローカル +X → 盤面 +Y（下向き）。
+    left: { x: c - inner - depth, y: c - rowW / 2 + shift, w: depth, h: rowW },
+    // rotate(-90deg): ローカル +X → 盤面 -Y（上向き）。
+    right: { x: c + inner, y: c - rowW / 2 - shift, w: depth, h: rowW },
+  };
+}
+
+export type Rect = { x: number; y: number; w: number; h: number };
 
 /** 回転卓。カメラ相対の4席を各辺に配置し内向きに回転する。
  *  既定は読み取り専用（ビューア）。onSeatPress を渡すと席がタップ可能になり、
@@ -218,7 +250,14 @@ export function BoardTable({
               onSeatPress ? (seatPressLabel?.(wind) ?? `${wind}家を選択`) : undefined
             }
           >
-            <View style={[styles.river, riverBox]}>
+            <View
+              style={[
+                styles.river,
+                riverBox,
+                // 風車オフセット（GEO.riverShift 参照）。回転した席ローカルの +X 方向。
+                { transform: [{ translateX: B * GEO.riverShift }] },
+              ]}
+            >
               {chunk(river, RIVER_COLS).map((row, ri) => (
                 <View key={ri} style={styles.rrow}>
                   {row.map((d, ci) => {

@@ -139,7 +139,7 @@ export function MyListScreen() {
               badges={[
                 // 解析中/解析失敗はカード自体の状態として先頭に出す（plan 8-3。サーバー導出）。
                 ...(item.analysisStatus === "processing"
-                  ? [{ label: "解析中…", tone: "accent" } as const]
+                  ? [{ label: "解析中", tone: "accent" } as const]
                   : item.analysisStatus === "failed"
                     ? [{ label: "解析失敗", tone: "warn" } as const]
                     : []),

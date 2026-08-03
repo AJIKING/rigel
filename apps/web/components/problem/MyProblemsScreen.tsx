@@ -194,7 +194,7 @@ export function MyProblemsScreen({
                     d.status === "ready" ? (
                       <span className={`${gc.badge} ${gc.pub}`}>解析完了</span>
                     ) : d.status === "processing" ? (
-                      <span className={`${gc.badge} ${gc.priv}`}>解析中…</span>
+                      <span className={`${gc.badge} ${gc.priv}`}>解析中</span>
                     ) : (
                       <span className={`${gc.badge} ${gc.fail}`}>解析失敗</span>
                     )

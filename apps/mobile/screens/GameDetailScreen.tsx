@@ -340,8 +340,25 @@ export function GameDetailScreen() {
           >
             <Text style={styles.addBtnText}>＋ 局を追加</Text>
           </Pressable>
-          <Chip label="ルール設定" a11ySelected={false} onPress={() => setRulesOpen(true)} />
-          <Chip label="選手情報" a11ySelected={false} onPress={() => setPlayersOpen(true)} />
+          {/* ルール・選手情報は局（kifu）に載る＝0局のうちは設定できない。無言で無反応にしない。 */}
+          <Chip
+            label="ルール設定"
+            a11ySelected={false}
+            onPress={() =>
+              detail.logs[0]
+                ? setRulesOpen(true)
+                : setNote("局が作成されるとルールを設定できます（解析の完了をお待ちください）。")
+            }
+          />
+          <Chip
+            label="選手情報"
+            a11ySelected={false}
+            onPress={() =>
+              detail.logs[0]
+                ? setPlayersOpen(true)
+                : setNote("局が作成されると選手情報を設定できます（解析の完了をお待ちください）。")
+            }
+          />
           {/* 元写真（恒久保存・所有者のみ。photo-retention.md）。 */}
           <Chip label="元写真" a11ySelected={false} onPress={() => setPhotosOpen(true)} />
           <View style={styles.delWrap}>
@@ -352,7 +369,7 @@ export function GameDetailScreen() {
         {/* 解析ジョブの状態（plan 8-3。サーバー導出。0局のうちはここが半荘の"中身"）。 */}
         {detail.analysisStatus === "processing" ? (
           <Text style={styles.analyzing} accessibilityLiveRegion="polite">
-            AI解析中です。完了すると局が追加されます（アプリを閉じてもOK）。
+            AI解析中です。完了すると局が追加されます。
           </Text>
         ) : detail.analysisStatus === "failed" ? (
           <View style={styles.failedRow}>

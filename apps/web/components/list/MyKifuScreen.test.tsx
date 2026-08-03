@@ -90,7 +90,7 @@ describe("MyKifuScreen（マイページの牌譜タブ）", () => {
         <MyKifuScreen />
       </AuthProvider>,
     );
-    expect(await screen.findByText("解析中…")).toBeTruthy();
+    expect(await screen.findByText("解析中")).toBeTruthy();
     // 0局の解析中カードに「非公開・編集済」を並べない（mobile と同じ抑制）。
     expect(screen.queryByText("編集済")).toBeNull();
 
@@ -113,7 +113,7 @@ describe("MyKifuScreen（マイページの牌譜タブ）", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "もう一度解析" }));
     await waitFor(() => expect(h.retryAnalysisAction).toHaveBeenCalledWith("j1"));
-    await waitFor(() => expect(screen.getByText("解析中…")).toBeTruthy());
+    await waitFor(() => expect(screen.getByText("解析中")).toBeTruthy());
     expect(h.deleteGameAction).not.toHaveBeenCalled();
   });
 
@@ -168,7 +168,7 @@ describe("MyKifuScreen（マイページの牌譜タブ）", () => {
         <MyKifuScreen />
       </AuthProvider>,
     );
-    expect(await screen.findByText("解析中…")).toBeTruthy();
+    expect(await screen.findByText("解析中")).toBeTruthy();
     // 局があるので編集状態バッジは通常どおり並ぶ。
     expect(screen.getByText("編集済")).toBeTruthy();
 
