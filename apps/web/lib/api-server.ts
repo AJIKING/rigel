@@ -45,6 +45,7 @@ export const {
   getProblemDraft,
   deleteProblemDraft,
   listProblemDrafts,
+  listProblemPhotos,
   retryAnalysis,
   listGamePhotos,
   updateProfile,

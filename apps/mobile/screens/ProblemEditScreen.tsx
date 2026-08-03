@@ -51,6 +51,7 @@ import { Chip } from "../components/Chip";
 import { MiniTile } from "../components/MiniTile";
 import { Segment } from "../components/Segment";
 import { Stepper } from "../components/Stepper";
+import { ProblemPhotosSheet } from "../components/ProblemPhotosSheet";
 import { TilePickerSheet } from "../components/editor/TilePickerSheet";
 import {
   analyzeProblem,
@@ -182,6 +183,7 @@ function EditorBody({
   const [aiReview, setAiReview] = useState("");
   // 保存時に写真を引き継ぐ解析下書き（route param か、画面内の写真AI再現で紐づく）。
   const [linkedDraftId, setLinkedDraftId] = useState<string | null>(draftId ?? null);
+  const [photosOpen, setPhotosOpen] = useState(false);
   // 画面破棄でポーリングを中断する（アンマウント後の setState と無駄なリクエストを防ぐ）。
   const aliveRef = useRef(true);
   useEffect(() => {
@@ -498,6 +500,12 @@ function EditorBody({
         {/* AIの読み取りメモ（グレア・見切れ等）と目検確認の促し。 */}
         {readingNotes ? <Text style={styles.hint}>読み取りメモ: {readingNotes}</Text> : null}
         {aiReview ? <Text style={styles.hint}>{aiReview}</Text> : null}
+        {/* 元写真（恒久保存・所有者のみ）。解析下書き由来のときだけ出す。 */}
+        {linkedDraftId || initial?.photoDraftId ? (
+          <View style={styles.segRow}>
+            <Chip label="元写真を見る" a11ySelected={false} onPress={() => setPhotosOpen(true)} />
+          </View>
+        ) : null}
 
         {/* 出題形式 */}
         <View style={styles.segRow}>
@@ -770,6 +778,17 @@ function EditorBody({
                 }
               : undefined
           }
+        />
+      ) : null}
+
+      {photosOpen && token ? (
+        <ProblemPhotosSheet
+          refValue={
+            linkedDraftId ? { draftId: linkedDraftId } : { problemId: initial!.id }
+            // チップは linkedDraftId か initial.photoDraftId があるときだけ出る
+          }
+          token={token}
+          onClose={() => setPhotosOpen(false)}
         />
       ) : null}
     </View>

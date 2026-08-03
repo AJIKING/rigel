@@ -36,6 +36,8 @@ export interface ProblemPost extends FavoriteFields {
   title: string;
   problem: Problem;
   status: ProblemStatus;
+  /** 解析下書き由来なら写真プレフィックス ID（所有者の元写真表示に使う）。手入力は null。 */
+  photoDraftId?: string | null;
   createdAt: string;
 }
 
@@ -223,6 +225,24 @@ export function gamePhotoPath(gameId: string, photo: GamePhotoMeta): string {
   return `/games/${gameId}/photos/${photo.jobId}/${photo.kind}`;
 }
 
+/** 何切るの元写真のメタ（hand=自分の手牌 / river=卓全景）。 */
+export interface ProblemPhotoMeta {
+  jobId: string;
+  kind: "hand" | "river";
+}
+
+/** 何切るの元写真の参照元（正規保存済みの問題 or 編集前の解析下書き）。 */
+export type ProblemPhotoRef = { problemId: string } | { draftId: string };
+
+/** 何切る元写真の API パス（問題/下書き共通）。 */
+export function problemPhotoPath(ref: ProblemPhotoRef, photo?: ProblemPhotoMeta): string {
+  const base =
+    "problemId" in ref
+      ? `/problems/${ref.problemId}/photos`
+      : `/problems/drafts/${ref.draftId}/photos`;
+  return photo ? `${base}/${photo.jobId}/${photo.kind}` : base;
+}
+
 /** 解析ジョブの状態（GET /analyze/jobs/:id）。done で gameId/logId が入る。 */
 export interface AnalysisJob {
   id: string;
@@ -315,6 +335,8 @@ export interface ApiClient {
   getProblemDraft(token: string, draftId: string): Promise<ProblemDraftDetail | null>;
   /** 解析下書きの破棄（写真ごと消える）。 */
   deleteProblemDraft(token: string, draftId: string): Promise<{ ok: boolean; status: number }>;
+  /** 何切るの元写真の一覧（問題/下書き。所有者のみ）。404 は null。 */
+  listProblemPhotos(token: string, ref: ProblemPhotoRef): Promise<ProblemPhotoMeta[] | null>;
   /** 牌譜の修正を保存する（所有者のみ）。seq=局順（東一局=1〜北四局=16。省略は現状維持）。 */
   updateKifu(
     token: string,
@@ -611,6 +633,13 @@ export function createApiClient(baseUrl: string, fetchImpl?: typeof fetch): ApiC
         headers: bearer(token),
       });
       return { ok: res.ok, status: res.status };
+    },
+
+    async listProblemPhotos(token, ref) {
+      const res = await doFetch(`${baseUrl}${problemPhotoPath(ref)}`, { headers: bearer(token) });
+      if (!res.ok) return null;
+      const d = (await res.json()) as { photos: ProblemPhotoMeta[] };
+      return d.photos;
     },
 
     async retryAnalysis(token, jobId) {

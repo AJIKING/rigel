@@ -32,6 +32,7 @@ import {
   GetProblemDraft,
   ListProblemDrafts,
 } from "./application/problem-drafts.usecase";
+import { ProblemPhotos } from "./application/problem-photos.usecase";
 import { GetKifu } from "./application/get-kifu.usecase";
 import { GetPublicGameDetail } from "./application/get-public-game-detail.usecase";
 import { GetUser } from "./application/get-user.usecase";
@@ -108,6 +109,8 @@ export interface AppContainer {
   runProblemAnalysisJob: RunProblemAnalysisJob;
   /** 解析下書き（一覧・取得・破棄）。 */
   listProblemDrafts: ListProblemDrafts;
+  /** 何切るの元写真（問題/下書き。所有者のみ）。 */
+  problemPhotos: ProblemPhotos;
   getProblemDraft: GetProblemDraft;
   deleteProblemDraft: DeleteProblemDraft;
   getKifu: GetKifu;
@@ -310,6 +313,7 @@ export function buildContainer(env: Env): AppContainer {
       now,
     }),
     listProblemDrafts: new ListProblemDrafts(problemDrafts, analysisJobs, now),
+    problemPhotos: new ProblemPhotos(problems, problemDrafts, analysisImages),
     getProblemDraft: new GetProblemDraft(problemDrafts, analysisJobs, now),
     deleteProblemDraft: new DeleteProblemDraft(problemDrafts, analysisImages),
     getKifu: new GetKifu(gameLogs),

@@ -13,7 +13,10 @@ import {
   GetProblemDraft,
   ListProblemDrafts,
 } from "../../application/problem-drafts.usecase";
+import { ProblemPhotos } from "../../application/problem-photos.usecase";
 import type { AppContainer } from "../../composition-root";
+import { InMemoryProblemRepository } from "../../test-support/in-memory";
+import { makeProblemData } from "../../test-support/problem";
 import { JwtSessionService } from "../../infrastructure/auth/jwt-session-service";
 import { fakeEnv } from "../../test-support/billing";
 import {
@@ -33,6 +36,7 @@ function makeApp(opts: { preflightOk?: boolean } = {}) {
   const drafts = new InMemoryProblemDraftRepository();
   const images = new InMemoryAnalysisImageStore();
   const queue = new InMemoryAnalysisQueue();
+  const problems = new InMemoryProblemRepository();
   let n = 0;
   const preflight = () =>
     Promise.resolve(
@@ -56,8 +60,9 @@ function makeApp(opts: { preflightOk?: boolean } = {}) {
     listProblemDrafts: new ListProblemDrafts(drafts, jobs, () => NOW),
     getProblemDraft: new GetProblemDraft(drafts, jobs, () => NOW),
     deleteProblemDraft: new DeleteProblemDraft(drafts, images),
+    problemPhotos: new ProblemPhotos(problems, drafts, images),
   } as unknown as AppContainer;
-  return { app: createApp({ container: () => container }), jobs, drafts, images, queue };
+  return { app: createApp({ container: () => container }), jobs, drafts, images, queue, problems };
 }
 
 async function bearer(userId: string) {
@@ -181,6 +186,46 @@ describe("/problems/drafts（解析下書き）", () => {
 
     const other = await ctx.app.request(
       "/problems/drafts/d-1",
+      { headers: await bearer("attacker") },
+      fakeEnv,
+    );
+    expect(other.status).toBe(404);
+  });
+
+  it("下書き・問題の元写真は所有者だけが一覧・配信でき、他人は 404（公開問題でも露出しない）", async () => {
+    const ctx = makeApp();
+    await seedDraft(ctx, false);
+    await ctx.problems.save({
+      id: "p1",
+      userId: "owner",
+      title: "",
+      problem: makeProblemData(),
+      status: "published",
+      photoDraftId: "d-1",
+      createdAt: NOW,
+    });
+
+    // 下書きから
+    const draftList = await ctx.app.request(
+      "/problems/drafts/d-1/photos",
+      { headers: await bearer("owner") },
+      fakeEnv,
+    );
+    expect(draftList.status).toBe(200);
+    expect(await draftList.json()).toEqual({ photos: [{ jobId: "job-1", kind: "hand" }] });
+
+    // 正規保存後の問題から（photoDraftId で引き継ぎ）
+    const probServe = await ctx.app.request(
+      "/problems/p1/photos/job-1/hand",
+      { headers: await bearer("owner") },
+      fakeEnv,
+    );
+    expect(probServe.status).toBe(200);
+    expect(probServe.headers.get("content-type")).toBe("image/jpeg");
+
+    // 他人には公開問題でも 404
+    const other = await ctx.app.request(
+      "/problems/p1/photos",
       { headers: await bearer("attacker") },
       fakeEnv,
     );

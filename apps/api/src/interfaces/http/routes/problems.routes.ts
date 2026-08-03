@@ -4,13 +4,34 @@
 // 保存上限は free 20問（draft+published 合算。reason: problem_limit → 403）。
 
 import { SeatSchema } from "@rigel/schema";
-import type { Hono } from "hono";
+import type { Context, Hono } from "hono";
+import {
+  isProblemPhotoKind,
+  type ProblemPhotoRef,
+} from "../../../application/problem-photos.usecase";
 import { asFile, isValidImageFile, toImageRef, MAX_IMAGE_COUNT } from "../limits";
 import { reasonStatus, requireAuth, withFavorites, type AppEnv } from "../shared";
 
 /** body から status を安全に取り出す（不正値は undefined）。 */
 function parseStatus(v: unknown): "draft" | "published" | undefined {
   return v === "draft" || v === "published" ? v : undefined;
+}
+
+/** 元写真のバイト配信（問題/下書き共通）。kind は許可リスト・所有者のみ・404 で伏せる。 */
+async function serveProblemPhoto(
+  c: Context<AppEnv>,
+  ref: ProblemPhotoRef,
+  jobId: string,
+  kind: string,
+) {
+  if (!isProblemPhotoKind(kind)) return c.json({ error: "not found" }, 404);
+  const photo = await c.get("container").problemPhotos.get(c.get("userId")!, ref, jobId, kind);
+  if (!photo) return c.json({ error: "not found" }, 404);
+  return c.body(photo.data, 200, {
+    "content-type": photo.mimeType,
+    // 本人専用・不変オブジェクト（games の配信と同じ方針）。
+    "cache-control": "private, max-age=86400",
+  });
 }
 
 export function registerProblemRoutes(app: Hono<AppEnv>): void {
@@ -77,6 +98,18 @@ export function registerProblemRoutes(app: Hono<AppEnv>): void {
     return c.json(draft);
   });
 
+  // 解析下書きの元写真（一覧・配信。所有者のみ。photo-retention.md）。
+  app.get("/problems/drafts/:id/photos", requireAuth, async (c) => {
+    const photos = await c
+      .get("container")
+      .problemPhotos.list(c.get("userId")!, { draftId: c.req.param("id") });
+    if (!photos) return c.json({ error: "not found" }, 404);
+    return c.json({ photos });
+  });
+  app.get("/problems/drafts/:id/photos/:jobId/:kind", requireAuth, async (c) =>
+    serveProblemPhoto(c, { draftId: c.req.param("id") }, c.req.param("jobId"), c.req.param("kind")),
+  );
+
   // 下書きの破棄（写真ごと消す）。
   app.delete("/problems/drafts/:id", requireAuth, async (c) => {
     const result = await c.get("container").deleteProblemDraft.execute({
@@ -99,6 +132,23 @@ export function registerProblemRoutes(app: Hono<AppEnv>): void {
     const posts = await c.get("container").listMyProblems.execute(c.get("userId")!);
     return c.json(await withFavorites(c, "problem", posts));
   });
+
+  // 問題の元写真（解析下書きから引き継いだもの。所有者のみ＝公開問題でも露出しない）。
+  app.get("/problems/:id/photos", requireAuth, async (c) => {
+    const photos = await c
+      .get("container")
+      .problemPhotos.list(c.get("userId")!, { problemId: c.req.param("id") });
+    if (!photos) return c.json({ error: "not found" }, 404);
+    return c.json({ photos });
+  });
+  app.get("/problems/:id/photos/:jobId/:kind", requireAuth, async (c) =>
+    serveProblemPhoto(
+      c,
+      { problemId: c.req.param("id") },
+      c.req.param("jobId"),
+      c.req.param("kind"),
+    ),
+  );
 
   // 詳細。published は誰でも・draft は所有者のみ（他人には存在を伏せて 404）。
   // 分布は含めない（GET /problems/:id/stats へ。認証必須）。

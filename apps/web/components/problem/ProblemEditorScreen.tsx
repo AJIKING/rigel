@@ -46,6 +46,7 @@ import { OssTileFace } from "../OssTileFace";
 import { ViewBoard } from "../view/ViewBoard";
 import { ProblemBoardCenter } from "./ProblemBoardCenter";
 import { ProblemPhotoModal } from "./ProblemPhotoModal";
+import { ProblemPhotosModal } from "./ProblemPhotosModal";
 import s from "./problem.module.css";
 
 /** 牌グリッドの入力先。 */
@@ -217,6 +218,7 @@ export function ProblemEditorScreen({
   const [aiReview, setAiReview] = useState("");
   // 保存時に写真を引き継ぐ解析下書き（route の ?draft= か、画面内の写真AI再現で紐づく）。
   const [linkedDraftId, setLinkedDraftId] = useState<string | null>(draftId ?? null);
+  const [photosOpen, setPhotosOpen] = useState(false);
   // 解析下書きから開いたときの流し込み（一度だけ。ready 以外は案内を出す）。
   const draftLoaded = useRef(false);
   useEffect(() => {
@@ -493,6 +495,12 @@ export function ProblemEditorScreen({
               📷 写真から作成
             </button>
           )}
+          {/* 元写真（恒久保存・所有者のみ）。解析下書き由来のときだけ出す。 */}
+          {(linkedDraftId || initial?.photoDraftId) && (
+            <button type="button" className={s.rulesBtn} onClick={() => setPhotosOpen(true)}>
+              🖼 元写真
+            </button>
+          )}
         </div>
         {/* AIの読み取りメモ（グレア・見切れ等）と目検確認の促し。 */}
         {readingNotes && <p className={s.hint}>読み取りメモ: {readingNotes}</p>}
@@ -751,6 +759,15 @@ export function ProblemEditorScreen({
             // 保存時に写真を引き継ぐ（この場で保存しなくても下書きはマイページに残る）。
             if (doneDraftId) setLinkedDraftId(doneDraftId);
           }}
+        />
+      )}
+
+      {photosOpen && (
+        <ProblemPhotosModal
+          refValue={
+            linkedDraftId ? { draftId: linkedDraftId } : { problemId: initial!.id } // ボタンは linkedDraftId か initial.photoDraftId があるときだけ出る
+          }
+          onClose={() => setPhotosOpen(false)}
         />
       )}
     </div>

@@ -4,6 +4,7 @@ import {
   type FavoriteTargetType,
   type KifuMetaInput,
   type KifuStatus,
+  type ProblemPhotoRef,
   type ProblemStatus,
 } from "@rigel/client";
 // KifuStatus は setGameStatusAction（半荘単位の下書き/編集済）で使う。
@@ -27,6 +28,7 @@ import {
   getProblemDraft,
   deleteProblemDraft,
   listProblemDrafts,
+  listProblemPhotos,
   retryAnalysis,
   listGamePhotos,
   finishQuizSession,
@@ -169,6 +171,11 @@ export async function getProblemDraftAction(draftId: string) {
 /** 解析下書きの破棄（写真ごと消える）。 */
 export async function deleteProblemDraftAction(draftId: string) {
   return deleteProblemDraft(await requireToken(), draftId);
+}
+
+/** 何切るの元写真の一覧（問題/下書き。所有者のみ。バイトは /api/problem-photos 経由）。 */
+export async function getProblemPhotosAction(ref: ProblemPhotoRef) {
+  return listProblemPhotos(await requireToken(), ref);
 }
 
 export async function updateProfileAction(update: { handle?: string; displayName?: string }) {
