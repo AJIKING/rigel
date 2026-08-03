@@ -81,6 +81,19 @@ describe("PublicListScreen（公開フィードの絞り込み）", () => {
     expect(screen.queryByText("今日の半荘")).toBeNull();
   });
 
+  it("検索欄でタイトル・投稿者を絞り込める（web の公開一覧と同一条件。旧・未配線の検索窓の回帰）", () => {
+    render(<PublicListScreen />);
+
+    fireEvent.changeText(screen.getByLabelText("牌譜を検索"), "今日");
+    expect(screen.getByText("今日の半荘")).toBeTruthy();
+    expect(screen.queryByText("先週の半荘")).toBeNull();
+
+    // 投稿者（handle/表示名）でも当たる。
+    fireEvent.changeText(screen.getByLabelText("牌譜を検索"), "太郎");
+    expect(screen.getByText("今日の半荘")).toBeTruthy();
+    expect(screen.getByText("先週の半荘")).toBeTruthy();
+  });
+
   it("カードの星がお気に入り状態に配線される（押すと toggle が呼ばれる）", () => {
     render(<PublicListScreen />);
 

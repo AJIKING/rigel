@@ -619,13 +619,29 @@ describe("BoardEditor 編集操作", () => {
     expect(screen.queryByText(/要確認/)).toBeNull();
   });
 
-  it("局が1つだけなら削除ボタンは無効", async () => {
+  it("対局日を変更して blur すると updateGameAction に createdAt が乗る（保存されない不具合の回帰）", async () => {
+    h.updateGameAction.mockResolvedValue({ ok: true, status: 200 });
     render(<BoardEditor initialDetail={makeDetail([{ id: "l1" }])} gameId="g1" logId="l1" />);
-    const del = await screen.findByRole("button", { name: "この局を削除" });
-    expect((del as HTMLButtonElement).disabled).toBe(true);
+    const date = await screen.findByLabelText("対局日");
+
+    fireEvent.change(date, { target: { value: "2026-07-01" } });
+    fireEvent.blur(date);
+
+    await waitFor(() =>
+      expect(h.updateGameAction).toHaveBeenCalledWith("g1", { createdAt: "2026-07-01" }),
+    );
   });
 
-  it("局が複数あるとき、2度押しで deleteKifuAction を呼ぶ（誤操作防止）", async () => {
+  it("局が1つだけなら削除できず、理由を表示する（無言 disabled にしない）", async () => {
+    render(<BoardEditor initialDetail={makeDetail([{ id: "l1" }])} gameId="g1" logId="l1" />);
+    fireEvent.click(await screen.findByRole("button", { name: "この局を削除" }));
+    expect(await screen.findByText(/最後の1局は削除できません/)).toBeTruthy();
+    expect(h.deleteKifuAction).not.toHaveBeenCalled();
+  });
+
+  it("局が複数あるとき、説明つき confirm を経て deleteKifuAction を呼ぶ（文言は共通の DELETE_CONFIRM）", async () => {
+    const confirm = vi.fn().mockReturnValueOnce(false).mockReturnValueOnce(true);
+    vi.stubGlobal("confirm", confirm);
     render(
       <BoardEditor
         initialDetail={makeDetail([{ id: "l1" }, { id: "l2" }])}
@@ -635,8 +651,11 @@ describe("BoardEditor 編集操作", () => {
     );
     const del = await screen.findByRole("button", { name: "この局を削除" });
     fireEvent.click(del);
-    expect(h.deleteKifuAction).not.toHaveBeenCalled();
-    fireEvent.click(screen.getByRole("button", { name: "もう一度押して削除" }));
+    expect(confirm).toHaveBeenCalledWith(expect.stringContaining("元に戻せません"));
+    expect(h.deleteKifuAction).not.toHaveBeenCalled(); // キャンセル
+
+    fireEvent.click(del);
     await waitFor(() => expect(h.deleteKifuAction).toHaveBeenCalledWith("l1"));
+    vi.unstubAllGlobals();
   });
 });

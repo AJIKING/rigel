@@ -2,8 +2,10 @@
 
 import {
   analyzeErrorMessage,
+  deleteConfirmText,
   planKifuLimits,
   sortMyList,
+  DELETE_CONFIRM,
   LIST_LOAD_ERROR_MESSAGE,
   type MyListSortKey,
 } from "@rigel/ui";
@@ -75,9 +77,9 @@ export function MyKifuScreen() {
     }
   }
 
-  /** 0局の失敗半荘の削除（確認あり）。 */
+  /** 0局の失敗半荘の削除（確認あり。文言は web/mobile 共通の DELETE_CONFIRM）。 */
   async function onDeleteFailed(c: MyGameCard) {
-    if (!window.confirm("この半荘を削除しますか？（元に戻せません）")) return;
+    if (!window.confirm(deleteConfirmText(DELETE_CONFIRM.game(c.title)))) return;
     setNote(null);
     try {
       const r = await deleteGameAction(c.id);

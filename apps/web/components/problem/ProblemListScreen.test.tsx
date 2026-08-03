@@ -173,17 +173,23 @@ describe("MyProblemsScreen（マイ何切る。牌譜マイページと同じ構
     );
   });
 
-  it("削除は2度押しで確定（誤操作防止）", async () => {
+  it("削除は説明つき confirm を経て確定（回答分布も消える旨を明示。文言は共通の DELETE_CONFIRM）", async () => {
     stubMe("free");
+    const confirm = vi.fn().mockReturnValueOnce(false).mockReturnValueOnce(true);
+    vi.stubGlobal("confirm", confirm);
     render(
       <AuthProvider>
         <MyProblemsScreen initialPosts={[post("p1", "draft")]} />
       </AuthProvider>,
     );
-    fireEvent.click(await screen.findByRole("button", { name: "削除" }));
-    expect(h.deleteProblemAction).not.toHaveBeenCalled();
-    fireEvent.click(screen.getByRole("button", { name: "もう一度押して削除" }));
+    const del = await screen.findByRole("button", { name: "削除" });
+    fireEvent.click(del);
+    expect(confirm).toHaveBeenCalledWith(expect.stringContaining("回答の分布も削除され"));
+    expect(h.deleteProblemAction).not.toHaveBeenCalled(); // キャンセル
+
+    fireEvent.click(del);
     await waitFor(() => expect(h.deleteProblemAction).toHaveBeenCalledWith("p1"));
+    vi.unstubAllGlobals();
   });
 
   it("空のときは作成導線を出す", async () => {

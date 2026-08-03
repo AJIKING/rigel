@@ -6,6 +6,7 @@ import {
   resultLabel,
   roundHonbaLabel,
   roundNameForSeq,
+  DELETE_CONFIRM,
   LIMIT_MESSAGES,
 } from "@rigel/ui";
 import { useCallback, useEffect, useState } from "react";
@@ -194,8 +195,8 @@ export function GameDetailScreen() {
   function onDeleteKyoku(logId: string, seq: number) {
     if (!token) return;
     confirmDestructive({
-      title: `${roundNameForSeq(seq)}を削除しますか？`,
-      message: "元に戻せません。",
+      // 文言は web/mobile 共通の DELETE_CONFIRM（@rigel/ui）。
+      ...DELETE_CONFIRM.kyoku(roundNameForSeq(seq)),
       onConfirm: () => {
         deleteKifu(token, logId)
           .then((res) => (res.ok ? refetch() : setNote("削除に失敗しました")))
@@ -208,8 +209,7 @@ export function GameDetailScreen() {
   function onDeleteGame() {
     if (!token) return;
     confirmDestructive({
-      title: "この半荘を削除しますか？",
-      message: "配下のすべての局が削除され、元に戻せません。",
+      ...DELETE_CONFIRM.game(detail?.game.title ?? ""),
       onConfirm: () => {
         deleteGame(token, gameId)
           .then((res) => (res.ok ? nav.goBack() : setNote("削除に失敗しました")))

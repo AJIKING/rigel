@@ -1,6 +1,6 @@
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import { planKifuLimits, sortMyList, type MyListSortKey } from "@rigel/ui";
+import { planKifuLimits, sortMyList, DELETE_CONFIRM, type MyListSortKey } from "@rigel/ui";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { FlatList, Pressable, StyleSheet, Text, View } from "react-native";
 import { CenterState } from "../components/CenterState";
@@ -52,8 +52,8 @@ export function MyListScreen() {
   function onDelete(gameId: string, title: string) {
     if (!token || sample) return;
     confirmDestructive({
-      title: `「${title || "無題の半荘"}」を削除しますか？`,
-      message: "配下のすべての局が削除され、元に戻せません。",
+      // 文言は web/mobile 共通の DELETE_CONFIRM（@rigel/ui）。
+      ...DELETE_CONFIRM.game(title),
       onConfirm: () => {
         deleteGame(token, gameId)
           .then((res) => res.ok && refetch())

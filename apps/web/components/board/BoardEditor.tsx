@@ -26,6 +26,8 @@ import {
   setDoraTile,
   sortKifuHands,
   visibilityLabel,
+  deleteConfirmText,
+  DELETE_CONFIRM,
   LIMIT_MESSAGES,
   MAX_SEQ,
   type TileLocation,
@@ -201,7 +203,6 @@ function Editor(p: EditorProps) {
   const [vis, setVis] = useState(log.visibility);
   const [visBusy, setVisBusy] = useState(false);
   const [hanchanName, setHanchanName] = useState(detail.game.title || "");
-  const [delGameArm, setDelGameArm] = useState(false);
   const [dateInput, setDateInput] = useState(
     new Date(detail.game.createdAt).toISOString().slice(0, 10),
   );
@@ -213,7 +214,6 @@ function Editor(p: EditorProps) {
   const [addOpen, setAddOpen] = useState(false);
   const [rulesOpen, setRulesOpen] = useState(false);
   const [photosOpen, setPhotosOpen] = useState(false);
-  const [delArm, setDelArm] = useState(false);
   // 選手情報（選手名・リーグ戦ポイント）。kifu.players（半荘単位）から初期化し、
   // 入力の blur で半荘単位に保存する（rules と同じ全局一括反映）。
   // Players→入力文字列は共有ヘルパ playersToInput（mobile の PlayersSheet と同一）。
@@ -419,13 +419,25 @@ function Editor(p: EditorProps) {
     if (!res.ok) setSaveErr("半荘名の保存に失敗しました。");
   }
 
-  /** 半荘を配下の全局ごと削除する（2度押しで確定＝誤操作防止）。成功で一覧へ戻る。 */
-  async function onDeleteGame() {
-    if (!delGameArm) {
-      setDelGameArm(true);
-      setTimeout(() => setDelGameArm(false), 3000);
+  /** 対局日の保存（blur 時。mobile GameDetail と同じ API=updateGame の createdAt）。
+   *  以前は入力欄だけあって保存されない不具合だった（パリティ監査 2026-08-03）。 */
+  async function saveGameDate() {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(dateInput)) {
+      setSaveErr("日付は YYYY-MM-DD 形式で入力してください。");
       return;
     }
+    if (dateInput === new Date(detail.game.createdAt).toISOString().slice(0, 10)) return;
+    const res = await updateGameAction(gameId, { createdAt: dateInput }).catch(() => ({
+      ok: false,
+      status: 0,
+    }));
+    if (!res.ok) setSaveErr("対局日の保存に失敗しました。");
+  }
+
+  /** 半荘を配下の全局ごと削除する（2度押しで確定＝誤操作防止）。成功で一覧へ戻る。 */
+  async function onDeleteGame() {
+    // 確認は説明つき confirm（DELETE_CONFIRM=web/mobile 共通文言。2度押しは説明ゼロで廃止）。
+    if (!window.confirm(deleteConfirmText(DELETE_CONFIRM.game(detail.game.title)))) return;
     const res = await deleteGameAction(gameId).catch(() => ({ ok: false, status: 0 }));
     if (res.ok) router.push("/mypage");
     else setSaveErr("半荘の削除に失敗しました。");
@@ -476,13 +488,12 @@ function Editor(p: EditorProps) {
   }
 
   async function onDelete() {
-    if (detail.logs.length <= 1) return;
-    if (!delArm) {
-      setDelArm(true);
-      setTimeout(() => setDelArm(false), 2200);
+    // 最後の1局は消せない（半荘には最低1局）。無言 disabled にせず理由を出す（mobile と同じ）。
+    if (detail.logs.length <= 1) {
+      setSaveErr("最後の1局は削除できません。半荘ごと削除するには「半荘を削除」を使ってください。");
       return;
     }
-    setDelArm(false);
+    if (!window.confirm(deleteConfirmText(DELETE_CONFIRM.kyoku(roundNameForSeq(seqValue))))) return;
     const res = await deleteKifuAction(log.id).catch(() => ({ ok: false, status: 0 }));
     if (res.ok) {
       const focus = detail.logs[idx + 1]?.id ?? detail.logs[idx - 1]?.id;
@@ -676,12 +687,8 @@ function Editor(p: EditorProps) {
                     <button className={s.addkyoku} onClick={() => setAddOpen(true)}>
                       ＋ 局の追加
                     </button>
-                    <button
-                      className={`${s.delkyoku} ${delArm ? s.arm : ""}`}
-                      disabled={detail.logs.length <= 1}
-                      onClick={() => void onDelete()}
-                    >
-                      {delArm ? "もう一度押して削除" : "この局を削除"}
+                    <button className={s.delkyoku} onClick={() => void onDelete()}>
+                      この局を削除
                     </button>
                   </div>
                 </div>
@@ -893,8 +900,10 @@ function Editor(p: EditorProps) {
                     <label>日付</label>
                     <input
                       type="date"
+                      aria-label="対局日"
                       value={dateInput}
                       onChange={(e) => setDateInput(e.target.value)}
+                      onBlur={() => void saveGameDate()}
                     />
                   </div>
                   <div className={s.field}>
@@ -940,11 +949,8 @@ function Editor(p: EditorProps) {
                   <p className={s.visNote}>
                     公開すると共有URLで誰でも閲覧できます（{visibilityLabel(vis)}）。
                   </p>
-                  <button
-                    className={`${s.delkyoku} ${delGameArm ? s.arm : ""}`}
-                    onClick={() => void onDeleteGame()}
-                  >
-                    {delGameArm ? "もう一度押して削除" : "この半荘を削除（全局）"}
+                  <button className={s.delkyoku} onClick={() => void onDeleteGame()}>
+                    この半荘を削除（全局）
                   </button>
                 </div>
               )}

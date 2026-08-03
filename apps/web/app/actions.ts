@@ -102,8 +102,11 @@ export async function updateGamePlayersAction(gameId: string, players: Players |
   return updateGamePlayers(await requireToken(), gameId, players);
 }
 
-/** 半荘名を変更する（所有者のみ）。 */
-export async function updateGameAction(gameId: string, input: { title: string }) {
+/** 半荘名・対局日を変更する（所有者のみ。createdAt は "YYYY-MM-DD"）。 */
+export async function updateGameAction(
+  gameId: string,
+  input: { title?: string; createdAt?: string },
+) {
   return updateGame(await requireToken(), gameId, input);
 }
 

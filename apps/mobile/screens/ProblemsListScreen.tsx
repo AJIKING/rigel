@@ -31,6 +31,7 @@ export function ProblemsListScreen() {
   // お気に入りはサーバー保存。カードの値に、この画面での操作を重ねる。
   const { apply, toggle: toggleFav } = useFavorites();
   const [filter, setFilter] = useState(0);
+  const [q, setQ] = useState("");
   const filterKey = PUBLIC_FEED_FILTERS[filter]!.key;
 
   useEffect(() => {
@@ -49,12 +50,21 @@ export function ProblemsListScreen() {
   }, []);
 
   // 絞り込みと新着順ソートは牌譜一覧と共通の filterPublicFeed（API 既定に頼らず固定）。
-  const shown = useMemo(() => filterPublicFeed(apply(posts), filterKey), [posts, filterKey, apply]);
+  // 検索対象はタイトル（web の公開何切ると同じ条件）。
+  const shown = useMemo(() => {
+    const arr = q ? apply(posts).filter((p) => p.title.includes(q)) : apply(posts);
+    return filterPublicFeed(arr, filterKey);
+  }, [posts, filterKey, q, apply]);
 
   return (
     <View style={styles.root}>
       <AppBar title="何切る" />
-      <Toolbar segments={SEGMENT_LABELS} activeIndex={filter} onSegmentPress={setFilter} />
+      <Toolbar
+        segments={SEGMENT_LABELS}
+        activeIndex={filter}
+        onSegmentPress={setFilter}
+        search={{ value: q, onChange: setQ, placeholder: "問題を検索" }}
+      />
       {loading ? (
         <CenterState loading />
       ) : shown.length === 0 ? (

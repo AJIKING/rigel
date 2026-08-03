@@ -368,6 +368,40 @@ export function problemPhotoLabel(kind: "hand" | "river"): string {
 export const PHOTOS_OWNER_ONLY_NOTE =
   "元写真はあなたにだけ表示されます。公開しても他の人には表示されません。";
 
+// ------------------------------------------------------------
+// 削除確認の文言（web/mobile 共通の単一実装。何が消えるかを必ず言う。
+// パリティ監査 2026-08-03: web の2度押しは説明ゼロ・mobile と文言が別だった）。
+// ------------------------------------------------------------
+
+export interface DeleteConfirmText {
+  title: string;
+  message: string;
+}
+
+export const DELETE_CONFIRM = {
+  game: (title: string): DeleteConfirmText => ({
+    title: `「${title || "無題の半荘"}」を削除しますか？`,
+    message: "配下のすべての局と元写真が削除され、元に戻せません。",
+  }),
+  kyoku: (label: string): DeleteConfirmText => ({
+    title: `${label}を削除しますか？`,
+    message: "元に戻せません。",
+  }),
+  problem: (title: string): DeleteConfirmText => ({
+    title: `「${title || "無題の問題"}」を削除しますか？`,
+    message: "回答の分布も削除され、元に戻せません。",
+  }),
+  problemDraft: {
+    title: "解析下書きを破棄しますか？",
+    message: "写真も削除され、元に戻せません。",
+  } as DeleteConfirmText,
+} as const;
+
+/** window.confirm 用の1文化（mobile はタイトル/本文の2段ダイアログでそのまま使う）。 */
+export function deleteConfirmText(t: DeleteConfirmText): string {
+  return `${t.title}\n${t.message}`;
+}
+
 /** 課金 Checkout 開始に失敗したときの日本語メッセージ（web/mobile 共通）。
  *  501=未設定、409=加入中（変更・解約は決済ポータルで行う）。 */
 export function checkoutErrorMessage(status: number): string {

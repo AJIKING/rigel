@@ -25,14 +25,32 @@ export function PublicListScreen() {
   // お気に入りはサーバー保存。カードの値に、この画面での操作を重ねる。
   const { apply, toggle: toggleFav } = useFavorites();
   const [filter, setFilter] = useState(0);
+  const [q, setQ] = useState("");
   const filterKey = PUBLIC_FEED_FILTERS[filter]!.key;
 
-  const shown = useMemo(() => filterPublicFeed(apply(games), filterKey), [games, filterKey, apply]);
+  // 検索対象はタイトル・投稿者（web の公開一覧と同じ条件）。
+  const shown = useMemo(() => {
+    let arr = apply(games);
+    if (q) {
+      arr = arr.filter(
+        (c) =>
+          c.title.includes(q) ||
+          (c.ownerHandle ?? "").includes(q) ||
+          (c.ownerName ?? "").includes(q),
+      );
+    }
+    return filterPublicFeed(arr, filterKey);
+  }, [games, filterKey, q, apply]);
 
   return (
     <View style={styles.root}>
       <AppBar title="公開牌譜" />
-      <Toolbar segments={SEGMENT_LABELS} activeIndex={filter} onSegmentPress={setFilter} />
+      <Toolbar
+        segments={SEGMENT_LABELS}
+        activeIndex={filter}
+        onSegmentPress={setFilter}
+        search={{ value: q, onChange: setQ, placeholder: "牌譜を検索" }}
+      />
       {loading ? (
         <CenterState loading />
       ) : shown.length === 0 ? (

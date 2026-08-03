@@ -1,11 +1,13 @@
 "use client";
 
 import {
+  deleteConfirmText,
+  sortMyList,
+  DELETE_CONFIRM,
   PROBLEM_KIND_LABELS,
   PROBLEM_LIMIT,
   LIMIT_MESSAGES,
   LIST_LOAD_ERROR_MESSAGE,
-  sortMyList,
   type MyListSortKey,
 } from "@rigel/ui";
 import type { ProblemDraftCard } from "@rigel/client";
@@ -55,7 +57,6 @@ export function MyProblemsScreen({
   // お気に入りはサーバー保存。牌譜タブと同じ扱い（カードの値に画面の操作を重ねる）。
   const { apply, toggle: toggleFav, error: favError } = useFavorites();
   const [posts, setPosts] = useState(initialPosts);
-  const [delArm, setDelArm] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [q, setQ] = useState("");
   const [status, setStatus] = useState<string>("all");
@@ -92,7 +93,7 @@ export function MyProblemsScreen({
 
   /** 解析下書きの破棄（写真ごと消える）。 */
   async function onDiscardDraft(id: string) {
-    if (!window.confirm("この解析下書きを破棄しますか？写真も削除され、元に戻せません。")) return;
+    if (!window.confirm(deleteConfirmText(DELETE_CONFIRM.problemDraft))) return;
     const res = await deleteProblemDraftAction(id).catch(() => ({ ok: false, status: 0 }));
     if (res.ok) setDrafts((cur) => cur.filter((d) => d.id !== id));
     else setErr("下書きの破棄に失敗しました。");
@@ -120,14 +121,9 @@ export function MyProblemsScreen({
     }
   }
 
-  /** 削除（2度押しで確定＝誤操作防止）。 */
+  /** 削除（説明つき confirm。文言は web/mobile 共通の DELETE_CONFIRM）。 */
   async function onDelete(post: ProblemPost) {
-    if (delArm !== post.id) {
-      setDelArm(post.id);
-      setTimeout(() => setDelArm((cur) => (cur === post.id ? null : cur)), 2500);
-      return;
-    }
-    setDelArm(null);
+    if (!window.confirm(deleteConfirmText(DELETE_CONFIRM.problem(post.title)))) return;
     const res = await deleteProblemAction(post.id).catch(() => ({ ok: false, status: 0 }));
     if (res.ok) setPosts((cur) => cur.filter((x) => x.id !== post.id));
     else setErr("削除に失敗しました。");
@@ -275,7 +271,7 @@ export function MyProblemsScreen({
                         className={gc.danger}
                         onClick={() => void onDelete(post)}
                       >
-                        {delArm === post.id ? "もう一度押して削除" : "削除"}
+                        削除
                       </button>
                     </>
                   }

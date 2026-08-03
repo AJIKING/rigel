@@ -1,6 +1,12 @@
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import { LIMIT_MESSAGES, PROBLEM_LIMIT, sortMyList, type MyListSortKey } from "@rigel/ui";
+import {
+  sortMyList,
+  DELETE_CONFIRM,
+  LIMIT_MESSAGES,
+  PROBLEM_LIMIT,
+  type MyListSortKey,
+} from "@rigel/ui";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { FlatList, Pressable, StyleSheet, Text, View } from "react-native";
 import { CenterState } from "../components/CenterState";
@@ -84,8 +90,8 @@ export function MyProblemsScreen() {
   function onDiscardDraft(id: string) {
     if (!token) return;
     confirmDestructive({
-      title: "解析下書きを破棄しますか？",
-      message: "写真も削除され、元に戻せません。",
+      title: DELETE_CONFIRM.problemDraft.title,
+      message: DELETE_CONFIRM.problemDraft.message,
       onConfirm: () => {
         deleteProblemDraft(token, id)
           .then((res) => {
@@ -123,8 +129,8 @@ export function MyProblemsScreen() {
   function onDelete(post: ProblemPost) {
     if (!token) return;
     confirmDestructive({
-      title: `「${post.title || "無題の問題"}」を削除しますか？`,
-      message: "回答の分布も削除され、元に戻せません。",
+      // 文言は web/mobile 共通の DELETE_CONFIRM（@rigel/ui）。
+      ...DELETE_CONFIRM.problem(post.title),
       onConfirm: () => {
         deleteProblem(token, post.id)
           .then((res) => {
