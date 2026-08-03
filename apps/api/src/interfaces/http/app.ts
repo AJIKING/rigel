@@ -12,7 +12,7 @@ import { cors } from "hono/cors";
 import { bodyLimit } from "hono/body-limit";
 import { buildContainer, type AppContainer } from "../../composition-root";
 import { BODY_LIMIT_BYTES, MULTIPART_LIMIT_BYTES } from "./limits";
-import { rateLimit } from "./rate-limit";
+import { rateLimit, type RateLimiter } from "./rate-limit";
 import type { Env } from "../../env";
 import { registerAccountRoutes } from "./routes/account.routes";
 import { registerBillingRoutes } from "./routes/billing.routes";
@@ -94,6 +94,29 @@ export function createApp(options: CreateAppOptions = {}): Hono<AppEnv> {
   // not_found に落ちる。よって全書き込みに存在確認クエリを1本足す（＝コスト増）ことはしない。
 
   app.get("/health", (c) => c.json({ ok: true }));
+
+  // TODO(2026-08-03・一時): レート制限が本番で効かない件の切り分け。
+  // 1リクエスト内で同一キーへ limit() を連続で呼ぶ（コロ・接続・IP の揺らぎを排除）。
+  // 期待: RL_ANALYZE(6/60s) なら 6 回目までが true、以降 false。
+  // Cloudflare 側の調査材料が取れたら削除する。
+  app.get("/health/rl-probe", async (c) => {
+    const env = c.env as unknown as Record<string, RateLimiter | undefined>;
+    const out: Record<string, unknown> = {};
+    for (const name of ["RL_ANALYZE", "RL_AUTH"]) {
+      const limiter = env[name];
+      if (!limiter) {
+        out[name] = "unbound";
+        continue;
+      }
+      const results: boolean[] = [];
+      for (let i = 0; i < 12; i++) {
+        const { success } = await limiter.limit({ key: `probe-${name}` });
+        results.push(success);
+      }
+      out[name] = results;
+    }
+    return c.json(out);
+  });
 
   registerAccountRoutes(app);
 
