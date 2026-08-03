@@ -7,7 +7,22 @@
 import type { CameraSeat, Seat } from "@rigel/schema";
 import type { ImageRef } from "../kifu/analyzer";
 
-/** ジョブの一時オブジェクトのキー接頭辞（この下に river / hand_{cam} / result.json を置く）。 */
+/** 半荘に紐づく写真・控えの置き場（恒久。半荘削除で deletePrefix。photo-retention.md）。 */
+export function gamePhotosPrefix(gameId: string): string {
+  return `games/${gameId}/`;
+}
+
+/** 1回の解析ジョブぶんのオブジェクト（river / hand_{cam} / message.json）の置き場。 */
+export function gameJobPrefix(gameId: string, jobId: string): string {
+  return `${gamePhotosPrefix(gameId)}${jobId}/`;
+}
+
+/** 再解析用のメッセージ控え（牌譜ジョブ。半荘と同じ寿命）。 */
+export function gameJobMessageKey(gameId: string, jobId: string): string {
+  return `${gameJobPrefix(gameId, jobId)}message.json`;
+}
+
+/** 何切るジョブの一時オブジェクトのキー接頭辞（Task 9 で下書き紐づけへ移行予定）。 */
 export function analysisJobPrefix(jobId: string): string {
   return `jobs/${jobId}/`;
 }
@@ -29,8 +44,10 @@ export interface AnalysisImageStore {
   get(key: string): Promise<ImageRef | null>;
   /** 単一キーの削除（何切るジョブ: 画像だけ消して result.json を残すため）。 */
   delete(key: string): Promise<void>;
-  /** ジョブの一時オブジェクトをまとめて削除（牌譜ジョブの終端で必ず呼ぶ）。 */
+  /** prefix 配下をまとめて削除（半荘削除・退会などデータ削除時の掃除）。 */
   deletePrefix(prefix: string): Promise<void>;
+  /** prefix 配下のキー一覧（元写真の一覧表示用。件数は1半荘ぶんの想定）。 */
+  listKeys(prefix: string): Promise<string[]>;
   /** JSON 値の置き場（何切るジョブの結果ドラフト用。画像と同じバケット）。 */
   putJson(key: string, value: unknown): Promise<void>;
   /** 無ければ null（TTL 削除済みなど）。 */

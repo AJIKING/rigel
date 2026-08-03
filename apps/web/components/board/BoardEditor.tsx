@@ -62,6 +62,7 @@ import { useBoardScale } from "../../lib/use-board-scale";
 import { AddKyokuModal } from "./AddKyokuModal";
 import { AgariEditor, DrawEditor } from "./AgariEditor";
 import { BoardTable } from "./BoardTable";
+import { GamePhotosModal } from "./GamePhotosModal";
 import { RulesDialog } from "./RulesDialog";
 import { Stepper } from "./Stepper";
 import { TimelineEditor } from "./TimelineEditor";
@@ -211,6 +212,7 @@ function Editor(p: EditorProps) {
   const [seqValue, setSeqValue] = useState(Math.min(Math.max(1, log.seq), MAX_SEQ));
   const [addOpen, setAddOpen] = useState(false);
   const [rulesOpen, setRulesOpen] = useState(false);
+  const [photosOpen, setPhotosOpen] = useState(false);
   const [delArm, setDelArm] = useState(false);
   // 選手情報（選手名・リーグ戦ポイント）。kifu.players（半荘単位）から初期化し、
   // 入力の blur で半荘単位に保存する（rules と同じ全局一括反映）。
@@ -667,6 +669,10 @@ function Editor(p: EditorProps) {
                     <button className={s.addkyoku} onClick={() => setRulesOpen(true)}>
                       ⚙ ルール設定
                     </button>
+                    {/* 元写真（恒久保存・所有者のみ）。AI の読み取りを写真と突き合わせる。 */}
+                    <button className={s.addkyoku} onClick={() => setPhotosOpen(true)}>
+                      🖼 元写真
+                    </button>
                     <button className={s.addkyoku} onClick={() => setAddOpen(true)}>
                       ＋ 局の追加
                     </button>
@@ -1008,6 +1014,8 @@ function Editor(p: EditorProps) {
           }}
         />
       )}
+
+      {photosOpen && <GamePhotosModal gameId={gameId} onClose={() => setPhotosOpen(false)} />}
     </div>
   );
 }

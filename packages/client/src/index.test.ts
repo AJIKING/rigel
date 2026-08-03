@@ -1,6 +1,6 @@
 import { KifuSchema, ProblemSchema } from "@rigel/schema";
 import { describe, expect, it } from "vitest";
-import { createApiClient } from "./index";
+import { createApiClient, gamePhotoPath } from "./index";
 
 function fakeFetch(handler: (url: string) => Response): typeof fetch {
   return ((url: string) => Promise.resolve(handler(String(url)))) as unknown as typeof fetch;
@@ -79,6 +79,19 @@ describe("createApiClient", () => {
       status: 400,
       reason: "retry_expired",
     });
+  });
+
+  it("listGamePhotos は所有者の元写真メタを返し、gamePhotoPath がバイト配信パスを組む", async () => {
+    const client = createApiClient(
+      "https://api.test",
+      fakeFetch((url) => {
+        expect(url).toBe("https://api.test/games/g1/photos");
+        return json({ photos: [{ jobId: "j1", kind: "river" }] });
+      }),
+    );
+    const photos = await client.listGamePhotos("tok", "g1");
+    expect(photos).toEqual([{ jobId: "j1", kind: "river" }]);
+    expect(gamePhotoPath("g1", photos![0]!)).toBe("/games/g1/photos/j1/river");
   });
 
   it("getProblemAnalysisJob の 404（消えたジョブ）は null", async () => {

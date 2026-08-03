@@ -11,7 +11,7 @@
 
 import type { AnalysisJobRepository } from "../domain/analysis/analysis-job";
 import {
-  analysisMessageKey,
+  gameJobMessageKey,
   type AnalysisImageStore,
   type AnalysisQueue,
   type KifuAnalysisJobMessage,
@@ -53,9 +53,11 @@ export class RetryAnalysisJob {
     const job = await jobs.findForUser(params.jobId, params.userId);
     if (!job) return { ok: false, reason: "not_found" };
     if (job.status !== "failed") return { ok: false, reason: "not_failed" };
+    if (!job.gameId) return { ok: false, reason: "retry_expired" }; // 何切るジョブ等は対象外
 
-    // R2 の控えと画像がまだあるか（TTL 1日を超えると消える）。無ければ正直に断る。
-    const raw = await images.getJson(analysisMessageKey(job.id));
+    // R2 の控えと画像は半荘と同じ寿命で恒久（photo-retention.md）。無いのは
+    // 旧TTLバケット世代のジョブ・手動削除だけなので、そのときは正直に断る。
+    const raw = await images.getJson(gameJobMessageKey(job.gameId, job.id));
     if (!isKifuMessage(raw, job.id)) return { ok: false, reason: "retry_expired" };
     if (!(await images.get(raw.riverKey))) return { ok: false, reason: "retry_expired" };
 

@@ -14,11 +14,13 @@ describe("PrivacyScreen", () => {
     expect(screen.getByText("株式会社PLARIA")).toBeTruthy();
   });
 
-  it("rigel の核となる約束を明記する（画像は一時利用・自動削除、計測に PII を送らない・広告不使用）", () => {
+  it("rigel の核となる約束を明記する（画像は本人のみ閲覧・削除で消える、計測に PII を送らない・広告不使用）", () => {
     render(<PrivacyScreen />);
-    // 「保存しません」ではなく実態どおり（一時保管＋最長1日で自動削除。[決定] 2026-08-02）。
-    expect(screen.getByText(/解析が完了すると自動的に削除/)).toBeTruthy();
-    expect(screen.getByText(/最長1日で削除/)).toBeTruthy();
+    // 画像は恒久保存へ転換（[決定] 2026-08-03 photo-retention.md）。所有者のみ閲覧・
+    // データ削除で消える・目的外利用しない、の3点を明記する。
+    expect(screen.getByText(/ご本人だけが閲覧/)).toBeTruthy();
+    expect(screen.getByText(/退会（アカウント削除）により削除/)).toBeTruthy();
+    expect(screen.getByText(/AI の学習など解析・表示以外の目的には使用しません/)).toBeTruthy();
     expect(
       screen.getByText(/氏名・メールアドレス・牌譜の内容・撮影画像が送信されることはありません/),
     ).toBeTruthy();

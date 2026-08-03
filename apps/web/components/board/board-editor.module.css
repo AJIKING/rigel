@@ -1248,6 +1248,26 @@
   grid-template-columns: 1fr 1fr;
   gap: 10px;
 }
+/* 元写真ビュー（photo-retention.md）。縦積み・原寸比率のサムネ＋ラベル。 */
+.photoList {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.photoItem {
+  margin: 0;
+}
+.photoItem img {
+  width: 100%;
+  height: auto;
+  border-radius: 8px;
+  display: block;
+}
+.photoItem figcaption {
+  font-size: 11px;
+  color: var(--ink-soft, #667);
+  margin-top: 4px;
+}
 /* 1枚モードのトグル行（手牌を含む）。チェックボックス＋タイトル/補足の2行。 */
 .oneTgl {
   display: flex;

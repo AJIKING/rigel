@@ -55,7 +55,7 @@ describe("RunAnalysisJob", () => {
     await usecase.execute(message, 1);
 
     expect(jobs.jobs.get("job-1")).toMatchObject({ status: "done", gameId: "g1", logId: "log-1" });
-    expect(images.size).toBe(0);
+    expect(images.size).toBe(2); // 写真は恒久保存（消すのは半荘削除時だけ。photo-retention.md）
     // 画像は R2 から取り直してパイプラインへ渡す。
     expect(captured[0]).toMatchObject({
       userId: "u1",
@@ -71,10 +71,10 @@ describe("RunAnalysisJob", () => {
     await usecase.execute(message, 1);
 
     expect(jobs.jobs.get("job-1")).toMatchObject({ status: "failed", reason: "game_full" });
-    expect(images.size).toBe(2); // 掃除は R2 のライフサイクル1日（plan 8-3）
+    expect(images.size).toBe(2); // 失敗でも残す（再解析用。掃除は半荘削除時）
   });
 
-  it("一時画像が消えていたら failed(images_missing)（TTL 削除後の遅延再送に耐える）", async () => {
+  it("画像が消えていたら failed(images_missing)（旧TTLバケットからの移行・手動削除に耐える）", async () => {
     const { usecase, jobs, images } = await makeFixture(() =>
       Promise.resolve({ ok: true, gameLog, gameId: "g1" }),
     );

@@ -4,6 +4,7 @@
 
 import { KifuSchema, PlayersSchema, RulesSchema, SeatSchema } from "@rigel/schema";
 import type { Context, Hono } from "hono";
+import { isPhotoKind } from "../../../application/game-photos.usecase";
 import { MAX_SEQ } from "../../../application/update-kifu.usecase";
 import { reasonStatus, requireAuth, withFavorites, type AppEnv } from "../shared";
 
@@ -42,6 +43,34 @@ export function registerGameRoutes(app: Hono<AppEnv>): void {
   app.get("/games", requireAuth, async (c) => {
     const games = await c.get("container").listGames.execute(c.get("userId")!);
     return c.json(games);
+  });
+
+  // 半荘の元写真の一覧（恒久保存・所有者のみ。[決定] 2026-08-03 photo-retention.md）。
+  // 公開半荘でも写真は露出しない。他人・不存在は 404（存在を漏らさない）。
+  app.get("/games/:id/photos", requireAuth, async (c) => {
+    const photos = await c
+      .get("container")
+      .listGamePhotos.execute(c.req.param("id"), c.get("userId")!);
+    if (!photos) return c.json({ error: "not found" }, 404);
+    return c.json({ photos });
+  });
+
+  // 元写真のバイト配信（所有者のみ）。kind は許可リスト（任意キー読み出しの口にしない）。
+  app.get("/games/:id/photos/:jobId/:kind", requireAuth, async (c) => {
+    const kind = c.req.param("kind");
+    if (!isPhotoKind(kind)) return c.json({ error: "not found" }, 404);
+    const photo = await c.get("container").getGamePhoto.execute({
+      gameId: c.req.param("id"),
+      jobId: c.req.param("jobId"),
+      kind,
+      viewerId: c.get("userId")!,
+    });
+    if (!photo) return c.json({ error: "not found" }, 404);
+    return c.body(photo.data, 200, {
+      "content-type": photo.mimeType,
+      // 本人専用・不変オブジェクト。ブラウザキャッシュは許可（共有キャッシュには乗せない）。
+      "cache-control": "private, max-age=86400",
+    });
   });
 
   // 公開牌譜フィード: 公開局を含む半荘を新着順に（全ユーザー・閲覧は自由）。

@@ -5,7 +5,7 @@
 import { describe, expect, it } from "vitest";
 import { RetryAnalysisJob } from "../../application/retry-analysis-job.usecase";
 import { GetAnalysisJob, StartAnalysisJob } from "../../application/start-analysis-job.usecase";
-import { analysisMessageKey } from "../../domain/analysis/analysis-transport";
+import { gameJobMessageKey } from "../../domain/analysis/analysis-transport";
 import type { AppContainer } from "../../composition-root";
 import { JwtSessionService } from "../../infrastructure/auth/jwt-session-service";
 import { fakeEnv } from "../../test-support/billing";
@@ -125,7 +125,7 @@ describe("POST /analyze（202 + jobId）", () => {
     // 半荘先行作成: 202 の時点で gameId が返る（newId 順で job-1=半荘、job-2=ジョブ）。
     expect(body).toEqual({ ok: true, jobId: "job-2", gameId: "job-1" });
     expect(jobs.jobs.get("job-2")).toMatchObject({ status: "processing", gameId: "job-1" });
-    expect(await images.get("jobs/job-2/river")).not.toBeNull();
+    expect(await images.get("games/job-1/job-2/river")).not.toBeNull(); // 恒久キー（半荘配下）
     expect(queue.sent).toHaveLength(1);
     expect(queue.sent[0]).toMatchObject({
       jobId: "job-2",
@@ -199,16 +199,16 @@ describe("POST /analyze/jobs/:id/retry（もう一度解析。Phase 2）", () =>
   async function seedFailedJob(ctx: ReturnType<typeof makeApp>) {
     await ctx.jobs.create({ id: "job-1", userId: "owner", gameId: "g1", now: NOW });
     await ctx.jobs.markFailed("job-1", { reason: "analysis_failed", now: NOW });
-    await ctx.images.put("jobs/job-1/river", {
+    await ctx.images.put("games/g1/job-1/river", {
       data: new ArrayBuffer(4),
       mimeType: "image/jpeg",
     });
-    await ctx.images.putJson(analysisMessageKey("job-1"), {
+    await ctx.images.putJson(gameJobMessageKey("g1", "job-1"), {
       jobId: "job-1",
       userId: "owner",
       gameId: "g1",
       cameraBottomSeat: "east",
-      riverKey: "jobs/job-1/river",
+      riverKey: "games/g1/job-1/river",
       handKeys: {},
     });
   }
@@ -225,7 +225,7 @@ describe("POST /analyze/jobs/:id/retry（もう一度解析。Phase 2）", () =>
 
     expect(res.status).toBe(202);
     expect(await res.json()).toEqual({ ok: true, jobId: "job-1", gameId: "g1" });
-    expect(ctx.queue.sent[0]).toMatchObject({ jobId: "job-1", riverKey: "jobs/job-1/river" });
+    expect(ctx.queue.sent[0]).toMatchObject({ jobId: "job-1", riverKey: "games/g1/job-1/river" });
     expect((await ctx.jobs.findForUser("job-1", "owner"))?.status).toBe("processing");
   });
 

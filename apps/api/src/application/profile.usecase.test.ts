@@ -11,6 +11,7 @@ import {
   InMemoryProblemRepository,
   InMemoryUserRepository,
 } from "../test-support/in-memory";
+import { InMemoryAnalysisImageStore } from "../test-support/in-memory-analysis";
 import { validKifu } from "../test-support/kifu";
 import { makeProblemData } from "../test-support/problem";
 import { DeleteAccount, GetPublicProfile, UpdateProfile } from "./profile.usecase";
@@ -165,6 +166,26 @@ describe("DeleteAccount", () => {
     expect(await problems.findById("p2")).not.toBeNull(); // 他人の問題は残る
     expect(await answers.countsByProblem("p1")).toEqual({});
     expect(await answers.countsByProblem("p2")).toEqual({});
+  });
+
+  it("退会で自分の半荘の元写真（R2）も消す（他人の写真は残る。photo-retention.md）", async () => {
+    const users = new InMemoryUserRepository([mkUser("u1", "x"), mkUser("u2", "y")]);
+    const games = new InMemoryGameRepository([game("g1", "u1"), game("g2", "u2")]);
+    const { problems, answers } = problemDeps();
+    const images = new InMemoryAnalysisImageStore();
+    await images.put("games/g1/j1/river", { data: new ArrayBuffer(4), mimeType: "image/jpeg" });
+    await images.put("games/g2/j2/river", { data: new ArrayBuffer(4), mimeType: "image/jpeg" });
+
+    const r = await new DeleteAccount(
+      users,
+      new InMemoryAccountStore(users, games, new InMemoryGameLogRepository(), problems, answers),
+      null,
+      { games, images },
+    ).execute("u1");
+
+    expect(r).toEqual({ ok: true });
+    expect(await images.listKeys("games/g1/")).toEqual([]);
+    expect(await images.listKeys("games/g2/")).toHaveLength(1); // 他人の写真は残る
   });
 
   it("Apple の refresh token があれば退会時に失効させる（失効失敗でも削除は続行）", async () => {

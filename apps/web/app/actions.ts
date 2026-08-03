@@ -25,6 +25,7 @@ import {
   getAnalysisJob,
   getProblemAnalysisJob,
   retryAnalysis,
+  listGamePhotos,
   finishQuizSession,
   listMyFavorites,
   listQuizSessions,
@@ -135,6 +136,11 @@ export async function getAnalysisJobAction(jobId: string) {
 /** もう一度解析（Phase 2）。失敗ジョブを再アップロード無しで再実行する。 */
 export async function retryAnalysisAction(jobId: string) {
   return retryAnalysis(await requireToken(), jobId);
+}
+
+/** 半荘の元写真の一覧（恒久保存・所有者のみ。バイトは /api/photos の BFF プロキシで取る）。 */
+export async function getGamePhotosAction(gameId: string) {
+  return listGamePhotos(await requireToken(), gameId);
 }
 
 /** 何切るの写真AI再現（非同期ジョブ。202 + jobId → ポーリング。保存なし）。 */

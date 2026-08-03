@@ -63,7 +63,7 @@ describe("StartAnalysisJob（半荘先行作成 + R2 + Queue）", () => {
     expect(await games.listByUser("u1")).toHaveLength(0);
   });
 
-  it("新規なら半荘を先に作成し、gameId 紐付きのジョブ → キュー投入 → jobId+gameId を返す", async () => {
+  it("新規なら半荘を先に作成し、画像は恒久キー（games/{gameId}/{jobId}/）へ入れて投入する", async () => {
     const { usecase, jobs, images, queue, games } = makeUsecase();
 
     const result = await usecase.start(params);
@@ -71,13 +71,14 @@ describe("StartAnalysisJob（半荘先行作成 + R2 + Queue）", () => {
     expect(result).toEqual({ ok: true, jobId: "id-2", gameId: "id-1" });
     expect(await games.listByUser("u1")).toHaveLength(1); // 半荘先行作成
     expect(jobs.jobs.get("id-2")).toMatchObject({ status: "processing", gameId: "id-1" });
-    expect(await images.get("jobs/id-2/river")).not.toBeNull();
+    // 画像は最初から恒久領域（半荘配下）。移動しない・完了しても消えない（photo-retention.md）。
+    expect(await images.get("games/id-1/id-2/river")).not.toBeNull();
     expect(queue.sent[0]).toMatchObject({
       jobId: "id-2",
       userId: "u1",
       gameId: "id-1",
-      riverKey: "jobs/id-2/river",
-      handKeys: { bottom: "jobs/id-2/hand_bottom" },
+      riverKey: "games/id-1/id-2/river",
+      handKeys: { bottom: "games/id-1/id-2/hand_bottom" },
     });
   });
 
@@ -107,23 +108,25 @@ describe("StartAnalysisJob（半荘先行作成 + R2 + Queue）", () => {
     expect(result).toEqual({ ok: false, reason: "game_analyzing" });
   });
 
-  it("画像アップロードに失敗したら半荘を作らない（見えない空半荘を残さない）", async () => {
+  it("画像アップロードに失敗したらジョブを failed に落とす（半荘は「解析失敗」で残る＝孤児画像なし）", async () => {
+    // 行（ジョブ・半荘）を先に作ってからアップロードする順序（photo-retention.md）:
+    // 失敗しても参照なしの画像が R2 に残ることが構造的にない。
     const { usecase, images, jobs, games } = makeUsecase();
     images.put = () => Promise.reject(new Error("R2 down"));
 
     await expect(usecase.start(params)).rejects.toThrow("R2 down");
 
-    expect(await games.listByUser("u1")).toHaveLength(0);
-    expect(jobs.jobs.size).toBe(0);
+    expect(await games.listByUser("u1")).toHaveLength(1); // 解析失敗ステータスで見える
+    expect(jobs.jobs.get("id-2")?.status).toBe("failed");
   });
 
-  it("再解析用にメッセージも R2 に置く（jobs/{id}/message.json。画像と同じ寿命=TTL 1日）", async () => {
+  it("再解析用にメッセージも半荘配下に置く（games/{gameId}/{jobId}/message.json。半荘と同じ寿命）", async () => {
     const { usecase, images, queue } = makeUsecase();
 
     await usecase.start({ ...params, handFromRiver: true });
 
-    // キューへ送ったものと同じメッセージが message.json に残る（Phase 2「もう一度解析」の材料）。
-    expect(await images.getJson("jobs/id-2/message.json")).toEqual(queue.sent[0]);
+    // キューへ送ったものと同じメッセージが message.json に残る（「もう一度解析」の材料）。
+    expect(await images.getJson("games/id-1/id-2/message.json")).toEqual(queue.sent[0]);
   });
 
   it("既存半荘の直近ジョブが終端（done/failed）なら受け付ける", async () => {
@@ -144,6 +147,6 @@ describe("StartAnalysisJob（半荘先行作成 + R2 + Queue）", () => {
 
     expect(jobs.jobs.get("id-2")?.status).toBe("failed");
     expect(jobs.jobs.get("id-2")?.reason).toBe("enqueue_failed");
-    expect(images.size).toBe(3); // 画像2枚 + message.json は残す（掃除は R2 ライフサイクル1日）
+    expect(images.size).toBe(3); // 画像2枚 + message.json は残す（半荘削除まで恒久）
   });
 });

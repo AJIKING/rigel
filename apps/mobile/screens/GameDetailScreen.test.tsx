@@ -22,9 +22,12 @@ jest.mock("../lib/use-kifu-data", () => ({
 }));
 
 const mockRetryAnalysis = jest.fn();
+const mockListGamePhotos = jest.fn<Promise<unknown[]>, unknown[]>(() => Promise.resolve([]));
 jest.mock("../lib/api", () => ({
+  API_BASE_URL: "https://api.test",
   deleteGame: jest.fn(),
   deleteKifu: jest.fn(),
+  listGamePhotos: (...args: unknown[]) => mockListGamePhotos(...args),
   retryAnalysis: (...args: unknown[]) => mockRetryAnalysis(...args),
   setGameStatus: jest.fn(),
   setGameVisibility: jest.fn(),
@@ -104,6 +107,17 @@ describe("GameDetailScreen（半荘詳細の局一覧）", () => {
     render(<GameDetailScreen />);
 
     expect(screen.getByText(/解析に失敗しました/)).toBeTruthy();
+  });
+
+  it("「元写真」チップでシートが開き、所有者限定の注記と空状態を出す（photo-retention.md）", async () => {
+    mockUseGame.mockReturnValue({ loading: false, detail: makeDetail([]), refetch: jest.fn() });
+    render(<GameDetailScreen />);
+
+    fireEvent.press(screen.getByText("元写真"));
+
+    expect(await screen.findByText(/元写真はありません/)).toBeTruthy();
+    expect(screen.getByText(/あなたにだけ表示されます/)).toBeTruthy();
+    expect(mockListGamePhotos).toHaveBeenCalledWith("t", "g1");
   });
 
   it("失敗＋ジョブIDありなら「もう一度解析」ボタンを出し、202 で再取得する（Phase 2）", async () => {

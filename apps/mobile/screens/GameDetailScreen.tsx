@@ -13,6 +13,7 @@ import { FlatList, Pressable, StyleSheet, Text, TextInput, View } from "react-na
 import { CenterState } from "../components/CenterState";
 import { Chip } from "../components/Chip";
 import { DangerButton } from "../components/DangerButton";
+import { GamePhotosSheet } from "../components/GamePhotosSheet";
 import { PlayersSheet } from "../components/editor/PlayersSheet";
 import { RulesSheet } from "../components/editor/RulesSheet";
 import { Segment } from "../components/Segment";
@@ -50,6 +51,7 @@ export function GameDetailScreen() {
   const [savingDate, setSavingDate] = useState(false);
   const [rulesOpen, setRulesOpen] = useState(false);
   const [playersOpen, setPlayersOpen] = useState(false);
+  const [photosOpen, setPhotosOpen] = useState(false);
   // 公開範囲・編集状態は半荘単位。楽観更新（失敗で戻す）。null のうちは局の値を使う。
   const [vis, setVis] = useState<Visibility | null>(null);
   const [stat, setStat] = useState<KifuStatus | null>(null);
@@ -340,6 +342,8 @@ export function GameDetailScreen() {
           </Pressable>
           <Chip label="ルール設定" a11ySelected={false} onPress={() => setRulesOpen(true)} />
           <Chip label="選手情報" a11ySelected={false} onPress={() => setPlayersOpen(true)} />
+          {/* 元写真（恒久保存・所有者のみ。photo-retention.md）。 */}
+          <Chip label="元写真" a11ySelected={false} onPress={() => setPhotosOpen(true)} />
           <View style={styles.delWrap}>
             <DangerButton label="半荘を削除" onPress={onDeleteGame} />
           </View>
@@ -429,6 +433,9 @@ export function GameDetailScreen() {
           onSave={onSavePlayers}
           onClose={() => setPlayersOpen(false)}
         />
+      ) : null}
+      {photosOpen && token ? (
+        <GamePhotosSheet gameId={gameId} token={token} onClose={() => setPhotosOpen(false)} />
       ) : null}
     </View>
   );

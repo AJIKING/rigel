@@ -44,6 +44,17 @@ export class R2AnalysisImageStore implements AnalysisImageStore {
     }
   }
 
+  async listKeys(prefix: string): Promise<string[]> {
+    const keys: string[] = [];
+    let cursor: string | undefined;
+    for (;;) {
+      const listed = await this.bucket.list({ prefix, ...(cursor ? { cursor } : {}) });
+      keys.push(...listed.objects.map((o) => o.key));
+      if (!listed.truncated) return keys;
+      cursor = listed.cursor;
+    }
+  }
+
   async deletePrefix(prefix: string): Promise<void> {
     // 消したぶんリストがずれるので cursor は使わず、空になるまで先頭から取り直す。
     for (;;) {

@@ -43,6 +43,7 @@ export const {
   getAnalysisJob,
   getProblemAnalysisJob,
   retryAnalysis,
+  listGamePhotos,
   updateProfile,
   createCheckout,
   createPortal,

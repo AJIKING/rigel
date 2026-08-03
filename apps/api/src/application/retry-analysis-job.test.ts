@@ -5,8 +5,8 @@
 
 import { describe, expect, it, vi } from "vitest";
 import {
-  analysisJobPrefix,
-  analysisMessageKey,
+  gameJobMessageKey,
+  gameJobPrefix,
   type KifuAnalysisJobMessage,
 } from "../domain/analysis/analysis-transport";
 import { fakeImage } from "../test-support/image";
@@ -24,7 +24,7 @@ const MESSAGE: KifuAnalysisJobMessage = {
   userId: "u1",
   gameId: "g1",
   cameraBottomSeat: "east",
-  riverKey: "jobs/job-1/river",
+  riverKey: "games/g1/job-1/river",
   handKeys: {},
 };
 
@@ -45,7 +45,7 @@ async function make(opts: { preflightOk?: boolean; queueFails?: boolean } = {}) 
   await jobs.create({ id: "job-1", userId: "u1", gameId: "g1", now: NOW });
   await jobs.markFailed("job-1", { reason: "analysis_failed", now: NOW });
   await images.put(MESSAGE.riverKey, fakeImage());
-  await images.putJson(analysisMessageKey("job-1"), MESSAGE);
+  await images.putJson(gameJobMessageKey("g1", "job-1"), MESSAGE);
 
   return { uc, jobs, images, queue, preflight };
 }
@@ -86,9 +86,9 @@ describe("RetryAnalysisJob（もう一度解析）", () => {
     expect(queue.sent).toHaveLength(0);
   });
 
-  it("R2 の message.json や画像が消えていたら（TTL 1日超）retry_expired", async () => {
+  it("R2 の message.json や画像が消えていたら（旧TTL世代・手動削除）retry_expired", async () => {
     const { uc, images, jobs } = await make();
-    await images.deletePrefix(analysisJobPrefix("job-1"));
+    await images.deletePrefix(gameJobPrefix("g1", "job-1"));
 
     const result = await uc.execute({ userId: "u1", jobId: "job-1" });
 

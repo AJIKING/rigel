@@ -23,6 +23,7 @@ const h = vi.hoisted(() => ({
   updateGameRulesAction: vi.fn(),
   updateGamePlayersAction: vi.fn(),
   deleteGameAction: vi.fn(),
+  getGamePhotosAction: vi.fn(() => Promise.resolve([])),
 }));
 vi.mock("../../app/actions", () => h);
 // next/navigation の useRouter をスタブ（半荘削除後の遷移で使う）。

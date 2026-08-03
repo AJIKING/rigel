@@ -21,7 +21,10 @@ export type {
   QuizSessionDto,
 } from "@rigel/client";
 
-const client = createApiClient(process.env.EXPO_PUBLIC_API_URL ?? "");
+/** api のベースURL（元写真の Image 直接取得など、クライアント外で URL を組むときに使う）。 */
+export const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? "";
+
+const client = createApiClient(API_BASE_URL);
 
 export const {
   authWithGoogle,
@@ -30,6 +33,7 @@ export const {
   getAnalysisJob,
   getProblemAnalysisJob,
   retryAnalysis,
+  listGamePhotos,
   fetchMe,
   getMyGames,
   getPublicGames,

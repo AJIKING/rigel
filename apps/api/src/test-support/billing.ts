@@ -29,7 +29,7 @@ export const fakeEnv = {
   DB: {} as unknown as D1Database,
   // 非同期解析の一時画像/キュー（ルート契約テストでは触られない。触るテストは
   // in-memory-analysis のフェイクを container 側に差す）。
-  ANALYSIS_TMP: {} as unknown as R2Bucket,
+  PHOTOS: {} as unknown as R2Bucket,
   ANALYSIS_QUEUE: { send: () => Promise.resolve() } as unknown as Env["ANALYSIS_QUEUE"],
   GEMINI_API_KEY: "",
   CLOUDFLARE_AI_GATEWAY_URL: "",

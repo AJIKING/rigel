@@ -12,10 +12,9 @@
 
 import type { CameraSeat } from "@rigel/schema";
 import type { AnalysisJobRepository } from "../domain/analysis/analysis-job";
-import {
-  analysisJobPrefix,
-  type AnalysisImageStore,
-  type KifuAnalysisJobMessage,
+import type {
+  AnalysisImageStore,
+  KifuAnalysisJobMessage,
 } from "../domain/analysis/analysis-transport";
 import type { ImageRef } from "../domain/kifu/analyzer";
 import type { AnalyzeParams, AnalyzeResult } from "./analyze-and-save-kifu.usecase";
@@ -40,12 +39,11 @@ export class RunAnalysisJob {
     const job = await jobs.findForUser(message.jobId, message.userId);
     if (!job || job.status !== "processing") return;
 
-    const prefix = analysisJobPrefix(message.jobId);
     try {
       const riverImage = await images.get(message.riverKey);
       if (!riverImage) {
+        // 旧TTLバケット世代のメッセージ・手動削除に耐える（画像が無ければ解析できない）。
         await jobs.markFailed(message.jobId, { reason: "images_missing", now: now() });
-        await images.deletePrefix(prefix);
         return;
       }
       const hands: Partial<Record<CameraSeat, ImageRef>> = {};
@@ -76,9 +74,10 @@ export class RunAnalysisJob {
             logId: result.gameLog.id,
             now: now(),
           });
-          await images.deletePrefix(prefix); // 成功したら一時画像は即削除
+          // 画像は消さない: 元写真は半荘に紐づく恒久データ（[決定] 2026-08-03
+          // photo-retention.md。掃除は半荘削除・退会時のみ）。
         } else {
-          // 失敗は画像を残す（リトライ用。掃除は R2 のライフサイクル1日。plan 8-3）。
+          // 失敗も画像を残す（再解析用）。
           await jobs.markFailed(message.jobId, { reason: result.reason, now: now() });
         }
       } catch (e) {

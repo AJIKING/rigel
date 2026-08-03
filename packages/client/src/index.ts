@@ -212,6 +212,17 @@ export type RetryAnalysisResult =
   | { ok: true; jobId: string; gameId: string | null }
   | { ok: false; status: number; reason?: string };
 
+/** 半荘の元写真のメタ（バイトは gamePhotoPath のエンドポイントから認証付きで取る）。 */
+export interface GamePhotoMeta {
+  jobId: string;
+  kind: "river" | "hand_bottom" | "hand_right" | "hand_top" | "hand_left";
+}
+
+/** 元写真バイト配信の API パス（web は BFF プロキシ・mobile は認証ヘッダ付き Image で使う）。 */
+export function gamePhotoPath(gameId: string, photo: GamePhotoMeta): string {
+  return `/games/${gameId}/photos/${photo.jobId}/${photo.kind}`;
+}
+
 /** 解析ジョブの状態（GET /analyze/jobs/:id）。done で gameId/logId が入る。 */
 export interface AnalysisJob {
   id: string;
@@ -273,6 +284,9 @@ export interface ApiClient {
   /** もう一度解析（Phase 2）。失敗ジョブを再アップロード無しで再実行する（202）。
    *  期限切れ（R2 の一時データが消えた）は status 400 + reason "retry_expired"。 */
   retryAnalysis(token: string, jobId: string): Promise<RetryAnalysisResult>;
+  /** 半荘の元写真の一覧（恒久保存・所有者のみ。photo-retention.md）。404 は null。
+   *  バイト本体は gamePhotoPath() のパスへ認証付き GET で取る。 */
+  listGamePhotos(token: string, gameId: string): Promise<GamePhotoMeta[] | null>;
   /**
    * 何切るの写真AI再現の解析ジョブを開始する（202 + jobId。保存はされない）。
    * フォーム: hand(必須=自分の手牌), river(任意), cameraBottomSeat(任意=出題視点)。
@@ -565,6 +579,13 @@ export function createApiClient(baseUrl: string, fetchImpl?: typeof fetch): ApiC
       }
       const body = (await res.json().catch(() => ({}))) as { reason?: string; error?: string };
       return { ok: false, status: res.status, reason: body.reason ?? body.error };
+    },
+
+    async listGamePhotos(token, gameId) {
+      const res = await doFetch(`${baseUrl}/games/${gameId}/photos`, { headers: bearer(token) });
+      if (!res.ok) return null;
+      const d = (await res.json()) as { photos: GamePhotoMeta[] };
+      return d.photos;
     },
 
     async getProblemAnalysisJob(token, jobId) {

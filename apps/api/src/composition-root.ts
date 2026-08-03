@@ -20,6 +20,7 @@ import { UpdateGameRules } from "./application/update-game-rules.usecase";
 import { UpdateGamePlayers } from "./application/update-game-players.usecase";
 import { UpdateGameStatus } from "./application/update-game-status.usecase";
 import { UpdateGameVisibility } from "./application/update-game-visibility.usecase";
+import { GetGamePhoto, ListGamePhotos } from "./application/game-photos.usecase";
 import { GetGameWithLogs } from "./application/get-game-with-logs.usecase";
 import {
   GetProblemAnalysisJob,
@@ -91,6 +92,9 @@ export interface AppContainer {
   runAnalysisJob: RunAnalysisJob;
   /** もう一度解析（Phase 2。失敗ジョブの再 enqueue）。 */
   retryAnalysisJob: RetryAnalysisJob;
+  /** 半荘の元写真（恒久保存・所有者のみ。photo-retention.md）。 */
+  listGamePhotos: ListGamePhotos;
+  getGamePhoto: GetGamePhoto;
   analyzeProblemDraft: AnalyzeProblemDraft;
   /** 何切るの写真AI再現の非同期ジョブ化（結果は R2 の result.json。[決定] 2026-08-02）。 */
   startProblemAnalysisJob: StartProblemAnalysisJob;
@@ -241,7 +245,7 @@ export function buildContainer(env: Env): AppContainer {
     now,
   });
   const analysisJobs = new DrizzleAnalysisJobRepository(db);
-  const analysisImages = new R2AnalysisImageStore(env.ANALYSIS_TMP);
+  const analysisImages = new R2AnalysisImageStore(env.PHOTOS);
   const analysisQueue = {
     send: async (message: AnalysisJobMessage) => {
       await env.ANALYSIS_QUEUE.send(message);
@@ -260,6 +264,8 @@ export function buildContainer(env: Env): AppContainer {
       newId,
     }),
     getAnalysisJob: new GetAnalysisJob(analysisJobs),
+    listGamePhotos: new ListGamePhotos(gamesRepo, analysisImages),
+    getGamePhoto: new GetGamePhoto(gamesRepo, analysisImages),
     retryAnalysisJob: new RetryAnalysisJob({
       jobs: analysisJobs,
       images: analysisImages,
@@ -294,7 +300,7 @@ export function buildContainer(env: Env): AppContainer {
     listKifu: new ListKifu(gameLogs),
     updateKifu: new UpdateKifu(gameLogs),
     deleteKifu: new DeleteKifu(gameLogs),
-    deleteGame: new DeleteGame(gamesRepo, gameLogs, favorites, analysisJobs),
+    deleteGame: new DeleteGame(gamesRepo, gameLogs, favorites, analysisJobs, analysisImages),
     updateGame: new UpdateGame(gamesRepo),
     updateGameRules: new UpdateGameRules(gamesRepo, gameLogs),
     updateGamePlayers: new UpdateGamePlayers(gamesRepo, gameLogs),
@@ -336,7 +342,10 @@ export function buildContainer(env: Env): AppContainer {
     getUser: new GetUser(users),
     updateProfile: new UpdateProfile(users),
     getPublicProfile: new GetPublicProfile(users, gamesRepo, gameLogs),
-    deleteAccount: new DeleteAccount(users, new DrizzleAccountStore(db), appleAuth),
+    deleteAccount: new DeleteAccount(users, new DrizzleAccountStore(db), appleAuth, {
+      games: gamesRepo,
+      images: analysisImages,
+    }),
     createProblem: new CreateProblem({ problems, users, now, newId }),
     updateProblem: new UpdateProblem(problems),
     deleteProblem: new DeleteProblem(problems, problemAnswers, favorites),

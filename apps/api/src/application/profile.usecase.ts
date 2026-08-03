@@ -4,6 +4,7 @@
 //   DeleteAccount: 自分の牌譜・半荘・ユーザーを削除（カスケード）。
 
 import { KIFU_LIMITS } from "@rigel/schema";
+import { gamePhotosPrefix } from "../domain/analysis/analysis-transport";
 import type { AppleAuthGateway } from "../domain/auth/apple-auth-gateway";
 import type { GameRepository } from "../domain/game/game.repository";
 import type { GameLogRepository } from "../domain/kifu/game-log.repository";
@@ -105,6 +106,11 @@ export class DeleteAccount {
     private readonly store: AccountStore,
     /** Sign in with Apple のトークン失効（App Store 審査要件）。鍵未設定の環境は null。 */
     private readonly appleAuth: AppleAuthGateway | null = null,
+    /** 元写真の掃除（photo-retention.md）。半荘一覧と R2 ストア。未配線のテストは省略可。 */
+    private readonly photos: {
+      games: GameRepository;
+      images: { deletePrefix(prefix: string): Promise<void> };
+    } | null = null,
   ) {}
 
   async execute(userId: string): Promise<DeleteAccountResult> {
@@ -117,6 +123,14 @@ export class DeleteAccount {
     // （ユーザーの削除権を優先。ベストエフォート）。
     if (user.appleRefreshToken && this.appleAuth) {
       await this.appleAuth.revokeToken(user.appleRefreshToken).catch(() => undefined);
+    }
+    // 元写真の掃除（[決定] 2026-08-03: 削除はデータ削除時 = 退会もその一つ）。
+    // R2 は D1 とトランザクションを張れないので先に消す（途中失敗は退会自体を失敗させ、
+    // 再リクエストで回収する。D1 を先に消すと写真への参照が失われ回収不能になる）。
+    if (this.photos) {
+      for (const game of await this.photos.games.listByUser(userId)) {
+        await this.photos.images.deletePrefix(gamePhotosPrefix(game.id));
+      }
     }
     // 削除は1トランザクション（回答→問題→局→半荘→ユーザー）。個別に順次消すと
     // 途中失敗で中途半端に消えた孤児が残る。

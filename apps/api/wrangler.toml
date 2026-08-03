@@ -21,12 +21,12 @@ migrations_dir = "migrations"
 [observability]
 enabled = true
 
-# 非同期解析（docs/plans/async-analysis.md）: 画像の一時置き場（R2）と解析ジョブのキュー。
-# バケットには「作成から1日で削除」のライフサイクルルールを設定済み（消し漏れの保険。
-# 本線は consumer が処理後に即削除する）。
+# 撮影画像の恒久保存（docs/plans/photo-retention.md・[決定] 2026-08-03）。
+# 解析ジョブの画像・message.json は送信時からここへ直接入り、データ削除時にだけ消す
+# （ライフサイクルルールは設定しない）。旧 rigel-analysis-tmp（TTL 1日）は廃止予定。
 [[r2_buckets]]
-binding = "ANALYSIS_TMP"               # env.ANALYSIS_TMP（src/env.ts）に対応
-bucket_name = "rigel-analysis-tmp"
+binding = "PHOTOS"                     # env.PHOTOS（src/env.ts）に対応
+bucket_name = "rigel"
 
 [[queues.producers]]
 binding = "ANALYSIS_QUEUE"             # env.ANALYSIS_QUEUE（src/env.ts）に対応

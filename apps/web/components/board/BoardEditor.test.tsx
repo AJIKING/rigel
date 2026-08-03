@@ -19,6 +19,7 @@ vi.mock("../../app/actions", () => ({
   updateGameAction: vi.fn(),
   updateGameRulesAction: vi.fn(),
   deleteGameAction: vi.fn(),
+  getGamePhotosAction: vi.fn(() => Promise.resolve([])),
 }));
 // next/navigation の useRouter をスタブ（半荘削除後の遷移で使う）。
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));

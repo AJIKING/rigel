@@ -119,6 +119,12 @@ export class InMemoryAnalysisImageStore implements AnalysisImageStore {
     return Promise.resolve();
   }
 
+  listKeys(prefix: string): Promise<string[]> {
+    return Promise.resolve(
+      [...this.images.keys(), ...this.jsons.keys()].filter((k) => k.startsWith(prefix)).sort(),
+    );
+  }
+
   putJson(key: string, value: unknown): Promise<void> {
     // 実装（R2）と同じく JSON 経由で往復させる（Date 等が素通りしない）。
     this.jsons.set(key, JSON.parse(JSON.stringify(value)));

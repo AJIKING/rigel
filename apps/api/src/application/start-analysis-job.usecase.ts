@@ -11,8 +11,8 @@
 import type { CameraSeat, Seat } from "@rigel/schema";
 import type { AnalysisJobRepository } from "../domain/analysis/analysis-job";
 import {
-  analysisJobPrefix,
-  analysisMessageKey,
+  gameJobMessageKey,
+  gameJobPrefix,
   type AnalysisImageStore,
   type AnalysisQueue,
   type KifuAnalysisJobMessage,
@@ -107,27 +107,27 @@ export class StartAnalysisJob {
     const gameId = params.gameId ?? newId();
 
     const jobId = newId();
-    const prefix = analysisJobPrefix(jobId);
+    // 画像は最初から恒久領域（半荘配下）へ置く。移動しない・完了しても消さない
+    // （[決定] 2026-08-03 photo-retention.md。掃除は半荘削除・退会時のみ）。
+    const prefix = gameJobPrefix(gameId, jobId);
     const riverKey = `${prefix}river`;
     const handKeys: Partial<Record<CameraSeat, string>> = {};
     let jobCreated = false;
 
     try {
+      // 行（ジョブ→半荘）を先に作ってからアップロードする: 失敗しても画像は必ず
+      // 半荘に属し、参照なしの孤児オブジェクトが構造的に残らない。
+      await jobs.create({ id: jobId, userId: params.userId, gameId, now: now() });
+      jobCreated = true;
+      if (isNewGame) {
+        await games.save({ id: gameId, userId: params.userId, title: "", createdAt: now() });
+      }
+
       await images.put(riverKey, params.riverImage);
       for (const [cam, image] of Object.entries(params.hands) as [CameraSeat, ImageRef][]) {
         const key = `${prefix}hand_${cam}`;
         await images.put(key, image);
         handKeys[cam] = key;
-      }
-
-      await jobs.create({ id: jobId, userId: params.userId, gameId, now: now() });
-      jobCreated = true;
-
-      // 半荘先行作成（plan 8-3）はジョブ行の後: 画像アップロード等で失敗したとき、
-      // ステータスの付かない「見えない空半荘」を残さないため。
-      // 失敗しても半荘は 0 局のまま「解析失敗」ステータスで残す（[決定] 2026-08-02）。
-      if (isNewGame) {
-        await games.save({ id: gameId, userId: params.userId, title: "", createdAt: now() });
       }
 
       const message: KifuAnalysisJobMessage = {
@@ -139,13 +139,12 @@ export class StartAnalysisJob {
         handKeys,
         ...(params.handFromRiver ? { handFromRiver: true } : {}),
       };
-      // 再解析（Phase 2）用の控え。画像と同じ寿命（done で掃除・TTL 1日）。
-      await images.putJson(analysisMessageKey(jobId), message);
+      // 再解析用の控え（半荘と同じ寿命）。
+      await images.putJson(gameJobMessageKey(gameId, jobId), message);
       await queue.send(message);
       return { ok: true, jobId, gameId };
     } catch (e) {
-      // 途中失敗は宙に浮かせない: ジョブ行があるときだけ failed に落とす（無ければ何も
-      // 永続化されていない）。画像は消さない（掃除は R2 のライフサイクル1日。plan 8-3）。
+      // 途中失敗は宙に浮かせない: ジョブを failed に落とす（半荘は「解析失敗」で見える）。
       if (jobCreated) {
         await jobs.markFailed(jobId, { reason: "enqueue_failed", now: now() }).catch(() => {});
       }

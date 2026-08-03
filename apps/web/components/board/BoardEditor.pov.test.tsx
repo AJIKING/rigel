@@ -21,6 +21,7 @@ const h = vi.hoisted(() => ({
   updateGameRulesAction: vi.fn(),
   updateGamePlayersAction: vi.fn(),
   deleteGameAction: vi.fn(),
+  getGamePhotosAction: vi.fn(() => Promise.resolve([])),
 }));
 vi.mock("../../app/actions", () => h);
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));

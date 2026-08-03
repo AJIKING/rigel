@@ -8,7 +8,8 @@ export interface Env {
   DB: D1Database;
   /** 解析画像の一時置き場（R2。処理後に即削除＋ライフサイクル1日。
    *  docs/plans/async-analysis.md）。 */
-  ANALYSIS_TMP: R2Bucket;
+  /** 撮影画像の恒久保存バケット（rigel。docs/plans/photo-retention.md）。 */
+  PHOTOS: R2Bucket;
   /** 解析ジョブのキュー（producer binding）。 */
   ANALYSIS_QUEUE: Queue<AnalysisJobMessage>;
   /** レート制限（Cloudflare Rate Limiting binding）。未設定なら制限しない＝ローカル開発。

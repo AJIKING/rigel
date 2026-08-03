@@ -6,7 +6,10 @@ import {
   InMemoryGameLogRepository,
   InMemoryGameRepository,
 } from "../test-support/in-memory";
-import { InMemoryAnalysisJobRepository } from "../test-support/in-memory-analysis";
+import {
+  InMemoryAnalysisImageStore,
+  InMemoryAnalysisJobRepository,
+} from "../test-support/in-memory-analysis";
 import { validKifu } from "../test-support/kifu";
 import { DeleteGame } from "./delete-game.usecase";
 
@@ -41,6 +44,7 @@ describe("DeleteGame（半荘の削除）", () => {
       gameLogs,
       favorites,
       new InMemoryAnalysisJobRepository(),
+      new InMemoryAnalysisImageStore(),
     ).execute({
       userId: "u1",
       gameId: "g1",
@@ -60,7 +64,13 @@ describe("DeleteGame（半荘の削除）", () => {
     await favorites.add({ userId: "u3", targetType: "game", targetId: "g1", createdAt: at });
     await favorites.add({ userId: "u2", targetType: "game", targetId: "g2", createdAt: at });
 
-    await new DeleteGame(games, gameLogs, favorites, new InMemoryAnalysisJobRepository()).execute({
+    await new DeleteGame(
+      games,
+      gameLogs,
+      favorites,
+      new InMemoryAnalysisJobRepository(),
+      new InMemoryAnalysisImageStore(),
+    ).execute({
       userId: "u1",
       gameId: "g1",
     });
@@ -81,6 +91,7 @@ describe("DeleteGame（半荘の削除）", () => {
       new InMemoryGameLogRepository(),
       new InMemoryFavoriteRepository(),
       jobs,
+      new InMemoryAnalysisImageStore(),
     ).execute({
       userId: "u1",
       gameId: "g1",
@@ -91,6 +102,25 @@ describe("DeleteGame（半荘の削除）", () => {
     expect(await jobs.findForUser("j3", "u1")).not.toBeNull();
   });
 
+  it("半荘の元写真（R2）も一緒に消す（削除はデータ削除時。photo-retention.md）", async () => {
+    const games = new InMemoryGameRepository([game("g1", "u1"), game("g2", "u1")]);
+    const images = new InMemoryAnalysisImageStore();
+    await images.put("games/g1/j1/river", { data: new ArrayBuffer(4), mimeType: "image/jpeg" });
+    await images.putJson("games/g1/j1/message.json", { jobId: "j1" });
+    await images.put("games/g2/j2/river", { data: new ArrayBuffer(4), mimeType: "image/jpeg" });
+
+    await new DeleteGame(
+      games,
+      new InMemoryGameLogRepository(),
+      new InMemoryFavoriteRepository(),
+      new InMemoryAnalysisJobRepository(),
+      images,
+    ).execute({ userId: "u1", gameId: "g1" });
+
+    expect(await images.listKeys("games/g1/")).toEqual([]);
+    expect(await images.listKeys("games/g2/")).toHaveLength(1); // 別半荘は残る
+  });
+
   it("他人の半荘は消せない（not_found として扱い、存在も漏らさない）", async () => {
     const games = new InMemoryGameRepository([game("g1", "u1")]);
     const gameLogs = new InMemoryGameLogRepository();
@@ -99,6 +129,7 @@ describe("DeleteGame（半荘の削除）", () => {
       gameLogs,
       new InMemoryFavoriteRepository(),
       new InMemoryAnalysisJobRepository(),
+      new InMemoryAnalysisImageStore(),
     ).execute({
       userId: "attacker",
       gameId: "g1",
@@ -115,6 +146,7 @@ describe("DeleteGame（半荘の削除）", () => {
       gameLogs,
       new InMemoryFavoriteRepository(),
       new InMemoryAnalysisJobRepository(),
+      new InMemoryAnalysisImageStore(),
     ).execute({
       userId: "u1",
       gameId: "gx",
