@@ -1,0 +1,10 @@
+# 静的アセット（/_next/static/* と public/ 配下）のレスポンスヘッダ。
+#
+# next.config.mjs の headers() は Worker を通る応答にしか付かず、Workers Assets が
+# 直接返す静的ファイルには届かない（2026-08-03 に本番実測: /_next/static/*.css に
+# nosniff も HSTS も無かった）。Cloudflare Workers Assets はこの _headers を読むので、
+# ここで同じヘッダを揃える。**next.config.mjs 側と値を揃えて変更すること。**
+/*
+  X-Content-Type-Options: nosniff
+  Strict-Transport-Security: max-age=63072000; includeSubDomains; preload
+  Referrer-Policy: strict-origin-when-cross-origin
