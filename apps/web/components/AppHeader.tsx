@@ -7,8 +7,8 @@ import { BrandMark } from "./BrandMark";
 import s from "./app-header.module.css";
 
 /**
- * アプリ共通ヘッダー。ナビは「牌譜（公開一覧）・何切る（公開一覧）・特訓・マイページ」。
- *  - 未ログイン: 牌譜・何切る・特訓のみ。右肩は「ログイン」ボタン（マイページ・アバターは出さない）。
+ * アプリ共通ヘッダー。ナビは「牌譜（公開一覧）・何切る（公開一覧）・特訓・ランキング・マイページ」。
+ *  - 未ログイン: 牌譜・何切る・特訓・ランキングのみ。右肩は「ログイン」ボタン（マイページ・アバターは出さない）。
  *  - ログイン中: マイページが加わり、右肩は設定へ飛ぶアバター。
  * `active` で現在地のタブをハイライトする。
  * `anchors` はページ内アンカー（LP の できること/プラン）。ナビの先頭に並べ、狭幅では隠す。
@@ -17,7 +17,7 @@ export function AppHeader({
   active,
   anchors,
 }: {
-  active?: "kifu" | "problems" | "training" | "mypage" | "settings";
+  active?: "kifu" | "problems" | "training" | "ranking" | "mypage" | "settings";
   anchors?: readonly { href: string; label: string }[];
 }) {
   const { user, loading } = useAuth();
@@ -58,6 +58,13 @@ export function AppHeader({
           aria-current={active === "training" ? "page" : undefined}
         >
           特訓
+        </Link>
+        <Link
+          href="/ranking"
+          className={`${s.navItem} ${active === "ranking" ? s.on : ""}`}
+          aria-current={active === "ranking" ? "page" : undefined}
+        >
+          ランキング
         </Link>
         {user && (
           <Link

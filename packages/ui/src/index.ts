@@ -59,6 +59,8 @@ export * from "./quiz-session-machine";
 // 特訓クイズの履歴グラフ整形（マイページ「特訓」の日毎集計・サマリ・系列）。
 export * from "./favorites";
 export * from "./quiz-stats";
+// 特訓ランキング（期間・2ボードの並べ方・しきい値。api/web/mobile 共有）。
+export * from "./quiz-ranking";
 // 局跨ぎの点棒集計（持ち点・成績）。
 export * from "./standings";
 // 手順（タイムライン）の導出・巡目・盤面同期。
@@ -475,7 +477,7 @@ export function planKifuLimits(plan: Plan): { private: number | null; draft: num
   return { private: PRIVATE_KIFU_LIMIT[plan], draft: DRAFT_KIFU_LIMIT[plan] };
 }
 
-// FREE_QUIZ_PER_DAY（無料の特訓クイズ1日3回）は @rigel/schema に一元化（@rigel/ui からは
+// FREE_QUIZ_PER_DAY（無料の特訓クイズ1日上限）は @rigel/schema に一元化（@rigel/ui からは
 // re-export しない。参照する側は @rigel/schema から直接 import する）。
 
 // 1半荘の局数上限(30)・局順 seq の上限(16)も背骨に一元化（api のサーバ強制と共有）。

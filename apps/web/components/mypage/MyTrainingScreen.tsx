@@ -4,6 +4,7 @@ import type { QuizSessionDto } from "@rigel/client";
 import {
   QUIZ_EMPTY_HISTORY_MESSAGE,
   QUIZ_KIND_LABELS,
+  QUIZ_RANKING_LINK_LABEL,
   QUIZ_STATS_PERIODS,
   accuracyLabel,
   jstDateTime,
@@ -12,6 +13,7 @@ import {
   quizRecentHistory,
   type QuizStatsPeriod,
 } from "@rigel/ui";
+import Link from "next/link";
 import { useMemo, useState } from "react";
 import { AppHeader } from "../AppHeader";
 import { MyPageTabs } from "./MyPageTabs";
@@ -52,7 +54,7 @@ export function MyTrainingScreen({
         <section>
           <MyPageTabs active="training" />
 
-          {/* 期間の切替チップ（特訓画面のチップと同じピル形） */}
+          {/* 期間の切替チップ（特訓画面のチップと同じピル形）＋ランキング導線。 */}
           <div className={t.toolbar}>
             <div className={t.seg} role="group" aria-label="期間切替">
               {QUIZ_STATS_PERIODS.map((p) => (
@@ -66,6 +68,9 @@ export function MyTrainingScreen({
                 </button>
               ))}
             </div>
+            <Link href="/ranking" className={t.rankingLink}>
+              {QUIZ_RANKING_LINK_LABEL}
+            </Link>
           </div>
 
           {/* 指標名は並んだグラフの上に1度だけ（カードの見出しは種目名が担う）。
@@ -79,16 +84,19 @@ export function MyTrainingScreen({
             <p className={t.empty}>{QUIZ_EMPTY_HISTORY_MESSAGE}</p>
           ) : (
             <ul className={t.hist}>
+              {/* 行タップでセッション詳細へ（有料は保存された見直しレコードを確認できる）。 */}
               {history.map((x) => (
-                <li key={x.id} className={t.row}>
-                  <span className={t.rowDate}>{jstDateTime(x.createdAt)}</span>
-                  <span className={t.rowKind}>{QUIZ_KIND_LABELS[x.kind]}</span>
-                  <span className={t.rowScore}>
-                    {x.correct} / {x.total}問
-                  </span>
-                  <span className={t.rowAcc}>
-                    正答率 {accuracyLabel(x.total > 0 ? x.correct / x.total : null)}
-                  </span>
+                <li key={x.id}>
+                  <Link href={`/mypage/training/${x.id}`} className={`${t.row} ${t.rowLink}`}>
+                    <span className={t.rowDate}>{jstDateTime(x.createdAt)}</span>
+                    <span className={t.rowKind}>{QUIZ_KIND_LABELS[x.kind]}</span>
+                    <span className={t.rowScore}>
+                      {x.correct} / {x.total}問
+                    </span>
+                    <span className={t.rowAcc}>
+                      正答率 {accuracyLabel(x.total > 0 ? x.correct / x.total : null)}
+                    </span>
+                  </Link>
                 </li>
               ))}
             </ul>

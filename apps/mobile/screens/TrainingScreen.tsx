@@ -2,19 +2,16 @@ import type { QuizSessionDto } from "@rigel/client";
 import type { QuizKind, Tile } from "@rigel/schema";
 import {
   ANALYTICS_EVENTS,
+  chinitsuWaitCandidates,
   createQuizRng,
   createQuizSession,
   defaultQuizQuestion,
+  quizFinishPayload,
   quizRecentLine,
   quizSessionReducer,
   scoreDisplayTiles,
   scoreMeldViews,
-  scoreYakuLine,
-  sessionResult,
   tileLabel,
-  chinitsuUkeireCandidates,
-  ukeireLabel,
-  ukeireReviewModel,
   QUIZ_CARD_MOTIF,
   QUIZ_FEEDBACK_MS,
   QUIZ_KIND_DESCRIPTIONS,
@@ -23,23 +20,32 @@ import {
   QUIZ_KINDS,
   QUIZ_LIMIT_MESSAGE,
   QUIZ_RECENT_LIMIT,
+  QUIZ_RANKING_LINK_LABEL,
   QUIZ_RULE_NOTE,
   QUIZ_SEND_ERROR_MESSAGE,
+  QUIZ_SIGNIN_NOTE,
   QUIZ_START_ERROR_MESSAGE,
   QUIZ_EMPTY_HISTORY_MESSAGE,
   type QuizQuestion,
   type QuizSessionContext,
   type QuizSessionEvent,
 } from "@rigel/ui";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useNavigation } from "@react-navigation/native";
+import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { BottomSheet } from "../components/BottomSheet";
 import { CenterState } from "../components/CenterState";
 import { MiniTile } from "../components/MiniTile";
+import { QuizReviewList } from "../components/QuizReviewList";
+import { RankingLink } from "../components/RankingLink";
 import { trackEvent } from "../lib/analytics";
 import { finishQuizSession, listQuizSessions, startQuizSession } from "../lib/api";
 import { useAuth } from "../lib/auth";
+import type { RootStackParamList } from "../lib/navigation";
 import { colors, radius } from "../lib/theme";
+
+type Nav = NativeStackNavigationProp<RootStackParamList>;
 
 /** 再ログイン促し（token 失効時。mobile 固有の文言）。 */
 const RELOGIN_MESSAGE = "サインインが必要です。再度サインインしてください。";
@@ -49,8 +55,12 @@ const RELOGIN_MESSAGE = "サインインが必要です。再度サインイン�
  * セッションの状態遷移（ダイアログ→開始→3,2,1→出題→回答→○×→時間切れ→結果→retry/back）は
  * web と共有の状態機械（@rigel/ui quiz-session-machine）に一元化し、この画面は
  * 「イベントを dispatch して state を描画する」だけ。API 呼び出し・タイマー駆動・analytics は
- * この画面の副作用として残す（回数制限=無料1日3回は開始 API がサーバ強制。
+ * この画面の副作用として残す（無料の回数制限は開始 API がサーバ強制。
  * Plan: docs/plans/quiz-training.md）。
+ * 未サインイン（ゲスト）でも遊べる（匿名プレイ）: 出題・採点は完全クライアントなので API を
+ * 一切呼ばず、sessionId=null の匿名セッションとして状態機械を回す。結果は保存されない
+ * （結果画面のサインイン導線=endGuest でログイン画面へ戻す。
+ * Plan: docs/plans/quiz-open-and-ranking.md Phase 1）。
  * seed はテスト用に出題列を固定する注入口（未指定は Date.now()）。
  * generateQuestion はテストが出題オブジェクトを直接注入する注入口（既定は
  * defaultQuizQuestion=本物の生成器。出題内容の正しさは @rigel/ui のテストが担保）。
@@ -67,7 +77,8 @@ export function TrainingScreen({
   generateQuestion?: (kind: QuizKind, rng: () => number) => QuizQuestion;
   onOpenSettings?: () => void;
 }) {
-  const { user, token, loading } = useAuth();
+  const nav = useNavigation<Nav>();
+  const { user, token, loading, endGuest } = useAuth();
 
   // --- セッション状態は共有状態機械に一元化。dispatch は「今の state から次の state を
   // その場で計算して置き換える」（updater 関数を使わない）＝rng の消費が二重実行されない。
@@ -121,7 +132,7 @@ export function TrainingScreen({
 
   // 時間切れ→結果画面への遷移時に一度だけ、結果をサーバに記録して quiz_complete を送る。
   // 送信結果の適用は sessionId 一致ガード: 前セッションの遅延失敗が「もう一度挑戦」後の
-  // 新しいセッションの画面を汚さない。durationMs は sessionResult()（実測 clamp 済み）に一本化。
+  // 新しいセッションの画面を汚さない。durationMs は quizFinishPayload()（実測 clamp 済み）に一本化。
   const prevPhaseRef = useRef(state.phase);
   useEffect(() => {
     const prev = prevPhaseRef.current;
@@ -134,7 +145,10 @@ export function TrainingScreen({
     const failed = () => {
       if (stateRef.current.sessionId === sessionId) setSendError(true);
     };
-    finishQuizSession(token, sessionId, sessionResult(done))
+    // 結果＋全回答＋エンジン版数の組み立ては quizFinishPayload に一本化（手組みすると
+    // answers の送り忘れ=静かな unverified 化が起きる。サーバはシードから再生成・再採点して
+    // 確定する。Plan: docs/plans/quiz-open-and-ranking.md Phase 4）。
+    finishQuizSession(token, sessionId, quizFinishPayload(done))
       .then((r) => {
         if (!r.ok) failed();
       })
@@ -145,7 +159,7 @@ export function TrainingScreen({
    *  直近5回の記録（その種目のみ）を取得して出す。失敗しても空扱いで開始は妨げない。 */
   function openStartDialog(k: QuizKind) {
     // token 失効（user はいるが token が無い）で沈黙しない。再ログインを促す。
-    if (!token) {
+    if (user && !token) {
       setErrorMsg(RELOGIN_MESSAGE);
       return;
     }
@@ -153,6 +167,9 @@ export function TrainingScreen({
     pendingKindRef.current = k;
     dispatch({ type: "OPEN_DIALOG", kind: k });
     setDialogError(null);
+    // 匿名（ゲスト）は正常系: 記録が存在しないのでダイアログだけ開く（取得 API も呼ばない。
+    // web と同じ形）。
+    if (!user || !token) return;
     setRecent(null);
     listQuizSessions(token)
       .then((all) => {
@@ -174,28 +191,35 @@ export function TrainingScreen({
    *  失敗なら表示すべきエラーメッセージを返す（表示先は呼び出し側: ダイアログ内/結果画面）。 */
   async function start(k: QuizKind, isRetry: boolean): Promise<string | null> {
     // token 失効で沈黙しない（ダイアログは token 必須で開くが、セッション中の失効に備える）。
-    if (!token) return RELOGIN_MESSAGE;
+    // 匿名（user なし）は正常系なので対象外。
+    if (user && !token) return RELOGIN_MESSAGE;
     setStarting(true);
     try {
-      const res = await startQuizSession(token, k).catch(() => ({
-        ok: false as const,
-        status: 0,
-      }));
-      if (!res.ok) {
-        return res.status === 402 ? QUIZ_LIMIT_MESSAGE : QUIZ_START_ERROR_MESSAGE;
+      // 匿名（未サインイン）は開始 API を呼ばない＝枠の概念がなく、結果も保存しない。
+      let sessionId: string | null = null;
+      let serverSeed: number | null = null;
+      if (user && token) {
+        const res = await startQuizSession(token, k).catch(() => ({
+          ok: false as const,
+          status: 0,
+        }));
+        if (!res.ok) {
+          return res.status === 402 ? QUIZ_LIMIT_MESSAGE : QUIZ_START_ERROR_MESSAGE;
+        }
+        sessionId = res.id;
+        serverSeed = res.seed;
       }
       setErrorMsg(null);
       setSendError(false);
       // 残り回数（res.remainingToday）は表示しない（[決定] 2026-07-25 オーナーレビュー。
       // 上限は 402 時の文言とプランカードで伝える）。
-      // 出題はシード付きの決定的生成（テストは seed か generateQuestion の注入で固定できる）。
-      rngRef.current = createQuizRng(seed ?? Date.now());
+      // 出題はシード付きの決定的生成。サインイン時は**サーバ発行シード**を使う（完了時に
+      // サーバが同じシードで再生成・再採点する）。注入 seed（テスト）が最優先・匿名は実時刻。
+      rngRef.current = createQuizRng(seed ?? serverSeed ?? Date.now());
       void trackEvent(ANALYTICS_EVENTS.quizStart, { kind: k });
       const now = Date.now();
       dispatch(
-        isRetry
-          ? { type: "RETRY", sessionId: res.id, now }
-          : { type: "START", kind: k, sessionId: res.id, now },
+        isRetry ? { type: "RETRY", sessionId, now } : { type: "START", kind: k, sessionId, now },
       );
       return null;
     } finally {
@@ -231,10 +255,9 @@ export function TrainingScreen({
   const discardTile = (tile: Tile) => dispatch({ type: "DISCARD", tile });
   const chooseScore = (choice: string) => dispatch({ type: "CHOOSE_SCORE", choice });
 
-  // 認証確認中はログイン導線をフラッシュさせない（文言は web と同じ「読み込み中…」）。
+  // 認証確認中はちらつかせない（文言は web と同じ「読み込み中…」）。
+  // 未サインイン（ゲスト）でも遊べるので、ここにログインゲートは置かない（匿名プレイ）。
   if (loading) return <CenterState message="読み込み中…" />;
-  // アプリはログイン必須（App がゲート）だが、画面単体でも防御的にログイン導線を出す。
-  if (!user) return <CenterState message="特訓するにはサインインしてください。" />;
 
   return (
     <View style={styles.flex}>
@@ -243,6 +266,8 @@ export function TrainingScreen({
 
         {phase === "select" ? (
           <View style={styles.section}>
+            {/* ランキング導線（匿名でも見られる公開ページ相当。web は見出し右のピル）。 */}
+            <RankingLink style={styles.rankingLink} />
             {QUIZ_KINDS.map((k) => (
               <Pressable
                 key={k}
@@ -297,125 +322,27 @@ export function TrainingScreen({
               </Text>
             </View>
             {/* 見直しリスト: 回答した問題だけを○×・手牌・あなたの回答・正解つきで振り返る
-              （セッション中は正答を見せないぶんここで確認する。サーバには送らない）。 */}
-            {records.length > 0 ? (
-              <View style={styles.review}>
-                {/* 見出しテキストは置かずリストを直接置く（[決定] 2026-07-25 オーナーレビュー）。 */}
-                {records.map((r, i) => {
-                  const q = r.question;
-                  return (
-                    <View
-                      key={i}
-                      style={[styles.reviewRow, r.ok ? styles.rowOk : styles.rowNg]}
-                      testID={`review-row-${i + 1}`}
-                    >
-                      {/* 1行目=番号＋○×のヘッダ。問題は回答・正解と同じ「ラベル＋牌列」の行にする。 */}
-                      <Text style={styles.reviewNo}>
-                        {i + 1}{" "}
-                        <Text style={[styles.reviewMark, r.ok ? styles.ok : styles.ng]}>
-                          {r.ok ? "○" : "×"}
-                        </Text>
-                      </Text>
-                      {q.kind === "score" ? (
-                        // 点数計算: 条件＋ドラ表示＋牌姿（手牌+副露+和了牌）に、回答/正解の
-                        // テキスト行と役の内訳（＝見直しで数え方まで学べる）。
-                        <>
-                          <View style={styles.reviewLine}>
-                            <Text style={styles.reviewLabel}>問題</Text>
-                            <Text style={styles.reviewText}>{q.label}</Text>
-                          </View>
-                          <View style={styles.reviewLine} testID={`review-dora-${i + 1}`}>
-                            <Text style={styles.reviewLabel}>ドラ表示</Text>
-                            <View style={styles.reviewTiles}>
-                              {q.doraIndicators.map((t, j) => (
-                                <MiniTile key={j} code={t} w={18} h={25} />
-                              ))}
-                            </View>
-                          </View>
-                          <View
-                            style={[styles.reviewTiles, styles.reviewLineTiles]}
-                            testID={`review-hand-${i + 1}`}
-                          >
-                            {scoreDisplayTiles(q).map((t, j) => (
-                              <MiniTile key={j} code={t} w={18} h={25} />
-                            ))}
-                            {q.melds.map((m, mi) => (
-                              <View key={`m${mi}`} style={styles.reviewMeld}>
-                                {scoreMeldViews(m, q.seatWind).map((v, j) =>
-                                  v.back ? (
-                                    <View key={j} style={styles.reviewBack} />
-                                  ) : (
-                                    <View key={j} style={v.lay ? styles.lay : null}>
-                                      <MiniTile code={v.tile} w={18} h={25} />
-                                    </View>
-                                  ),
-                                )}
-                              </View>
-                            ))}
-                            <View style={styles.winTile}>
-                              <MiniTile code={q.winTile} w={18} h={25} />
-                            </View>
-                          </View>
-                          <View style={styles.reviewLine}>
-                            <Text style={styles.reviewLabel}>あなたの回答</Text>
-                            <Text style={styles.reviewText}>{r.pickedChoice}</Text>
-                          </View>
-                          <View style={styles.reviewLine}>
-                            <Text style={styles.reviewLabel}>正解</Text>
-                            <Text style={styles.reviewText}>{q.answer}</Text>
-                          </View>
-                          <View style={styles.reviewLine}>
-                            <Text style={styles.reviewLabel}>役</Text>
-                            <Text style={styles.reviewText}>{scoreYakuLine(q)}</Text>
-                          </View>
-                        </>
-                      ) : (
-                        <>
-                          <View style={styles.reviewLine}>
-                            <Text style={styles.reviewLabel}>問題</Text>
-                            <View
-                              style={[styles.reviewTiles, styles.reviewLineTiles]}
-                              testID={`review-hand-${i + 1}`}
-                            >
-                              {q.tiles.map((t, j) => (
-                                <MiniTile key={j} code={t} w={18} h={25} />
-                              ))}
-                            </View>
-                          </View>
-                          <View style={styles.reviewLine}>
-                            <Text style={styles.reviewLabel}>あなたの回答</Text>
-                            <View style={styles.reviewTiles} testID={`review-picked-${i + 1}`}>
-                              {r.picked.map((t, j) => (
-                                <MiniTile key={j} code={t} w={18} h={25} />
-                              ))}
-                            </View>
-                          </View>
-                          <View style={styles.reviewLine}>
-                            <Text style={styles.reviewLabel}>正解</Text>
-                            <View style={styles.reviewTiles} testID={`review-answer-${i + 1}`}>
-                              {q.answer.map((t, j) => (
-                                <MiniTile key={j} code={t} w={18} h={25} />
-                              ))}
-                            </View>
-                          </View>
-                          {q.kind === "efficiency" || q.kind === "chinitsuUkeire" ? (
-                            <UkeireDetail
-                              no={i + 1}
-                              tiles={q.tiles}
-                              picked={r.picked[0] ?? null}
-                              candidates={
-                                q.kind === "chinitsuUkeire"
-                                  ? chinitsuUkeireCandidates(q.suit)
-                                  : undefined
-                              }
-                            />
-                          ) : null}
-                        </>
-                      )}
-                    </View>
-                  );
-                })}
-              </View>
+              （セッション中は正答を見せないぶんここで確認する。表示はマイページの
+              セッション詳細と共有=QuizReviewList）。 */}
+            <QuizReviewList records={records} />
+            {/* 成績直後はランキングへの動機づけが最も高い瞬間（2026-08-04 UXレビュー）。 */}
+            <Pressable
+              style={({ pressed }) => [styles.signin, pressed && styles.pressed]}
+              onPress={() => nav.navigate("Ranking")}
+              accessibilityRole="button"
+            >
+              <Text style={styles.signinText}>{QUIZ_RANKING_LINK_LABEL}</Text>
+            </Pressable>
+            {/* 匿名セッションは保存されない: サインインの動機づけ導線を1行だけ出す
+                （endGuest でゲストを終了しログイン画面へ戻す）。 */}
+            {!user ? (
+              <Pressable
+                style={({ pressed }) => [styles.signin, pressed && styles.pressed]}
+                onPress={() => endGuest()}
+                accessibilityRole="button"
+              >
+                <Text style={styles.signinText}>{QUIZ_SIGNIN_NOTE}</Text>
+              </Pressable>
             ) : null}
             {sendError ? <Text style={styles.sendError}>{QUIZ_SEND_ERROR_MESSAGE}</Text> : null}
             {/* 「もう一度挑戦」の再開始が拒否されたとき（402 等）は結果画面の上に表示する。 */}
@@ -509,20 +436,25 @@ export function TrainingScreen({
           <Text style={styles.dlgDesc}>{QUIZ_KIND_DESCRIPTIONS[pendingKind]}</Text>
           {/* ルール一文（[決定] 2026-07-26）: 種目名/説明の近くに1文だけ。 */}
           <Text style={styles.dlgRule}>{QUIZ_RULE_NOTE}</Text>
-          <Text style={styles.dlgRecentTitle}>直近の記録</Text>
-          {recent === null ? (
-            <Text style={styles.dlgEmpty}>読み込み中…</Text>
-          ) : recent.length === 0 ? (
-            <Text style={styles.dlgEmpty}>{QUIZ_EMPTY_HISTORY_MESSAGE}</Text>
-          ) : (
-            <View style={styles.dlgRecent} testID="recent-list">
-              {recent.map((x) => (
-                <Text key={x.id} style={styles.dlgLine}>
-                  {quizRecentLine(x)}
-                </Text>
-              ))}
-            </View>
-          )}
+          {/* 直近の記録はサインイン時のみ（匿名は記録が存在しない＝空文言も出さない）。 */}
+          {user ? (
+            <>
+              <Text style={styles.dlgRecentTitle}>直近の記録</Text>
+              {recent === null ? (
+                <Text style={styles.dlgEmpty}>読み込み中…</Text>
+              ) : recent.length === 0 ? (
+                <Text style={styles.dlgEmpty}>{QUIZ_EMPTY_HISTORY_MESSAGE}</Text>
+              ) : (
+                <View style={styles.dlgRecent} testID="recent-list">
+                  {recent.map((x) => (
+                    <Text key={x.id} style={styles.dlgLine}>
+                      {quizRecentLine(x)}
+                    </Text>
+                  ))}
+                </View>
+              )}
+            </>
+          ) : null}
           {dialogError ? (
             <Text style={styles.error} accessibilityRole="alert">
               {dialogError}
@@ -560,65 +492,6 @@ export function TrainingScreen({
   );
 }
 
-/**
- * 牌効率の見直し行に出す受け入れ詳細（web の UkeireDetail と同一挙動）。
- * 計算は共有ヘッドレスモデル（@rigel/ui の ukeireReviewModel）に一元化し、
- * 結果画面の描画時に行う（60秒セッション中の負荷を増やさない）。
- * 計算は重い（14枚×34種の向聴総当たり）ので useMemo で手牌が変わらない再レンダーでは
- * 再計算しない。
- */
-function UkeireDetail({
-  no,
-  tiles,
-  picked,
-  candidates,
-}: {
-  no: number;
-  tiles: readonly Tile[];
-  picked: Tile | null;
-  /** 受け入れとして数える牌種。出題時と同じものを渡す（清一色 牌効率は同色9種）。 */
-  candidates?: readonly Tile[];
-}) {
-  const model = useMemo(
-    () => ukeireReviewModel(tiles, picked, candidates),
-    [tiles, picked, candidates],
-  );
-  const { mine, regressed, best } = model;
-  return (
-    <View style={styles.ukeireDetail}>
-      {mine ? (
-        <View style={styles.ukeireLine} testID={`review-ukeire-mine-${no}`}>
-          {regressed ? <Text style={styles.regress}>向聴戻し</Text> : null}
-          <Text style={styles.ukeireCount}>
-            {ukeireLabel(mine.shanten)} {mine.tiles.length}種{mine.count}枚
-          </Text>
-          <View style={styles.reviewTiles}>
-            {mine.tiles.map((t, j) => (
-              <MiniTile key={j} code={t} w={18} h={25} />
-            ))}
-          </View>
-        </View>
-      ) : null}
-      {best.map((u) => (
-        <View key={u.discard} style={styles.ukeireLine}>
-          <MiniTile code={u.discard} w={18} h={25} />
-          <Text style={styles.ukeireArrow}>→</Text>
-          <View style={styles.ukeireBody} testID={`review-ukeire-best-${no}-${u.discard}`}>
-            <Text style={styles.ukeireCount}>
-              {ukeireLabel(u.shanten)} {u.tiles.length}種{u.count}枚
-            </Text>
-            <View style={styles.reviewTiles}>
-              {u.tiles.map((t, j) => (
-                <MiniTile key={j} code={t} w={18} h={25} />
-              ))}
-            </View>
-          </View>
-        </View>
-      ))}
-    </View>
-  );
-}
-
 /** 出題エリア（清一色 何待ち=待ち牌の複数選択 / 牌効率系=切る牌のタップ / 点数計算=4択）。 */
 function QuestionPanel({
   question,
@@ -650,7 +523,7 @@ function QuestionPanel({
         <Text style={styles.question}>{QUIZ_KIND_PROMPTS.score}</Text>
         <Text style={styles.scoreCond}>{question.label}</Text>
         <View style={styles.doraRow} testID="score-dora">
-          <Text style={styles.doraLabel}>ドラ表示</Text>
+          <Text style={styles.doraLabel}>ドラ表示牌</Text>
           {question.doraIndicators.map((t, i) => (
             <MiniTile key={i} code={t} w={22} h={30} />
           ))}
@@ -699,9 +572,9 @@ function QuestionPanel({
   }
 
   if (question.kind === "chinitsu") {
-    // 候補は出題スート（単色）の1〜9。回答後も正答は見せない（○×のみ。見直しは結果画面）。
-    const suit = question.tiles[0]![1]!;
-    const candidates = Array.from({ length: 9 }, (_, i) => `${i + 1}${suit}` as Tile);
+    // 候補は出題スート（単色）の1〜9（共有の chinitsuWaitCandidates=物差しは1つ）。
+    // 回答後も正答は見せない（○×のみ。見直しは結果画面）。
+    const candidates = chinitsuWaitCandidates(question);
     return (
       <View style={styles.panel}>
         <Text style={styles.question}>{QUIZ_KIND_PROMPTS.chinitsu}</Text>
@@ -994,16 +867,6 @@ const styles = StyleSheet.create({
     fontVariant: ["tabular-nums"],
   },
   // 見直しリストのテキスト行（点数計算の条件・回答・正解）
-  reviewText: { color: colors.w70, fontSize: 12.5, fontVariant: ["tabular-nums"] },
-  reviewMeld: { flexDirection: "row", gap: 2, marginLeft: 6 },
-  reviewBack: {
-    width: 18,
-    height: 25,
-    borderRadius: 3,
-    backgroundColor: "#274a37",
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: "rgba(255,255,255,0.18)",
-  },
   tilePressed: { transform: [{ scale: 0.94 }] },
   pressed: { transform: [{ scale: 0.97 }] },
   submitRow: {
@@ -1066,53 +929,14 @@ const styles = StyleSheet.create({
     fontVariant: ["tabular-nums"],
     overflow: "hidden",
   },
-  // 見直しリスト（結果画面のみ）
-  review: {
-    marginTop: 8,
-    paddingTop: 10,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: colors.line,
-    gap: 10,
-  },
-  // 行はカード化し、左端に○×の色帯（緑/赤）を敷く
-  reviewRow: {
-    gap: 6,
-    backgroundColor: colors.chrome2,
-    borderRadius: radius.card,
-    borderLeftWidth: 3,
-    paddingVertical: 10,
-    paddingLeft: 12,
-    paddingRight: 10,
-  },
-  rowOk: { borderLeftColor: colors.emLite },
-  rowNg: { borderLeftColor: "#d10f3a" },
-  reviewNo: { color: colors.w70, fontSize: 13, fontWeight: "800" },
-  reviewMark: { fontSize: 14, fontWeight: "800" },
-  reviewTiles: { flexDirection: "row", flexWrap: "wrap", gap: 2 },
-  reviewLine: { flexDirection: "row", alignItems: "center", gap: 6 },
-  // 問題の牌列（13-14枚）はラベルの横で折り返す。
-  reviewLineTiles: { flexShrink: 1 },
-  reviewLabel: { color: colors.w45, fontSize: 11 },
-  // 受け入れ詳細（牌効率のみ。あなたの回答の受け入れ＋正解各打牌の受け入れ）
-  ukeireDetail: { gap: 4, marginTop: 2 },
-  ukeireLine: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: 6 },
-  ukeireBody: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: 6, flex: 1 },
-  ukeireArrow: { color: colors.w45, fontSize: 11 },
-  ukeireCount: { color: colors.w70, fontSize: 11, fontVariant: ["tabular-nums"] },
-  // 向聴戻しバッジ（要確認カラー #d10f3a 系の赤で警告。REVIEW_COLOR と整合）
-  regress: {
-    color: "#ff8fa8",
-    backgroundColor: "rgba(209,15,58,0.18)",
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: "rgba(209,15,58,0.55)",
-    borderRadius: radius.base,
-    paddingHorizontal: 6,
-    paddingVertical: 1,
-    fontSize: 10,
-    fontWeight: "800",
-    overflow: "hidden",
-  },
+  // 見直しリストのスタイルは components/QuizReviewList.tsx に移設（結果画面と
+  // セッション詳細で共有）。
   sendError: { color: colors.danger, fontSize: 12 },
+  // 匿名の結果画面のサインイン導線（控えめなテキストリンク相当）。
+  signin: { alignSelf: "center", paddingVertical: 6, paddingHorizontal: 8 },
+  signinText: { color: colors.w45, fontSize: 12.5, textDecorationLine: "underline" },
+  // 種目選択の上のランキング導線（見た目は共有 RankingLink。ここは配置だけ）。
+  rankingLink: { alignSelf: "flex-end" },
   // 結果画面の操作: 主=もう一度挑戦（accent）／副=問題選択にもどる（線ボタン。
   // ProblemAnswerScreen の redoBtn と同じ「明るい線＋薄い面」の既存フォーム）。
   // 横並びで中央寄せ（[決定] 2026-07-25 オーナーレビュー・web と同構成）

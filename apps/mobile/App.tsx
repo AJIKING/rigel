@@ -18,6 +18,8 @@ import { ProblemAnswerScreen } from "./screens/ProblemAnswerScreen";
 import { ProblemEditScreen } from "./screens/ProblemEditScreen";
 import { PublicGameScreen } from "./screens/PublicGameScreen";
 import { PublicUserScreen } from "./screens/PublicUserScreen";
+import { RankingScreen } from "./screens/RankingScreen";
+import { TrainingSessionScreen } from "./screens/TrainingSessionScreen";
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
@@ -94,6 +96,12 @@ function Root() {
           component={ProblemEditScreen}
           options={{ title: "問題を編集" }}
         />
+        <Stack.Screen
+          name="TrainingSession"
+          component={TrainingSessionScreen}
+          options={{ title: "特訓の記録" }}
+        />
+        <Stack.Screen name="Ranking" component={RankingScreen} options={{ title: "ランキング" }} />
       </Stack.Navigator>
     </NavigationContainer>
   );

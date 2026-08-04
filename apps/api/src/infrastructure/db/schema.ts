@@ -10,7 +10,13 @@
 //                   `pnpm --filter api db:migrate:local|db:migrate`（wrangler d1）で適用。
 // ============================================================
 
-import { QuizKindSchema, type Kifu, type Problem, type ProblemAction } from "@rigel/schema";
+import {
+  QuizKindSchema,
+  type Kifu,
+  type Problem,
+  type ProblemAction,
+  type QuizAnswerRecord,
+} from "@rigel/schema";
 import { index, integer, primaryKey, sqliteTable, text } from "drizzle-orm/sqlite-core";
 
 export const users = sqliteTable("users", {
@@ -175,7 +181,7 @@ export const problemAnswers = sqliteTable(
   ],
 );
 
-// 特訓クイズの60秒セッション。開始時に1行 INSERT（無料 1日3回の消費）し、
+// 特訓クイズの60秒セッション。開始時に1行 INSERT（無料枠 FREE_QUIZ_PER_DAY の消費）し、
 // 完了時に結果（total/correct/duration_ms）を書く。null のまま = 途中離脱（消費は戻さない）。
 // 成績は本人のみ閲覧（他人向け API レスポンスに含めない）。画像・PII は持たない。
 export const quizSessions = sqliteTable(
@@ -189,14 +195,22 @@ export const quizSessions = sqliteTable(
      *  種目追加に migration は不要）。値は背骨からそのまま引く——手で並べ直すと
      *  背骨との差分が型エラーにならず黙って腐る（実際に種目追加で二重管理が発生した）。 */
     kind: text("kind", { enum: QuizKindSchema.options }).notNull(),
-    /** 開始日（JST 'YYYY-MM-DD'）。無料 1日3回・JST 0時回復のカウントキー。 */
+    /** 開始日（JST 'YYYY-MM-DD'）。無料枠（FREE_QUIZ_PER_DAY・JST 0時回復）のカウントキー。 */
     startedDay: text("started_day").notNull(),
+    /** サーバ発行の出題シード（シードリプレイ検証の入力。機能追加前の旧行のみ null。
+     *  Plan: docs/plans/quiz-open-and-ranking.md Phase 4）。 */
+    seed: integer("seed"),
     /** 出題数。null = 未完了（開始しただけ・途中離脱）。 */
     total: integer("total"),
-    /** 正解数（total 以下。入口で QuizResultSchema が強制）。 */
+    /** 正解数（total 以下。入口で QuizFinishSchema が強制。全回答つきはサーバ再採点値）。 */
     correct: integer("correct"),
     /** 所要ミリ秒。 */
     durationMs: integer("duration_ms"),
+    /** サーバ再採点＋実時間チェックを通った行か。ランキング集計はこれのみ対象。 */
+    verified: integer("verified", { mode: "boolean" }).notNull().default(false),
+    /** 見直しレコード（サーバ再生成のスナップショット JSON）。有料の完了時のみ・他は null。
+     *  閲覧はダウングレードで遮断（行は保持・API が現在の plan を見る。[決定] 2026-08-04 ⑤）。 */
+    records: text("records", { mode: "json" }).$type<QuizAnswerRecord[]>(),
     createdAt: integer("created_at", { mode: "timestamp_ms" })
       .notNull()
       .$defaultFn(() => new Date()),
@@ -206,6 +220,8 @@ export const quizSessions = sqliteTable(
     index("quiz_sessions_user_day_idx").on(t.userId, t.startedDay),
     // 本人の履歴（期間グラフ）用。
     index("quiz_sessions_user_created_idx").on(t.userId, t.createdAt),
+    // ランキング集計（種目別×期間。verified は WHERE で絞る）用。
+    index("quiz_sessions_kind_created_idx").on(t.kind, t.createdAt),
   ],
 );
 

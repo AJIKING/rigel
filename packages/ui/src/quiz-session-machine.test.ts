@@ -2,8 +2,11 @@ import { describe, expect, it } from "vitest";
 import { QuizResultSchema, type QuizKind, type Tile } from "@rigel/schema";
 import {
   createQuizRng,
+  defaultQuizQuestion,
   generateChinitsuQuestion,
   generateEfficiencyQuestion,
+  gradeQuizAnswer,
+  replayQuizAnswers,
   type ChinitsuQuestion,
   type ChinitsuUkeireQuestion,
   type EfficiencyQuestion,
@@ -11,8 +14,9 @@ import {
 import { generateScoreQuestion, type ScoreQuestion } from "./quiz-score-question";
 import {
   createQuizSession,
-  defaultQuizQuestion,
+  quizFinishPayload,
   quizSessionReducer,
+  sessionAnswers,
   sessionResult,
   QUIZ_DURATION_SLACK_MS,
   type QuizQuestion,
@@ -63,7 +67,7 @@ const SCORE_Q1: ScoreQuestion = {
   ],
   han: 2,
   fu: 40,
-  label: "親（東家）・リーチ・ロン・場風 東",
+  label: "東1局 東家 リーチ ロン",
   choices: ["7700点", "3900点", "4800点", "2600点"],
   answer: "3900点",
 };
@@ -373,6 +377,117 @@ describe("sessionResult: durationMs の一意な計算（ドリフト根治）",
     const s = quizSessionReducer(state, { type: "TIMER_TICK", now: runStart + 200_000 }, ctx);
     expect(sessionResult(s).durationMs).toBe(120_000);
     expect(() => QuizResultSchema.parse(sessionResult(s))).not.toThrow();
+  });
+});
+
+describe("sessionAnswers（完了ペイロードの全回答。出題順・問題は送らない）", () => {
+  it("回答順に picked / choice を並べる（点数計算だけ choice・他は picked）", () => {
+    const { state: started, ctx, runStart } = startRunning("chinitsu", [CHINITSU_Q1, CHINITSU_Q2]);
+    let s = started;
+    s = quizSessionReducer(s, { type: "TOGGLE_WAIT", tile: "4p" }, ctx);
+    s = quizSessionReducer(s, { type: "SUBMIT_CHINITSU" }, ctx);
+    s = quizSessionReducer(s, { type: "FEEDBACK_DONE" }, ctx);
+    s = quizSessionReducer(s, { type: "TOGGLE_WAIT", tile: "1s" }, ctx);
+    s = quizSessionReducer(s, { type: "TOGGLE_WAIT", tile: "3s" }, ctx);
+    s = quizSessionReducer(s, { type: "SUBMIT_CHINITSU" }, ctx);
+    s = quizSessionReducer(s, { type: "TIMER_TICK", now: runStart + 60_000 }, ctx);
+    expect(sessionAnswers(s)).toEqual([{ picked: ["4p"] }, { picked: ["1s", "3s"] }]);
+  });
+
+  it("点数計算は choice を含める（picked は空配列）", () => {
+    const { state: started, ctx, runStart } = startRunning("score", [SCORE_Q1]);
+    let s = started;
+    s = quizSessionReducer(s, { type: "CHOOSE_SCORE", choice: "3900点" }, ctx);
+    s = quizSessionReducer(s, { type: "TIMER_TICK", now: runStart + 60_000 }, ctx);
+    expect(sessionAnswers(s)).toEqual([{ picked: [], choice: "3900点" }]);
+    expect(sessionAnswers(s)).toHaveLength(sessionResult(s).total);
+  });
+
+  it("quizFinishPayload は 結果＋エンジン版数＋全回答 を1つに固定する（送り忘れ防止）", () => {
+    const { state: started, ctx, runStart } = startRunning("score", [SCORE_Q1]);
+    let s = started;
+    s = quizSessionReducer(s, { type: "CHOOSE_SCORE", choice: "3900点" }, ctx);
+    s = quizSessionReducer(s, { type: "TIMER_TICK", now: runStart + 60_000 }, ctx);
+    expect(quizFinishPayload(s)).toEqual({
+      ...sessionResult(s),
+      engineVersion: expect.any(Number),
+      answers: [{ picked: [], choice: "3900点" }],
+    });
+  });
+});
+
+describe("replayQuizAnswers（サーバのシードリプレイ再採点。クライアントと同一の出題列を再現する）", () => {
+  it("同じシードからクライアントと同一の出題列を再生成し、回答をサーバ側で採点し直す", () => {
+    // クライアント側のプレイを模擬: seed=123 で2問生成し、1問目は正解・2問目は不正解を選ぶ。
+    const clientRng = createQuizRng(123);
+    const q1 = defaultQuizQuestion("efficiency", clientRng);
+    const q2 = defaultQuizQuestion("efficiency", clientRng);
+    const wrong = (q: QuizQuestion & { tiles: readonly Tile[] }) =>
+      q.tiles.find((t) => !(q.answer as readonly Tile[]).includes(t))!;
+    const answers = [
+      { picked: [(q1 as EfficiencyQuestion).answer[0]!] },
+      { picked: [wrong(q2 as EfficiencyQuestion)] },
+    ];
+
+    const records = replayQuizAnswers("efficiency", 123, answers);
+    expect(records).toHaveLength(2);
+    expect(records[0]!.question).toEqual(q1); // サーバ再生成がクライアントの出題と一致
+    expect(records[1]!.question).toEqual(q2);
+    expect(records[0]!.ok).toBe(true);
+    expect(records[1]!.ok).toBe(false);
+    expect(records[1]!.picked).toEqual(answers[1]!.picked);
+  });
+
+  it("点数計算は choice を pickedChoice として記録し、gradeQuizAnswer と同じ判定になる", () => {
+    const clientRng = createQuizRng(7);
+    const q1 = defaultQuizQuestion("score", clientRng);
+    const answers = [{ picked: [], choice: q1.kind === "score" ? q1.answer : "" }];
+    const records = replayQuizAnswers("score", 7, answers);
+    expect(records[0]!.question).toEqual(q1);
+    expect(records[0]!.pickedChoice).toBe(answers[0]!.choice);
+    expect(records[0]!.ok).toBe(gradeQuizAnswer(records[0]!.question, [], answers[0]!.choice));
+    expect(records[0]!.ok).toBe(true);
+  });
+
+  it("回答0件（1問も答えず終了）は空配列", () => {
+    expect(replayQuizAnswers("chinitsu", 1, [])).toEqual([]);
+  });
+});
+
+describe("匿名セッション（sessionId=null。結果はサーバへ送らない前提で機械は同じ遷移をする）", () => {
+  it("START(sessionId=null) でもカウントダウン→出題まで同じに進み、sessionId は null のまま", () => {
+    const ctx = ctxOf([CHINITSU_Q1]);
+    let s = createQuizSession();
+    s = quizSessionReducer(s, { type: "OPEN_DIALOG", kind: "chinitsu" }, ctx);
+    s = quizSessionReducer(s, { type: "START", kind: "chinitsu", sessionId: null, now: T0 }, ctx);
+    expect(s.phase).toBe("countdown");
+    expect(s.sessionId).toBeNull();
+    s = quizSessionReducer(s, { type: "COUNTDOWN_TICK", now: T0 + 1000 }, ctx);
+    s = quizSessionReducer(s, { type: "COUNTDOWN_TICK", now: T0 + 2000 }, ctx);
+    s = quizSessionReducer(s, { type: "COUNTDOWN_TICK", now: T0 + 3000 }, ctx);
+    expect(s.phase).toBe("running");
+    expect(s.question).toEqual(CHINITSU_Q1);
+    expect(s.sessionId).toBeNull();
+  });
+
+  it("RETRY(sessionId=null) も同様（匿名の「もう一度挑戦」）。結果計算も通常どおり", () => {
+    const ctx = ctxOf([EFFICIENCY_Q1]);
+    let s = createQuizSession({ countdownSeconds: 0 });
+    s = quizSessionReducer(s, { type: "START", kind: "efficiency", sessionId: null, now: T0 }, ctx);
+    s = quizSessionReducer(s, { type: "DISCARD", tile: "9s" }, ctx);
+    s = quizSessionReducer(s, { type: "TIMER_TICK", now: T0 + 60_000 }, ctx);
+    expect(s.phase).toBe("result");
+    expect(sessionResult(s)).toEqual({
+      kind: "efficiency",
+      total: 1,
+      correct: 1,
+      durationMs: 60_000,
+    });
+    s = quizSessionReducer(s, { type: "RETRY", sessionId: null, now: T0 + 70_000 }, ctx);
+    expect(s.phase).toBe("running"); // countdownSeconds=0 なので即開始
+    expect(s.sessionId).toBeNull();
+    expect(s.total).toBe(0);
+    expect(s.records).toEqual([]);
   });
 });
 

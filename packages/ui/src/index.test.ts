@@ -457,13 +457,13 @@ describe("プラン表示", () => {
     expect(PLAN_FEATURES.next.length).toBeGreaterThan(0);
     expect(PLAN_FEATURES.pro.length).toBeGreaterThan(0);
   });
-  it("PLAN_FEATURES: 特訓は free=1日3回（FREE_QUIZ_PER_DAY 連動）・有料（next/pro）=無制限（機能名は「特訓」で統一）", () => {
+  it("PLAN_FEATURES: 特訓は free=1日10回（FREE_QUIZ_PER_DAY 連動）・有料（next/pro）=無制限（機能名は「特訓」で統一）", () => {
     expect(PLAN_FEATURES.free).toContain(`特訓 1日${FREE_QUIZ_PER_DAY}回`);
     expect(PLAN_FEATURES.next).toContain("特訓 無制限");
     expect(PLAN_FEATURES.pro).toContain("特訓 無制限");
   });
-  it("FREE_QUIZ_PER_DAY は無料プランの特訓1日3回（api のサーバ強制と web/mobile 文言の共有値）", () => {
-    expect(FREE_QUIZ_PER_DAY).toBe(3);
+  it("FREE_QUIZ_PER_DAY は無料プランの特訓1日10回（api のサーバ強制と web/mobile 文言の共有値）", () => {
+    expect(FREE_QUIZ_PER_DAY).toBe(10);
   });
   it("planKifuLimits は free=各5・有料=無制限(null)", () => {
     expect(planKifuLimits("free")).toEqual({ private: 5, draft: 5 });

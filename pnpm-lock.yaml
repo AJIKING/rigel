@@ -48,6 +48,9 @@ importers:
       '@rigel/schema':
         specifier: workspace:*
         version: link:../../packages/schema
+      '@rigel/ui':
+        specifier: workspace:*
+        version: link:../../packages/ui
       drizzle-orm:
         specifier: ^0.45.2
         version: 0.45.2(@cloudflare/workers-types@5.20260715.1)(@types/sql.js@1.4.11)(gel@2.2.0)(sql.js@1.14.1)

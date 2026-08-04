@@ -77,7 +77,7 @@ describe("半荘の構造上限（全プラン共通）", () => {
 });
 
 describe("FREE_QUIZ_PER_DAY（特訓クイズの無料枠）", () => {
-  it("無料プランは1日3回（JST 0時回復・有料は無制限）", () => {
-    expect(FREE_QUIZ_PER_DAY).toBe(3);
+  it("無料プランは1日10回（[決定] 2026-08-04 3→10 に拡大。JST 0時回復・有料は無制限）", () => {
+    expect(FREE_QUIZ_PER_DAY).toBe(10);
   });
 });

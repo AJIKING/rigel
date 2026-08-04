@@ -18,6 +18,7 @@
   "dependencies": {
     "@cf-wasm/photon": "^0.3.7",
     "@rigel/schema": "workspace:*",
+    "@rigel/ui": "workspace:*",
     "drizzle-orm": "^0.45.2",
     "hono": "^4.12.30",
     "jose": "^6.2.3",

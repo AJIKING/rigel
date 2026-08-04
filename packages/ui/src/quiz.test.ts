@@ -18,6 +18,8 @@ import {
   generateChinitsuUkeireQuestion,
   chinitsuUkeireCandidates,
   generateEfficiencyQuestion,
+  gradeQuizAnswer,
+  QUIZ_ENGINE_VERSION,
   QUIZ_MAX_GENERATION_ATTEMPTS,
 } from "./quiz";
 import {
@@ -191,10 +193,77 @@ describe("牌効率問題の品質（シード20260725で20問）", () => {
   }, 30_000);
 });
 
+describe("gradeQuizAnswer（1問の採点。reducer とサーバのシードリプレイ再採点が共有する唯一の物差し）", () => {
+  const chinitsu = {
+    kind: "chinitsu" as const,
+    // prettier-ignore
+    tiles: ["1p", "2p", "3p", "4p", "4p", "5p", "5p", "5p", "6p", "6p", "7p", "8p", "9p"] as Tile[],
+    answer: ["4p", "5p", "6p"] as Tile[],
+  };
+  const efficiency = {
+    kind: "efficiency" as const,
+    // prettier-ignore
+    tiles: ["3m", "3m", "5m", "7m", "3p", "5p", "6p", "7p", "8p", "6s", "7s", "9s", "4z", "7z"] as Tile[],
+    shanten: 2,
+    answer: ["9s", "4z", "7z"] as Tile[],
+  };
+  const score = {
+    kind: "score" as const,
+    // prettier-ignore
+    closedTiles: ["4m", "5m", "6m", "1p", "1p", "1p", "5p", "5p", "1s", "1s", "2s", "2s", "3s", "3s"] as Tile[],
+    melds: [],
+    winTile: "3s" as Tile,
+    tsumo: false,
+    riichi: true,
+    seatWind: "east" as const,
+    roundWind: "east" as const,
+    doraIndicators: ["5z"] as Tile[],
+    yaku: [{ name: "立直", han: 1 }],
+    han: 2,
+    fu: 40,
+    label: "東1局 東家 リーチ ロン",
+    choices: ["7700点", "3900点", "4800点", "2600点"],
+    answer: "3900点",
+  };
+
+  it("清一色: 完全一致のみ正解（順不同・過不足は不正解）", () => {
+    expect(gradeQuizAnswer(chinitsu, ["6p", "4p", "5p"])).toBe(true);
+    expect(gradeQuizAnswer(chinitsu, ["4p", "5p"])).toBe(false);
+    expect(gradeQuizAnswer(chinitsu, ["4p", "5p", "6p", "7p"])).toBe(false);
+    expect(gradeQuizAnswer(chinitsu, [])).toBe(false);
+  });
+
+  it("清一色: 重複牌で枚数を偽装しても不正解（UI は作れないがサーバリプレイは細工ペイロードを受ける）", () => {
+    // answer は3種。重複で picked.length を3に見せても、種類は2つしか当てていない。
+    expect(gradeQuizAnswer(chinitsu, ["4p", "4p", "5p"])).toBe(false);
+    expect(gradeQuizAnswer(chinitsu, ["4p", "4p"])).toBe(false);
+  });
+
+  it("牌効率系: 切った1枚が answer に含まれれば正解（1枚以外は不正解）", () => {
+    expect(gradeQuizAnswer(efficiency, ["9s"])).toBe(true);
+    expect(gradeQuizAnswer(efficiency, ["3m"])).toBe(false);
+    expect(gradeQuizAnswer(efficiency, [])).toBe(false);
+    expect(gradeQuizAnswer(efficiency, ["9s", "4z"])).toBe(false);
+  });
+
+  it("点数計算: choice の文字列一致のみ正解（choice 無しは不正解）", () => {
+    expect(gradeQuizAnswer(score, [], "3900点")).toBe(true);
+    expect(gradeQuizAnswer(score, [], "7700点")).toBe(false);
+    expect(gradeQuizAnswer(score, [])).toBe(false);
+  });
+});
+
+describe("QUIZ_ENGINE_VERSION（出題エンジンの版数。サーバ再採点の一致前提）", () => {
+  it("1以上の整数（生成器の出力が同一シードで変わる変更をしたら +1 する）", () => {
+    expect(Number.isInteger(QUIZ_ENGINE_VERSION)).toBe(true);
+    expect(QUIZ_ENGINE_VERSION).toBeGreaterThanOrEqual(1);
+  });
+});
+
 describe("特訓の共有定数・文言（web/mobile の画面と api のサーバ強制で共有）", () => {
-  it("1回の挑戦は60秒・無料は1日3回", () => {
+  it("1回の挑戦は60秒・無料は1日10回（[決定] 2026-08-04 3→10 に拡大）", () => {
     expect(QUIZ_SESSION_SECONDS).toBe(60);
-    expect(FREE_QUIZ_PER_DAY).toBe(3);
+    expect(FREE_QUIZ_PER_DAY).toBe(10);
   });
 
   // 文言方針（[決定] 2026-07-25 オーナーレビュー）: 短く。機能名は「特訓」・1回のプレイは「挑戦」。
@@ -227,9 +296,9 @@ describe("特訓の共有定数・文言（web/mobile の画面と api のサー
     },
   );
 
-  it("上限メッセージは短く、無料枠（3回）と有料無制限だけを伝える", () => {
+  it("上限メッセージは短く、無料枠（10回）と有料無制限だけを伝える", () => {
     expect(QUIZ_LIMIT_MESSAGE).toBe(
-      "本日の無料枠（3回）を使い切りました。有料プランなら無制限です。",
+      "本日の無料枠（10回）を使い切りました。有料プランなら無制限です。",
     );
     expect(QUIZ_LIMIT_MESSAGE).toContain(`${FREE_QUIZ_PER_DAY}回`);
     expect(QUIZ_LIMIT_MESSAGE).toContain("無制限");
@@ -408,17 +477,18 @@ describe("点数計算問題の品質 v2（シード20260726で20問・採点は
     expect(mismatches).toEqual([]);
   });
 
-  it("条件が整合する（ラベルは「親（東家）/子（◯家）・ツモ/ロン・場風 ◯」・場風は東/南・ドラ表示は1〜2枚）", () => {
+  it("条件が整合する（ラベルは対局表記「東◯局 ◯家 (リーチ) ツモ/ロン」・場風は東/南・ドラ表示は1〜2枚）", () => {
     const mismatches: string[] = [];
+    // 自風→局数（起家=あなた視点。東N局の親はN番目の席）。
+    const kyokuBySeat = { east: 1, north: 2, west: 3, south: 4 } as const;
     for (const q of questions) {
       const hand = q.closedTiles.join("");
       if (q.roundWind !== "east" && q.roundWind !== "south") {
         mismatches.push(`${hand}: 場風=${q.roundWind}`);
       }
-      // 親子は点数計算の本質なのでラベルに明示する（[決定] 2026-07-26 オーナー指示）。
-      // リーチはツモ/ロンの前に置く（例「親（東家）・リーチ・ツモ・場風 東」）。
-      const role = q.seatWind === "east" ? "親" : "子";
-      const label = `${role}（${SEAT_JA[q.seatWind]}家）・${q.riichi ? "リーチ・" : ""}${q.tsumo ? "ツモ" : "ロン"}・場風 ${SEAT_JA[q.roundWind]}`;
+      // 対局表記（[決定] 2026-08-04 オーナー指示。旧「親（東家）・…・場風 東」から変更）。
+      // 親か子かは局と自風から読み取る。リーチはツモ/ロンの前（[決定] 2026-07-26 踏襲）。
+      const label = `${SEAT_JA[q.roundWind]}${kyokuBySeat[q.seatWind]}局 ${SEAT_JA[q.seatWind]}家${q.riichi ? " リーチ" : ""} ${q.tsumo ? "ツモ" : "ロン"}`;
       if (q.label !== label) mismatches.push(`${hand}: label=${q.label} 期待=${label}`);
       if (q.doraIndicators.length < 1 || q.doraIndicators.length > 2) {
         mismatches.push(`${hand}: ドラ表示${q.doraIndicators.length}枚`);
@@ -514,7 +584,8 @@ describe("点数計算 v2: リーチ出題（固定シード20260727の連続60�
     for (const q of questions) {
       const hand = q.closedTiles.join("");
       if (q.riichi) {
-        if (!q.label.includes(`・リーチ・${q.tsumo ? "ツモ" : "ロン"}・`)) {
+        // 対局表記（[決定] 2026-08-04）: 「◯家 リーチ ツモ/ロン」の並び。
+        if (!q.label.includes(`家 リーチ ${q.tsumo ? "ツモ" : "ロン"}`)) {
           mismatches.push(`${hand}: label=${q.label}`);
         }
       } else if (q.label.includes("リーチ")) {

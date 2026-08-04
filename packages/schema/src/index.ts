@@ -725,6 +725,10 @@ export function problemTargetTile(problem: Problem): Tile | null {
 export const QuizKindSchema = z.enum(["score", "efficiency", "chinitsu", "chinitsuUkeire"]);
 export type QuizKind = z.infer<typeof QuizKindSchema>;
 
+/** durationMs の上限ミリ秒（結果/完了ペイロードの max と、@rigel/ui の clamp が共有する
+ *  単一真実源。60秒セッション+バックグラウンド遅延の余裕）。 */
+export const QUIZ_DURATION_MAX_MS = 120_000;
+
 /** 60秒セッション1回の結果（クライアント採点をサーバに記録する形）。 */
 export const QuizResultSchema = z
   .object({
@@ -733,11 +737,193 @@ export const QuizResultSchema = z
     total: z.number().int().min(0).max(100),
     /** 正解数（total 以下）。 */
     correct: z.number().int().min(0),
-    /** 所要ミリ秒（60秒+余裕。上限 120000）。 */
-    durationMs: z.number().int().min(0).max(120_000),
+    /** 所要ミリ秒（60秒+余裕。上限 QUIZ_DURATION_MAX_MS）。 */
+    durationMs: z.number().int().min(0).max(QUIZ_DURATION_MAX_MS),
   })
   .refine((r) => r.correct <= r.total, { message: "correct は total 以下" });
 export type QuizResult = z.infer<typeof QuizResultSchema>;
+
+// ------------------------------------------------------------
+// 特訓クイズ: 出題スナップショット・回答レコード・完了ペイロード
+// （2026-08-04 追加。サーバのシードリプレイ再採点と有料フル保存の背骨。
+//  Plan: docs/plans/quiz-open-and-ranking.md Phase 3/4）
+// 出題の生成器・採点器は @rigel/ui（純関数）。型はここが単一真実源で、
+// @rigel/ui は同名の型を re-export する（二重定義しない）。
+// ------------------------------------------------------------
+
+/** 清一色 何待ち: 単色テンパイ13枚 → 待ち牌を全部選ぶ（完全一致のみ正解）。 */
+export const QuizChinitsuQuestionSchema = z.object({
+  kind: z.literal("chinitsu"),
+  /** 単色テンパイ13枚（理牌済み・昇順）。 */
+  tiles: z.array(TileSchema).length(13),
+  /** 正解 = 待ち牌（2種以上・TILE_VALUES 順）。 */
+  answer: z.array(TileSchema).min(1),
+});
+export type QuizChinitsuQuestion = z.infer<typeof QuizChinitsuQuestionSchema>;
+
+/** 牌効率: 14枚から受け入れ最大の1枚を切る（同率はどれでも正解）。 */
+export const QuizEfficiencyQuestionSchema = z.object({
+  kind: z.literal("efficiency"),
+  /** 14枚（理牌済み。字牌あり得る・赤5は出題に含めない）。 */
+  tiles: z.array(TileSchema).length(14),
+  /** 出題時点の向聴数（1 か 2）。 */
+  shanten: z.number().int().min(1).max(2),
+  /** 正解 = 最小向聴を保ちつつ受け入れ枚数最大の打牌（同率全部）。 */
+  answer: z.array(TileSchema).min(1),
+});
+export type QuizEfficiencyQuestion = z.infer<typeof QuizEfficiencyQuestionSchema>;
+
+/** 清一色 牌効率: 単色14枚から「広さ」最大の1枚を切る（同率はどれでも正解）。 */
+export const QuizChinitsuUkeireQuestionSchema = z.object({
+  kind: z.literal("chinitsuUkeire"),
+  /** 単色14枚（理牌済み・赤5なし）。 */
+  tiles: z.array(TileSchema).length(14),
+  /** 手牌の色（受け入れはこの色の9種だけ数える）。 */
+  suit: z.enum(["m", "p", "s"]),
+  /** 出題時点の向聴数（0=テンパイ / 1=1向聴。単色14枚に2向聴は存在しない）。 */
+  shanten: z.number().int().min(0).max(1),
+  /** 正解 = 最小向聴を保つ打牌のうち広さ最大（同率全部）。 */
+  answer: z.array(TileSchema).min(1),
+});
+export type QuizChinitsuUkeireQuestion = z.infer<typeof QuizChinitsuUkeireQuestionSchema>;
+
+/** 点数計算: 牌姿と条件から正しい点数を4択で選ぶ。 */
+export const QuizScoreQuestionSchema = z.object({
+  kind: z.literal("score"),
+  /** 門前部分（和了牌含む・理牌済み。副露1組につき3枚減る）。 */
+  closedTiles: z.array(TileSchema).min(2).max(14),
+  /** 副露（表示用。from は鳴き元の席=暗槓のみ null）。 */
+  melds: z
+    .array(
+      z.object({
+        type: MeldTypeSchema,
+        tiles: z.array(TileSchema).min(3).max(4),
+        from: SeatSchema.nullable(),
+      }),
+    )
+    .max(3),
+  /** 和了牌（closedTiles に含まれる）。 */
+  winTile: TileSchema,
+  tsumo: z.boolean(),
+  /** 立直（門前手のみ。一発・裏ドラは対象外）。 */
+  riichi: z.boolean(),
+  /** 自風（east=親）。 */
+  seatWind: SeatSchema,
+  /** 場風（出題は東/南のみ）。 */
+  roundWind: z.enum(["east", "south"]),
+  /** ドラ表示牌（1〜2枚）。 */
+  doraIndicators: z.array(TileSchema).min(1).max(2),
+  /** 解説用: 役の内訳（採点エンジン出力そのまま）。 */
+  yaku: z.array(z.object({ name: z.string(), han: z.number().int() })),
+  han: z.number().int().min(0),
+  fu: z.number().int().min(0),
+  /** 条件表示（対局表記。例「東1局 東家 リーチ ツモ」。[決定] 2026-08-04）。 */
+  label: z.string(),
+  /** 選択肢4つ（正解+誤答3。順序も rng で決定的）。 */
+  choices: z.array(z.string()).length(4),
+  /** 正解（choices に含まれる）。 */
+  answer: z.string(),
+});
+export type QuizScoreQuestion = z.infer<typeof QuizScoreQuestionSchema>;
+
+/** 特訓の出題（4種目の合併型。生成は @rigel/ui、保存はサーバ再生成のスナップショット）。 */
+export const QuizQuestionSchema = z.discriminatedUnion("kind", [
+  QuizChinitsuQuestionSchema,
+  QuizEfficiencyQuestionSchema,
+  QuizChinitsuUkeireQuestionSchema,
+  QuizScoreQuestionSchema,
+]);
+export type QuizQuestion = z.infer<typeof QuizQuestionSchema>;
+
+/** 1問ぶんの回答（完了ペイロードで送る形。問題はサーバがシードから再生成するので送らない）。 */
+export const QuizSubmittedAnswerSchema = z.object({
+  /** 選んだ牌（清一色=待ち牌・選択順 / 牌効率系=切った牌1枚 / 点数計算=空配列）。 */
+  picked: z.array(TileSchema).max(14),
+  /** 点数計算の選んだ選択肢（他種目は省略）。 */
+  choice: z.string().max(40).optional(),
+});
+export type QuizSubmittedAnswer = z.infer<typeof QuizSubmittedAnswerSchema>;
+
+/** 見直しレコード1件（出題+回答+正誤）。有料フル保存の保存形式（D1 の records JSON）。 */
+export const QuizAnswerRecordSchema = z.object({
+  /** 出題（サーバ再生成のスナップショット。クライアント申告は保存しない）。 */
+  question: QuizQuestionSchema,
+  /** あなたの回答（QuizSubmittedAnswer.picked と同じ形）。 */
+  picked: z.array(TileSchema).max(14),
+  /** 点数計算の選んだ選択肢（他種目は undefined）。 */
+  pickedChoice: z.string().optional(),
+  /** 正誤（サーバ再採点の結果）。 */
+  ok: z.boolean(),
+});
+export type QuizAnswerRecord = z.infer<typeof QuizAnswerRecordSchema>;
+
+/** セッションの見直しレコード一式（保存・返却の上限は結果の total と同じ100）。 */
+export const QuizAnswerRecordsSchema = z.array(QuizAnswerRecordSchema).max(100);
+
+/**
+ * 完了ペイロード（PATCH /quiz/sessions/:id）。
+ * 旧クライアント互換のため answers/engineVersion は省略可（省略時は結果のみ記録され
+ * unverified 扱い＝ランキング対象外）。answers があるときは「回答した問題数=total」を強制する
+ * （サーバはシードから total 問を再生成して再採点する）。
+ */
+export const QuizFinishSchema = z
+  .object({
+    kind: QuizKindSchema,
+    total: z.number().int().min(0).max(100),
+    correct: z.number().int().min(0),
+    durationMs: z.number().int().min(0).max(QUIZ_DURATION_MAX_MS),
+    /** クライアントの出題エンジン版数（@rigel/ui QUIZ_ENGINE_VERSION）。サーバと不一致なら
+     *  リプレイ不能として unverified。 */
+    engineVersion: z.number().int().min(1).optional(),
+    /** 全回答（出題順）。サーバのシードリプレイ再採点用。 */
+    answers: z.array(QuizSubmittedAnswerSchema).max(100).optional(),
+  })
+  .refine((r) => r.correct <= r.total, { message: "correct は total 以下" })
+  .refine((r) => r.answers === undefined || r.answers.length === r.total, {
+    message: "answers は total 件",
+  });
+export type QuizFinish = z.infer<typeof QuizFinishSchema>;
+
+// ------------------------------------------------------------
+// 特訓ランキング（wire 型の背骨。並び・しきい値のロジックは @rigel/ui buildQuizRanking）
+// api の domain（リポジトリの読みモデル）・client の DTO・ui の表示がこの型を共有する
+// （domain が依存してよいのは @rigel/schema のみ＝開発ガイド05。2026-08-04 レビューで移管）。
+// ------------------------------------------------------------
+
+/** ランキングの期間（weekly=JST 月曜起点 / monthly=JST 月初 / all=全期間）。 */
+export const QuizRankingPeriodSchema = z.enum(["weekly", "monthly", "all"]);
+export type QuizRankingPeriod = z.infer<typeof QuizRankingPeriodSchema>;
+
+/** 集計行（期間内・種目別・verified のみを、ユーザ単位に correct/total 合算したもの）。
+ *  userId は自分の順位（me）の突き合わせ専用で、API レスポンスには出さない（ルール 7-3）。 */
+export interface QuizRankingRow {
+  userId: string;
+  handle: string;
+  displayName: string;
+  correct: number;
+  total: number;
+}
+
+/** ボードの1行（公開情報のみ。userId は含めない）。 */
+export interface QuizRankingEntry {
+  rank: number;
+  handle: string;
+  displayName: string;
+  correct: number;
+  total: number;
+  /** correct / total（0..1。total=0 は 0）。 */
+  accuracy: number;
+}
+
+/** 自分の順位（サインイン時のみ。圏外でも順位を出す）。 */
+export interface QuizRankingMe {
+  correctRank: number;
+  /** 最低解答数未満は正答率ボードの対象外なので null。 */
+  accuracyRank: number | null;
+  correct: number;
+  total: number;
+  accuracy: number;
+}
 
 /**
  * 回答者のアクションがこの問題の答えとして成立するか。

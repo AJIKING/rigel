@@ -22,7 +22,7 @@ infrastructure (Drizzle/Gemini) ─┘            ▲                         �
 | 層 | 役割 | 依存してよい先 | 例 |
 |---|---|---|---|
 | **domain** | エンティティ・不変条件・ポート（IF） | `@rigel/schema` のみ | `User`, `GameLog`, `*.repository`, `Analyzer` |
-| **application** | ユースケース（手順の調整） | domain | `AnalyzeAndSaveKifu`, `GetKifu`, `ListKifu` |
+| **application** | ユースケース（手順の調整） | domain, `@rigel/ui`（純 TS 部のみ。[決定] 2026-08-04: 特訓のシードリプレイ再採点・ランキング整列で共有ロジックを参照。React 依存は無いパッケージだが、domain へは持ち込まない） | `AnalyzeAndSaveKifu`, `GetKifu`, `FinishQuizSession` |
 | **infrastructure** | ポートの実体（DB/AI/外部） | domain, 外部ライブラリ | `Drizzle*Repository`, `GeminiAnalyzer`, `db/schema` |
 | **interfaces** | 入口（HTTP ルーティング＋キュー consumer） | application（コンテナ経由） | `http/app.ts`(Hono), `queue/analysis-consumer.ts` |
 | **composition-root** | DI の組み立て（唯一「具体」を知る） | 全層 | `buildContainer(env)` |

@@ -62,6 +62,8 @@ export const {
   getProblemStats,
   startQuizSession,
   finishQuizSession,
+  getQuizSession,
+  getQuizRanking,
   listQuizSessions,
   setFavorite,
   listMyFavorites,

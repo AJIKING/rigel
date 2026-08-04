@@ -13,4 +13,8 @@ export type RootStackParamList = {
   ProblemAnswer: { problemId: string };
   /** 何切る問題の作成（problemId なし）/ 編集（あり）。 */
   ProblemEdit: { problemId?: string; draftId?: string } | undefined;
+  /** 特訓セッション詳細（本人のみ。有料は保存された見直しレコードを表示）。 */
+  TrainingSession: { id: string };
+  /** 特訓ランキング（匿名可。verified セッションの集計値のみ）。 */
+  Ranking: undefined;
 };

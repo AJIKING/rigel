@@ -13,8 +13,9 @@ import {
   type Players,
   type Problem,
   type ProblemAction,
+  type QuizFinish,
   type QuizKind,
-  type QuizResult,
+  type QuizRankingPeriod,
   type Rules,
   type Seat,
 } from "@rigel/schema";
@@ -32,6 +33,8 @@ import {
   retryAnalysis,
   listGamePhotos,
   finishQuizSession,
+  getQuizSession,
+  getQuizRanking,
   listMyFavorites,
   listQuizSessions,
   setFavorite,
@@ -243,17 +246,29 @@ export async function getProblemStatsAction(problemId: string) {
 }
 
 // ------------------------------------------------------------
-// 特訓クイズ（60秒タイムアタック）。要ログイン。
+// 特訓クイズ（60秒タイムアタック）。ランキング以外は要ログイン
+// （匿名プレイは API を呼ばないのでアクション自体が不要）。
 // ------------------------------------------------------------
 
-/** 特訓クイズを開始する（無料は1日3回・開始時に1回消費をサーバ強制。超過は status 402）。 */
+/** 特訓クイズを開始する（無料は1日 FREE_QUIZ_PER_DAY 回・開始時に1回消費をサーバ強制。超過は status 402）。 */
 export async function startQuizSessionAction(kind: QuizKind) {
   return startQuizSession(await requireToken(), kind);
 }
 
-/** 60秒セッションの結果（クライアント採点）を記録する。 */
-export async function finishQuizSessionAction(sessionId: string, result: QuizResult) {
+/** 60秒セッションの結果＋全回答を記録する（全回答つきはサーバが再採点して確定）。 */
+export async function finishQuizSessionAction(sessionId: string, result: QuizFinish) {
   return finishQuizSession(await requireToken(), sessionId, result);
+}
+
+/** セッション詳細（本人のみ）。records=見直しレコードは有料のときだけ。 */
+export async function getQuizSessionAction(sessionId: string) {
+  return getQuizSession(await requireToken(), sessionId);
+}
+
+/** 特訓ランキング（匿名可）。サインイン中は自分の順位（me）が付く。 */
+export async function getQuizRankingAction(kind: QuizKind, period: QuizRankingPeriod) {
+  const token = await getSessionToken();
+  return getQuizRanking(kind, period, token ?? undefined);
 }
 
 /** 自分の完了済みセッション履歴（新しい順）。開始ダイアログの直近記録などで使う。 */

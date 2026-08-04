@@ -14,3 +14,20 @@ export const JST_OFFSET_MS = 9 * 60 * 60 * 1000;
 export function jstDayOf(now: Date): string {
   return new Date(now.getTime() + JST_OFFSET_MS).toISOString().slice(0, 10);
 }
+
+/** now を含む JST 週（月曜 0:00 JST 起点）の開始時刻（UTC の Date）。
+ *  特訓ランキングの「週間」の集計窓（Plan: docs/plans/quiz-open-and-ranking.md 4-2）。 */
+export function jstStartOfWeek(now: Date): Date {
+  const jst = new Date(now.getTime() + JST_OFFSET_MS);
+  // getUTCDay: 0=日…6=土。月曜起点なので日曜は6日戻す。
+  const sinceMonday = (jst.getUTCDay() + 6) % 7;
+  const day = Date.UTC(jst.getUTCFullYear(), jst.getUTCMonth(), jst.getUTCDate() - sinceMonday);
+  return new Date(day - JST_OFFSET_MS);
+}
+
+/** now を含む JST 月（1日 0:00 JST 起点）の開始時刻（UTC の Date）。
+ *  特訓ランキングの「月間」の集計窓。 */
+export function jstStartOfMonth(now: Date): Date {
+  const jst = new Date(now.getTime() + JST_OFFSET_MS);
+  return new Date(Date.UTC(jst.getUTCFullYear(), jst.getUTCMonth(), 1) - JST_OFFSET_MS);
+}

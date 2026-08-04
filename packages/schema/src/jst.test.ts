@@ -3,7 +3,7 @@
 // 日本にサマータイムは無いので固定オフセットでよい。
 
 import { describe, expect, it } from "vitest";
-import { JST_OFFSET_MS, jstDayOf } from "./jst";
+import { JST_OFFSET_MS, jstDayOf, jstStartOfMonth, jstStartOfWeek } from "./jst";
 
 describe("jstDayOf（UTC 時刻 → JST 'YYYY-MM-DD'）", () => {
   it.each([
@@ -49,6 +49,39 @@ describe("jstDayOf（UTC 時刻 → JST 'YYYY-MM-DD'）", () => {
         .slice(0, 10);
       expect(jstDayOf(new Date(ms))).toBe(viaIndex);
     }
+  });
+});
+
+describe("jstStartOfWeek（JST 月曜 0:00 起点の週初。ランキングの週間窓）", () => {
+  it.each([
+    // 2026-07-24 は金曜（JST）。週初 = JST 7/20(月) 0:00 = UTC 7/19 15:00。
+    { name: "金曜の週初", utc: "2026-07-24T03:00:00.000Z", want: "2026-07-19T15:00:00.000Z" },
+    // JST 月曜 0:00 ちょうどはその瞬間が週初。
+    { name: "月曜 0:00 JST", utc: "2026-07-19T15:00:00.000Z", want: "2026-07-19T15:00:00.000Z" },
+    // JST 日曜は6日前の月曜まで戻す。
+    { name: "日曜", utc: "2026-07-26T03:00:00.000Z", want: "2026-07-19T15:00:00.000Z" },
+    // UTC では前日でも JST では月曜（境界跨ぎ）。
+    {
+      name: "JST 火曜の早朝（UTC 月曜夜）",
+      utc: "2026-07-20T16:00:00.000Z",
+      want: "2026-07-19T15:00:00.000Z",
+    },
+  ])("$name", ({ utc, want }) => {
+    expect(jstStartOfWeek(new Date(utc)).toISOString()).toBe(want);
+  });
+});
+
+describe("jstStartOfMonth（JST 1日 0:00 起点の月初。ランキングの月間窓）", () => {
+  it.each([
+    { name: "月の途中", utc: "2026-07-24T03:00:00.000Z", want: "2026-06-30T15:00:00.000Z" },
+    // JST 8/1 0:00（UTC 7/31 15:00）はその瞬間が月初。
+    { name: "月初ちょうど", utc: "2026-07-31T15:00:00.000Z", want: "2026-07-31T15:00:00.000Z" },
+    // UTC 7/31 14:59 は JST 7/31 なので 7月の月初。
+    { name: "月末の JST 23:59", utc: "2026-07-31T14:59:59.999Z", want: "2026-06-30T15:00:00.000Z" },
+    // 年跨ぎ（JST 1月 → 月初 = UTC 12/31 15:00）。
+    { name: "年初", utc: "2027-01-01T03:00:00.000Z", want: "2026-12-31T15:00:00.000Z" },
+  ])("$name", ({ utc, want }) => {
+    expect(jstStartOfMonth(new Date(utc)).toISOString()).toBe(want);
   });
 });
 

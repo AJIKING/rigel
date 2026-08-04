@@ -18,22 +18,21 @@
 // テストは固定出題を注入して決定的に検証できる（seed 実測の焼き付けを画面テストから排除）。
 // ============================================================
 
-import { type QuizKind, type QuizResult, type Tile } from "@rigel/schema";
 import {
-  generateChinitsuQuestion,
-  generateChinitsuUkeireQuestion,
-  generateEfficiencyQuestion,
-  type ChinitsuQuestion,
-  type ChinitsuUkeireQuestion,
-  type EfficiencyQuestion,
-  type QuizAnswerRecord,
-} from "./quiz";
+  QUIZ_DURATION_MAX_MS,
+  type QuizFinish,
+  type QuizKind,
+  type QuizQuestion as SchemaQuizQuestion,
+  type QuizResult,
+  type QuizSubmittedAnswer,
+  type Tile,
+} from "@rigel/schema";
+import { gradeQuizAnswer, QUIZ_ENGINE_VERSION, type QuizAnswerRecord } from "./quiz";
 import { QUIZ_COUNTDOWN_SECONDS, QUIZ_SESSION_SECONDS } from "./quiz-copy";
-import { generateScoreQuestion, type ScoreQuestion } from "./quiz-score-question";
 
-/** 特訓クイズの出題（3種目の合併型。web/mobile の画面と reducer が共有）。 */
-export type QuizQuestion =
-  ChinitsuQuestion | ChinitsuUkeireQuestion | EfficiencyQuestion | ScoreQuestion;
+/** 特訓クイズの出題（4種目の合併型。背骨 QuizQuestionSchema が単一真実源で、ここは
+ *  従来名の re-export。web/mobile の画面と reducer が共有）。 */
+export type QuizQuestion = SchemaQuizQuestion;
 
 export type QuizPhase = "select" | "countdown" | "running" | "result";
 
@@ -41,16 +40,14 @@ export type QuizPhase = "select" | "countdown" | "running" | "result";
  *  これを超える遅延（バックグラウンド等）は「セッションの実プレイ時間」ではないので clamp する。 */
 export const QUIZ_DURATION_SLACK_MS = 1000;
 
-/** QuizResultSchema の durationMs 上限（背骨の max(120_000) と同値。超える結果は送らない）。 */
-const QUIZ_DURATION_MAX_MS = 120_000;
-
 export interface QuizSessionState {
   phase: QuizPhase;
   /** 現在（または直近）のセッションの種目。 */
   kind: QuizKind;
   /** 開始ダイアログの対象種目（null=閉。開いただけでは枠を消費しない）。 */
   pendingKind: QuizKind | null;
-  /** 開始 API が発行したセッション id（結果送信の宛先。select の初期状態のみ null）。 */
+  /** 開始 API が発行したセッション id（結果送信の宛先）。null=select の初期状態、
+   *  または匿名セッション（未サインイン。API を呼ばず結果も送らない）。 */
   sessionId: string | null;
   /** 開始カウントダウンの残り（3→2→1。phase="countdown" 中のみ意味を持つ）。 */
   countdown: number;
@@ -67,7 +64,8 @@ export interface QuizSessionState {
   picked: readonly Tile[];
   /** 回答直後の正誤表示（画面が QUIZ_FEEDBACK_MS 後に FEEDBACK_DONE を送る）。null=回答受付中。 */
   feedback: "ok" | "ng" | null;
-  /** 見直しリスト（回答済みの問題のみ。サーバへは送らない）。 */
+  /** 見直しリスト（回答済みの問題のみ）。完了時は sessionAnswers() で「回答だけ」を
+   *  サーバへ送る（問題スナップショットはサーバがシードから再生成。2026-08-04 転換）。 */
   records: readonly QuizAnswerRecord[];
   /** 実測の所要ミリ秒（result 遷移時に確定・clamp 済み）。 */
   durationMs: number | null;
@@ -80,8 +78,9 @@ export interface QuizSessionState {
 export type QuizSessionEvent =
   | { type: "OPEN_DIALOG"; kind: QuizKind }
   | { type: "CLOSE_DIALOG" }
-  /** 開始 API 成功後に画面が送る（枠消費はサーバ側。失敗時は dispatch しない）。 */
-  | { type: "START"; kind: QuizKind; sessionId: string; now: number }
+  /** 開始 API 成功後に画面が送る（枠消費はサーバ側。失敗時は dispatch しない）。
+   *  sessionId=null は匿名セッション（API を呼ばない・結果は保存しない）。 */
+  | { type: "START"; kind: QuizKind; sessionId: string | null; now: number }
   | { type: "COUNTDOWN_TICK"; now: number }
   | { type: "TIMER_TICK"; now: number }
   | { type: "TOGGLE_WAIT"; tile: Tile }
@@ -89,8 +88,8 @@ export type QuizSessionEvent =
   | { type: "DISCARD"; tile: Tile }
   | { type: "CHOOSE_SCORE"; choice: string }
   | { type: "FEEDBACK_DONE" }
-  /** 結果画面の「もう一度挑戦」（同じ種目・新しい sessionId）。 */
-  | { type: "RETRY"; sessionId: string; now: number }
+  /** 結果画面の「もう一度挑戦」（同じ種目・新しい sessionId。null=匿名）。 */
+  | { type: "RETRY"; sessionId: string | null; now: number }
   | { type: "BACK_TO_SELECT" };
 
 /** 出題の供給（reducer の外部依存）。rng は画面側が保持し、テストは固定出題を注入する。 */
@@ -98,16 +97,9 @@ export interface QuizSessionContext {
   nextQuestion: (kind: QuizKind) => QuizQuestion;
 }
 
-/** 既定の出題生成（種目→既存生成器の配線。画面の generateQuestion 注入が無いときに使う）。 */
-export function defaultQuizQuestion(kind: QuizKind, rng: () => number): QuizQuestion {
-  return kind === "chinitsu"
-    ? generateChinitsuQuestion(rng)
-    : kind === "chinitsuUkeire"
-      ? generateChinitsuUkeireQuestion(rng)
-      : kind === "efficiency"
-        ? generateEfficiencyQuestion(rng)
-        : generateScoreQuestion(rng);
-}
+// 既定の出題生成（defaultQuizQuestion）とシードリプレイ再採点（replayQuizAnswers）は
+// 生成器の隣（quiz.ts）へ移設（2026-08-04 設計レビュー: 画面状態機械のモジュールに
+// サーバ専用関数を置かない。公開面は @rigel/ui の barrel で従来どおり）。
 
 /** 初期状態（種目選択）を作る。 */
 export function createQuizSession(
@@ -150,6 +142,28 @@ export function sessionResult(state: QuizSessionState): QuizResult {
   };
 }
 
+/** 終了時にサーバへ送る全回答（出題順・QuizFinishSchema の answers）。問題はサーバが
+ *  シードから再生成するので送らない（サーバ再採点=チート対策の入力。
+ *  Plan: docs/plans/quiz-open-and-ranking.md Phase 4）。 */
+export function sessionAnswers(state: QuizSessionState): QuizSubmittedAnswer[] {
+  return state.records.map((r) =>
+    r.pickedChoice === undefined
+      ? { picked: [...r.picked] }
+      : { picked: [...r.picked], choice: r.pickedChoice },
+  );
+}
+
+/** 完了 API（PATCH /quiz/sessions/:id）へ送るペイロードの組み立てを一本化する。
+ *  web/mobile がそれぞれ手組みすると、片側だけ answers/engineVersion を送り忘れて
+ *  **静かに unverified（=ランキング対象外）へ落ちる**事故が起きるため、ここで固定する。 */
+export function quizFinishPayload(state: QuizSessionState): QuizFinish {
+  return {
+    ...sessionResult(state),
+    engineVersion: QUIZ_ENGINE_VERSION,
+    answers: sessionAnswers(state),
+  };
+}
+
 /** セッション終了（時間切れ）。durationMs を実測から確定する。 */
 function endSession(state: QuizSessionState, now: number): QuizSessionState {
   const measured = state.startedAt === null ? state.sessionSeconds * 1000 : now - state.startedAt;
@@ -186,7 +200,7 @@ function beginRunning(
 function begin(
   state: QuizSessionState,
   kind: QuizKind,
-  sessionId: string,
+  sessionId: string | null,
   now: number,
   ctx: QuizSessionContext,
 ): QuizSessionState {
@@ -276,22 +290,19 @@ export function quizSessionReducer(
         picked: on ? state.picked.filter((t) => t !== event.tile) : [...state.picked, event.tile],
       };
     }
+    // 採点は gradeQuizAnswer（サーバのシードリプレイ再採点と共有する唯一の物差し）に委譲する。
     case "SUBMIT_CHINITSU": {
       if (!canAnswer(state, "chinitsu") || state.picked.length === 0) return state;
-      const answer = new Set<Tile>((state.question as ChinitsuQuestion).answer);
-      const ok = state.picked.length === answer.size && state.picked.every((t) => answer.has(t));
-      return grade(state, ok, state.picked);
+      return grade(state, gradeQuizAnswer(state.question!, state.picked), state.picked);
     }
     case "DISCARD": {
       // 打牌1枚で答える種目（牌効率・清一色 牌効率）は同じ経路で採点する。
       if (!canAnswer(state, "efficiency") && !canAnswer(state, "chinitsuUkeire")) return state;
-      const question = state.question as EfficiencyQuestion | ChinitsuUkeireQuestion;
-      return grade(state, question.answer.includes(event.tile), [event.tile]);
+      return grade(state, gradeQuizAnswer(state.question!, [event.tile]), [event.tile]);
     }
     case "CHOOSE_SCORE": {
       if (!canAnswer(state, "score")) return state;
-      const ok = event.choice === (state.question as ScoreQuestion).answer;
-      return grade(state, ok, [], event.choice);
+      return grade(state, gradeQuizAnswer(state.question!, [], event.choice), [], event.choice);
     }
     case "FEEDBACK_DONE":
       if (state.phase !== "running" || state.feedback === null) return state;

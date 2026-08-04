@@ -7,16 +7,13 @@ import {
   createQuizRng,
   createQuizSession,
   defaultQuizQuestion,
+  chinitsuWaitCandidates,
+  quizFinishPayload,
   quizRecentLine,
   quizSessionReducer,
   scoreDisplayTiles,
   scoreMeldViews,
-  scoreYakuLine,
-  sessionResult,
   tileLabel,
-  chinitsuUkeireCandidates,
-  ukeireLabel,
-  ukeireReviewModel,
   QUIZ_CARD_MOTIF,
   QUIZ_COUNTDOWN_SECONDS,
   QUIZ_EMPTY_HISTORY_MESSAGE,
@@ -27,8 +24,10 @@ import {
   QUIZ_KINDS,
   QUIZ_LIMIT_MESSAGE,
   QUIZ_RECENT_LIMIT,
+  QUIZ_RANKING_LINK_LABEL,
   QUIZ_RULE_NOTE,
   QUIZ_SEND_ERROR_MESSAGE,
+  QUIZ_SIGNIN_NOTE,
   QUIZ_SESSION_SECONDS,
   QUIZ_START_ERROR_MESSAGE,
   type QuizQuestion,
@@ -36,7 +35,7 @@ import {
   type QuizSessionEvent,
 } from "@rigel/ui";
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   finishQuizSessionAction,
   listQuizSessionsAction,
@@ -47,6 +46,7 @@ import type { AuthUser } from "../../lib/api";
 import { useAuth } from "../../lib/auth-context";
 import { AppHeader } from "../AppHeader";
 import { OssTileFace } from "../OssTileFace";
+import { QuizReviewList } from "./QuizReviewList";
 import s from "./training.module.css";
 
 /**
@@ -54,8 +54,11 @@ import s from "./training.module.css";
  * セッションの状態遷移（ダイアログ→開始→3,2,1→出題→回答→○×→時間切れ→結果→retry/back）は
  * web/mobile 共有の状態機械（@rigel/ui quiz-session-machine）に一元化し、この画面は
  * 「イベントを dispatch して state を描画する」だけ。API 呼び出し・タイマー駆動・analytics は
- * この画面の副作用として残す（回数制限=無料1日3回は開始 API がサーバ強制。
+ * この画面の副作用として残す（無料の回数制限は開始 API がサーバ強制。
  * Plan: docs/plans/quiz-training.md）。
+ * 未サインインでも遊べる（匿名プレイ）: 出題・採点は完全クライアントなので API を一切呼ばず、
+ * sessionId=null の匿名セッションとして状態機械を回す。結果は保存されない（結果画面に
+ * サインイン導線だけ出す。Plan: docs/plans/quiz-open-and-ranking.md Phase 1）。
  * seed はテスト・dev プレビューで出題列を固定する注入口（未指定は Date.now()）。
  * generateQuestion はテストが出題オブジェクトを直接注入する注入口（既定は
  * defaultQuizQuestion=本物の生成器。出題内容の正しさは @rigel/ui のテストが担保）。
@@ -141,7 +144,7 @@ export function TrainingScreen({
 
   // 時間切れ→結果画面への遷移時に一度だけ、結果をサーバに記録して quiz_complete を送る。
   // 送信結果の適用は sessionId 一致ガード: 前セッションの遅延失敗が「もう一度挑戦」後の
-  // 新しいセッションの画面を汚さない。durationMs は sessionResult()（実測 clamp 済み）に一本化。
+  // 新しいセッションの画面を汚さない。durationMs は quizFinishPayload()（実測 clamp 済み）に一本化。
   const prevPhaseRef = useRef(state.phase);
   useEffect(() => {
     const prev = prevPhaseRef.current;
@@ -154,7 +157,10 @@ export function TrainingScreen({
     const failed = () => {
       if (stateRef.current.sessionId === sessionId) setSendError(true);
     };
-    finishSession(sessionId, sessionResult(done))
+    // 結果＋全回答＋エンジン版数の組み立ては quizFinishPayload に一本化（手組みすると
+    // answers の送り忘れ=静かな unverified 化が起きる。サーバはシードから再生成・再採点して
+    // 確定する。Plan: docs/plans/quiz-open-and-ranking.md Phase 4）。
+    finishSession(sessionId, quizFinishPayload(done))
       .then((r) => {
         if (!r.ok) failed();
       })
@@ -167,6 +173,7 @@ export function TrainingScreen({
     pendingKindRef.current = k;
     dispatch({ type: "OPEN_DIALOG", kind: k });
     setDialogError(null);
+    if (!user) return; // 匿名は記録が存在しない（ダイアログに出さない・取得 API も呼ばない）
     setRecent(null);
     listSessions()
       .then((all) => {
@@ -189,22 +196,28 @@ export function TrainingScreen({
   async function start(k: QuizKind, isRetry: boolean): Promise<string | null> {
     setStarting(true);
     try {
-      const res = await startSession(k).catch(() => ({ ok: false as const, status: 0 }));
-      if (!res.ok) {
-        return res.status === 402 ? QUIZ_LIMIT_MESSAGE : QUIZ_START_ERROR_MESSAGE;
+      // 匿名（未サインイン）は開始 API を呼ばない＝枠の概念がなく、結果も保存しない。
+      let sessionId: string | null = null;
+      let serverSeed: number | null = null;
+      if (user) {
+        const res = await startSession(k).catch(() => ({ ok: false as const, status: 0 }));
+        if (!res.ok) {
+          return res.status === 402 ? QUIZ_LIMIT_MESSAGE : QUIZ_START_ERROR_MESSAGE;
+        }
+        sessionId = res.id;
+        serverSeed = res.seed;
       }
       setErrorMsg(null);
       setSendError(false);
       // 残り回数（res.remainingToday）は表示しない（[決定] 2026-07-25 オーナーレビュー。
       // 上限は 402 時の文言とプランカードで伝える）。
-      // 出題はシード付きの決定的生成（テストは seed か generateQuestion の注入で固定できる）。
-      rngRef.current = createQuizRng(seed ?? Date.now());
+      // 出題はシード付きの決定的生成。サインイン時は**サーバ発行シード**を使う（完了時に
+      // サーバが同じシードで再生成・再採点する）。注入 seed（テスト/dev）が最優先・匿名は実時刻。
+      rngRef.current = createQuizRng(seed ?? serverSeed ?? Date.now());
       trackEvent(ANALYTICS_EVENTS.quizStart, { kind: k });
       const now = Date.now();
       dispatch(
-        isRetry
-          ? { type: "RETRY", sessionId: res.id, now }
-          : { type: "START", kind: k, sessionId: res.id, now },
+        isRetry ? { type: "RETRY", sessionId, now } : { type: "START", kind: k, sessionId, now },
       );
       return null;
     } finally {
@@ -240,16 +253,17 @@ export function TrainingScreen({
       <main className={s.main}>
         <div className={s.head}>
           <h1>特訓</h1>
+          {/* ランキング導線（mobile の特訓タブと同配置。ヘッダのナビにもあるが、
+              特訓画面からの発見性を上げる。2026-08-04 UXレビュー）。 */}
+          <Link href="/ranking" className={s.rankingLink}>
+            {QUIZ_RANKING_LINK_LABEL}
+          </Link>
         </div>
 
         {loading ? (
           // 認証確認中に真っ白にしない（他画面と同じ控えめな文言。role=status で支援技術にも伝える）。
           <p className={s.loginNote} role="status">
             読み込み中…
-          </p>
-        ) : !user ? (
-          <p className={s.loginNote}>
-            特訓するには <Link href="/login">サインイン</Link> してください。
           </p>
         ) : phase === "select" ? (
           <section>
@@ -290,17 +304,22 @@ export function TrainingScreen({
                   <p className={s.dlgDesc}>{QUIZ_KIND_DESCRIPTIONS[pendingKind]}</p>
                   {/* ルール一文（[決定] 2026-07-26）: 種目名/説明の近くに1文だけ。 */}
                   <p className={s.dlgRule}>{QUIZ_RULE_NOTE}</p>
-                  <p className={s.dlgRecentTitle}>直近の記録</p>
-                  {recent === null ? (
-                    <p className={s.dlgEmpty}>読み込み中…</p>
-                  ) : recent.length === 0 ? (
-                    <p className={s.dlgEmpty}>{QUIZ_EMPTY_HISTORY_MESSAGE}</p>
-                  ) : (
-                    <ul className={s.dlgRecent} aria-label="直近の記録">
-                      {recent.map((x) => (
-                        <li key={x.id}>{quizRecentLine(x)}</li>
-                      ))}
-                    </ul>
+                  {/* 直近の記録はサインイン時のみ（匿名は記録が存在しない＝空文言も出さない）。 */}
+                  {user && (
+                    <>
+                      <p className={s.dlgRecentTitle}>直近の記録</p>
+                      {recent === null ? (
+                        <p className={s.dlgEmpty}>読み込み中…</p>
+                      ) : recent.length === 0 ? (
+                        <p className={s.dlgEmpty}>{QUIZ_EMPTY_HISTORY_MESSAGE}</p>
+                      ) : (
+                        <ul className={s.dlgRecent} aria-label="直近の記録">
+                          {recent.map((x) => (
+                            <li key={x.id}>{quizRecentLine(x)}</li>
+                          ))}
+                        </ul>
+                      )}
+                    </>
                   )}
                   {dialogError && (
                     <p className={s.error} role="alert">
@@ -352,137 +371,18 @@ export function TrainingScreen({
               </span>
             </div>
             {/* 見直しリスト: 回答した問題だけを○×・手牌・あなたの回答・正解つきで振り返る
-                （セッション中は正答を見せないぶんここで確認する。サーバには送らない）。 */}
-            {records.length > 0 && (
-              <div className={s.review}>
-                {/* 見出しテキストは置かずリストを直接置く（aria-label は維持。
-                    [決定] 2026-07-25 オーナーレビュー）。 */}
-                <ol className={s.reviewList} aria-label="見直しリスト">
-                  {records.map((r, i) => {
-                    // 分岐前にローカル束縛して、ネストした map 内でも型の絞り込みを保つ。
-                    const q = r.question;
-                    return (
-                      <li key={i} className={`${s.reviewRow} ${r.ok ? s.rowOk : s.rowNg}`}>
-                        {/* 1行目=番号＋○×のヘッダ。問題は回答・正解と同じ「ラベル＋牌列」の行にする。 */}
-                        <span className={s.reviewNo}>
-                          {i + 1}
-                          <span className={`${s.reviewMark} ${r.ok ? s.ok : s.ng}`}>
-                            {r.ok ? "○" : "×"}
-                          </span>
-                        </span>
-                        {q.kind === "score" ? (
-                          // 点数計算: 条件＋ドラ表示＋牌姿（手牌+副露+和了牌）に、回答/正解の
-                          // テキスト行と役の内訳（＝見直しで数え方まで学べる）。
-                          <>
-                            <span className={s.reviewAnswer}>
-                              <span className={s.reviewLabel}>問題</span>
-                              <span className={s.reviewText}>{q.label}</span>
-                            </span>
-                            <span className={s.reviewAnswer}>
-                              <span className={s.reviewLabel}>ドラ表示</span>
-                              <span role="group" aria-label="ドラ表示" className={s.reviewTiles}>
-                                {q.doraIndicators.map((t, j) => (
-                                  <span key={j} className={s.reviewTile}>
-                                    <OssTileFace code={t} />
-                                  </span>
-                                ))}
-                              </span>
-                            </span>
-                            <span className={s.reviewAnswer}>
-                              <span role="group" aria-label="牌姿" className={s.reviewTiles}>
-                                {scoreDisplayTiles(q).map((t, j) => (
-                                  <span key={j} className={s.reviewTile}>
-                                    <OssTileFace code={t} />
-                                  </span>
-                                ))}
-                                {q.melds.map((m, mi) => (
-                                  <span key={`m${mi}`} className={s.reviewMeld}>
-                                    {scoreMeldViews(m, q.seatWind).map((v, j) =>
-                                      v.back ? (
-                                        <span key={j} className={`${s.reviewTile} ${s.tileBack}`} />
-                                      ) : (
-                                        <span
-                                          key={j}
-                                          className={`${s.reviewTile} ${v.lay ? s.tileLay : ""}`}
-                                        >
-                                          <OssTileFace code={v.tile} />
-                                        </span>
-                                      ),
-                                    )}
-                                  </span>
-                                ))}
-                                <span className={`${s.reviewTile} ${s.winTile}`}>
-                                  <OssTileFace code={q.winTile} />
-                                </span>
-                              </span>
-                            </span>
-                            <span className={s.reviewAnswer}>
-                              <span className={s.reviewLabel}>あなたの回答</span>
-                              <span className={s.reviewText}>{r.pickedChoice}</span>
-                            </span>
-                            <span className={s.reviewAnswer}>
-                              <span className={s.reviewLabel}>正解</span>
-                              <span className={s.reviewText}>{q.answer}</span>
-                            </span>
-                            <span className={s.reviewAnswer}>
-                              <span className={s.reviewLabel}>役</span>
-                              <span className={s.reviewText}>{scoreYakuLine(q)}</span>
-                            </span>
-                          </>
-                        ) : (
-                          <>
-                            <span className={s.reviewAnswer}>
-                              <span className={s.reviewLabel}>問題</span>
-                              <span role="group" aria-label="問題" className={s.reviewTiles}>
-                                {q.tiles.map((t, j) => (
-                                  <span key={j} className={s.reviewTile}>
-                                    <OssTileFace code={t} />
-                                  </span>
-                                ))}
-                              </span>
-                            </span>
-                            <span className={s.reviewAnswer}>
-                              <span className={s.reviewLabel}>あなたの回答</span>
-                              <span
-                                role="group"
-                                aria-label="あなたの回答"
-                                className={s.reviewTiles}
-                              >
-                                {r.picked.map((t, j) => (
-                                  <span key={j} className={s.reviewTile}>
-                                    <OssTileFace code={t} />
-                                  </span>
-                                ))}
-                              </span>
-                            </span>
-                            <span className={s.reviewAnswer}>
-                              <span className={s.reviewLabel}>正解</span>
-                              <span role="group" aria-label="正解" className={s.reviewTiles}>
-                                {q.answer.map((t, j) => (
-                                  <span key={j} className={s.reviewTile}>
-                                    <OssTileFace code={t} />
-                                  </span>
-                                ))}
-                              </span>
-                            </span>
-                            {(q.kind === "efficiency" || q.kind === "chinitsuUkeire") && (
-                              <UkeireDetail
-                                tiles={q.tiles}
-                                picked={r.picked[0] ?? null}
-                                candidates={
-                                  q.kind === "chinitsuUkeire"
-                                    ? chinitsuUkeireCandidates(q.suit)
-                                    : undefined
-                                }
-                              />
-                            )}
-                          </>
-                        )}
-                      </li>
-                    );
-                  })}
-                </ol>
-              </div>
+                （セッション中は正答を見せないぶんここで確認する。表示はマイページの
+                セッション詳細と共有=QuizReviewList）。 */}
+            <QuizReviewList records={records} />
+            {/* 成績直後はランキングへの動機づけが最も高い瞬間（2026-08-04 UXレビュー）。 */}
+            <p className={s.loginNote}>
+              <Link href="/ranking">{QUIZ_RANKING_LINK_LABEL}</Link>
+            </p>
+            {/* 匿名セッションは保存されない: サインインの動機づけ導線を1行だけ出す。 */}
+            {!user && (
+              <p className={s.loginNote}>
+                <Link href="/login">{QUIZ_SIGNIN_NOTE}</Link>
+              </p>
             )}
             {sendError && <p className={s.sendError}>{QUIZ_SEND_ERROR_MESSAGE}</p>}
             {/* 「もう一度挑戦」の再開始が拒否されたとき（402 等）は結果画面の上に表示する。 */}
@@ -562,78 +462,6 @@ export function TrainingScreen({
   );
 }
 
-/**
- * 牌効率の見直し行に出す受け入れ詳細。計算は共有ヘッドレスモデル
- * （@rigel/ui の ukeireReviewModel）に一元化し、結果画面の描画時に行う
- * （60秒セッション中の負荷を増やさない）。計算は重い（14枚×34種の向聴総当たり）ので
- * useMemo で手牌が変わらない再レンダーでは再計算しない。
- */
-function UkeireDetail({
-  tiles,
-  picked,
-  candidates,
-}: {
-  tiles: readonly Tile[];
-  picked: Tile | null;
-  /** 受け入れとして数える牌種。出題時と同じものを渡す（清一色 牌効率は同色9種）。 */
-  candidates?: readonly Tile[];
-}) {
-  const model = useMemo(
-    () => ukeireReviewModel(tiles, picked, candidates),
-    [tiles, picked, candidates],
-  );
-  const { mine, regressed, best } = model;
-  return (
-    <span className={s.ukeireDetail}>
-      {mine && (
-        <span className={s.ukeireLine}>
-          <span
-            role="group"
-            aria-label={`あなたの回答の${ukeireLabel(mine.shanten)}`}
-            className={s.ukeireBody}
-          >
-            {regressed && <span className={s.regress}>向聴戻し</span>}
-            <span className={s.ukeireCount}>
-              {ukeireLabel(mine.shanten)} {mine.tiles.length}種{mine.count}枚
-            </span>
-            <span className={s.reviewTiles}>
-              {mine.tiles.map((t, j) => (
-                <span key={j} className={s.reviewTile}>
-                  <OssTileFace code={t} />
-                </span>
-              ))}
-            </span>
-          </span>
-        </span>
-      )}
-      {best.map((u) => (
-        <span key={u.discard} className={s.ukeireLine}>
-          <span className={s.reviewTile}>
-            <OssTileFace code={u.discard} />
-          </span>
-          <span className={s.ukeireArrow}>→</span>
-          <span
-            role="group"
-            aria-label={`正解${tileLabel(u.discard)}の${ukeireLabel(u.shanten)}`}
-            className={s.ukeireBody}
-          >
-            <span className={s.ukeireCount}>
-              {ukeireLabel(u.shanten)} {u.tiles.length}種{u.count}枚
-            </span>
-            <span className={s.reviewTiles}>
-              {u.tiles.map((t, j) => (
-                <span key={j} className={s.reviewTile}>
-                  <OssTileFace code={t} />
-                </span>
-              ))}
-            </span>
-          </span>
-        </span>
-      ))}
-    </span>
-  );
-}
-
 /** 出題エリア（清一色 何待ち=待ち牌の複数選択 / 牌効率系=切る牌のタップ / 点数計算=4択）。 */
 function QuestionPanel({
   question,
@@ -665,8 +493,8 @@ function QuestionPanel({
         <p className={s.question}>{QUIZ_KIND_PROMPTS.score}</p>
         <p className={s.scoreCond}>{question.label}</p>
         <div className={s.doraRow}>
-          <span className={s.doraLabel}>ドラ表示</span>
-          <span role="group" aria-label="ドラ表示" className={s.hand}>
+          <span className={s.doraLabel}>ドラ表示牌</span>
+          <span role="group" aria-label="ドラ表示牌" className={s.hand}>
             {question.doraIndicators.map((t, i) => (
               <span key={i} className={s.tile}>
                 <OssTileFace code={t} />
@@ -722,9 +550,9 @@ function QuestionPanel({
   }
 
   if (question.kind === "chinitsu") {
-    // 候補は出題スート（単色）の1〜9。回答後も正答は見せない（○×のみ。見直しは結果画面）。
-    const suit = question.tiles[0]![1]!;
-    const candidates = Array.from({ length: 9 }, (_, i) => `${i + 1}${suit}` as Tile);
+    // 候補は出題スート（単色）の1〜9（共有の chinitsuWaitCandidates=物差しは1つ）。
+    // 回答後も正答は見せない（○×のみ。見直しは結果画面）。
+    const candidates = chinitsuWaitCandidates(question);
     return (
       <div className={s.panel}>
         <p className={s.question}>{QUIZ_KIND_PROMPTS.chinitsu}</p>

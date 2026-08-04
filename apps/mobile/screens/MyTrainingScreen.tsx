@@ -10,14 +10,20 @@ import {
   quizRecentHistory,
   type QuizStatsPeriod,
 } from "@rigel/ui";
+import { useNavigation } from "@react-navigation/native";
+import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useEffect, useMemo, useState } from "react";
-import { FlatList, StyleSheet, Text, View } from "react-native";
+import { FlatList, Pressable, StyleSheet, Text, View } from "react-native";
 import { CenterState } from "../components/CenterState";
 import { QuizLineChart } from "../components/QuizLineChart";
+import { RankingLink } from "../components/RankingLink";
 import { Segment } from "../components/Segment";
 import { listQuizSessions, type QuizSessionDto } from "../lib/api";
 import { useAuth } from "../lib/auth";
+import type { RootStackParamList } from "../lib/navigation";
 import { colors, radius } from "../lib/theme";
+
+type Nav = NativeStackNavigationProp<RootStackParamList>;
 
 // 共有定義（@rigel/ui。web と同じ選択肢・並び）を Segment の [値, ラベル] 形式へ写す。
 const PERIODS = QUIZ_STATS_PERIODS.map((p) => [p.key, p.label] as const);
@@ -32,6 +38,7 @@ const PERIODS = QUIZ_STATS_PERIODS.map((p) => [p.key, p.label] as const);
  * 「その日どの種目をやったか」で動くため。集計は @rigel/ui の quizKindBoards に一元化。
  */
 export function MyTrainingScreen({ now }: { now?: Date }) {
+  const nav = useNavigation<Nav>();
   const { token } = useAuth();
   const [nowValue] = useState(() => now ?? new Date());
   const [loading, setLoading] = useState(true);
@@ -77,6 +84,8 @@ export function MyTrainingScreen({ now }: { now?: Date }) {
           <View style={styles.header}>
             <View style={styles.segRow}>
               <Segment options={PERIODS} value={period} onChange={setPeriod} />
+              {/* ランキング導線（web マイページ特訓タブと同配置=チップ列の右端）。 */}
+              <RankingLink style={styles.rankingLink} />
             </View>
             {/* 指標名は並んだグラフの上に1度だけ（カードの見出しは種目名が担う）。
                 期間内に記録のある種目が無ければ見出しごと出さない。 */}
@@ -96,7 +105,12 @@ export function MyTrainingScreen({ now }: { now?: Date }) {
         }
         ListEmptyComponent={<CenterState message={QUIZ_EMPTY_HISTORY_MESSAGE} />}
         renderItem={({ item }) => (
-          <View style={styles.row}>
+          // 行タップでセッション詳細へ（有料は保存された見直しレコードを確認できる）。
+          <Pressable
+            style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
+            onPress={() => nav.navigate("TrainingSession", { id: item.id })}
+            accessibilityRole="button"
+          >
             <View style={styles.rowLeft}>
               <Text style={styles.rowDate}>{jstDateTime(item.createdAt)}</Text>
               <Text style={styles.rowKind}>{QUIZ_KIND_LABELS[item.kind]}</Text>
@@ -109,7 +123,7 @@ export function MyTrainingScreen({ now }: { now?: Date }) {
                 正答率 {accuracyLabel(item.total > 0 ? item.correct / item.total : null)}
               </Text>
             </View>
-          </View>
+          </Pressable>
         )}
       />
     </View>
@@ -121,7 +135,9 @@ const styles = StyleSheet.create({
   feed: { paddingHorizontal: 16, paddingTop: 10, paddingBottom: 20, gap: 10, flexGrow: 1 },
   header: { gap: 10, marginBottom: 10 },
   metricTitle: { color: colors.w45, fontSize: 11.5, fontWeight: "700", marginTop: 4 },
-  segRow: { flexDirection: "row" },
+  segRow: { flexDirection: "row", alignItems: "center", gap: 10 },
+  // ランキング導線（見た目は共有 RankingLink。ここは配置だけ）。
+  rankingLink: { marginLeft: "auto" },
   row: {
     flexDirection: "row",
     alignItems: "center",
@@ -134,6 +150,7 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     paddingHorizontal: 14,
   },
+  rowPressed: { transform: [{ scale: 0.98 }] },
   rowLeft: { gap: 5, flexShrink: 1, alignItems: "flex-start" },
   rowRight: { alignItems: "flex-end", gap: 3 },
   rowDate: { color: colors.w45, fontSize: 11.5, fontVariant: ["tabular-nums"] },

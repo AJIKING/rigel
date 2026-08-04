@@ -63,7 +63,10 @@ describe("/dev/training（特訓UIの目視検証用フィクスチャ）", () =
     // （出題の中身は seed で決定的だが、実測値の焼き付けはしない=生成×採点の正しさは
     // @rigel/ui のテストが担保。条件ラベルの形だけを見る）。
     expect(await screen.findByText("点数を選ぶ")).toBeTruthy();
-    expect((await screen.findByText(/場風 [東南]/)).textContent).toMatch(/[親子]（.家）/);
+    // 条件ラベルは対局表記「東◯局 ◯家 (リーチ) ツモ/ロン」（[決定] 2026-08-04）。
+    expect((await screen.findByText(/^[東南][1-4]局 .家/)).textContent).toMatch(
+      /^[東南][1-4]局 [東南西北]家( リーチ)? (ツモ|ロン)$/,
+    );
     expect(actions.startQuizSessionAction).not.toHaveBeenCalled();
   });
 

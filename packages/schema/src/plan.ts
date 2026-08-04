@@ -66,6 +66,7 @@ export const MAX_SEQ = 16;
 // 特訓クイズ
 // ------------------------------------------------------------
 
-/** 無料プランの特訓クイズ回数上限（1日・JST 0時回復・開始時に1回消費）。有料は無制限。
- *  api がサーバ強制に、web/mobile が文言表示に使う（Plan: docs/plans/quiz-training.md）。 */
-export const FREE_QUIZ_PER_DAY = 3;
+/** 無料プランの特訓クイズ回数上限（1日・種目共通・JST 0時回復・開始時に1回消費）。有料は無制限。
+ *  api がサーバ強制に、web/mobile が文言表示に使う（Plan: docs/plans/quiz-training.md）。
+ *  [決定] 2026-08-04 オーナー: 3→10 に拡大（Plan: docs/plans/quiz-open-and-ranking.md Phase 2）。 */
+export const FREE_QUIZ_PER_DAY = 10;

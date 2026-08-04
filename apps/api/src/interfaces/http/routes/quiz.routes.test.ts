@@ -1,11 +1,14 @@
 // /quiz/sessions の HTTP 統合テスト（ルート → 実ユースケース → 実 Drizzle リポジトリ(sql.js)）。
-// 無料 1日3回のサーバ強制（402）・結果の記録・履歴（本人の完了済みのみ）の
+// 無料 1日 FREE_QUIZ_PER_DAY 回のサーバ強制（402）・結果の記録・履歴（本人の完了済みのみ）の
 // レスポンス契約を固定する。成績は本人のみ＝他人の行は返さない/触れない。
 
+import { FREE_QUIZ_PER_DAY } from "@rigel/schema";
 import { describe, expect, it } from "vitest";
 import type { AppContainer } from "../../../composition-root";
 import {
   FinishQuizSession,
+  GetQuizRanking,
+  GetQuizSession,
   ListQuizSessions,
   StartQuizSession,
 } from "../../../application/quiz.usecase";
@@ -39,8 +42,29 @@ async function makeQuizApp() {
       sessions,
       now: () => clock.now,
       newId: () => `q${++seq}`,
+      newSeed: () => 42,
     }),
-    finishQuizSession: new FinishQuizSession({ sessions }),
+    finishQuizSession: new FinishQuizSession({
+      users,
+      sessions,
+      now: () => clock.now,
+      engineVersion: 1,
+      // リプレイのスタブ（再採点の中身はユースケース・@rigel/ui のテストが担保。
+      // ここではレスポンス契約の検証に必要な最小の形だけ返す）。
+      replay: (_kind, _seed, answers) =>
+        answers.map((a) => ({
+          question: {
+            kind: "chinitsu",
+            // prettier-ignore
+            tiles: ["1p", "2p", "3p", "4p", "4p", "5p", "5p", "5p", "6p", "6p", "7p", "8p", "9p"],
+            answer: ["4p", "5p", "6p"],
+          },
+          picked: [...a.picked],
+          ok: a.picked[0] === "4p",
+        })),
+    }),
+    getQuizSession: new GetQuizSession({ users, sessions }),
+    getQuizRanking: new GetQuizRanking({ sessions, now: () => clock.now }),
     listQuizSessions: new ListQuizSessions({ sessions }),
   } as Partial<AppContainer> as AppContainer;
   const app = createApp({ container: () => container });
@@ -73,19 +97,24 @@ describe("POST /quiz/sessions（開始 = 消費）", () => {
     expect(res.status).toBe(401);
   });
 
-  it("free の1回目は 201 で id と remainingToday=2 を返す", async () => {
+  it("free の1回目は 201 で id と remainingToday を返す", async () => {
     const { request, authInit } = await makeQuizApp();
     const res = await request(
       "/quiz/sessions",
       await authInit("u-free", { method: "POST", json: { kind: "chinitsu" } }),
     );
     expect(res.status).toBe(201);
-    expect(await res.json()).toEqual({ ok: true, id: "q1", remainingToday: 2 });
+    expect(await res.json()).toEqual({
+      ok: true,
+      id: "q1",
+      seed: 42,
+      remainingToday: FREE_QUIZ_PER_DAY - 1,
+    });
   });
 
-  it("free の4回目は 402 quota_exceeded（枠系エラーの流儀）", async () => {
+  it("free の上限+1回目は 402 quota_exceeded（枠系エラーの流儀）", async () => {
     const { request, authInit } = await makeQuizApp();
-    for (let i = 0; i < 3; i++) {
+    for (let i = 0; i < FREE_QUIZ_PER_DAY; i++) {
       const res = await request(
         "/quiz/sessions",
         await authInit("u-free", { method: "POST", json: { kind: "chinitsu" } }),
@@ -102,7 +131,7 @@ describe("POST /quiz/sessions（開始 = 消費）", () => {
 
   it("JST 0時（UTC 15:00）を跨ぐと free の枠が回復する", async () => {
     const { request, authInit, clock } = await makeQuizApp();
-    for (let i = 0; i < 3; i++) {
+    for (let i = 0; i < FREE_QUIZ_PER_DAY; i++) {
       await request(
         "/quiz/sessions",
         await authInit("u-free", { method: "POST", json: { kind: "chinitsu" } }),
@@ -114,12 +143,12 @@ describe("POST /quiz/sessions（開始 = 消費）", () => {
       await authInit("u-free", { method: "POST", json: { kind: "chinitsu" } }),
     );
     expect(res.status).toBe(201);
-    expect(await res.json()).toMatchObject({ remainingToday: 2 });
+    expect(await res.json()).toMatchObject({ remainingToday: FREE_QUIZ_PER_DAY - 1 });
   });
 
-  it("有料（next）は4回目も 201 で remainingToday=null（無制限）", async () => {
+  it("有料（next）は上限を超えても 201 で remainingToday=null（無制限）", async () => {
     const { request, authInit } = await makeQuizApp();
-    for (let i = 0; i < 4; i++) {
+    for (let i = 0; i < FREE_QUIZ_PER_DAY + 1; i++) {
       const res = await request(
         "/quiz/sessions",
         await authInit("u-paid", { method: "POST", json: { kind: "efficiency" } }),
@@ -136,7 +165,12 @@ describe("POST /quiz/sessions（開始 = 消費）", () => {
       await authInit("u-free", { method: "POST", json: { kind: "score" } }),
     );
     expect(res.status).toBe(201);
-    expect(await res.json()).toEqual({ ok: true, id: "q1", remainingToday: 2 });
+    expect(await res.json()).toEqual({
+      ok: true,
+      id: "q1",
+      seed: 42,
+      remainingToday: FREE_QUIZ_PER_DAY - 1,
+    });
   });
 
   it("不正な kind は 400", async () => {
@@ -227,6 +261,149 @@ describe("PATCH /quiz/sessions/:id（完了 = 結果の記録）", () => {
       body: JSON.stringify(RESULT),
     });
     expect(res.status).toBe(401);
+  });
+});
+
+describe("GET /quiz/sessions/:id（詳細は本人のみ。records は現在プランが有料のときだけ）", () => {
+  /** 開始→60秒後に全回答つきで完了させる（userId のセッションは q1）。 */
+  async function play(userId: string) {
+    const made = await makeQuizApp();
+    const { request, authInit, clock } = made;
+    await request(
+      "/quiz/sessions",
+      await authInit(userId, { method: "POST", json: { kind: "chinitsu" } }),
+    );
+    clock.now = new Date(NOW.getTime() + 61_000);
+    const finish = {
+      kind: "chinitsu",
+      total: 1,
+      correct: 1,
+      durationMs: 61_000,
+      engineVersion: 1,
+      answers: [{ picked: ["4p"] }],
+    };
+    await request("/quiz/sessions/q1", await authInit(userId, { method: "PATCH", json: finish }));
+    return made;
+  }
+
+  it("有料は records（見直しレコード）つきで返る。内部情報（seed/userId 等）は出さない", async () => {
+    const { request, authInit } = await play("u-paid");
+    const res = await request("/quiz/sessions/q1", await authInit("u-paid"));
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as Record<string, unknown>;
+    expect(Object.keys(body).sort()).toEqual([
+      "correct",
+      "createdAt",
+      "durationMs",
+      "id",
+      "kind",
+      "records",
+      "total",
+    ]);
+    expect(body).toMatchObject({ id: "q1", kind: "chinitsu", total: 1, correct: 1 });
+    expect(body.records).toHaveLength(1);
+    expect((body.records as Record<string, unknown>[])[0]).toMatchObject({
+      picked: ["4p"],
+      ok: true,
+    });
+  });
+
+  it("無料は records が null（保存していない）", async () => {
+    const { request, authInit } = await play("u-free");
+    const res = await request("/quiz/sessions/q1", await authInit("u-free"));
+    expect(res.status).toBe(200);
+    expect(((await res.json()) as { records: unknown }).records).toBeNull();
+  });
+
+  it("他人の行・未完了の行は 404（存在を伏せる）・トークン無しは 401", async () => {
+    const { request, authInit } = await play("u-paid");
+    expect((await request("/quiz/sessions/q1", await authInit("u-free"))).status).toBe(404);
+    // 未完了（開始のみ）の行。
+    await request(
+      "/quiz/sessions",
+      await authInit("u-paid", { method: "POST", json: { kind: "score" } }),
+    );
+    expect((await request("/quiz/sessions/q2", await authInit("u-paid"))).status).toBe(404);
+    expect((await request("/quiz/sessions/q1")).status).toBe(401);
+  });
+});
+
+describe("GET /ranking（匿名可・verified セッションの集計のみ）", () => {
+  /** u-paid で全回答つきの verified セッションを1本作る（picked 4p = replay スタブで正解）。 */
+  async function playVerified() {
+    const made = await makeQuizApp();
+    const { request, authInit, clock } = made;
+    await request(
+      "/quiz/sessions",
+      await authInit("u-paid", { method: "POST", json: { kind: "chinitsu" } }),
+    );
+    clock.now = new Date(NOW.getTime() + 61_000);
+    await request(
+      "/quiz/sessions/q1",
+      await authInit("u-paid", {
+        method: "PATCH",
+        json: {
+          kind: "chinitsu",
+          total: 1,
+          correct: 1,
+          durationMs: 61_000,
+          engineVersion: 1,
+          answers: [{ picked: ["4p"] }],
+        },
+      }),
+    );
+    return made;
+  }
+
+  it("匿名で取得でき、handle/displayName と集計値だけを返す（me は null・短期キャッシュ可）", async () => {
+    const { request } = await playVerified();
+    const res = await request("/ranking?kind=chinitsu&period=all");
+    expect(res.status).toBe(200);
+    expect(res.headers.get("cache-control")).toBe("public, max-age=60");
+    const body = (await res.json()) as Record<string, unknown>;
+    expect(body.kind).toBe("chinitsu");
+    expect(body.period).toBe("all");
+    expect(body.me).toBeNull();
+    const entries = body.correct as Record<string, unknown>[];
+    expect(entries).toHaveLength(1);
+    // userId・email 等の内部情報は返さない（公開情報＝handle/displayName と集計値のみ）。
+    expect(Object.keys(entries[0]!).sort()).toEqual([
+      "accuracy",
+      "correct",
+      "displayName",
+      "handle",
+      "rank",
+      "total",
+    ]);
+    expect(entries[0]).toMatchObject({ rank: 1, correct: 1, total: 1 });
+  });
+
+  it("申告のみ（answers なし=unverified）のセッションはランキングに載らない", async () => {
+    const { request, authInit } = await makeQuizApp();
+    await request(
+      "/quiz/sessions",
+      await authInit("u-free", { method: "POST", json: { kind: "chinitsu" } }),
+    );
+    await request("/quiz/sessions/q1", await authInit("u-free", { method: "PATCH", json: RESULT }));
+    const res = await request("/ranking?kind=chinitsu&period=all");
+    expect(((await res.json()) as { correct: unknown[] }).correct).toEqual([]);
+  });
+
+  it("サインイン時は自分の順位（me）が付き、キャッシュさせない", async () => {
+    const { request, authInit } = await playVerified();
+    const res = await request("/ranking?kind=chinitsu&period=all", await authInit("u-paid"));
+    expect(res.status).toBe(200);
+    expect(res.headers.get("cache-control")).toBe("private, no-store");
+    const body = (await res.json()) as { me: { correctRank: number } | null };
+    expect(body.me).toMatchObject({ correctRank: 1, correct: 1, total: 1 });
+  });
+
+  it("period 省略は weekly・不正な kind/period は 400", async () => {
+    const { request } = await makeQuizApp();
+    const res = await request("/ranking?kind=chinitsu");
+    expect(((await res.json()) as { period: string }).period).toBe("weekly");
+    expect((await request("/ranking?kind=speed")).status).toBe(400);
+    expect((await request("/ranking?kind=chinitsu&period=daily")).status).toBe(400);
   });
 });
 

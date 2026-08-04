@@ -5,10 +5,19 @@
 // 2026-07-26 に分割: 文言・共有定数は quiz-copy.ts、点数計算の生成は quiz-score-question.ts、
 // サンプリングの内部ヘルパは quiz-random.ts（公開面は index.ts の export * で従来どおり）。
 
-import type { Tile } from "@rigel/schema";
+import type {
+  QuizAnswerRecord as SchemaQuizAnswerRecord,
+  QuizChinitsuQuestion,
+  QuizChinitsuUkeireQuestion,
+  QuizEfficiencyQuestion,
+  QuizKind,
+  QuizQuestion as SchemaQuizQuestion,
+  QuizSubmittedAnswer,
+  Tile,
+} from "@rigel/schema";
 import { compareTiles } from "./edit";
 import { drawTiles, NUMBER_SUITS, QUIZ_MAX_GENERATION_ATTEMPTS, sampleUntil } from "./quiz-random";
-import type { ScoreQuestion } from "./quiz-score-question";
+import { generateScoreQuestion } from "./quiz-score-question";
 import { shanten } from "./shanten";
 import { winningTiles } from "./tenpai";
 import { CANDIDATE_TILES } from "./tile-counts";
@@ -31,39 +40,88 @@ export function createQuizRng(seed: number): () => number {
   };
 }
 
-export interface ChinitsuQuestion {
-  kind: "chinitsu";
-  /** 単色テンパイ13枚（理牌済み・昇順）。 */
-  tiles: Tile[];
-  /** 正解 = 待ち牌（2種以上・TILE_VALUES 順）。 */
-  answer: Tile[];
-}
-
-export interface EfficiencyQuestion {
-  kind: "efficiency";
-  /** 14枚（理牌済み。字牌あり得る・赤5は出題に含めない）。 */
-  tiles: Tile[];
-  /** 出題時点の向聴数（1 か 2）。 */
-  shanten: number;
-  /** 正解 = 最小向聴を保ちつつ受け入れ枚数最大の打牌（同率全部）。 */
-  answer: Tile[];
-}
+// 出題・レコードの型は背骨（@rigel/schema の Quiz*QuestionSchema / QuizAnswerRecordSchema）が
+// 単一真実源（2026-08-04 移管。サーバのシードリプレイ再採点・有料フル保存が同じ形を使う）。
+// ここでは従来名で re-export し、生成器の返り値が背骨の形から逸れたら型エラーで気づけるようにする。
+export type ChinitsuQuestion = QuizChinitsuQuestion;
+export type EfficiencyQuestion = QuizEfficiencyQuestion;
 
 /**
  * 見直しリストの1件（web/mobile の特訓画面で共有）。セッション中の回答をクライアントに
- * 記録し、結果画面でのみ表示する（サーバへは送らない。回答中は○×のみで正答を見せない・
- * 60秒経過時に回答中だった問題は記録しない。[決定] 2026-07-25 UX変更）。
+ * 記録し、結果画面で表示する（回答中は○×のみで正答を見せない・60秒経過時に回答中だった
+ * 問題は記録しない。[決定] 2026-07-25 UX変更）。サーバ保存は有料のみ・サーバ再生成の
+ * スナップショット（Plan: docs/plans/quiz-open-and-ranking.md Phase 3）。
  */
-export interface QuizAnswerRecord {
-  /** 出題（tiles=手牌 / answer=正解）。 */
-  question: ChinitsuQuestion | ChinitsuUkeireQuestion | EfficiencyQuestion | ScoreQuestion;
-  /** あなたの回答（清一色=選んだ待ち牌・選択順 / 牌効率・清一色 牌効率=切った牌1枚 /
-   *  点数計算=空配列）。 */
-  picked: Tile[];
-  /** 点数計算の選んだ選択肢（他種目は undefined）。 */
-  pickedChoice?: string;
-  /** 正誤（picked が正解条件を満たしたか）。 */
-  ok: boolean;
+export type QuizAnswerRecord = SchemaQuizAnswerRecord;
+
+/** 出題エンジンの版数。**生成器（quiz.ts / quiz-score-question.ts / quiz-random.ts /
+ *  shanten / ukeire / score-engine）の出力が同一シードで変わる変更をしたら必ず +1 する。**
+ *  サーバのシードリプレイ再採点は版数一致を前提にし、不一致のセッションは unverified
+ *  （＝ランキング対象外。本人の履歴には残る）として扱う。
+ *  v2: 点数計算の条件ラベルを対局表記「東◯局 ◯家 ツモ」へ変更（2026-08-04 オーナー指示）。 */
+export const QUIZ_ENGINE_VERSION = 2;
+
+/**
+ * 1問の採点（web/mobile の reducer とサーバのシードリプレイ再採点が共有する唯一の物差し）。
+ * 清一色=完全一致のみ正解 / 牌効率・清一色 牌効率=切った1枚が answer に含まれれば正解 /
+ * 点数計算=choice の文字列一致のみ正解。
+ * UI は重複選択を作れないが、サーバリプレイは細工ペイロードを直接受けるので
+ * **重複牌でも通らない判定**にする（picked を Set に潰して枚数比較。原則5=サーバの規則で強制）。
+ */
+export function gradeQuizAnswer(
+  question: SchemaQuizQuestion,
+  picked: readonly Tile[],
+  choice?: string,
+): boolean {
+  if (question.kind === "score") return choice !== undefined && choice === question.answer;
+  if (question.kind === "chinitsu") {
+    const answer = new Set<Tile>(question.answer);
+    const pickedSet = new Set<Tile>(picked);
+    return pickedSet.size === answer.size && [...pickedSet].every((t) => answer.has(t));
+  }
+  return picked.length === 1 && question.answer.includes(picked[0]!);
+}
+
+/** 既定の出題生成（種目→生成器の配線。画面の generateQuestion 注入が無いときと、
+ *  サーバのシードリプレイが使う）。**種目を追加したらここに生やす**—— exhaustive switch
+ *  なので追加漏れはコンパイルエラーになる（静かに別種目へフォールバックしない）。 */
+export function defaultQuizQuestion(kind: QuizKind, rng: () => number): SchemaQuizQuestion {
+  switch (kind) {
+    case "chinitsu":
+      return generateChinitsuQuestion(rng);
+    case "chinitsuUkeire":
+      return generateChinitsuUkeireQuestion(rng);
+    case "efficiency":
+      return generateEfficiencyQuestion(rng);
+    case "score":
+      return generateScoreQuestion(rng);
+    default:
+      return kind satisfies never;
+  }
+}
+
+/**
+ * サーバのシードリプレイ再採点（チート対策の芯。Plan: docs/plans/quiz-open-and-ranking.md 4-1）。
+ * サーバ発行シードから出題列を再生成し、送られた全回答を gradeQuizAnswer で採点し直して
+ * 見直しレコード（保存形式=QuizAnswerRecordSchema）を作る。クライアントと同じ生成器・採点器を
+ * 使うので、**エンジン版数（QUIZ_ENGINE_VERSION）が一致している前提**でのみ呼ぶこと。
+ * 純関数（Workers でもテストでも同じ結果）。
+ */
+export function replayQuizAnswers(
+  kind: QuizKind,
+  seed: number,
+  answers: readonly QuizSubmittedAnswer[],
+): QuizAnswerRecord[] {
+  const rng = createQuizRng(seed);
+  return answers.map((a) => {
+    const question = defaultQuizQuestion(kind, rng);
+    return {
+      question,
+      picked: [...a.picked],
+      ...(a.choice === undefined ? {} : { pickedChoice: a.choice }),
+      ok: gradeQuizAnswer(question, a.picked, a.choice),
+    };
+  });
 }
 
 // 牌山（各牌種4枚・赤5なし）。牌種34種は counts 基盤（tile-counts.ts）の CANDIDATE_TILES。
@@ -95,18 +153,8 @@ export function generateChinitsuQuestion(
 /** 数牌のスート（清一色 牌効率の手牌の色）。 */
 export type NumberSuit = (typeof NUMBER_SUITS)[number];
 
-export interface ChinitsuUkeireQuestion {
-  kind: "chinitsuUkeire";
-  /** 単色14枚（理牌済み・赤5なし）。 */
-  tiles: Tile[];
-  /** 手牌の色。受け入れをこの色の9種に絞る根拠で、見直しも同じ候補を使う。 */
-  suit: NumberSuit;
-  /** 出題時点の向聴数（0=テンパイ / 1=1向聴。単色14枚に2向聴は存在しない）。 */
-  shanten: number;
-  /** 正解 = 最小向聴を保つ打牌のうち「広さ」最大（同率全部）。
-   *  広さ = 切った後に向聴が1つ進む同色牌の残り枚数（0向聴なら待ち枚数・1向聴なら受け入れ枚数）。 */
-  answer: Tile[];
-}
+// 型は背骨が単一真実源（suit はこのファイルの NumberSuit と同値）。
+export type ChinitsuUkeireQuestion = QuizChinitsuUkeireQuestion;
 
 /** 色ごとの受け入れ候補（9種）。**参照を固定する**: 画面は candidates を useMemo の依存に
  *  渡すので、呼ぶたびに新しい配列を作ると見直しの重い受け入れ計算が毎レンダー走る。 */
@@ -119,6 +167,12 @@ const SUIT_CANDIDATES: Record<NumberSuit, readonly Tile[]> = {
 /** 清一色 牌効率で受け入れとして数える牌種（その色の9種）。出題と見直しが同じ物差しを使う。 */
 export function chinitsuUkeireCandidates(suit: NumberSuit): readonly Tile[] {
   return SUIT_CANDIDATES[suit];
+}
+
+/** 清一色 何待ちの回答候補（出題スートの 1〜9）。web/mobile の出題画面が共有する
+ *  （画面ごとの手組みを排して物差しを1つに）。 */
+export function chinitsuWaitCandidates(question: QuizChinitsuQuestion): readonly Tile[] {
+  return SUIT_CANDIDATES[question.tiles[0]![1] as NumberSuit];
 }
 
 /** テンパイ問題で要求する「テンパイを保つ打牌」の下限（[決定] 2026-07-26。

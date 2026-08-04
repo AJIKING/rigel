@@ -1,7 +1,7 @@
 // 特訓クイズの共有定数・文言（web/mobile の特訓画面で共有。表記ゆれ防止）。
 // 出題生成ロジックは quiz.ts（清一色/牌効率）と quiz-score-question.ts（点数計算）に分離。
 
-// 無料の特訓クイズ1日3回（FREE_QUIZ_PER_DAY）は課金ポリシーなので背骨（@rigel/schema の
+// 無料の特訓クイズ1日上限（FREE_QUIZ_PER_DAY）は課金ポリシーなので背骨（@rigel/schema の
 // plan.ts）が単一真実源。ここでは文言の組み立てに使うだけで re-export しない
 // （参照する側は @rigel/schema から直接 import する。2026-07-26 に経路を一本化）。
 import { FREE_QUIZ_PER_DAY, QuizKindSchema, type QuizKind, type Tile } from "@rigel/schema";
@@ -66,11 +66,20 @@ export const QUIZ_CARD_MOTIF: Record<QuizKind, readonly Tile[]> = {
 /** 無料枠を使い切ったとき（開始 API が 402）の文言。短く（枠と有料無制限のみ）。 */
 export const QUIZ_LIMIT_MESSAGE = `本日の無料枠（${FREE_QUIZ_PER_DAY}回）を使い切りました。有料プランなら無制限です。`;
 
+/** 匿名（未サインイン）セッションの結果画面に出すサインイン導線の文言（web/mobile 共有）。
+ *  タップ要素のラベルなので動詞形（平叙文だと操作可能に見えない。2026-08-04 UXレビュー）。
+ *  匿名は結果を保存しない（Plan: docs/plans/quiz-open-and-ranking.md Phase 1）。 */
+export const QUIZ_SIGNIN_NOTE = "サインインして成績を記録する";
+
 /** 開始 API が 402 以外で失敗したときの文言（web/mobile 共有）。 */
 export const QUIZ_START_ERROR_MESSAGE = "開始できませんでした。少し待って再度お試しください。";
 
 /** 結果送信の失敗文言（影響=この挑戦は記録に残らない、まで伝える。web/mobile 共有）。 */
 export const QUIZ_SEND_ERROR_MESSAGE = "結果の送信に失敗しました。この挑戦は記録に残りません。";
+
+/** セッション詳細で見直しレコードが無い（無料プラン or ダウングレード）ときの案内
+ *  （web/mobile 共有。ダウングレード時は保存済みでも閲覧不可 [決定] 2026-08-04 ⑤）。 */
+export const QUIZ_RECORDS_PAID_NOTE = "見直しの保存・閲覧は有料プランの機能です。";
 
 /** マイページ「特訓」タブの空状態文言（web/mobile で共有）。 */
 export const QUIZ_EMPTY_HISTORY_MESSAGE = "まだ特訓の記録がありません";

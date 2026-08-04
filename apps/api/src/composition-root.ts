@@ -56,7 +56,14 @@ import {
   ListPublishedProblems,
   UpdateProblem,
 } from "./application/problem.usecase";
-import { FinishQuizSession, ListQuizSessions, StartQuizSession } from "./application/quiz.usecase";
+import { QUIZ_ENGINE_VERSION, replayQuizAnswers } from "@rigel/ui";
+import {
+  FinishQuizSession,
+  GetQuizRanking,
+  GetQuizSession,
+  ListQuizSessions,
+  StartQuizSession,
+} from "./application/quiz.usecase";
 import { StartCheckout } from "./application/start-checkout.usecase";
 import { UpdateKifu } from "./application/update-kifu.usecase";
 import type { SessionService } from "./domain/auth/session";
@@ -153,6 +160,8 @@ export interface AppContainer {
   listMyFavorites: ListMyFavorites;
   startQuizSession: StartQuizSession;
   finishQuizSession: FinishQuizSession;
+  getQuizSession: GetQuizSession;
+  getQuizRanking: GetQuizRanking;
   listQuizSessions: ListQuizSessions;
   startCheckout: StartCheckout;
   openBillingPortal: OpenBillingPortal;
@@ -392,8 +401,23 @@ export function buildContainer(env: Env): AppContainer {
       problems,
       users,
     }),
-    startQuizSession: new StartQuizSession({ users, sessions: quizSessions, now, newId }),
-    finishQuizSession: new FinishQuizSession({ sessions: quizSessions }),
+    startQuizSession: new StartQuizSession({
+      users,
+      sessions: quizSessions,
+      now,
+      newId,
+      // 出題シード（uint32）。乱数の質は不要（推測されても採点はサーバのリプレイが握る）。
+      newSeed: () => crypto.getRandomValues(new Uint32Array(1))[0]!,
+    }),
+    finishQuizSession: new FinishQuizSession({
+      users,
+      sessions: quizSessions,
+      now,
+      engineVersion: QUIZ_ENGINE_VERSION,
+      replay: replayQuizAnswers,
+    }),
+    getQuizSession: new GetQuizSession({ users, sessions: quizSessions }),
+    getQuizRanking: new GetQuizRanking({ sessions: quizSessions, now }),
     listQuizSessions: new ListQuizSessions({ sessions: quizSessions }),
     startCheckout: new StartCheckout(billing, users),
     openBillingPortal: new OpenBillingPortal(billing),

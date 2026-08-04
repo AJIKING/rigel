@@ -26,35 +26,39 @@ describe("DrizzleAccountStore（実 SQLite）", () => {
       await users.save(User.create({ id, googleSub: `sub-${id}`, now: NOW }));
     }
     // u1 は未完了・完了済みの両方を持つ。u2 の成績は残ること（他人を消さない）。
+    const base = {
+      startedDay: "2026-07-25",
+      seed: 1,
+      verified: false,
+      records: null,
+      createdAt: NOW,
+    };
     await quiz.insert({
       id: "q1",
       userId: "u1",
       kind: "chinitsu",
-      startedDay: "2026-07-25",
       total: null,
       correct: null,
       durationMs: null,
-      createdAt: NOW,
+      ...base,
     });
     await quiz.insert({
       id: "q2",
       userId: "u1",
       kind: "efficiency",
-      startedDay: "2026-07-25",
       total: 8,
       correct: 5,
       durationMs: 60_000,
-      createdAt: NOW,
+      ...base,
     });
     await quiz.insert({
       id: "q3",
       userId: "u2",
       kind: "chinitsu",
-      startedDay: "2026-07-25",
       total: 3,
       correct: 3,
       durationMs: 60_000,
-      createdAt: NOW,
+      ...base,
     });
 
     const store = new DrizzleAccountStore(db);

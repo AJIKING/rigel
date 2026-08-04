@@ -7,6 +7,7 @@ import type {
   QuizQuestion,
   ScoreQuestion,
 } from "@rigel/ui";
+import { QUIZ_ENGINE_VERSION } from "@rigel/ui";
 import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AuthProvider } from "../../lib/auth-context";
@@ -86,7 +87,7 @@ const SCORE_QS: readonly ScoreQuestion[] = [
     ],
     han: 2,
     fu: 40,
-    label: "親（東家）・リーチ・ロン・場風 東",
+    label: "東1局 東家 リーチ ロン",
     choices: ["7700点", "3900点", "4800点", "2600点"],
     answer: "3900点",
   },
@@ -111,7 +112,7 @@ const SCORE_QS: readonly ScoreQuestion[] = [
     ],
     han: 4,
     fu: 30,
-    label: "親（東家）・ロン・場風 東",
+    label: "東1局 東家 ロン",
     choices: ["5800点", "3900点オール", "11600点", "7700点"],
     answer: "11600点",
   },
@@ -226,13 +227,12 @@ describe("TrainingScreen: 種目選択", () => {
     expect(screen.getByRole("button", { name: /清一色 何待ち/ })).toBeTruthy();
   });
 
-  it("未ログインはログイン導線を出し、種目カードは出さない", async () => {
+  it("未ログインでも種目カードが出る（匿名プレイ。ログイン必須の文言は出さない）", async () => {
     stubMe(null);
     renderScreen();
     await flush();
-    const note = screen.getByText(/特訓するには/);
-    expect(within(note).getByRole("link", { name: "サインイン" })).toBeTruthy();
-    expect(screen.queryByRole("button", { name: /清一色 何待ち/ })).toBeNull();
+    expect(screen.getByRole("button", { name: /清一色 何待ち/ })).toBeTruthy();
+    expect(screen.queryByText(/特訓するには/)).toBeNull();
   });
 
   it("ログイン中: 3種目のカード＋説明が出る。キャッチコピー・無料枠の注記は出さない（文言削減）", async () => {
@@ -378,7 +378,7 @@ describe("TrainingScreen: 開始ダイアログ（カードタップでは枠を
 
     const dialog = screen.getByRole("dialog");
     expect(
-      within(dialog).getByText("本日の無料枠（3回）を使い切りました。有料プランなら無制限です。"),
+      within(dialog).getByText("本日の無料枠（10回）を使い切りました。有料プランなら無制限です。"),
     ).toBeTruthy();
     // アップグレード導線: プラン変更 UI のある設定画面（/settings）へのリンクをダイアログ内に添える。
     const upgrade = within(dialog).getByRole("link", { name: "プランをアップグレード" });
@@ -536,14 +536,14 @@ describe("TrainingScreen: 点数計算（4択・牌姿ベース v2）", () => {
       .map((el) => el.getAttribute("alt") ?? "");
   }
 
-  it("条件ラベル（リーチ入り）・ドラ表示・牌姿（手牌+和了牌を分けて表示）・選択肢4ボタンが出る（翻数・符は見せない）", async () => {
+  it("条件ラベル（リーチ入り）・ドラ表示牌・牌姿（手牌+和了牌を分けて表示）・選択肢4ボタンが出る（翻数・符は見せない）", async () => {
     await startScore();
     expect(screen.getByText("点数を選ぶ")).toBeTruthy();
     // 親か子か＋リーチの有無は点数計算の本質なのでラベルに明示する（リーチはツモ/ロンの前）。
-    expect(screen.getByText("親（東家）・リーチ・ロン・場風 東")).toBeTruthy();
+    expect(screen.getByText("東1局 東家 リーチ ロン")).toBeTruthy();
     // ドラ表示牌（小ラベル+牌1枚）。
-    expect(screen.getByText("ドラ表示")).toBeTruthy();
-    expect(tileAlts("ドラ表示")).toEqual(["白"]);
+    expect(screen.getByText("ドラ表示牌")).toBeTruthy();
+    expect(tileAlts("ドラ表示牌")).toEqual(["白"]);
     // 手牌は門前部分から和了牌1枚を除いた13枚。和了牌は分けて強調する。
     // prettier-ignore
     expect(tileAlts("手牌")).toEqual(["4萬", "5萬", "6萬", "1筒", "1筒", "1筒", "5筒", "5筒", "1索", "1索", "2索", "2索", "3索"]);
@@ -567,7 +567,7 @@ describe("TrainingScreen: 点数計算（4択・牌姿ベース v2）", () => {
     expect(screen.getByText("○ 正解")).toBeTruthy();
     await advance(500);
     // 次問（Q2）: 親（東家）・ポン+チー入りの手（リーチなし → ラベルにリーチを含めない）。
-    expect(screen.getByText("親（東家）・ロン・場風 東")).toBeTruthy();
+    expect(screen.getByText("東1局 東家 ロン")).toBeTruthy();
     expect(screen.queryByText(/リーチ/)).toBeNull();
     expect(screen.getByText("正解 1 / 1問")).toBeTruthy();
     // prettier-ignore
@@ -586,7 +586,7 @@ describe("TrainingScreen: 点数計算（4択・牌姿ベース v2）", () => {
     ).toEqual(["5索", "6索", "7索"]);
     expect(tileAlts("上がり牌")).toEqual(["3索"]);
     expect(within(screen.getByRole("group", { name: "上がり牌" })).getByText("ロン")).toBeTruthy();
-    expect(tileAlts("ドラ表示")).toEqual(["2索"]);
+    expect(tileAlts("ドラ表示牌")).toEqual(["2索"]);
   });
 
   it("不正解の選択肢は出題数だけ増える（スキップ扱いで次問へ）", async () => {
@@ -596,7 +596,7 @@ describe("TrainingScreen: 点数計算（4択・牌姿ベース v2）", () => {
     expect(screen.getByText("× 不正解")).toBeTruthy();
   });
 
-  it("結果画面の見直しリスト: 条件（リーチ入り）・ドラ表示・牌姿・あなたの回答・正解・役の内訳が並ぶ", async () => {
+  it("結果画面の見直しリスト: 条件（リーチ入り）・ドラ表示牌・牌姿・あなたの回答・正解・役の内訳が並ぶ", async () => {
     await startScore();
     // Q1 を正解（3900点）→ Q2 を不正解（3900点オール）→ 60秒経過。
     fireEvent.click(screen.getByRole("button", { name: "3900点" }));
@@ -611,16 +611,22 @@ describe("TrainingScreen: 点数計算（4択・牌姿ベース v2）", () => {
       total: 2,
       correct: 1,
       durationMs: 60_000,
+      // サーバ再採点（シードリプレイ）用の全回答＋エンジン版数も送る。
+      engineVersion: QUIZ_ENGINE_VERSION,
+      answers: [
+        { picked: [], choice: "3900点" },
+        { picked: [], choice: "3900点オール" },
+      ],
     });
     const list = screen.getByRole("list", { name: "見直しリスト" });
     const rows = within(list).getAllByRole("listitem");
     expect(rows).toHaveLength(2);
 
-    // 1問目: ○・条件（リーチ入り）・ドラ表示・牌姿（手牌13+上がり1）・回答/正解のテキスト行＋
+    // 1問目: ○・条件（リーチ入り）・ドラ表示牌・牌姿（手牌13+上がり1）・回答/正解のテキスト行＋
     // 役の内訳（立直 1翻 が scoreYakuLine 経由で並ぶ）。
     expect(within(rows[0]!).getByText("○")).toBeTruthy();
-    expect(within(rows[0]!).getByText("親（東家）・リーチ・ロン・場風 東")).toBeTruthy();
-    expect(tileAlts("ドラ表示", rows[0]!)).toEqual(["白"]);
+    expect(within(rows[0]!).getByText("東1局 東家 リーチ ロン")).toBeTruthy();
+    expect(tileAlts("ドラ表示牌", rows[0]!)).toEqual(["白"]);
     const tiles1 = tileAlts("牌姿", rows[0]!);
     expect(tiles1).toHaveLength(14);
     expect(tiles1.slice(-1)).toEqual(["3索"]); // 上がり牌は末尾に分けて置く
@@ -631,8 +637,8 @@ describe("TrainingScreen: 点数計算（4択・牌姿ベース v2）", () => {
 
     // 2問目: ×・副露（ポン+チー）込みの牌姿14枚・あなたの回答=3900点オール・正解=11600点＋役の内訳。
     expect(within(rows[1]!).getByText("×")).toBeTruthy();
-    expect(within(rows[1]!).getByText("親（東家）・ロン・場風 東")).toBeTruthy();
-    expect(tileAlts("ドラ表示", rows[1]!)).toEqual(["2索"]);
+    expect(within(rows[1]!).getByText("東1局 東家 ロン")).toBeTruthy();
+    expect(tileAlts("ドラ表示牌", rows[1]!)).toEqual(["2索"]);
     const tiles2 = tileAlts("牌姿", rows[1]!);
     expect(tiles2).toHaveLength(14); // 手牌7 + ポン3 + チー3 + 上がり1
     expect(tiles2.slice(-1)).toEqual(["3索"]);
@@ -666,6 +672,8 @@ describe("TrainingScreen: 60秒経過と結果画面", () => {
       total: 1,
       correct: 1,
       durationMs: 60_000,
+      engineVersion: QUIZ_ENGINE_VERSION,
+      answers: [{ picked: ["9s"] }],
     });
     // 結果画面（正解数・出題数・正答率。60秒固定なので「1分あたり」は出さない＝意味の重複を避ける）。
     expect(screen.getByText("結果")).toBeTruthy();
@@ -758,7 +766,7 @@ describe("TrainingScreen: 60秒経過と結果画面", () => {
     // セッションは始まらず、結果画面の上でメッセージと導線を出す。
     expect(screen.getByText("結果")).toBeTruthy();
     expect(
-      screen.getByText("本日の無料枠（3回）を使い切りました。有料プランなら無制限です。"),
+      screen.getByText("本日の無料枠（10回）を使い切りました。有料プランなら無制限です。"),
     ).toBeTruthy();
     expect(screen.getByRole("link", { name: "プランをアップグレード" })).toBeTruthy();
     expect(screen.queryByText(/残り \d+秒/)).toBeNull();
@@ -988,6 +996,88 @@ describe("TrainingScreen: 結果画面の見直しリスト", () => {
   });
 });
 
+describe("TrainingScreen: 匿名プレイ（サインインなし・API を呼ばない・保存しない）", () => {
+  it("匿名の開始ダイアログは説明＋ルールのみ（直近記録なし・記録取得 API も呼ばない）", async () => {
+    stubMe(null);
+    renderScreen();
+    await flush();
+    await openDialog(/清一色 何待ち/);
+
+    const dialog = screen.getByRole("dialog", { name: "清一色 何待ちを開始" });
+    expect(within(dialog).getByText(/待ち牌を全部見抜く/)).toBeTruthy();
+    expect(within(dialog).getByText("60秒でできるだけ多くの問題に答える")).toBeTruthy();
+    // 匿名は記録が存在しない: 直近記録の見出し・空文言とも出さず、取得 API も呼ばない。
+    expect(within(dialog).queryByText("直近の記録")).toBeNull();
+    expect(within(dialog).queryByText("まだ特訓の記録がありません")).toBeNull();
+    expect(h.listQuizSessionsAction).not.toHaveBeenCalled();
+  });
+
+  it("匿名の「開始」は開始 API を呼ばずにカウントダウン→出題まで進む（quiz_start は送る）", async () => {
+    stubMe(null);
+    renderScreen();
+    await flush();
+    await openDialog(/清一色 何待ち/);
+    fireEvent.click(screen.getByRole("button", { name: "開始" }));
+    await flush();
+
+    expect(h.startQuizSessionAction).not.toHaveBeenCalled();
+    expect(gtag).toHaveBeenCalledWith("event", "quiz_start", { kind: "chinitsu" });
+    expect(screen.getByRole("status").textContent).toBe("3");
+    await advance(3000);
+    expect(screen.getByRole("button", { name: "1筒" })).toBeTruthy();
+    expect(screen.getByText("残り 60秒")).toBeTruthy();
+  });
+
+  it("匿名セッションの終了は結果送信 API を呼ばず、結果画面にサインイン導線を出す（quiz_complete は送る）", async () => {
+    stubMe(null);
+    renderScreen();
+    await flush();
+    await startViaDialog(/^牌効率/);
+    fireEvent.click(screen.getByRole("button", { name: "9索" }));
+    await advance(500);
+    await advance(59_500);
+    await flush();
+
+    expect(screen.getByText("結果")).toBeTruthy();
+    expect(screen.getByText("正解 1問")).toBeTruthy();
+    expect(h.finishQuizSessionAction).not.toHaveBeenCalled();
+    expect(gtag).toHaveBeenCalledWith("event", "quiz_complete", { kind: "efficiency" });
+    // 保存されない旨とサインインの動機づけ（/login への導線）。送信失敗の文言は出さない。
+    const signin = screen.getByRole("link", { name: "サインインして成績を記録する" });
+    expect(signin.getAttribute("href")).toBe("/login");
+    expect(screen.queryByText(/結果の送信に失敗しました/)).toBeNull();
+  });
+
+  it("匿名の「もう一度挑戦」も API を呼ばずに再開できる（枠の概念がない）", async () => {
+    stubMe(null);
+    renderScreen();
+    await flush();
+    await startViaDialog(/^牌効率/);
+    await advance(60_000);
+    await flush();
+    expect(screen.getByText("結果")).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("button", { name: "もう一度挑戦" }));
+    await flush();
+    expect(h.startQuizSessionAction).not.toHaveBeenCalled();
+    expect(screen.getByRole("status").textContent).toBe("3");
+    await advance(3000);
+    expect(screen.getByText("残り 60秒")).toBeTruthy();
+  });
+
+  it("ログイン中の結果画面にはサインイン導線を出さない", async () => {
+    stubMe("free");
+    renderScreen();
+    await flush();
+    await startViaDialog(/^牌効率/);
+    await advance(60_000);
+    await flush();
+
+    expect(screen.getByText("結果")).toBeTruthy();
+    expect(screen.queryByRole("link", { name: "サインインして成績を記録する" })).toBeNull();
+  });
+});
+
 describe("TrainingScreen: dev プレビュー用の注入口（/dev/training が使う）", () => {
   it("user/startSession/finishSession/listSessions/sessionSeconds/countdownSeconds を注入すると、認証状態と Server Action の代わりに注入分を使う", async () => {
     stubMe(null); // /api/me は未ログイン応答でも、注入 user が優先される（API 不要のプレビュー）。
@@ -1032,6 +1122,8 @@ describe("TrainingScreen: dev プレビュー用の注入口（/dev/training が
       total: 0,
       correct: 0,
       durationMs: 1000,
+      engineVersion: QUIZ_ENGINE_VERSION,
+      answers: [],
     });
     expect(h.finishQuizSessionAction).not.toHaveBeenCalled();
   });

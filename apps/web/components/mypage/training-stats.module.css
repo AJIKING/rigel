@@ -209,6 +209,63 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* ランキングへの導線（チップ列の右端）。見た目は特訓画面のピル定義を共有し、
+   配置（右寄せ）だけをここで足す。 */
+.rankingLink {
+  composes: rankingLink from "../training/training.module.css";
+  margin-left: auto;
+}
+
+/* 履歴行 → セッション詳細への遷移（行全体をリンクに）。 */
+.rowLink {
+  color: inherit;
+  text-decoration: none;
+  cursor: pointer;
+  transition: border-color 0.15s var(--ease);
+}
+.rowLink:hover {
+  border-color: var(--line-2);
+}
+
+/* セッション詳細ページ（/mypage/training/[sessionId]）。 */
+.backRow {
+  margin: 18px 0 6px;
+  font-size: 12.5px;
+}
+.backRow a {
+  color: var(--w70);
+  text-decoration: none;
+}
+.backRow a:hover {
+  color: var(--white);
+}
+.detailTitle {
+  margin: 4px 0 2px;
+  font-family: var(--round);
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--white);
+}
+.detailDate {
+  margin: 0 0 14px;
+  color: var(--w45);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+/* 見直しレコードが無い（無料 or ダウングレード）ときの案内＋プラン導線。 */
+.paidNote {
+  margin: 24px 0;
+  padding: 24px 16px;
+  text-align: center;
+  color: var(--w45);
+  font-size: 13px;
+  line-height: 1.9;
+}
+.paidNote a {
+  color: var(--accent);
+  margin-left: 8px;
+}
+
 /* 空状態（記録なし）: 中央寄せの丁寧な案内。 */
 .empty {
   margin: 0;

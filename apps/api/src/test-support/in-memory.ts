@@ -1,5 +1,6 @@
 // テスト用の in-memory リポジトリ（ポートのフェイク実装）。本番バンドルには含まれない。
 
+import type { QuizKind, QuizRankingRow } from "@rigel/schema";
 import type {
   AnalysisCommitInput,
   AnalysisCounterDelta,
@@ -429,6 +430,29 @@ export class InMemoryQuizSessionRepository implements QuizSessionRepository {
         )
         .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
         .slice(0, limit),
+    );
+  }
+
+  /** 本物は users JOIN で handle/displayName を引く。フェイクは userId から機械的に作る
+   *  （`@{userId}` / `User {userId}`。ランキングの並び・しきい値の検証には十分）。 */
+  aggregateVerified(kind: QuizKind, since: Date | null): Promise<QuizRankingRow[]> {
+    const byUser = new Map<string, { correct: number; total: number }>();
+    for (const s of this.rows) {
+      if (s.kind !== kind || !s.verified || s.total === null || s.correct === null) continue;
+      if (since !== null && s.createdAt.getTime() < since.getTime()) continue;
+      const agg = byUser.get(s.userId) ?? { correct: 0, total: 0 };
+      agg.correct += s.correct;
+      agg.total += s.total;
+      byUser.set(s.userId, agg);
+    }
+    return Promise.resolve(
+      [...byUser.entries()].map(([userId, a]) => ({
+        userId,
+        handle: `@${userId}`,
+        displayName: `User ${userId}`,
+        correct: a.correct,
+        total: a.total,
+      })),
     );
   }
 }

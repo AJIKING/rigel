@@ -24,8 +24,14 @@ import type { AuthUser } from "../../../lib/api";
 
 const DEV_USER: AuthUser = { id: "dev", plan: "free", handle: "dev", displayName: "Dev" };
 
-/** fake start: 即 id を返す（remainingToday は client 型互換のために返すだけで、画面には表示しない）。 */
-const fakeStart = async () => ({ ok: true as const, id: "dev-session", remainingToday: 2 });
+/** fake start: 即 id を返す（seed/remainingToday は client 型互換のために返すだけ。
+ *  出題列は TrainingScreen の seed 注入が優先される）。 */
+const fakeStart = async () => ({
+  ok: true as const,
+  id: "dev-session",
+  seed: 1,
+  remainingToday: 2,
+});
 
 /** fake finish: no-op（結果送信を発生させない）。 */
 const fakeFinish = async () => ({ ok: true, status: 200 });

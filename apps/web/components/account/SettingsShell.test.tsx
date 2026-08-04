@@ -164,11 +164,11 @@ describe("SettingsShell: 購入反映待ち（?checkout=success で戻ったと�
 });
 
 describe("SettingsShell: 料金プランカードの提供内容", () => {
-  it("特訓の行が出る（free=1日3回・next/pro=無制限。PLAN_FEATURES 経由の自動反映）", async () => {
+  it("特訓の行が出る（free=1日10回・next/pro=無制限。PLAN_FEATURES 経由の自動反映）", async () => {
     await renderSettings("free");
 
     fireEvent.click(screen.getByRole("button", { name: "プラン変更" }));
-    expect(screen.getByText("特訓 1日3回")).toBeTruthy();
+    expect(screen.getByText("特訓 1日10回")).toBeTruthy();
     expect(screen.getAllByText("特訓 無制限")).toHaveLength(2); // Next / Pro
   });
 });

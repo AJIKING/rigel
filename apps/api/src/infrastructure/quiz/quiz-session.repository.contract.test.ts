@@ -15,9 +15,12 @@ function session(over: Partial<QuizSession> & { id: string }): QuizSession {
     userId: "u1",
     kind: "chinitsu",
     startedDay: "2026-07-24",
+    seed: 123,
     total: null,
     correct: null,
     durationMs: null,
+    verified: false,
+    records: null,
     createdAt: NOW,
     ...over,
   };
@@ -55,6 +58,41 @@ describe("DrizzleQuizSessionRepository（実 SQLite）", () => {
     await repo.update(session({ id: "q1", total: 10, correct: 7, durationMs: 61_000 }));
     await repo.update(session({ id: "q1", total: 12, correct: 9, durationMs: 62_000 }));
     expect(await repo.findById("q1")).toMatchObject({ total: 12, correct: 9, durationMs: 62_000 });
+  });
+
+  it("aggregateVerified は verified の完了行だけを種目別・ユーザ単位に合算し、since で窓を絞れる", async () => {
+    const repo = await makeRepo();
+    const done = { durationMs: 60_000, verified: true };
+    await repo.insert(session({ id: "q1", total: 10, correct: 7, ...done }));
+    await repo.insert(session({ id: "q2", total: 10, correct: 5, ...done }));
+    // 申告のみ（unverified）・別種目は載らない。
+    await repo.insert(session({ id: "q3", total: 10, correct: 9, durationMs: 60_000 }));
+    await repo.insert(
+      session({ id: "q4", userId: "u2", kind: "efficiency", total: 10, correct: 9, ...done }),
+    );
+    // u2 の古い行（since で絞ると消える）。
+    await repo.insert(
+      session({
+        id: "q5",
+        userId: "u2",
+        total: 3,
+        correct: 3,
+        ...done,
+        createdAt: new Date("2026-07-10T00:00:00.000Z"),
+      }),
+    );
+
+    const all = await repo.aggregateVerified("chinitsu", null);
+    expect(all.map((r) => [r.userId, r.correct, r.total]).sort()).toEqual([
+      ["u1", 12, 20],
+      ["u2", 3, 3],
+    ]);
+    // 表示用の handle/displayName が JOIN で付く（値の中身はユーザ作成側の仕様）。
+    expect(typeof all[0]!.handle).toBe("string");
+    expect(typeof all[0]!.displayName).toBe("string");
+
+    const recent = await repo.aggregateVerified("chinitsu", new Date("2026-07-20T00:00:00.000Z"));
+    expect(recent.map((r) => r.userId)).toEqual(["u1"]);
   });
 
   it("listCompletedByUser は本人の完了済みだけを新しい順に返す（未完了・他人を除く）", async () => {

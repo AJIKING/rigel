@@ -2,6 +2,11 @@ import { fireEvent, render, screen } from "@testing-library/react-native";
 import type { QuizSessionDto } from "@rigel/client";
 import { MyTrainingScreen } from "./MyTrainingScreen";
 
+const mockNavigate = jest.fn();
+jest.mock("@react-navigation/native", () => ({
+  useNavigation: () => ({ navigate: mockNavigate }),
+}));
+
 const mockListQuizSessions = jest.fn();
 jest.mock("../lib/api", () => ({
   listQuizSessions: (...args: unknown[]) => mockListQuizSessions(...args),
@@ -67,6 +72,14 @@ describe("MyTrainingScreen（マイページ 特訓: 種目別グラフ・履歴
     expect(screen.getByText("5 / 10問")).toBeTruthy();
     expect(screen.getByText("正答率 50%")).toBeTruthy();
     expect(screen.getByText("正答率 90%")).toBeTruthy();
+  });
+
+  it("履歴行のタップでセッション詳細（TrainingSession）へ遷移する", async () => {
+    render(<MyTrainingScreen now={NOW} />);
+    await screen.findByText("1分あたり正解数の推移");
+
+    fireEvent.press(screen.getByText("5 / 10問")); // 先頭行 = s2
+    expect(mockNavigate).toHaveBeenCalledWith("TrainingSession", { id: "s2" });
   });
 
   // 1分あたり正解数は種目ごとに1問の重さが違うので、混ぜた合算は「上達」を表さない。

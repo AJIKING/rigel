@@ -26,6 +26,10 @@ const EFFICIENCY_QS: readonly EfficiencyQuestion[] = [
 ];
 
 let mockAuth: { token: string | null; user: { plan: string } | null; loading?: boolean };
+jest.mock("@react-navigation/native", () => ({
+  useNavigation: () => ({ navigate: jest.fn() }),
+}));
+
 jest.mock("../lib/auth", () => ({
   useAuth: () => mockAuth,
 }));

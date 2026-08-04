@@ -12,8 +12,12 @@ import type {
   Players,
   Problem,
   ProblemAction,
+  QuizAnswerRecord,
+  QuizFinish,
   QuizKind,
-  QuizResult,
+  QuizRankingEntry,
+  QuizRankingMe,
+  QuizRankingPeriod,
   Rules,
   Seat,
 } from "@rigel/schema";
@@ -59,10 +63,34 @@ export interface QuizSessionDto {
   createdAt: string;
 }
 
-/** 特訓クイズ開始の結果。remainingToday は本日の残り回数（有料は null=無制限）。 */
+/** 特訓クイズ開始の結果。seed はサーバ発行の出題シード（このシードで生成し、完了時に
+ *  サーバが同じシードで再生成・再採点する）。remainingToday は本日の残り回数（有料は
+ *  null=無制限）。 */
 export type StartQuizSessionResult =
-  | { ok: true; id: string; remainingToday: number | null }
+  | { ok: true; id: string; seed: number; remainingToday: number | null }
   | { ok: false; status: number; reason?: string };
+
+/** 特訓セッション詳細（本人のみ）。records=見直しレコードは現在のプランが有料のときだけ
+ *  （ダウングレード時は null=閲覧不可）。 */
+export interface QuizSessionDetailDto extends QuizSessionDto {
+  records: QuizAnswerRecord[] | null;
+}
+
+// 特訓ランキングの wire 型は背骨（@rigel/schema）が単一真実源（2026-08-04 レビューで
+// 手書き重複を解消）。従来名（*Dto）は互換のための別名。
+export type {
+  QuizRankingEntry as QuizRankingEntryDto,
+  QuizRankingPeriod as QuizRankingPeriodDto,
+} from "@rigel/schema";
+
+/** 特訓ランキング（正解数・正答率の2ボード＋サインイン時は自分の順位）。 */
+export interface QuizRankingDto {
+  kind: QuizKind;
+  period: QuizRankingPeriod;
+  correct: QuizRankingEntry[];
+  accuracy: QuizRankingEntry[];
+  me: QuizRankingMe | null;
+}
 
 export interface AuthUser {
   id: string;
@@ -448,14 +476,23 @@ export interface ApiClient {
   ): Promise<{ ok: boolean; status: number }>;
   /** 回答分布＋自分の回答（認証必須）。見つからなければ null。 */
   getProblemStats(token: string, problemId: string): Promise<ProblemStats | null>;
-  /** 特訓クイズを開始する（無料は1日3回・開始時に1回消費。超過は status 402）。 */
+  /** 特訓クイズを開始する（無料は1日 FREE_QUIZ_PER_DAY 回・開始時に1回消費。超過は status 402）。 */
   startQuizSession(token: string, kind: QuizKind): Promise<StartQuizSessionResult>;
-  /** 60秒セッションの結果（クライアント採点）を記録する。他人の行・不存在は status 404。 */
+  /** 60秒セッションの結果＋全回答を記録する（全回答つきはサーバが再採点して確定）。
+   *  他人の行・不存在は status 404。 */
   finishQuizSession(
     token: string,
     sessionId: string,
-    result: QuizResult,
+    result: QuizFinish,
   ): Promise<{ ok: boolean; status: number }>;
+  /** セッション詳細（本人のみ）。見つからなければ null。records は有料のときだけ。 */
+  getQuizSession(token: string, sessionId: string): Promise<QuizSessionDetailDto | null>;
+  /** 特訓ランキング（匿名可）。token を渡すと自分の順位（me）が付く。 */
+  getQuizRanking(
+    kind: QuizKind,
+    period: QuizRankingPeriod,
+    token?: string,
+  ): Promise<QuizRankingDto>;
   /** 自分の完了済みセッション履歴（新しい順・since=ISO8601 で期間指定）。 */
   listQuizSessions(token: string, since?: string): Promise<QuizSessionDto[]>;
 
@@ -865,8 +902,12 @@ export function createApiClient(baseUrl: string, fetchImpl?: typeof fetch): ApiC
         body: JSON.stringify({ kind }),
       });
       if (res.ok) {
-        const d = (await res.json()) as { id: string; remainingToday: number | null };
-        return { ok: true, id: d.id, remainingToday: d.remainingToday };
+        const d = (await res.json()) as {
+          id: string;
+          seed: number;
+          remainingToday: number | null;
+        };
+        return { ok: true, id: d.id, seed: d.seed, remainingToday: d.remainingToday };
       }
       const body = (await res.json().catch(() => ({}))) as { reason?: string; error?: string };
       return { ok: false, status: res.status, reason: body.reason ?? body.error };
@@ -879,6 +920,24 @@ export function createApiClient(baseUrl: string, fetchImpl?: typeof fetch): ApiC
         body: JSON.stringify(result),
       });
       return { ok: res.ok, status: res.status };
+    },
+
+    async getQuizSession(token, sessionId) {
+      const res = await doFetch(`${baseUrl}/quiz/sessions/${sessionId}`, {
+        headers: bearer(token),
+      });
+      if (res.status === 404) return null;
+      if (!res.ok) throw new Error(`quiz session failed: ${res.status}`);
+      return res.json() as Promise<QuizSessionDetailDto>;
+    },
+
+    async getQuizRanking(kind, period, token) {
+      const res = await doFetch(
+        `${baseUrl}/ranking?kind=${encodeURIComponent(kind)}&period=${encodeURIComponent(period)}`,
+        token === undefined ? {} : { headers: bearer(token) },
+      );
+      if (!res.ok) throw new Error(`ranking failed: ${res.status}`);
+      return res.json() as Promise<QuizRankingDto>;
     },
 
     async listQuizSessions(token, since) {

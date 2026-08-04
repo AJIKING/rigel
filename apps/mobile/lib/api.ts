@@ -19,6 +19,9 @@ export type {
   ProblemStats,
   ProblemStatus,
   PublicProfile,
+  QuizRankingDto,
+  QuizRankingEntryDto,
+  QuizRankingPeriodDto,
   QuizSessionDto,
 } from "@rigel/client";
 
@@ -70,6 +73,8 @@ export const {
   getProblemStats,
   startQuizSession,
   finishQuizSession,
+  getQuizSession,
+  getQuizRanking,
   listQuizSessions,
   setFavorite,
   listMyFavorites,

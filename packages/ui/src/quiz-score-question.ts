@@ -8,7 +8,14 @@
 // 清一色/牌効率の生成と共有定数・文言は quiz.ts / quiz-copy.ts（2026-07-26 に分割）。
 // ============================================================
 
-import { normalizeRed, RulesSchema, type MeldType, type Seat, type Tile } from "@rigel/schema";
+import {
+  normalizeRed,
+  RulesSchema,
+  type MeldType,
+  type QuizScoreQuestion,
+  type Seat,
+  type Tile,
+} from "@rigel/schema";
 import { meldTileViews, type MeldTileView } from "./board";
 import { compareTiles } from "./edit";
 import {
@@ -27,38 +34,17 @@ import { CANDIDATE_TILES } from "./tile-counts";
  *  Mリーグ既定の kiriage:true を使わない）。他の項目は既定どおり。 */
 export const QUIZ_SCORE_RULES = RulesSchema.parse({ kiriage: false });
 
-export interface ScoreQuestion {
-  kind: "score";
-  /** 門前部分（和了牌含む・理牌済み。副露1組につき3枚減る）。 */
-  closedTiles: Tile[];
-  /** 副露（表示用。pon/chi/kan_open/kan_closed。from は表示用の席=暗槓のみ null）。 */
-  melds: { type: MeldType; tiles: Tile[]; from: Seat | null }[];
-  /** 和了牌（closedTiles に含まれる。表示は scoreDisplayTiles で1枚除いて別枠強調）。 */
-  winTile: Tile;
-  tsumo: boolean;
-  /** 立直（門前手=晒しなしの約5割に付与。晒し入りは常に false。一発・裏ドラは対象外）。 */
-  riichi: boolean;
-  /** 自風（east=親）。 */
-  seatWind: Seat;
-  /** 場風（出題は東/南のみ）。 */
-  roundWind: "east" | "south";
-  /** ドラ表示牌（1枚。カン出題時はたまに2枚=新ドラ）。 */
-  doraIndicators: Tile[];
-  /** 解説用（見直し画面）: 役の内訳（エンジン出力そのまま。ドラ・赤ドラも行）。 */
-  yaku: { name: string; han: number }[];
-  han: number;
-  fu: number;
-  /** 条件表示（例「親（東家）・ツモ・場風 東」、リーチ時「親（東家）・リーチ・ツモ・場風 東」。
-   *  親子は点数計算の本質なので明示する）。 */
-  label: string;
-  /** 選択肢4つ（正解+誤答3。順序も rng で決定的）。 */
-  choices: string[];
-  /** 正解 = payText(エンジンの score)。choices に含まれる。 */
-  answer: string;
-}
+// 型は背骨（@rigel/schema QuizScoreQuestionSchema）が単一真実源（2026-08-04 移管。
+// サーバのシードリプレイ再採点・有料フル保存が同じ形を使う）。フィールドの意味はそちらの
+// doc コメント参照。生成器の返り値が背骨の形から逸れたら型エラーで気づける。
+export type ScoreQuestion = QuizScoreQuestion;
 
 const SEATS: readonly Seat[] = ["east", "south", "west", "north"];
 const SEAT_JA: Record<Seat, string> = { east: "東", south: "南", west: "西", north: "北" };
+
+/** 自風 → 局数（起家=あなた視点。東N局の親は N 番目の席なので、自風から局数が一意に決まる:
+ *  東=1局・北=2局・西=3局・南=4局。東場/南場とも同じ対応）。条件ラベルの「東◯局」表記に使う。 */
+const KYOKU_BY_SEAT: Record<Seat, number> = { east: 1, north: 2, west: 3, south: 4 };
 const SCORE_WAITS = ["ryanmen", "kanchan", "penchan", "shanpon", "tanki"] as const;
 
 /** 生成中のブロック（面子）。meld=null は門前。 */
@@ -294,7 +280,10 @@ function attemptScoreQuestion(rng: () => number): ScoreQuestion | null {
     yaku: result.yaku,
     han,
     fu,
-    label: `${dealer ? "親" : "子"}（${SEAT_JA[seatWind]}家）・${riichi ? "リーチ・" : ""}${tsumo ? "ツモ" : "ロン"}・場風 ${SEAT_JA[roundWind]}`,
+    // 条件ラベルは対局表記「東◯局 ◯家 (リーチ) ツモ/ロン」（[決定] 2026-08-04 オーナー指示で
+    // 旧「親（東家）・…・場風 東」から変更。親か子かは 局と自風の表記から読み取る。
+    // リーチはツモ/ロンの前に置く=既存 [決定] 2026-07-26 を踏襲）。
+    label: `${SEAT_JA[roundWind]}${KYOKU_BY_SEAT[seatWind]}局 ${SEAT_JA[seatWind]}家${riichi ? " リーチ" : ""} ${tsumo ? "ツモ" : "ロン"}`,
     choices: shuffled([answer, ...wrongs], rng),
     answer,
   };
