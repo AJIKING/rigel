@@ -92,30 +92,63 @@ describe("GetPublicProfile", () => {
     return { users, games, gameLogs };
   }
 
-  it("handle で公開プロフィールと公開半荘を返す", async () => {
+  it("handle で公開プロフィールと公開半荘（1ページ）を返す", async () => {
     const { users, games, gameLogs } = setup();
     await gameLogs.save(log("l1", "u1", "g1", "public"));
     await gameLogs.save(log("l2", "u1", "g2", "private")); // 非公開半荘は出ない
-    const p = await new GetPublicProfile(users, games, gameLogs).execute("kuro_2p");
-    expect(p?.displayName).toBe("kuro_2p");
-    expect(p?.games.map((g) => g.id)).toEqual(["g1"]);
+    const r = await new GetPublicProfile(users, games, gameLogs).execute("kuro_2p");
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.profile.displayName).toBe("kuro_2p");
+    expect(r.profile.games.map((g) => g.id)).toEqual(["g1"]);
+    expect(r.profile.nextCursor).toBeNull();
   });
 
   it("id でも解決できる", async () => {
     const { users, games, gameLogs } = setup();
     await gameLogs.save(log("l1", "u1", "g1", "public"));
-    const p = await new GetPublicProfile(users, games, gameLogs).execute("u1");
-    expect(p?.id).toBe("u1");
+    const r = await new GetPublicProfile(users, games, gameLogs).execute("u1");
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(r.profile.id).toBe("u1");
   });
 
-  it("存在しないユーザーは null", async () => {
+  it("存在しないユーザーは not_found・不正カーソルは invalid", async () => {
     const users = new InMemoryUserRepository([mkUser("u1", "kuro_2p")]);
-    const p = await new GetPublicProfile(
-      users,
-      new InMemoryGameRepository(),
-      new InMemoryGameLogRepository(),
-    ).execute("nobody");
-    expect(p).toBeNull();
+    const uc = new GetPublicProfile(users, new InMemoryGameRepository(), new InMemoryGameLogRepository()); // prettier-ignore
+    expect(await uc.execute("nobody")).toEqual({ ok: false, reason: "not_found" });
+    expect(await uc.execute("u1", "bad")).toEqual({ ok: false, reason: "invalid" });
+  });
+
+  it("公開半荘が1ページを超えたらカーソルで続きを辿れる（他ユーザーの半荘は混ざらない）", async () => {
+    const users = new InMemoryUserRepository([mkUser("u1", "kuro_2p"), mkUser("u2", "other_p")]);
+    const ids = Array.from({ length: 21 }, (_, i) => `g${String(i + 1).padStart(2, "0")}`);
+    const games = new InMemoryGameRepository([
+      ...ids.map((id) => game(id, "u1")),
+      game("gx", "u2"),
+    ]);
+    const gameLogs = new InMemoryGameLogRepository();
+    const base = Date.parse("2026-08-01T00:00:00.000Z");
+    for (let i = 1; i <= 21; i++) {
+      await gameLogs.save({
+        ...log(`l${i}`, "u1", ids[i - 1]!, "public"),
+        createdAt: new Date(base + i * 60_000),
+      });
+    }
+    await gameLogs.save(log("lx", "u2", "gx", "public")); // 他ユーザーの公開半荘
+
+    const uc = new GetPublicProfile(users, games, gameLogs);
+    const page1 = await uc.execute("kuro_2p");
+    expect(page1.ok).toBe(true);
+    if (!page1.ok) return;
+    expect(page1.profile.games).toHaveLength(20);
+    expect(page1.profile.games.some((g) => g.id === "gx")).toBe(false);
+    expect(page1.profile.nextCursor).not.toBeNull();
+
+    const page2 = await uc.execute("kuro_2p", page1.profile.nextCursor!);
+    expect(page2.ok).toBe(true);
+    if (!page2.ok) return;
+    expect(page2.profile.games.map((g) => g.id)).toEqual(["g01"]); // 最古の1件
+    expect(page2.profile.nextCursor).toBeNull();
   });
 });
 

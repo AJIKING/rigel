@@ -6,27 +6,43 @@ import { useEffect, useState } from "react";
 import { getPublicProfile, type PublicProfile } from "../../lib/api";
 import { fmtDateSlash } from "../../lib/format";
 import { useFavorites } from "../../lib/use-favorites";
+import { useLoadMore } from "../../lib/use-load-more";
 import { AppHeader } from "../AppHeader";
 import { GameCard } from "../GameCard";
+import { LoadMoreButton } from "../list/LoadMoreButton";
 import gc from "../game-card.module.css";
 import s from "./account.module.css";
 
-/** 別ユーザーの公開プロフィール（handle か id）と公開牌譜。 */
+/** 別ユーザーの公開プロフィール（handle か id）と公開牌譜（カーソル方式の1ページ＋もっと見る）。 */
 export function UserPageShell({ idOrHandle }: { idOrHandle: string }) {
   const router = useRouter();
   const [profile, setProfile] = useState<PublicProfile | null>(null);
   const [state, setState] = useState<"loading" | "ok" | "notfound" | "error">("loading");
   const { apply, toggle: toggleFav } = useFavorites();
 
+  // 追加読み込みの機構（ガード込み）は useLoadMore（全一覧共通）。
+  // 対象消失（null）は失敗として見せる（無反応ボタンにしない）。
+  const { nextCursor, loadingMore, moreFailed, loadMore, reset } = useLoadMore(
+    (cursor) => getPublicProfile(idOrHandle, cursor),
+    (next) =>
+      setProfile((prev) =>
+        prev
+          ? { ...prev, games: [...prev.games, ...next.games], nextCursor: next.nextCursor }
+          : prev,
+      ),
+  );
+
   useEffect(() => {
     getPublicProfile(idOrHandle)
       .then((p) => {
         setProfile(p);
         setState(p ? "ok" : "notfound");
+        // 別プロフィールへの遷移で reset（in-flight の追記は破棄＝前の人の半荘を混ぜない）。
+        reset(p?.nextCursor ?? null);
       })
       // 通信失敗を「不在（非公開）」に化けさせない（実在ユーザーが非公開と誤解される）。
       .catch(() => setState("error"));
-  }, [idOrHandle]);
+  }, [idOrHandle, reset]);
 
   return (
     <div className={`${s.shell} themeApp`}>
@@ -74,6 +90,12 @@ export function UserPageShell({ idOrHandle }: { idOrHandle: string }) {
                   ))
                 )}
               </div>
+              <LoadMoreButton
+                nextCursor={nextCursor}
+                loadingMore={loadingMore}
+                moreFailed={moreFailed}
+                onLoadMore={() => void loadMore()}
+              />
             </>
           )}
         </div>

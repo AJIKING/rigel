@@ -10,6 +10,7 @@ export type {
   Game,
   GameDetail,
   GameLog,
+  MyFavorites,
   MyGameCard,
   PublicGameCard,
   PublicGameDetail,

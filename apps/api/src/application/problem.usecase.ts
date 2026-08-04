@@ -13,10 +13,11 @@ import type { ProblemRepository } from "../domain/problem/problem.repository";
 import { problemLimit } from "../domain/user/user";
 import type { UserRepository } from "../domain/user/user.repository";
 import { isOverLimit } from "./limits";
+import { fetchPage, type PagedResult } from "./pagination";
 
 const TITLE_MAX = 80;
-/** 公開一覧の既定件数（新着順）。 */
-const PUBLISHED_LIST_LIMIT = 50;
+/** 公開一覧のページサイズ（新着順・カーソル方式。Plan: docs/plans/list-pagination.md 3-3）。 */
+const PUBLISHED_PAGE_SIZE = 30;
 
 /** 所有者の問題を返す（他人・不存在はどちらも null = 存在を伏せる）。 */
 async function findOwnedProblem(
@@ -158,16 +159,36 @@ export class GetProblem {
   }
 }
 
+/** マイ何切る一覧のページサイズ（Plan: docs/plans/list-pagination.md 3-3）。 */
+const MY_PROBLEMS_PAGE_SIZE = 30;
+
+export type ListMyProblemsResult = PagedResult<ProblemPost>;
+
 export class ListMyProblems {
   constructor(private readonly problems: ProblemRepository) {}
-  execute(userId: string): Promise<ProblemPost[]> {
-    return this.problems.listByUser(userId);
+
+  execute(userId: string, cursorRaw?: string): Promise<ListMyProblemsResult> {
+    return fetchPage(
+      cursorRaw,
+      MY_PROBLEMS_PAGE_SIZE,
+      (limit, cursor) => this.problems.listByUserPage(userId, limit, cursor),
+      (p) => ({ ms: p.createdAt.getTime(), id: p.id }),
+    );
   }
 }
 
+export type ListPublishedProblemsResult = PagedResult<ProblemPost>;
+
 export class ListPublishedProblems {
   constructor(private readonly problems: ProblemRepository) {}
-  execute(limit = PUBLISHED_LIST_LIMIT): Promise<ProblemPost[]> {
-    return this.problems.listPublished(limit);
+
+  /** 公開一覧の1ページ（新着順・カーソル方式）。不正カーソルは invalid（400）。 */
+  execute(cursorRaw?: string): Promise<ListPublishedProblemsResult> {
+    return fetchPage(
+      cursorRaw,
+      PUBLISHED_PAGE_SIZE,
+      (limit, cursor) => this.problems.listPublished(limit, cursor),
+      (p) => ({ ms: p.createdAt.getTime(), id: p.id }),
+    );
   }
 }

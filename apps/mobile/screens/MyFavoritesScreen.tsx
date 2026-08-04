@@ -8,19 +8,21 @@ import {
   type FeedCard,
   type MyListSortKey,
 } from "@rigel/ui";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { FlatList, StyleSheet, Text, View } from "react-native";
 import { CenterState } from "../components/CenterState";
 import { KifuCard } from "../components/KifuCard";
+import { ListFooter } from "../components/ListFooter";
 import { MyListToolbar } from "../components/MyListToolbar";
 import { Segment } from "../components/Segment";
-import { listMyFavorites } from "../lib/api";
+import { listMyFavorites, type MyFavorites } from "../lib/api";
 import { useAuth } from "../lib/auth";
 import { relativeTime } from "../lib/format";
 import type { RootStackParamList } from "../lib/navigation";
 import { KIND_LABELS } from "../lib/problems";
 import { colors } from "../lib/theme";
 import { useFavorites } from "../lib/use-favorites";
+import { useLoadMore } from "../lib/use-load-more";
 
 type Nav = NativeStackNavigationProp<RootStackParamList, "Home">;
 
@@ -53,7 +55,28 @@ export function MyFavoritesScreen() {
   const [kind, setKind] = useState<KindKey>("all");
   const [sort, setSort] = useState<MyListSortKey>("new");
 
-  // 他の画面で付け外しした結果を反映するため、表示のたびに取り直す。
+  // 追加読み込みの機構（多重発火・reset 競合のガード込み）は useLoadMore（全一覧共通）。
+  // 半荘/何切るは1本のページを振り分けた形で届くので、両配列へ追記する。
+  const { loadingMore, moreFailed, loadMore, reset, activeRef } = useLoadMore(
+    useCallback(
+      (cursor: string) => (token ? listMyFavorites(token, cursor) : Promise.resolve(null)),
+      [token],
+    ),
+    useCallback((res: MyFavorites) => {
+      setGames((prev) => [...prev, ...res.games]);
+      setProblems((prev) => [...prev, ...res.problems]);
+    }, []),
+  );
+
+  // アンマウント後の setState を防ぐ（追加読み込みの適用ガード）。
+  useEffect(() => {
+    activeRef.current = true;
+    return () => {
+      activeRef.current = false;
+    };
+  }, [activeRef]);
+
+  // 他の画面で付け外しした結果を反映するため、表示のたびに取り直す（先頭ページへ戻す）。
   useFocusEffect(
     useCallback(() => {
       if (!token) {
@@ -66,6 +89,7 @@ export function MyFavoritesScreen() {
           if (!active) return;
           setGames(res.games);
           setProblems(res.problems);
+          reset(res.nextCursor);
           setLoadFailed(false);
           setLoading(false);
         })
@@ -78,7 +102,7 @@ export function MyFavoritesScreen() {
       return () => {
         active = false;
       };
-    }, [token]),
+    }, [token, reset]),
   );
 
   const rows = useMemo<Row[]>(() => {
@@ -123,6 +147,9 @@ export function MyFavoritesScreen() {
           data={rows}
           keyExtractor={(r) => `${r.kind}-${r.card.id}`}
           contentContainerStyle={styles.feed}
+          onEndReached={loadMore}
+          onEndReachedThreshold={0.5}
+          ListFooterComponent={<ListFooter loadingMore={loadingMore} moreFailed={moreFailed} />}
           renderItem={({ item }) =>
             item.kind === "game" ? (
               <KifuCard

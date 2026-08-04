@@ -53,14 +53,16 @@ describe("ListMyGamesWithCounts", () => {
     await gameLogs.save(log("l2", "u1", "g1", "private"));
     await gameLogs.save(log("l3", "u1", "g2", "private"));
 
-    const cards = await new ListMyGamesWithCounts(
+    const result = await new ListMyGamesWithCounts(
       games,
       gameLogs,
       new InMemoryAnalysisJobRepository(),
     ).execute("u1");
+    if (!result.ok) throw new Error("ok のはず");
 
-    expect(cards.map((c) => c.id)).toEqual(["g2", "g1"]); // 新しい順
-    const g1 = cards.find((c) => c.id === "g1")!;
+    expect(result.items.map((c) => c.id)).toEqual(["g2", "g1"]); // 新しい順
+    expect(result.nextCursor).toBeNull();
+    const g1 = result.items.find((c) => c.id === "g1")!;
     expect(g1.kyokuCount).toBe(2);
     expect(g1.publicCount).toBe(1);
   });
@@ -72,12 +74,44 @@ describe("ListMyGamesWithCounts", () => {
     await gameLogs.save({ ...log("l2", "u1", "g1", "private"), status: "draft" });
     await gameLogs.save(log("l3", "u1", "g1", "private")); // complete
 
-    const cards = await new ListMyGamesWithCounts(
+    const result = await new ListMyGamesWithCounts(
       games,
       gameLogs,
       new InMemoryAnalysisJobRepository(),
     ).execute("u1");
-    expect(cards[0]?.draftCount).toBe(2);
+    if (!result.ok) throw new Error("ok のはず");
+    expect(result.items[0]?.draftCount).toBe(2);
+  });
+
+  it("30件を超えると nextCursor を返し、次ページに重複なく続く", async () => {
+    const rows = Array.from({ length: 31 }, (_, i) => ({
+      ...game(`m${String(i).padStart(2, "0")}`, "u1", "01"),
+      createdAt: new Date(Date.parse("2026-06-01T00:00:00.000Z") + i * 1000),
+    }));
+    const usecase = new ListMyGamesWithCounts(
+      new InMemoryGameRepository(rows),
+      new InMemoryGameLogRepository(),
+      new InMemoryAnalysisJobRepository(),
+    );
+
+    const page1 = await usecase.execute("u1");
+    if (!page1.ok) throw new Error("ok のはず");
+    expect(page1.items).toHaveLength(30);
+    expect(page1.nextCursor).not.toBeNull();
+
+    const page2 = await usecase.execute("u1", page1.nextCursor!);
+    if (!page2.ok) throw new Error("ok のはず");
+    expect(page2.items.map((c) => c.id)).toEqual(["m00"]);
+    expect(page2.nextCursor).toBeNull();
+  });
+
+  it("不正カーソルは invalid", async () => {
+    const result = await new ListMyGamesWithCounts(
+      new InMemoryGameRepository(),
+      new InMemoryGameLogRepository(),
+      new InMemoryAnalysisJobRepository(),
+    ).execute("u1", "junk");
+    expect(result).toEqual({ ok: false, reason: "invalid" });
   });
 });
 
@@ -91,9 +125,13 @@ describe("ListPublicGames", () => {
     await gameLogs.save({ ...log("l2", "u2", "g2", "public"), createdAt: new Date("2026-06-27") });
     await gameLogs.save({ ...log("l3", "u1", "g1", "private"), createdAt: new Date("2026-06-21") });
 
-    const cards = await new ListPublicGames(games, gameLogs, users).execute();
+    const result = await new ListPublicGames(games, gameLogs, users).execute();
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const cards = result.items;
 
     expect(cards.map((c) => c.id)).toEqual(["g2", "g1"]); // 新着順
+    expect(result.nextCursor).toBeNull(); // 1ページに収まる
     const g1 = cards.find((c) => c.id === "g1")!;
     expect(g1.kyokuCount).toBe(1); // 公開局のみ数える（private は除外）
     expect(g1.ownerId).toBe("u1");
@@ -107,9 +145,11 @@ describe("ListPublicGames", () => {
     const gameLogs = new InMemoryGameLogRepository();
     await gameLogs.save(log("l1", "u1", "g1", "public"));
 
-    const cards = await new ListPublicGames(games, gameLogs, users).execute();
+    const result = await new ListPublicGames(games, gameLogs, users).execute();
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
 
-    const g1 = cards.find((c) => c.id === "g1")!;
+    const g1 = result.items.find((c) => c.id === "g1")!;
     expect(g1.ownerId).toBe("u1");
     expect(g1.ownerHandle).toBe("kuro");
     expect(g1.ownerName).toBe("kuro");
@@ -120,7 +160,48 @@ describe("ListPublicGames", () => {
     const users = new InMemoryUserRepository([mkUser("u1", "kuro")]);
     const gameLogs = new InMemoryGameLogRepository();
     await gameLogs.save(log("l1", "u1", "g1", "private"));
-    const cards = await new ListPublicGames(games, gameLogs, users).execute();
-    expect(cards).toEqual([]);
+    const result = await new ListPublicGames(games, gameLogs, users).execute();
+    expect(result).toEqual({ ok: true, items: [], nextCursor: null });
+  });
+
+  it("カーソルでページを辿れる（最新公開局の時刻順・同時刻は gameId タイブレーク・重複/欠落なし）", async () => {
+    // 31半荘（ページサイズ30+1）。g31 が最新。g02/g03 は同時刻（タイブレーク検証）。
+    const ids = Array.from({ length: 31 }, (_, i) => `g${String(i + 1).padStart(2, "0")}`);
+    const games = new InMemoryGameRepository(ids.map((id) => game(id, "u1", "20")));
+    const users = new InMemoryUserRepository([mkUser("u1", "kuro")]);
+    const gameLogs = new InMemoryGameLogRepository();
+    const base = Date.parse("2026-08-01T00:00:00.000Z");
+    for (let i = 1; i <= 31; i++) {
+      const id = ids[i - 1]!;
+      const at = new Date(i === 2 || i === 3 ? base + 2 * 60_000 : base + i * 60_000);
+      await gameLogs.save({ ...log(`l-${id}`, "u1", id, "public"), createdAt: at });
+    }
+
+    const uc = new ListPublicGames(games, gameLogs, users);
+    const page1 = await uc.execute();
+    expect(page1.ok).toBe(true);
+    if (!page1.ok) return;
+    expect(page1.items).toHaveLength(30);
+    expect(page1.items[0]!.id).toBe("g31");
+    expect(page1.nextCursor).not.toBeNull();
+
+    const page2 = await uc.execute(page1.nextCursor!);
+    expect(page2.ok).toBe(true);
+    if (!page2.ok) return;
+    expect(page2.items).toHaveLength(1);
+    expect(page2.nextCursor).toBeNull();
+    const all = [...page1.items, ...page2.items].map((c) => c.id);
+    expect(new Set(all).size).toBe(31); // 重複も欠落もない
+    // 同時刻の g02/g03 は gameId DESC（g03 が先）。
+    expect(all.indexOf("g03")).toBeLessThan(all.indexOf("g02"));
+  });
+
+  it("不正カーソルは invalid（400）", async () => {
+    const uc = new ListPublicGames(
+      new InMemoryGameRepository([]),
+      new InMemoryGameLogRepository(),
+      new InMemoryUserRepository([]),
+    );
+    expect(await uc.execute("bad")).toEqual({ ok: false, reason: "invalid" });
   });
 });

@@ -4,7 +4,8 @@
 // 対象はポリモーフィックで外部キーが無いため、対象削除・退会の掃除はこの実装の
 // deleteByTarget / deleteByUser を呼ぶ側（ユースケース）の責務。
 
-import { and, count, desc, eq, inArray } from "drizzle-orm";
+import type { ListCursor } from "@rigel/schema";
+import { and, count, desc, eq, inArray, or, sql } from "drizzle-orm";
 import type {
   Favorite,
   FavoriteRepository,
@@ -50,12 +51,29 @@ export class DrizzleFavoriteRepository implements FavoriteRepository {
       );
   }
 
-  async listByUser(userId: string): Promise<Favorite[]> {
+  async listByUserPage(
+    userId: string,
+    limit: number,
+    cursor: ListCursor | null,
+  ): Promise<Favorite[]> {
+    // タイブレークは複合キーの連結（targetType:targetId。カーソルの id 部と同じ形）。
+    const compositeId = sql`(${favorites.targetType} || ':' || ${favorites.targetId})`;
     const rows = await this.db
       .select()
       .from(favorites)
-      .where(eq(favorites.userId, userId))
-      .orderBy(desc(favorites.createdAt))
+      .where(
+        and(
+          eq(favorites.userId, userId),
+          cursor === null
+            ? undefined
+            : or(
+                sql`${favorites.createdAt} < ${cursor.ms}`,
+                and(sql`${favorites.createdAt} = ${cursor.ms}`, sql`${compositeId} < ${cursor.id}`),
+              ),
+        ),
+      )
+      .orderBy(desc(favorites.createdAt), desc(compositeId))
+      .limit(limit)
       .all();
     return rows.map(toDomain);
   }

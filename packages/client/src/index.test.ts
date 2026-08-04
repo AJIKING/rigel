@@ -111,39 +111,30 @@ describe("createApiClient", () => {
     expect(result).toEqual({ ok: false, status: 403, reason: "quota_exceeded" });
   });
 
-  it("getGames は一覧を返す", async () => {
-    const client = createApiClient(
-      "https://api.test",
-      fakeFetch((url) => {
-        expect(url).toBe("https://api.test/games");
-        return json([{ id: "g1", userId: "u1", title: "", createdAt: "2026-06-28T00:00:00.000Z" }]);
-      }),
-    );
-    const games = await client.getGames("tok");
-    expect(games).toHaveLength(1);
-    expect(games[0]?.id).toBe("g1");
-  });
-
-  it("getMyGames は件数つきカードを返す", async () => {
+  it("getMyGames は件数つきカードの1ページを返す", async () => {
     const client = createApiClient(
       "https://api.test",
       fakeFetch((url) => {
         expect(url).toBe("https://api.test/me/games");
-        return json([
-          {
-            id: "g1",
-            title: "卓1",
-            createdAt: "2026-06-28",
-            kyokuCount: 8,
-            publicCount: 2,
-            draftCount: 1,
-          },
-        ]);
+        return json({
+          items: [
+            {
+              id: "g1",
+              title: "卓1",
+              createdAt: "2026-06-28",
+              kyokuCount: 8,
+              publicCount: 2,
+              draftCount: 1,
+            },
+          ],
+          nextCursor: "999_g1",
+        });
       }),
     );
-    const cards = await client.getMyGames("tok");
-    expect(cards[0]?.kyokuCount).toBe(8);
-    expect(cards[0]?.draftCount).toBe(1);
+    const page = await client.getMyGames("tok");
+    expect(page.items[0]?.kyokuCount).toBe(8);
+    expect(page.items[0]?.draftCount).toBe(1);
+    expect(page.nextCursor).toBe("999_g1");
   });
 
   it("getPublicGames は認証なしで公開カードを返す", async () => {
@@ -151,22 +142,27 @@ describe("createApiClient", () => {
       "https://api.test",
       fakeFetch((url) => {
         expect(url).toBe("https://api.test/games/public");
-        return json([
-          {
-            id: "g1",
-            ownerId: "u9",
-            ownerHandle: "kuro",
-            ownerName: "くろ",
-            title: "公開卓",
-            createdAt: "2026-06-28",
-            kyokuCount: 5,
-          },
-        ]);
+        // カーソル方式のページ形 {items, nextCursor}。
+        return json({
+          items: [
+            {
+              id: "g1",
+              ownerId: "u9",
+              ownerHandle: "kuro",
+              ownerName: "くろ",
+              title: "公開卓",
+              createdAt: "2026-06-28",
+              kyokuCount: 5,
+            },
+          ],
+          nextCursor: "1000_g1",
+        });
       }),
     );
-    const cards = await client.getPublicGames();
-    expect(cards[0]?.ownerId).toBe("u9");
-    expect(cards[0]?.ownerHandle).toBe("kuro");
+    const page = await client.getPublicGames();
+    expect(page.items[0]?.ownerId).toBe("u9");
+    expect(page.items[0]?.ownerHandle).toBe("kuro");
+    expect(page.nextCursor).toBe("1000_g1");
   });
 
   it("getGame は 404 で null", async () => {
@@ -493,26 +489,39 @@ describe("problems（何切る問題）", () => {
     createdAt: "2026-07-07T00:00:00.000Z",
   };
 
-  it("getPublicProblems は認証なしで公開一覧を返す", async () => {
+  it("getPublicProblems は認証なしで公開一覧の1ページを返す（カーソル方式）", async () => {
     const client = createApiClient(
       "https://api.test",
       fakeFetch((url) => {
         expect(url).toBe("https://api.test/problems");
-        return json([post]);
+        return json({ items: [post], nextCursor: "1000_p1" });
       }),
     );
-    expect((await client.getPublicProblems())[0]?.id).toBe("p1");
+    const page = await client.getPublicProblems();
+    expect(page.items[0]?.id).toBe("p1");
+    expect(page.nextCursor).toBe("1000_p1");
   });
 
-  it("getMyProblems は自分の一覧（draft 含む）を返す", async () => {
+  it("getPublicProblems は cursor をクエリで渡す", async () => {
+    const client = createApiClient(
+      "https://api.test",
+      fakeFetch((url) => {
+        expect(url).toBe("https://api.test/problems?cursor=1000_p1");
+        return json({ items: [], nextCursor: null });
+      }),
+    );
+    expect((await client.getPublicProblems("1000_p1")).nextCursor).toBeNull();
+  });
+
+  it("getMyProblems は自分の一覧（draft 含む）の1ページを返す", async () => {
     const client = createApiClient(
       "https://api.test",
       fakeFetch((url) => {
         expect(url).toBe("https://api.test/problems/mine");
-        return json([{ ...post, status: "draft" }]);
+        return json({ items: [{ ...post, status: "draft" }], nextCursor: null });
       }),
     );
-    expect((await client.getMyProblems("tok"))[0]?.status).toBe("draft");
+    expect((await client.getMyProblems("tok")).items[0]?.status).toBe("draft");
   });
 
   it("getProblem は 404 で null・トークンは任意", async () => {

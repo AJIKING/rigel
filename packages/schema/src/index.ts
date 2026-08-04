@@ -974,3 +974,5 @@ export * from "./plan";
 // ============================================================
 
 export * from "./jst";
+// 一覧ページングのカーソル（全一覧 API が共有。Plan: docs/plans/list-pagination.md）。
+export * from "./list-cursor";

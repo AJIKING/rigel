@@ -45,7 +45,7 @@ function renderScreen(games: PublicGameCard[], loadFailed = false) {
   stubMe();
   return render(
     <AuthProvider>
-      <PublicKifuScreen games={games} loadFailed={loadFailed} />
+      <PublicKifuScreen initialCursor={null} initialGames={games} loadFailed={loadFailed} />
     </AuthProvider>,
   );
 }
@@ -53,6 +53,30 @@ function renderScreen(games: PublicGameCard[], loadFailed = false) {
 afterEach(() => {
   vi.unstubAllGlobals();
   push.mockClear();
+});
+
+describe("PublicKifuScreen: 追加読み込み（カーソル方式）", () => {
+  it("nextCursor がある間だけ「もっと見る」が出て、クリックで次ページを追記する", async () => {
+    stubMe();
+    const fetchPage = vi.fn().mockResolvedValue({
+      items: [card("g2", "2ページ目の半荘", new Date().toISOString())],
+      nextCursor: null,
+    });
+    render(
+      <AuthProvider>
+        <PublicKifuScreen
+          initialGames={[card("g1", "1ページ目の半荘", new Date().toISOString())]}
+          initialCursor="1000_g1"
+          fetchPage={fetchPage}
+        />
+      </AuthProvider>,
+    );
+    fireEvent.click(await screen.findByRole("button", { name: "もっと見る" }));
+    expect(await screen.findByText("2ページ目の半荘")).toBeTruthy();
+    expect(fetchPage).toHaveBeenCalledWith("1000_g1");
+    expect(screen.getByText("1ページ目の半荘")).toBeTruthy(); // 既存の表示は保つ
+    expect(screen.queryByRole("button", { name: "もっと見る" })).toBeNull(); // 最終ページ
+  });
 });
 
 describe("PublicKifuScreen（公開牌譜の一覧・SSR で受け取ったカードを描く）", () => {

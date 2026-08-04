@@ -2,8 +2,8 @@
 // 読み出し時に ProblemSchema.parse で再検証する（後方互換の既定を埋め、
 // 検証を通っていないデータを下流に流さない）。
 
-import { ProblemSchema } from "@rigel/schema";
-import { count, desc, eq } from "drizzle-orm";
+import { ProblemSchema, type ListCursor } from "@rigel/schema";
+import { and, count, desc, eq, lt, or } from "drizzle-orm";
 import type { ProblemPost } from "../../domain/problem/problem";
 import type { ProblemRepository } from "../../domain/problem/problem.repository";
 import type { Db } from "../db/client";
@@ -34,12 +34,49 @@ export class DrizzleProblemRepository implements ProblemRepository {
     return rows.map(toDomain);
   }
 
-  async listPublished(limit: number): Promise<ProblemPost[]> {
+  async listByUserPage(
+    userId: string,
+    limit: number,
+    cursor: ListCursor | null,
+  ): Promise<ProblemPost[]> {
     const rows = await this.db
       .select()
       .from(problems)
-      .where(eq(problems.status, "published"))
-      .orderBy(desc(problems.createdAt))
+      .where(
+        and(
+          eq(problems.userId, userId),
+          cursor === null
+            ? undefined
+            : or(
+                lt(problems.createdAt, new Date(cursor.ms)),
+                and(eq(problems.createdAt, new Date(cursor.ms)), lt(problems.id, cursor.id)),
+              ),
+        ),
+      )
+      .orderBy(desc(problems.createdAt), desc(problems.id))
+      .limit(limit)
+      .all();
+    return rows.map(toDomain);
+  }
+
+  async listPublished(limit: number, cursor: ListCursor | null): Promise<ProblemPost[]> {
+    // 並びは createdAt DESC・同時刻は id DESC（カーソルのタイブレークと同一。
+    // Plan: docs/plans/list-pagination.md 3-1）。and() は undefined を無視する。
+    const rows = await this.db
+      .select()
+      .from(problems)
+      .where(
+        and(
+          eq(problems.status, "published"),
+          cursor === null
+            ? undefined
+            : or(
+                lt(problems.createdAt, new Date(cursor.ms)),
+                and(eq(problems.createdAt, new Date(cursor.ms)), lt(problems.id, cursor.id)),
+              ),
+        ),
+      )
+      .orderBy(desc(problems.createdAt), desc(problems.id))
       .limit(limit)
       .all();
     return rows.map(toDomain);

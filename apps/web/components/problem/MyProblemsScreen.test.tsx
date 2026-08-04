@@ -10,6 +10,7 @@ const h = vi.hoisted(() => ({
   updateProblemAction: vi.fn(),
   deleteProblemAction: vi.fn(),
   setFavoriteAction: vi.fn(),
+  getMyProblemsAction: vi.fn(),
   getProblemDraftsAction: vi.fn(),
   deleteProblemDraftAction: vi.fn(),
 }));
@@ -22,7 +23,7 @@ import { MyProblemsScreen } from "./MyProblemsScreen";
 function renderScreen() {
   return render(
     <AuthProvider>
-      <MyProblemsScreen initialPosts={[]} />
+      <MyProblemsScreen initialCursor={null} initialPosts={[]} />
     </AuthProvider>,
   );
 }

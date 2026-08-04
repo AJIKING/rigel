@@ -199,6 +199,33 @@
   font-size: 12.5px;
 }
 
+/* 一覧の追加読み込み（もっと見る）。線ボタン=副操作の既存フォーム（フィードの下に中央寄せ）。 */
+.moreRow {
+  display: flex;
+  justify-content: center;
+  padding: 14px 0 4px;
+}
+.moreBtn {
+  background: var(--chrome-2);
+  border: 1px solid var(--line);
+  color: var(--w85);
+  font-family: var(--round);
+  font-weight: 800;
+  font-size: 12.5px;
+  padding: 9px 22px;
+  border-radius: var(--r-sm);
+  cursor: pointer;
+  transition: 0.15s;
+}
+.moreBtn:hover {
+  border-color: var(--line-2);
+  color: var(--white);
+}
+.moreBtn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
 .loginNote {
   color: var(--w70);
   font-size: 13px;

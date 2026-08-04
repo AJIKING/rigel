@@ -41,6 +41,7 @@ function makeProfile(over: Partial<PublicProfile> = {}): PublicProfile {
         viewerFaved: false,
       },
     ],
+    nextCursor: null,
     ...over,
   };
 }

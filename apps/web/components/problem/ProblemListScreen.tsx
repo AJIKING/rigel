@@ -10,29 +10,49 @@ import {
 } from "@rigel/ui";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
-import { type ProblemPost } from "../../lib/api";
+import { getPublicProblems, type ProblemPost } from "../../lib/api";
 import { fmtDateSlash } from "../../lib/format";
+import { normalizeProblemPosts } from "../../lib/problems";
 import { useFavorites } from "../../lib/use-favorites";
+import { useLoadMore } from "../../lib/use-load-more";
 import { AppHeader } from "../AppHeader";
 import { GameCard } from "../GameCard";
+import { LoadMoreButton } from "../list/LoadMoreButton";
 import { ProblemThumb } from "./ProblemThumb";
 import gc from "../game-card.module.css";
 import s from "../list/kifu-list.module.css";
 
 /** 何切る問題の公開一覧（published のみ）。牌譜一覧（/kifu）と同じカードUI・ツールバー・
- *  絞り込み（新着/人気/今週/お気に入り。選択肢は @rigel/ui で mobile とも共通）。 */
+ *  絞り込み（新着/人気/今週/お気に入り。選択肢は @rigel/ui で mobile とも共通）。
+ *  1ページ目はサーバ（page.tsx）が渡し、「もっと見る」で次ページを追記する
+ *  （カーソル方式。絞り込み・検索は読み込み済みの範囲に対して働く。
+ *  Plan: docs/plans/list-pagination.md 3-5）。 */
 export function ProblemListScreen({
-  posts,
+  initialPosts,
+  initialCursor,
   loadFailed = false,
+  fetchPage = getPublicProblems,
 }: {
-  posts: ProblemPost[];
+  initialPosts: ProblemPost[];
+  /** 次ページのカーソル（null=これで全部）。 */
+  initialCursor: string | null;
   /** 取得に失敗した（0件ではない）。空状態の案内に化けさせないためのフラグ。 */
   loadFailed?: boolean;
+  /** テスト用の注入口（既定は公開 API クライアント）。 */
+  fetchPage?: typeof getPublicProblems;
 }) {
   const router = useRouter();
   const { apply, toggle: toggleFav, error: favError } = useFavorites();
   const [q, setQ] = useState("");
   const [filter, setFilter] = useState<FeedFilterKey>("new");
+  const [posts, setPosts] = useState<ProblemPost[]>(initialPosts);
+  // 追加読み込みの機構（ガード込み）は useLoadMore（全一覧共通）。
+  // 信頼ゲート: 検証を通っていない問題データを画面へ流さない（初回ページと同じ正規化）。
+  const { nextCursor, loadingMore, moreFailed, loadMore } = useLoadMore(
+    fetchPage,
+    (page) => setPosts((prev) => [...prev, ...normalizeProblemPosts(page.items)]),
+    initialCursor,
+  );
 
   const view = useMemo(() => {
     const resolved = apply(posts);
@@ -108,6 +128,12 @@ export function ProblemListScreen({
               ))
             )}
           </div>
+          <LoadMoreButton
+            nextCursor={nextCursor}
+            loadingMore={loadingMore}
+            moreFailed={moreFailed}
+            onLoadMore={() => void loadMore()}
+          />
         </section>
       </main>
     </div>

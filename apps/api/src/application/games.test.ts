@@ -5,7 +5,6 @@ import { InMemoryGameLogRepository, InMemoryGameRepository } from "../test-suppo
 import { InMemoryAnalysisJobRepository } from "../test-support/in-memory-analysis";
 import { validKifu } from "../test-support/kifu";
 import { GetGameWithLogs } from "./get-game-with-logs.usecase";
-import { ListGames } from "./list-games.usecase";
 
 const NOW = new Date("2026-06-28T00:00:00.000Z");
 const game = (id: string, userId: string): Game => ({ id, userId, title: "", createdAt: NOW });
@@ -18,14 +17,6 @@ const log = (id: string, gameId: string, seq: number): GameLog => ({
   visibility: "private",
   status: "complete",
   createdAt: NOW,
-});
-
-describe("ListGames", () => {
-  it("ログインユーザーの半荘だけ返す", async () => {
-    const games = new InMemoryGameRepository([game("g1", "u1"), game("g2", "u2")]);
-    const result = await new ListGames(games).execute("u1");
-    expect(result.map((g) => g.id)).toEqual(["g1"]);
-  });
 });
 
 describe("GetGameWithLogs", () => {

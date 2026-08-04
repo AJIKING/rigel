@@ -1,15 +1,17 @@
 import { useNavigation, useRoute, type RouteProp } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { LIST_LOAD_ERROR_MESSAGE } from "@rigel/ui";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { FlatList, StyleSheet, Text, View } from "react-native";
 import { CenterState } from "../components/CenterState";
 import { KifuCard } from "../components/KifuCard";
+import { ListFooter } from "../components/ListFooter";
 import { getPublicProfile, type PublicProfile } from "../lib/api";
 import { relativeTime } from "../lib/format";
 import type { RootStackParamList } from "../lib/navigation";
 import { colors } from "../lib/theme";
 import { useFavorites } from "../lib/use-favorites";
+import { useLoadMore } from "../lib/use-load-more";
 
 type Nav = NativeStackNavigationProp<RootStackParamList, "PublicUser">;
 
@@ -22,20 +24,36 @@ export function PublicUserScreen() {
   // ★はサーバー保存。カードの値に、この画面での操作を重ねる（他画面と同じ流儀）。
   const { apply, toggle: toggleFav, error: favError } = useFavorites();
 
+  // 追加読み込みの機構（多重発火・reset 競合のガード込み）は useLoadMore（全一覧共通）。
+  const { loadingMore, moreFailed, loadMore, reset, activeRef } = useLoadMore(
+    useCallback((cursor: string) => getPublicProfile(idOrHandle, cursor), [idOrHandle]),
+    useCallback(
+      (next: PublicProfile) =>
+        setProfile((prev) =>
+          prev
+            ? { ...prev, games: [...prev.games, ...next.games], nextCursor: next.nextCursor }
+            : prev,
+        ),
+      [],
+    ),
+  );
+
   useEffect(() => {
-    let active = true;
+    activeRef.current = true;
     getPublicProfile(idOrHandle)
       .then((p) => {
-        if (!active) return;
+        if (!activeRef.current) return;
         setProfile(p);
         setState(p ? "ok" : "notfound");
+        // 別プロフィールへの遷移で reset（in-flight の追記は破棄＝前の人の半荘を混ぜない）。
+        reset(p?.nextCursor ?? null);
       })
       // 通信失敗を「不在（非公開）」に化けさせない（実在ユーザーが非公開と誤解される）。
-      .catch(() => active && setState("error"));
+      .catch(() => activeRef.current && setState("error"));
     return () => {
-      active = false;
+      activeRef.current = false;
     };
-  }, [idOrHandle]);
+  }, [idOrHandle, reset, activeRef]);
 
   if (state === "loading") return <CenterState loading />;
   if (state === "error") return <CenterState message={LIST_LOAD_ERROR_MESSAGE} />;
@@ -55,9 +73,13 @@ export function PublicUserScreen() {
         <CenterState message="公開されている牌譜がまだありません。" />
       ) : (
         <FlatList
+          testID="public-user-games"
           data={apply(profile.games)}
           keyExtractor={(g) => g.id}
           contentContainerStyle={styles.feed}
+          onEndReached={loadMore}
+          onEndReachedThreshold={0.5}
+          ListFooterComponent={<ListFooter loadingMore={loadingMore} moreFailed={moreFailed} />}
           renderItem={({ item }) => (
             <KifuCard
               title={item.title || "（無題の半荘）"}

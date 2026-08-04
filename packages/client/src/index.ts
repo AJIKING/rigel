@@ -45,6 +45,13 @@ export interface ProblemPost extends FavoriteFields {
   createdAt: string;
 }
 
+/** 一覧のページ（カーソル方式。nextCursor=null が最終ページ。
+ *  Plan: docs/plans/list-pagination.md 3-2）。 */
+export interface Page<T> {
+  items: T[];
+  nextCursor: string | null;
+}
+
 /** 回答分布（choiceKey → 件数）＋自分の回答。stats API（認証必須）が返す。 */
 export interface ProblemStats {
   counts: Record<string, number>;
@@ -113,7 +120,10 @@ export interface PublicProfile {
   id: string;
   handle: string | null;
   displayName: string;
+  /** 公開半荘の1ページ（カーソル方式）。 */
   games: PublicGameCard[];
+  /** 公開半荘の次ページカーソル（null=これで全部）。 */
+  nextCursor: string | null;
 }
 
 /** 読み取り専用ビューア用の公開半荘（公開局＋所有者表示）。 */
@@ -219,10 +229,12 @@ export interface FavoriteProblemCard extends ProblemPost {
   ownerName: string | null;
 }
 
-/** 自分のお気に入り一覧（付けた新しい順。非公開に戻された・削除された対象は含まれない）。 */
+/** 自分のお気に入り一覧の1ページ（付けた新しい順。非公開に戻された・削除された対象は
+ *  含まれない。半荘/何切るはページ内で振り分けた形。nextCursor=null が最終ページ）。 */
 export interface MyFavorites {
   games: FavoriteGameCard[];
   problems: FavoriteProblemCard[];
+  nextCursor: string | null;
 }
 
 /** お気に入りの付け外しの結果（favoriteCount は反映後の件数）。 */
@@ -324,12 +336,11 @@ export interface ApiClient {
   authWithReviewCode(code: string): Promise<AuthResult>;
   /** セッショントークンで自分のユーザー情報を取得。無効なら null。 */
   fetchMe(token: string): Promise<AuthUser | null>;
-  /** ログインユーザーの半荘一覧。 */
-  getGames(token: string): Promise<Game[]>;
-  /** マイページ用: 自分の半荘＋局数/公開数。 */
-  getMyGames(token: string): Promise<MyGameCard[]>;
+  /** マイページ用: 自分の半荘＋局数/公開数の1ページ（カーソル方式）。 */
+  getMyGames(token: string, cursor?: string): Promise<Page<MyGameCard>>;
   /** 公開牌譜フィード（全ユーザーの公開半荘・新着順）。認証不要。 */
-  getPublicGames(): Promise<PublicGameCard[]>;
+  /** 公開牌譜フィードの1ページ（最新公開局の時刻順・カーソル方式）。cursor 省略で先頭ページ。 */
+  getPublicGames(cursor?: string): Promise<Page<PublicGameCard>>;
   /** 半荘詳細（半荘 + 局一覧）。見つからなければ null。 */
   getGame(token: string, id: string): Promise<GameDetail | null>;
   /** 牌譜1件の取得（公開は誰でも・非公開は所有者のみ）。見つからなければ null。 */
@@ -445,13 +456,15 @@ export interface ApiClient {
     update: { handle?: string; displayName?: string },
   ): Promise<{ ok: boolean; status: number }>;
   /** 別ユーザーの公開プロフィール（handle か id）。見つからなければ null。認証不要。 */
-  getPublicProfile(idOrHandle: string): Promise<PublicProfile | null>;
+  /** 公開プロフィール＋公開半荘の1ページ。cursor は半荘一覧の続き（省略で先頭）。 */
+  getPublicProfile(idOrHandle: string, cursor?: string): Promise<PublicProfile | null>;
   /** 自分のアカウントを削除する（取り消し不可）。 */
   deleteAccount(token: string): Promise<{ ok: boolean; status: number }>;
   /** 公開中の何切る問題一覧（新着順）。認証不要。 */
-  getPublicProblems(): Promise<ProblemPost[]>;
-  /** 自分の何切る問題一覧（draft 含む）。 */
-  getMyProblems(token: string): Promise<ProblemPost[]>;
+  /** 公開何切るの1ページ（新着順・カーソル方式）。cursor 省略で先頭ページ。 */
+  getPublicProblems(cursor?: string): Promise<Page<ProblemPost>>;
+  /** 自分の何切る問題一覧（draft 含む）の1ページ（カーソル方式）。 */
+  getMyProblems(token: string, cursor?: string): Promise<Page<ProblemPost>>;
   /** 何切る問題1件。published は誰でも・draft は所有者のみ（他人は null）。 */
   getProblem(problemId: string, token?: string): Promise<ProblemPost | null>;
   /** 何切る問題を作成する。free の上限超過は status 403。
@@ -503,8 +516,8 @@ export interface ApiClient {
     targetId: string,
     faved: boolean,
   ): Promise<SetFavoriteResult>;
-  /** 自分のお気に入り一覧（半荘・何切る。付けた新しい順）。 */
-  listMyFavorites(token: string): Promise<MyFavorites>;
+  /** 自分のお気に入り一覧の1ページ（半荘・何切る。付けた新しい順・カーソル方式）。 */
+  listMyFavorites(token: string, cursor?: string): Promise<MyFavorites>;
 }
 
 /**
@@ -515,6 +528,9 @@ export interface ApiClient {
 export function createApiClient(baseUrl: string, fetchImpl?: typeof fetch): ApiClient {
   const bearer = (token: string): HeadersInit => ({ authorization: `Bearer ${token}` });
   const doFetch: typeof fetch = (input, init) => (fetchImpl ?? fetch)(input, init);
+  /** カーソル付き一覧のクエリ文字列（省略時は空＝先頭ページ）。 */
+  const cursorQuery = (cursor?: string): string =>
+    cursor === undefined ? "" : `?cursor=${encodeURIComponent(cursor)}`;
 
   /** 空の局を作る POST 共通処理（新半荘=POST /games / 既存=POST /games/:id/kifu）。 */
   async function postCreateEmpty(
@@ -571,22 +587,18 @@ export function createApiClient(baseUrl: string, fetchImpl?: typeof fetch): ApiC
       return res.json() as Promise<AuthUser>;
     },
 
-    async getGames(token) {
-      const res = await doFetch(`${baseUrl}/games`, { headers: bearer(token) });
-      if (!res.ok) throw new Error(`games failed: ${res.status}`);
-      return res.json() as Promise<Game[]>;
-    },
-
-    async getMyGames(token) {
-      const res = await doFetch(`${baseUrl}/me/games`, { headers: bearer(token) });
+    async getMyGames(token, cursor) {
+      const res = await doFetch(`${baseUrl}/me/games${cursorQuery(cursor)}`, {
+        headers: bearer(token),
+      });
       if (!res.ok) throw new Error(`my games failed: ${res.status}`);
-      return res.json() as Promise<MyGameCard[]>;
+      return res.json() as Promise<Page<MyGameCard>>;
     },
 
-    async getPublicGames() {
-      const res = await doFetch(`${baseUrl}/games/public`);
+    async getPublicGames(cursor) {
+      const res = await doFetch(`${baseUrl}/games/public${cursorQuery(cursor)}`);
       if (!res.ok) throw new Error(`public games failed: ${res.status}`);
-      return res.json() as Promise<PublicGameCard[]>;
+      return res.json() as Promise<Page<PublicGameCard>>;
     },
 
     async getGame(token, id) {
@@ -816,8 +828,10 @@ export function createApiClient(baseUrl: string, fetchImpl?: typeof fetch): ApiC
       return { ok: res.ok, status: res.status };
     },
 
-    async getPublicProfile(idOrHandle) {
-      const res = await doFetch(`${baseUrl}/users/${encodeURIComponent(idOrHandle)}/profile`);
+    async getPublicProfile(idOrHandle, cursor) {
+      const res = await doFetch(
+        `${baseUrl}/users/${encodeURIComponent(idOrHandle)}/profile${cursorQuery(cursor)}`,
+      );
       if (res.status === 404) return null;
       if (!res.ok) throw new Error(`profile failed: ${res.status}`);
       return res.json() as Promise<PublicProfile>;
@@ -828,16 +842,18 @@ export function createApiClient(baseUrl: string, fetchImpl?: typeof fetch): ApiC
       return { ok: res.ok, status: res.status };
     },
 
-    async getPublicProblems() {
-      const res = await doFetch(`${baseUrl}/problems`);
+    async getPublicProblems(cursor) {
+      const res = await doFetch(`${baseUrl}/problems${cursorQuery(cursor)}`);
       if (!res.ok) throw new Error(`problems failed: ${res.status}`);
-      return res.json() as Promise<ProblemPost[]>;
+      return res.json() as Promise<Page<ProblemPost>>;
     },
 
-    async getMyProblems(token) {
-      const res = await doFetch(`${baseUrl}/problems/mine`, { headers: bearer(token) });
+    async getMyProblems(token, cursor) {
+      const res = await doFetch(`${baseUrl}/problems/mine${cursorQuery(cursor)}`, {
+        headers: bearer(token),
+      });
       if (!res.ok) throw new Error(`my problems failed: ${res.status}`);
-      return res.json() as Promise<ProblemPost[]>;
+      return res.json() as Promise<Page<ProblemPost>>;
     },
 
     async getProblem(problemId, token) {
@@ -956,8 +972,10 @@ export function createApiClient(baseUrl: string, fetchImpl?: typeof fetch): ApiC
       return (await res.json()) as { ok: true; faved: boolean; favoriteCount: number };
     },
 
-    async listMyFavorites(token) {
-      const res = await doFetch(`${baseUrl}/favorites`, { headers: bearer(token) });
+    async listMyFavorites(token, cursor) {
+      const res = await doFetch(`${baseUrl}/favorites${cursorQuery(cursor)}`, {
+        headers: bearer(token),
+      });
       if (!res.ok) throw new Error(`favorites failed: ${res.status}`);
       return res.json() as Promise<MyFavorites>;
     },

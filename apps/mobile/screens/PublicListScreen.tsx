@@ -6,6 +6,7 @@ import { FlatList, StyleSheet, Text, View } from "react-native";
 import { AppBar } from "../components/AppBar";
 import { CenterState } from "../components/CenterState";
 import { KifuCard } from "../components/KifuCard";
+import { ListFooter } from "../components/ListFooter";
 import { Toolbar } from "../components/Toolbar";
 import { relativeTime } from "../lib/format";
 import type { RootStackParamList } from "../lib/navigation";
@@ -21,7 +22,7 @@ const SEGMENT_LABELS = PUBLIC_FEED_FILTERS.map((f) => f.label);
 /** 公開牌譜フィード（全ユーザーの公開半荘・新着順、認証不要）。 */
 export function PublicListScreen() {
   const nav = useNavigation<Nav>();
-  const { loading, games, sample, error } = usePublicGames();
+  const { loading, games, sample, error, loadMore, loadingMore, moreFailed } = usePublicGames();
   // お気に入りはサーバー保存。カードの値に、この画面での操作を重ねる。
   const { apply, toggle: toggleFav } = useFavorites();
   const [filter, setFilter] = useState(0);
@@ -70,9 +71,13 @@ export function PublicListScreen() {
         />
       ) : (
         <FlatList
+          testID="public-games-list"
           data={shown}
           keyExtractor={(g) => g.id}
           contentContainerStyle={styles.feed}
+          onEndReached={loadMore}
+          onEndReachedThreshold={0.5}
+          ListFooterComponent={<ListFooter loadingMore={loadingMore} moreFailed={moreFailed} />}
           ListHeaderComponent={
             sample ? (
               <Text style={styles.sample}>サンプル表示中（接続後に実データが出ます）</Text>

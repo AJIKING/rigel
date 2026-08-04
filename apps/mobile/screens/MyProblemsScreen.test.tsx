@@ -46,7 +46,7 @@ describe("MyProblemsScreen（マイ何切る）", () => {
   });
 
   it("draft/published のバッジと free のクォータ（2 / 20問）が表示される", async () => {
-    mockGetMyProblems.mockResolvedValue(twoPosts());
+    mockGetMyProblems.mockResolvedValue({ items: twoPosts(), nextCursor: null });
     render(<MyProblemsScreen />);
 
     expect(await screen.findByText("下書きの問題")).toBeTruthy();
@@ -56,7 +56,7 @@ describe("MyProblemsScreen（マイ何切る）", () => {
   });
 
   it("「公開する」を押すと updateProblem が status:published で呼ばれ、表示が楽観更新される", async () => {
-    mockGetMyProblems.mockResolvedValue(twoPosts());
+    mockGetMyProblems.mockResolvedValue({ items: twoPosts(), nextCursor: null });
     mockUpdateProblem.mockResolvedValue({ ok: true, status: 200 });
     render(<MyProblemsScreen />);
 
@@ -68,7 +68,7 @@ describe("MyProblemsScreen（マイ何切る）", () => {
   });
 
   it("削除は確認ダイアログを経てから deleteProblem を呼び、一覧から消える", async () => {
-    mockGetMyProblems.mockResolvedValue(twoPosts());
+    mockGetMyProblems.mockResolvedValue({ items: twoPosts(), nextCursor: null });
     mockDeleteProblem.mockResolvedValue({ ok: true, status: 200 });
     render(<MyProblemsScreen />);
 
@@ -79,7 +79,7 @@ describe("MyProblemsScreen（マイ何切る）", () => {
   });
 
   it("「＋ 新規」で作成画面へ、「編集」でその問題の編集画面へ遷移する", async () => {
-    mockGetMyProblems.mockResolvedValue(twoPosts());
+    mockGetMyProblems.mockResolvedValue({ items: twoPosts(), nextCursor: null });
     render(<MyProblemsScreen />);
 
     fireEvent.press(await screen.findByText("＋ 新規"));
@@ -90,9 +90,10 @@ describe("MyProblemsScreen（マイ何切る）", () => {
   });
 
   it("上限（20問）に達すると警告文言（LIMIT_MESSAGES.problems）を出す", async () => {
-    mockGetMyProblems.mockResolvedValue(
-      Array.from({ length: 20 }, (_, i) => makePost({ id: `p${i}`, title: `問題${i}` })),
-    );
+    mockGetMyProblems.mockResolvedValue({
+      items: Array.from({ length: 20 }, (_, i) => makePost({ id: `p${i}`, title: `問題${i}` })),
+      nextCursor: null,
+    });
     render(<MyProblemsScreen />);
 
     expect(await screen.findByText("20 / 20問")).toBeTruthy();
@@ -100,7 +101,7 @@ describe("MyProblemsScreen（マイ何切る）", () => {
   });
 
   it("検索欄でタイトル部分一致に絞れる（web マイページと同一条件。Phase D）", async () => {
-    mockGetMyProblems.mockResolvedValue(twoPosts());
+    mockGetMyProblems.mockResolvedValue({ items: twoPosts(), nextCursor: null });
     render(<MyProblemsScreen />);
     await screen.findByText("下書きの問題");
 
@@ -110,7 +111,7 @@ describe("MyProblemsScreen（マイ何切る）", () => {
   });
 
   it("状態フィルタで 公開/下書き に絞れる（web と同一の選択肢）", async () => {
-    mockGetMyProblems.mockResolvedValue(twoPosts());
+    mockGetMyProblems.mockResolvedValue({ items: twoPosts(), nextCursor: null });
     render(<MyProblemsScreen />);
     await screen.findByText("下書きの問題");
 

@@ -1,6 +1,7 @@
 "use client";
 
 import type { FavoriteGameCard, FavoriteProblemCard } from "@rigel/client";
+import { ProblemSchema } from "@rigel/schema";
 import {
   authorLabel,
   sortMyList,
@@ -12,10 +13,13 @@ import {
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
+import { getMyFavoritesAction } from "../../app/actions";
 import { fmtDateSlash } from "../../lib/format";
 import { useFavorites } from "../../lib/use-favorites";
+import { useLoadMore } from "../../lib/use-load-more";
 import { AppHeader } from "../AppHeader";
 import { GameCard } from "../GameCard";
+import { LoadMoreButton } from "../list/LoadMoreButton";
 import { MyListToolbar } from "../list/MyListToolbar";
 import { ProblemThumb } from "../problem/ProblemThumb";
 import { MyPageTabs } from "./MyPageTabs";
@@ -39,10 +43,13 @@ const KIND_OPTIONS = [
 export function MyFavoritesScreen({
   initialGames,
   initialProblems,
+  initialCursor,
   loadFailed = false,
 }: {
   initialGames: FavoriteGameCard[];
   initialProblems: FavoriteProblemCard[];
+  /** 次ページのカーソル（null=これで全部）。 */
+  initialCursor: string | null;
   /** 取得に失敗した（0件ではない）。空状態の案内に化けさせないためのフラグ。 */
   loadFailed?: boolean;
 }) {
@@ -51,22 +58,41 @@ export function MyFavoritesScreen({
   const [q, setQ] = useState("");
   const [kind, setKind] = useState<string>("all");
   const [sort, setSort] = useState<MyListSortKey>("new");
+  // 追加読み込み（半荘/何切るは1本のページを振り分けた形で届く）。機構は useLoadMore（全一覧共通）。
+  const [loadedGames, setLoadedGames] = useState(initialGames);
+  const [loadedProblems, setLoadedProblems] = useState(initialProblems);
+  const { nextCursor, loadingMore, moreFailed, loadMore } = useLoadMore(
+    getMyFavoritesAction,
+    (page) => {
+      setLoadedGames((prev) => [...prev, ...page.games]);
+      // 信頼ゲート: 検証を通っていない問題データを画面へ流さない（初回ページと同じ。
+      // 壊れた1件はスキップして全体を落とさない）。
+      setLoadedProblems((prev) => [
+        ...prev,
+        ...page.problems.flatMap((p) => {
+          const parsed = ProblemSchema.safeParse(p.problem);
+          return parsed.success ? [{ ...p, problem: parsed.data }] : [];
+        }),
+      ]);
+    },
+    initialCursor,
+  );
 
   // このタブは常に「お気に入りのみ」（★を外したものはその場で消す）。トグルは出さない
   // （[決定] 2026-07-29。全部お気に入りなので無意味。mobile と統一）。
   const games = useMemo(() => {
     if (kind === "problem") return [];
-    let arr = apply(initialGames).filter((g) => g.viewerFaved);
+    let arr = apply(loadedGames).filter((g) => g.viewerFaved);
     if (q) arr = arr.filter((g) => g.title.includes(q));
     return sortMyList(arr, sort);
-  }, [initialGames, kind, q, sort, apply]);
+  }, [loadedGames, kind, q, sort, apply]);
 
   const problems = useMemo(() => {
     if (kind === "game") return [];
-    let arr = apply(initialProblems).filter((p) => p.viewerFaved);
+    let arr = apply(loadedProblems).filter((p) => p.viewerFaved);
     if (q) arr = arr.filter((p) => p.title.includes(q));
     return sortMyList(arr, sort);
-  }, [initialProblems, kind, q, sort, apply]);
+  }, [loadedProblems, kind, q, sort, apply]);
 
   const empty = games.length === 0 && problems.length === 0;
 
@@ -79,15 +105,15 @@ export function MyFavoritesScreen({
           <div className={s.profile}>
             <div className={s.stats}>
               <div className={s.stat}>
-                <b>{initialGames.length + initialProblems.length}</b>
+                <b>{loadedGames.length + loadedProblems.length}</b>
                 <span>お気に入り</span>
               </div>
               <div className={s.stat}>
-                <b>{initialGames.length}</b>
+                <b>{loadedGames.length}</b>
                 <span>牌譜</span>
               </div>
               <div className={s.stat}>
-                <b>{initialProblems.length}</b>
+                <b>{loadedProblems.length}</b>
                 <span>何切る</span>
               </div>
             </div>
@@ -113,7 +139,7 @@ export function MyFavoritesScreen({
               <div className={gc.empty} role={loadFailed ? "alert" : undefined}>
                 {loadFailed
                   ? LIST_LOAD_ERROR_MESSAGE
-                  : initialGames.length + initialProblems.length === 0
+                  : loadedGames.length + loadedProblems.length === 0
                     ? "まだお気に入りがありません。牌譜や何切るのカードの★から追加できます"
                     : "該当するお気に入りがありません"}
               </div>
@@ -190,6 +216,12 @@ export function MyFavoritesScreen({
               </>
             )}
           </div>
+          <LoadMoreButton
+            nextCursor={nextCursor}
+            loadingMore={loadingMore}
+            moreFailed={moreFailed}
+            onLoadMore={() => void loadMore()}
+          />
         </section>
       </main>
     </div>

@@ -12,11 +12,17 @@ function parseTargetType(v: string): FavoriteTargetType | null {
 }
 
 export function registerFavoriteRoutes(app: Hono<AppEnv>): void {
-  // 自分のお気に入り一覧（半荘・何切るをまとめて。他人の投稿も含む）。
+  // 自分のお気に入り一覧（半荘・何切るをまとめて。他人の投稿も含む。カーソル方式 ?cursor=）。
   // 非公開に戻された・削除された対象はユースケース側で落ちる。
   app.get("/favorites", requireAuth, async (c) => {
-    const { games, problems } = await c.get("container").listMyFavorites.execute(c.get("userId")!);
+    const result = await c
+      .get("container")
+      .listMyFavorites.execute(c.get("userId")!, c.req.query("cursor"));
+    if (!result.ok)
+      return c.json({ ok: false, reason: result.reason }, reasonStatus(result.reason));
+    const { games, problems } = result;
     return c.json({
+      nextCursor: result.nextCursor,
       games: games.map((g) => ({
         id: g.id,
         ownerId: g.ownerId,

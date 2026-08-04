@@ -88,3 +88,11 @@ export const QUIZ_EMPTY_HISTORY_MESSAGE = "まだ特訓の記録がありませ�
  *  空状態の案内を出すと、通信失敗が「まだ何も無い」に化けて利用者が気づけない。 */
 export const LIST_LOAD_ERROR_MESSAGE =
   "読み込めませんでした。通信状況を確認して、画面を再読み込みしてください。";
+
+/** 一覧の追加読み込みボタン（web=もっと見る。mobile は onEndReached の無限読み込み。
+ *  Plan: docs/plans/list-pagination.md 3-5）。 */
+export const LIST_LOAD_MORE_LABEL = "もっと見る";
+
+/** 追加読み込みに失敗したとき（既に表示中の一覧は保つ。web=ボタンで再試行・
+ *  mobile=フッタに表示しスクロールし直しで再試行）。 */
+export const LIST_LOAD_MORE_ERROR_MESSAGE = "続きを読み込めませんでした。もう一度お試しください。";

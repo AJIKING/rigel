@@ -271,11 +271,6 @@ describe("HTTP app (Hono)", () => {
     expect(res.status).toBe(401);
   });
 
-  it("GET /games はトークン無しで 401", async () => {
-    const res = await app.request("/games", {}, fakeEnv);
-    expect(res.status).toBe(401);
-  });
-
   it("GET /me/games はトークン無しで 401", async () => {
     const res = await app.request("/me/games", {}, fakeEnv);
     expect(res.status).toBe(401);

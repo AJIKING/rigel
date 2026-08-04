@@ -66,7 +66,11 @@ export const games = sqliteTable(
       .notNull()
       .$defaultFn(() => new Date()),
   },
-  (t) => [index("games_user_idx").on(t.userId)],
+  (t) => [
+    index("games_user_idx").on(t.userId),
+    // マイページ一覧のカーソルページング（createdAt DESC, id DESC）用。
+    index("games_user_created_idx").on(t.userId, t.createdAt),
+  ],
 );
 
 export const gameLogs = sqliteTable(
@@ -132,6 +136,8 @@ export const problems = sqliteTable(
     index("problems_user_idx").on(t.userId),
     // 公開一覧（status=published を新着順）用。
     index("problems_status_idx").on(t.status, t.createdAt),
+    // マイ一覧のカーソルページング（createdAt DESC, id DESC）用。
+    index("problems_user_created_idx").on(t.userId, t.createdAt),
   ],
 );
 

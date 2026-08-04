@@ -39,7 +39,6 @@ import { GetUser } from "./application/get-user.usecase";
 import { HandleBillingWebhook } from "./application/handle-billing-webhook.usecase";
 import { HandleRevenueCatWebhook } from "./application/handle-revenuecat-webhook.usecase";
 import { OpenBillingPortal } from "./application/open-billing-portal.usecase";
-import { ListGames } from "./application/list-games.usecase";
 import { ListMyGamesWithCounts, ListPublicGames } from "./application/list-game-cards.usecase";
 import { DeleteAccount, GetPublicProfile, UpdateProfile } from "./application/profile.usecase";
 import { RetryAnalysisJob } from "./application/retry-analysis-job.usecase";
@@ -131,7 +130,6 @@ export interface AppContainer {
   updateGameVisibility: UpdateGameVisibility;
   updateGameStatus: UpdateGameStatus;
   createEmptyKifu: CreateEmptyKifu;
-  listGames: ListGames;
   listMyGamesWithCounts: ListMyGamesWithCounts;
   listPublicGames: ListPublicGames;
   getGameWithLogs: GetGameWithLogs;
@@ -336,7 +334,6 @@ export function buildContainer(env: Env): AppContainer {
     updateGameVisibility: new UpdateGameVisibility(gamesRepo, gameLogs, users),
     updateGameStatus: new UpdateGameStatus(gamesRepo, gameLogs, users),
     createEmptyKifu: new CreateEmptyKifu({ games: gamesRepo, gameLogs, users, now, newId }),
-    listGames: new ListGames(gamesRepo),
     listMyGamesWithCounts: new ListMyGamesWithCounts(gamesRepo, gameLogs, analysisJobs, now),
     listPublicGames: new ListPublicGames(gamesRepo, gameLogs, users),
     getGameWithLogs: new GetGameWithLogs(gamesRepo, gameLogs, analysisJobs, now),

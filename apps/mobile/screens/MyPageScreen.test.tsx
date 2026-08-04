@@ -55,7 +55,10 @@ function Harness({ initial = "kifu" }: { initial?: MyPageSegment }) {
 describe("MyPageScreen（マイページ：牌譜/何切るの切替）", () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    mockGetMyProblems.mockResolvedValue([makePost({ id: "p1", title: "公開中の問題" })]);
+    mockGetMyProblems.mockResolvedValue({
+      items: [makePost({ id: "p1", title: "公開中の問題" })],
+      nextCursor: null,
+    });
     mockListQuizSessions.mockResolvedValue([]);
   });
 

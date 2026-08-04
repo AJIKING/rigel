@@ -121,7 +121,7 @@ describe("DrizzleAccountStore（実 SQLite）", () => {
 
     await new DrizzleAccountStore(db).deleteAll("u1");
 
-    expect(await favorites.listByUser("u1")).toEqual([]);
+    expect(await favorites.listByUserPage("u1", 100, null)).toEqual([]);
     // u1 の投稿（g1・p1）に付いていた他人の★は、対象ごと消えるので残らない。
     expect(await favorites.countsByTargets("game", ["g1", "g2"])).toEqual({ g2: 1 });
     expect(await favorites.countsByTargets("problem", ["p1"])).toEqual({});

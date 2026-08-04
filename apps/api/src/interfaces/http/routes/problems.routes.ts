@@ -122,18 +122,30 @@ export function registerProblemRoutes(app: Hono<AppEnv>): void {
     return c.json({ ok: true });
   });
 
-  // 公開一覧（published のみ・新着順。閲覧は自由）。
+  // 公開一覧（published のみ・新着順・カーソル方式 ?cursor=。閲覧は自由）。
   // カードにはお気に入り数（人気順の並べ替えに使う）と自分が付けたかを載せる。
   app.get("/problems", async (c) => {
-    const posts = await c.get("container").listPublishedProblems.execute();
-    const withFav = await withFavorites(c, "problem", posts);
-    return c.json(withFav.map((p) => problemJson(p, c.get("userId"))));
+    const result = await c.get("container").listPublishedProblems.execute(c.req.query("cursor"));
+    if (!result.ok)
+      return c.json({ ok: false, reason: result.reason }, reasonStatus(result.reason));
+    const withFav = await withFavorites(c, "problem", result.items);
+    return c.json({
+      items: withFav.map((p) => problemJson(p, c.get("userId"))),
+      nextCursor: result.nextCursor,
+    });
   });
 
-  // 自分の一覧（draft 含む）。
+  // 自分の一覧（draft 含む・カーソル方式 ?cursor=）。
   app.get("/problems/mine", requireAuth, async (c) => {
-    const posts = await c.get("container").listMyProblems.execute(c.get("userId")!);
-    return c.json(await withFavorites(c, "problem", posts));
+    const result = await c
+      .get("container")
+      .listMyProblems.execute(c.get("userId")!, c.req.query("cursor"));
+    if (!result.ok)
+      return c.json({ ok: false, reason: result.reason }, reasonStatus(result.reason));
+    return c.json({
+      items: await withFavorites(c, "problem", result.items),
+      nextCursor: result.nextCursor,
+    });
   });
 
   // 問題の元写真（解析下書きから引き継いだもの。所有者のみ＝公開問題でも露出しない）。

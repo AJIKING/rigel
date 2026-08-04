@@ -46,6 +46,26 @@ describe("DrizzleGameRepository（実 SQLite）", () => {
     expect(game?.userId).toBe("u1"); // 凍結
   });
 
+  it("listByUserPage はカーソル（同時刻は id DESC）で重複なく続きを引ける", async () => {
+    const repo = await makeRepo();
+    // 同時刻3件（id DESC → g3, g2, g1）＋古い1件＋他人の1件（混ざらない）。
+    for (const id of ["g1", "g2", "g3"]) {
+      await repo.save({ id, userId: "u1", title: "", createdAt: NOW });
+    }
+    await repo.save({ id: "older", userId: "u1", title: "", createdAt: new Date(NOW.getTime() - 60_000) }); // prettier-ignore
+    await repo.save({ id: "g9", userId: "u2", title: "", createdAt: LATER });
+
+    const page1 = await repo.listByUserPage("u1", 2, null);
+    expect(page1.map((g) => g.id)).toEqual(["g3", "g2"]);
+
+    const last = page1[page1.length - 1]!;
+    const page2 = await repo.listByUserPage("u1", 10, {
+      ms: last.createdAt.getTime(),
+      id: last.id,
+    });
+    expect(page2.map((g) => g.id)).toEqual(["g1", "older"]);
+  });
+
   it("deleteByUser は本人の半荘だけ消す（退会カスケードの一部）", async () => {
     const repo = await makeRepo();
     await repo.save({ id: "g1", userId: "u1", title: "", createdAt: NOW });

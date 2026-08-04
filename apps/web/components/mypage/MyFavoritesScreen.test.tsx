@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AuthProvider } from "../../lib/auth-context";
 import { makeDiscardPost, stubMe } from "../problem/test-helpers";
 
-const h = vi.hoisted(() => ({ setFavoriteAction: vi.fn() }));
+const h = vi.hoisted(() => ({ setFavoriteAction: vi.fn(), getMyFavoritesAction: vi.fn() }));
 vi.mock("../../app/actions", () => h);
 const push = vi.hoisted(() => vi.fn());
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push }) }));
@@ -44,7 +44,7 @@ function renderScreen(games: FavoriteGameCard[], problems: FavoriteProblemCard[]
   stubMe("free");
   return render(
     <AuthProvider>
-      <MyFavoritesScreen initialGames={games} initialProblems={problems} />
+      <MyFavoritesScreen initialCursor={null} initialGames={games} initialProblems={problems} />
     </AuthProvider>,
   );
 }
@@ -125,7 +125,7 @@ describe("MyFavoritesScreen（取得失敗を空状態に化けさせない）",
     stubMe("free");
     render(
       <AuthProvider>
-        <MyFavoritesScreen initialGames={[]} initialProblems={[]} loadFailed />
+        <MyFavoritesScreen initialCursor={null} initialGames={[]} initialProblems={[]} loadFailed />
       </AuthProvider>,
     );
     expect(await screen.findByText(/読み込めませんでした/)).toBeTruthy();

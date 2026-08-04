@@ -1,6 +1,18 @@
 // domain/kifu — GameLog リポジトリのポート。実体は infrastructure 層（Drizzle/D1）。
 
-import type { GameLog, KifuStatus, Visibility, GameLogSummary } from "./game-log";
+import type { ListCursor } from "@rigel/schema";
+import type { GameLog, KifuStatus, Visibility } from "./game-log";
+
+/** 公開フィードの読みモデル（1行=公開局を持つ1半荘）。Kifu 本体を読まない。 */
+export interface PublicGameGroup {
+  gameId: string;
+  /** 最新公開局の時刻（フィードの並び・ページングのカーソル基準）。 */
+  latestAt: Date;
+  /** 最新公開局の id（カードを開いたときの表示先）。 */
+  latestLogId: string;
+  /** 公開（かつ編集済）局数。 */
+  publicCount: number;
+}
 
 export interface GameLogRepository {
   save(gameLog: GameLog): Promise<void>;
@@ -23,14 +35,19 @@ export interface GameLogRepository {
     status: KifuStatus,
     excludeGameId?: string,
   ): Promise<number>;
-  /** 公開フィード用の牌譜を新しい順に返す（visibility=public かつ status=complete。limit で上限）。 */
-  listPublic(limit: number): Promise<GameLog[]>;
   /**
-   * 公開フィード用の要約（public かつ complete の局）。**Kifu 本体を読まない**。
-   * 一覧のコストが「保存された牌譜のサイズ」に比例して膨らむのを避けるための読み取りモデル
-   *（一覧に必要なのは所属半荘・著者・時刻だけ）。
+   * 公開フィードの半荘ページ（public かつ complete の局を持つ半荘を「最新公開局の時刻」降順で。
+   * カーソルより古いもののみ・呼び出し側が pageSize+1 を渡す。**Kifu 本体を読まない**。
+   * 旧 listPublicSummaries（直近N局の窓から半荘を組み立てる方式）は、窓に埋もれた古い半荘へ
+   * 永久に到達できない構造穴があったため、半荘を直接ページングするこの形に置き換えた
+   * （Plan: docs/plans/list-pagination.md 3-4）。
    */
-  listPublicSummaries(limit: number): Promise<GameLogSummary[]>;
+  listPublicGameGroups(
+    limit: number,
+    cursor: ListCursor | null,
+    /** 指定時はそのユーザーの公開半荘のみ（公開ユーザーページ用）。 */
+    userId?: string,
+  ): Promise<PublicGameGroup[]>;
   /** 1件削除。 */
   deleteById(id: string): Promise<void>;
   /** 半荘配下の全局を削除（半荘削除のカスケード）。 */

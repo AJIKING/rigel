@@ -14,12 +14,18 @@ export const metadata = {
 // SEO は SSR で満たせる（クローラには描画済み HTML が届く）。
 export const dynamic = "force-dynamic";
 
-// 何切るの公開一覧（published のみ・新着順）。認証不要で SSR する。
+// 何切るの公開一覧（published のみ・新着順・カーソル方式の1ページ目）。認証不要で SSR する。
 export default async function ProblemsPage() {
   // 取得失敗を「0件」に化けさせない（空状態の案内を出すと通信失敗に気づけない）。
   const loaded = await getPublicProblems().then(
-    (r) => ({ ok: true as const, posts: r }),
-    () => ({ ok: false as const, posts: [] }),
+    (r) => ({ ok: true as const, page: r }),
+    () => ({ ok: false as const, page: { items: [], nextCursor: null } }),
   );
-  return <ProblemListScreen posts={normalizeProblemPosts(loaded.posts)} loadFailed={!loaded.ok} />;
+  return (
+    <ProblemListScreen
+      initialPosts={normalizeProblemPosts(loaded.page.items)}
+      initialCursor={loaded.page.nextCursor}
+      loadFailed={!loaded.ok}
+    />
+  );
 }

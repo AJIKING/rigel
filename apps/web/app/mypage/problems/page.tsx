@@ -17,10 +17,14 @@ export default async function MyPageProblemsPage() {
 
   // 取得失敗を「0件」に化けさせない（空状態の案内を出すと通信失敗に気づけない）。
   const loaded = await getMyProblems(token).then(
-    (r) => ({ ok: true as const, posts: r }),
-    () => ({ ok: false as const, posts: [] }),
+    (r) => ({ ok: true as const, posts: r.items, nextCursor: r.nextCursor }),
+    () => ({ ok: false as const, posts: [], nextCursor: null }),
   );
   return (
-    <MyProblemsScreen initialPosts={normalizeProblemPosts(loaded.posts)} loadFailed={!loaded.ok} />
+    <MyProblemsScreen
+      initialPosts={normalizeProblemPosts(loaded.posts)}
+      initialCursor={loaded.nextCursor}
+      loadFailed={!loaded.ok}
+    />
   );
 }

@@ -8,6 +8,7 @@ import type { GameRepository } from "../domain/game/game.repository";
 import type { GameLogRepository } from "../domain/kifu/game-log.repository";
 import type { UserRepository } from "../domain/user/user.repository";
 import { deriveAnalysisStatus, type GameAnalysisStatus } from "./analysis-status";
+import { fetchPage, type PagedResult } from "./pagination";
 
 export interface MyGameCard {
   id: string;
@@ -40,6 +41,11 @@ export interface PublicGameCard {
   firstLogId: string;
 }
 
+/** マイページ半荘一覧のページサイズ（Plan: docs/plans/list-pagination.md 3-3）。 */
+const MY_GAMES_PAGE_SIZE = 30;
+
+export type ListMyGamesResult = PagedResult<MyGameCard>;
+
 export class ListMyGamesWithCounts {
   constructor(
     private readonly games: GameRepository,
@@ -48,12 +54,18 @@ export class ListMyGamesWithCounts {
     private readonly now: () => Date = () => new Date(),
   ) {}
 
-  async execute(userId: string): Promise<MyGameCard[]> {
-    const games = await this.games.listByUser(userId);
+  async execute(userId: string, cursorRaw?: string): Promise<ListMyGamesResult> {
+    const page = await fetchPage(
+      cursorRaw,
+      MY_GAMES_PAGE_SIZE,
+      (limit, cursor) => this.games.listByUserPage(userId, limit, cursor),
+      (g) => ({ ms: g.createdAt.getTime(), id: g.id }),
+    );
+    if (!page.ok) return page;
     // 解析中/解析失敗の表示はサーバーが真実源（端末をまたいでも見える。plan 8-3）。
     const analysis = deriveAnalysisStatus(await this.jobs.listActiveByUser(userId), this.now());
     const cards = await Promise.all(
-      games.map(async (g) => {
+      page.items.map(async (g) => {
         const logs = await this.gameLogs.listByGame(g.id);
         return {
           id: g.id,
@@ -69,9 +81,14 @@ export class ListMyGamesWithCounts {
         };
       }),
     );
-    return cards.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+    return { ok: true, items: cards, nextCursor: page.nextCursor };
   }
 }
+
+/** 公開フィードのページサイズ（Plan: docs/plans/list-pagination.md 3-3）。 */
+const PUBLIC_GAMES_PAGE_SIZE = 30;
+
+export type ListPublicGamesResult = PagedResult<PublicGameCard>;
 
 export class ListPublicGames {
   constructor(
@@ -80,22 +97,19 @@ export class ListPublicGames {
     private readonly users: UserRepository,
   ) {}
 
-  async execute(limit = 60): Promise<PublicGameCard[]> {
-    // 一覧は牌譜本体を読まない（要約のみ）。コストが保存内容のサイズに比例しないようにする。
-    const pub = await this.gameLogs.listPublicSummaries(200);
-    // gameId ごとに公開局数を数える（出現順＝新着順を保つ）。最初の出現＝最新の公開局。
-    const order: string[] = [];
-    const counts = new Map<string, number>();
-    const firstLog = new Map<string, string>();
-    for (const log of pub) {
-      const gid = log.gameId;
-      if (!gid) continue;
-      if (!counts.has(gid)) {
-        order.push(gid);
-        firstLog.set(gid, log.id);
-      }
-      counts.set(gid, (counts.get(gid) ?? 0) + 1);
-    }
+  /** 公開フィードの1ページ（最新公開局の時刻順・カーソル方式）。
+   *  旧実装の「直近200公開局の窓から組み立てる」方式は、窓に埋もれた古い半荘へ永久に
+   *  到達できなかったため、公開半荘を SQL 側で直接ページングする形に置き換えた。 */
+  async execute(cursorRaw?: string): Promise<ListPublicGamesResult> {
+    // 一覧は牌譜本体を読まない（集約のみ）。コストが保存内容のサイズに比例しないようにする。
+    const page = await fetchPage(
+      cursorRaw,
+      PUBLIC_GAMES_PAGE_SIZE,
+      (limit, cursor) => this.gameLogs.listPublicGameGroups(limit, cursor),
+      (g) => ({ ms: g.latestAt.getTime(), id: g.gameId }),
+    );
+    if (!page.ok) return page;
+
     // 著者は同一ユーザーが複数半荘を持つので userId でキャッシュして重複取得を避ける。
     const ownerCache = new Map<string, { handle: string | null; name: string | null }>();
     const resolveOwner = async (userId: string) => {
@@ -111,9 +125,9 @@ export class ListPublicGames {
     };
 
     const cards: PublicGameCard[] = [];
-    for (const gid of order.slice(0, limit)) {
-      const game = await this.games.findById(gid);
-      if (!game) continue;
+    for (const g of page.items) {
+      const game = await this.games.findById(g.gameId);
+      if (!game) continue; // 読んでいる間に削除された半荘はスキップ（ページが僅かに欠けるのは許容）
       const owner = await resolveOwner(game.userId);
       cards.push({
         id: game.id,
@@ -122,10 +136,10 @@ export class ListPublicGames {
         ownerName: owner.name,
         title: game.title,
         createdAt: game.createdAt,
-        kyokuCount: counts.get(gid) ?? 0,
-        firstLogId: firstLog.get(gid)!,
+        kyokuCount: g.publicCount,
+        firstLogId: g.latestLogId,
       });
     }
-    return cards;
+    return { ok: true, items: cards, nextCursor: page.nextCursor };
   }
 }

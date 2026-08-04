@@ -33,9 +33,14 @@ function card(id: string, over: Partial<MyGameCard> = {}): MyGameCard {
   };
 }
 
+/** getMyGamesAction が返すページ形（カーソル方式）。 */
+function page(items: MyGameCard[]) {
+  return { items, nextCursor: null };
+}
+
 beforeEach(() => {
   push.mockReset();
-  h.getMyGamesAction.mockReset().mockResolvedValue([]);
+  h.getMyGamesAction.mockReset().mockResolvedValue(page([]));
   h.setFavoriteAction.mockReset().mockResolvedValue({ ok: true, faved: true, favoriteCount: 1 });
   h.deleteGameAction.mockReset().mockResolvedValue({ ok: true });
   h.retryAnalysisAction.mockReset().mockResolvedValue({ ok: true, jobId: "j1", gameId: "g1" });
@@ -62,7 +67,7 @@ describe("MyKifuScreen（マイページの牌譜タブ）", () => {
 
   it("ログイン済みなら自分の半荘を出し、公開/非公開と編集状態のバッジを付ける", async () => {
     stubMe("free");
-    h.getMyGamesAction.mockResolvedValue([card("g1", { publicCount: 2, draftCount: 1 })]);
+    h.getMyGamesAction.mockResolvedValue(page([card("g1", { publicCount: 2, draftCount: 1 })]));
     render(
       <AuthProvider>
         <MyKifuScreen />
@@ -87,9 +92,9 @@ describe("MyKifuScreen（マイページの牌譜タブ）", () => {
 
   it("解析中の0局半荘もタップで開ける（半荘ヘッダビューが受ける。Phase C）", async () => {
     stubMe("free");
-    h.getMyGamesAction.mockResolvedValue([
-      card("g1", { kyokuCount: 0, analysisStatus: "processing" }),
-    ]);
+    h.getMyGamesAction.mockResolvedValue(
+      page([card("g1", { kyokuCount: 0, analysisStatus: "processing" })]),
+    );
     render(
       <AuthProvider>
         <MyKifuScreen />
@@ -105,9 +110,9 @@ describe("MyKifuScreen（マイページの牌譜タブ）", () => {
 
   it("局がある半荘の解析失敗にも「もう一度解析」を出す（削除ボタンは0局限定）", async () => {
     stubMe("free");
-    h.getMyGamesAction.mockResolvedValue([
-      card("g1", { kyokuCount: 3, analysisStatus: "failed", analysisJobId: "j1" }),
-    ]);
+    h.getMyGamesAction.mockResolvedValue(
+      page([card("g1", { kyokuCount: 3, analysisStatus: "failed", analysisJobId: "j1" })]),
+    );
     render(
       <AuthProvider>
         <MyKifuScreen />
@@ -121,9 +126,9 @@ describe("MyKifuScreen（マイページの牌譜タブ）", () => {
 
   it("解析失敗の0局半荘には「もう一度解析」「削除」ボタンが付き、再解析で解析中バッジへ", async () => {
     stubMe("free");
-    h.getMyGamesAction.mockResolvedValue([
-      card("g1", { kyokuCount: 0, analysisStatus: "failed", analysisJobId: "j1" }),
-    ]);
+    h.getMyGamesAction.mockResolvedValue(
+      page([card("g1", { kyokuCount: 0, analysisStatus: "failed", analysisJobId: "j1" })]),
+    );
     render(
       <AuthProvider>
         <MyKifuScreen />
@@ -142,9 +147,9 @@ describe("MyKifuScreen（マイページの牌譜タブ）", () => {
   it("別の解析が進行中（busy）なら再解析を送らず「ひとつずつ」の案内を出す", async () => {
     stubMe("free");
     aj.busy = true;
-    h.getMyGamesAction.mockResolvedValue([
-      card("g1", { kyokuCount: 0, analysisStatus: "failed", analysisJobId: "j1" }),
-    ]);
+    h.getMyGamesAction.mockResolvedValue(
+      page([card("g1", { kyokuCount: 0, analysisStatus: "failed", analysisJobId: "j1" })]),
+    );
     render(
       <AuthProvider>
         <MyKifuScreen />
@@ -162,9 +167,9 @@ describe("MyKifuScreen（マイページの牌譜タブ）", () => {
     stubMe("free");
     const confirm = vi.fn().mockReturnValueOnce(false).mockReturnValueOnce(true);
     vi.stubGlobal("confirm", confirm);
-    h.getMyGamesAction.mockResolvedValue([
-      card("g1", { kyokuCount: 0, analysisStatus: "failed", analysisJobId: "j1" }),
-    ]);
+    h.getMyGamesAction.mockResolvedValue(
+      page([card("g1", { kyokuCount: 0, analysisStatus: "failed", analysisJobId: "j1" })]),
+    );
     render(
       <AuthProvider>
         <MyKifuScreen />
@@ -183,9 +188,9 @@ describe("MyKifuScreen（マイページの牌譜タブ）", () => {
   it("再解析の期限切れ（retry_expired）はインラインで写真からの再送信を促す", async () => {
     stubMe("free");
     h.retryAnalysisAction.mockResolvedValue({ ok: false, status: 400, reason: "retry_expired" });
-    h.getMyGamesAction.mockResolvedValue([
-      card("g1", { kyokuCount: 0, analysisStatus: "failed", analysisJobId: "j1" }),
-    ]);
+    h.getMyGamesAction.mockResolvedValue(
+      page([card("g1", { kyokuCount: 0, analysisStatus: "failed", analysisJobId: "j1" })]),
+    );
     render(
       <AuthProvider>
         <MyKifuScreen />
@@ -201,9 +206,9 @@ describe("MyKifuScreen（マイページの牌譜タブ）", () => {
 
   it("局がある半荘は解析中でも通常どおり開ける（追加解析の進行はバッジで示すだけ）", async () => {
     stubMe("free");
-    h.getMyGamesAction.mockResolvedValue([
-      card("g1", { kyokuCount: 2, analysisStatus: "processing" }),
-    ]);
+    h.getMyGamesAction.mockResolvedValue(
+      page([card("g1", { kyokuCount: 2, analysisStatus: "processing" })]),
+    );
     render(
       <AuthProvider>
         <MyKifuScreen />
@@ -217,9 +222,29 @@ describe("MyKifuScreen（マイページの牌譜タブ）", () => {
     expect(push).toHaveBeenCalledWith("/kifu/g1");
   });
 
+  it("「もっと見る」で次ページをカーソル付きで取得して追記し、最終ページでボタンが消える", async () => {
+    stubMe("free");
+    h.getMyGamesAction
+      .mockResolvedValueOnce({ items: [card("g1")], nextCursor: "1000_g1" })
+      .mockResolvedValueOnce({ items: [card("g2")], nextCursor: null });
+    render(
+      <AuthProvider>
+        <MyKifuScreen />
+      </AuthProvider>,
+    );
+    expect(await screen.findByText("半荘g1")).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("button", { name: "もっと見る" }));
+    expect(await screen.findByText("半荘g2")).toBeTruthy();
+    expect(h.getMyGamesAction).toHaveBeenLastCalledWith("1000_g1");
+    // 既存ページは重複しない・最終ページではボタンが消える。
+    expect(screen.getAllByText("半荘g1")).toHaveLength(1);
+    expect(screen.queryByRole("button", { name: "もっと見る" })).toBeNull();
+  });
+
   it("ツールバーは何切るタブと同じ構成（検索・状態・並び替え・お気に入り・新規）", async () => {
     stubMe("free");
-    h.getMyGamesAction.mockResolvedValue([card("g1")]);
+    h.getMyGamesAction.mockResolvedValue(page([card("g1")]));
     render(
       <AuthProvider>
         <MyKifuScreen />

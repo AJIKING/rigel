@@ -76,9 +76,9 @@ export async function getGameAction(gameId: string) {
   return loadGameDetail(await requireToken(), gameId);
 }
 
-/** マイページの牌譜一覧（要ログイン）。 */
-export async function getMyGamesAction() {
-  return getMyGames(await requireToken());
+/** マイページの牌譜一覧の1ページ（要ログイン・カーソル方式）。 */
+export async function getMyGamesAction(cursor?: string) {
+  return getMyGames(await requireToken(), cursor);
 }
 
 export async function updateKifuAction(logId: string, kifu: Kifu, seq?: number) {
@@ -211,9 +211,9 @@ export async function deleteAccountAction() {
 // 何切る問題（作成・更新・削除・マイ一覧・回答・分布）。すべて要ログイン。
 // ------------------------------------------------------------
 
-/** マイ何切る一覧（draft 含む）。 */
-export async function getMyProblemsAction() {
-  return getMyProblems(await requireToken());
+/** マイ何切る一覧の1ページ（draft 含む・カーソル方式）。 */
+export async function getMyProblemsAction(cursor?: string) {
+  return getMyProblems(await requireToken(), cursor);
 }
 
 export async function createProblemAction(input: {
@@ -289,7 +289,7 @@ export async function setFavoriteAction(
   return setFavorite(await requireToken(), targetType, targetId, faved);
 }
 
-/** 自分のお気に入り一覧（半荘・何切る。付けた新しい順）。 */
-export async function getMyFavoritesAction() {
-  return listMyFavorites(await requireToken());
+/** 自分のお気に入り一覧の1ページ（半荘・何切る。付けた新しい順・カーソル方式）。 */
+export async function getMyFavoritesAction(cursor?: string) {
+  return listMyFavorites(await requireToken(), cursor);
 }

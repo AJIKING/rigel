@@ -22,10 +22,12 @@ import { useAuth } from "../../lib/auth-context";
 import { fmtDateSlash } from "../../lib/format";
 import { useAnalysisJob } from "../../lib/use-analysis-job";
 import { useFavorites } from "../../lib/use-favorites";
+import { useLoadMore } from "../../lib/use-load-more";
 import { useRetryAnalysis } from "../../lib/use-retry-analysis";
 import { AppHeader } from "../AppHeader";
 import { GameCard } from "../GameCard";
 import { MyPageTabs } from "../mypage/MyPageTabs";
+import { LoadMoreButton } from "./LoadMoreButton";
 import { MyListToolbar } from "./MyListToolbar";
 import gc from "../game-card.module.css";
 import s from "./kifu-list.module.css";
@@ -45,6 +47,12 @@ export function MyKifuScreen() {
   const [games, setGames] = useState<MyGameCard[] | null>(null);
   // 取得失敗を「0件」に化けさせない（空状態の案内を出すと通信失敗に気づけない）。
   const [loadFailed, setLoadFailed] = useState(false);
+  // 追加読み込みの機構（ガード込み）は useLoadMore（全一覧共通）。refetch は reset で
+  // 先頭ページへ戻す（in-flight の追記は破棄される）。
+  const { nextCursor, loadingMore, moreFailed, loadMore, reset } = useLoadMore(
+    getMyGamesAction,
+    (page) => setGames((prev) => [...(prev ?? []), ...page.items]),
+  );
 
   // お気に入りはサーバー保存。カードが持つ viewerFaved/favoriteCount に、この画面での操作を重ねる。
   const { apply, toggle: toggleFav, error: favError } = useFavorites();
@@ -94,14 +102,18 @@ export function MyKifuScreen() {
       setGames([]);
       return;
     }
+    // refetch は先頭ページに戻す（追加読み込み済みの範囲は畳まれる。解析完了の反映を優先）。
     getMyGamesAction()
-      .then(setGames)
+      .then((page) => {
+        setGames(page.items);
+        reset(page.nextCursor);
+      })
       .catch(() => {
         // 既に一覧が出ているなら消さない（refetch 失敗で画面を白紙に戻さない）。
         setGames((cur) => cur ?? []);
         setLoadFailed(true);
       });
-  }, [authLoading, user, settledCount]);
+  }, [authLoading, user, settledCount, reset]);
 
   // 解析中バッジがある間は 5 秒間隔で再取得（他端末・復元漏れの進行も拾う。
   // 何切る下書き一覧と同じ方式）。取得効果と分ける＝retry の楽観更新を即 refetch で潰さない。
@@ -110,13 +122,16 @@ export function MyKifuScreen() {
     if (!user || !hasProcessing) return;
     const timer = setInterval(() => {
       getMyGamesAction()
-        .then(setGames)
+        .then((page) => {
+          setGames(page.items);
+          reset(page.nextCursor);
+        })
         .catch(() => {
           // ポーリングの失敗は無視（次の周期・settledCount で回復する）。
         });
     }, LIST_REFRESH_INTERVAL_MS);
     return () => clearInterval(timer);
-  }, [user, hasProcessing]);
+  }, [user, hasProcessing, reset]);
 
   // 絞り込みの述語は @rigel/ui（mobile と共通＝挙動の同一性をコピーで担保しない）。
   const view = useMemo(
@@ -270,6 +285,14 @@ export function MyKifuScreen() {
               ))
             )}
           </div>
+          {user && (
+            <LoadMoreButton
+              nextCursor={nextCursor}
+              loadingMore={loadingMore}
+              moreFailed={moreFailed}
+              onLoadMore={() => void loadMore()}
+            />
+          )}
         </section>
       </main>
     </div>

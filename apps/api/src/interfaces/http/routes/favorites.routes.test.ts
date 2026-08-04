@@ -13,7 +13,8 @@ import {
   ListMyGamesWithCounts,
   ListPublicGames,
 } from "../../../application/list-game-cards.usecase";
-import { ListPublishedProblems } from "../../../application/problem.usecase";
+import { ListMyProblems, ListPublishedProblems } from "../../../application/problem.usecase";
+import { GetPublicProfile } from "../../../application/profile.usecase";
 import type { AppContainer } from "../../../composition-root";
 import { User } from "../../../domain/user/user";
 import { JwtSessionService } from "../../../infrastructure/auth/jwt-session-service";
@@ -94,6 +95,8 @@ async function makeFavoritesApp() {
       new InMemoryAnalysisJobRepository(),
     ),
     listPublishedProblems: new ListPublishedProblems(problems),
+    listMyProblems: new ListMyProblems(problems),
+    getPublicProfile: new GetPublicProfile(users, games, gameLogs),
   } as Partial<AppContainer> as AppContainer;
   const app = createApp({ container: () => container });
 
@@ -227,19 +230,20 @@ describe("一覧カードのお気に入り情報", () => {
     const { call } = await makeFavoritesApp();
     await call("PUT", "/favorites/game/g-pub", "other");
 
+    // 公開牌譜フィードはカーソル方式のページ形 {items, nextCursor}。
     const anon = (await (await call("GET", "/games/public")).json()) as {
-      id: string;
-      favoriteCount: number;
-      viewerFaved: boolean;
-    }[];
-    expect(anon).toMatchObject([{ id: "g-pub", favoriteCount: 1, viewerFaved: false }]);
+      items: { id: string; favoriteCount: number; viewerFaved: boolean }[];
+    };
+    expect(anon).toMatchObject({
+      items: [{ id: "g-pub", favoriteCount: 1, viewerFaved: false }],
+      nextCursor: null,
+    });
 
     await call("PUT", "/favorites/game/g-pub", "me");
     const mine = (await (await call("GET", "/games/public", "me")).json()) as {
-      favoriteCount: number;
-      viewerFaved: boolean;
-    }[];
-    expect(mine).toMatchObject([{ favoriteCount: 2, viewerFaved: true }]);
+      items: { favoriteCount: number; viewerFaved: boolean }[];
+    };
+    expect(mine.items).toMatchObject([{ favoriteCount: 2, viewerFaved: true }]);
   });
 
   it("マイページの半荘一覧と公開何切る一覧にも載る", async () => {
@@ -247,11 +251,33 @@ describe("一覧カードのお気に入り情報", () => {
     await call("PUT", "/favorites/game/g-mine", "me");
     await call("PUT", "/favorites/problem/p-pub", "me");
 
-    expect(await (await call("GET", "/me/games", "me")).json()).toMatchObject([
-      { id: "g-mine", favoriteCount: 1, viewerFaved: true },
-    ]);
-    expect(await (await call("GET", "/problems", "me")).json()).toMatchObject([
-      { id: "p-pub", favoriteCount: 1, viewerFaved: true },
-    ]);
+    // マイページの半荘一覧もカーソル方式のページ形 {items, nextCursor}。
+    expect(await (await call("GET", "/me/games", "me")).json()).toMatchObject({
+      items: [{ id: "g-mine", favoriteCount: 1, viewerFaved: true }],
+      nextCursor: null,
+    });
+    // 公開何切る一覧はカーソル方式のページ形 {items, nextCursor}。
+    expect(await (await call("GET", "/problems", "me")).json()).toMatchObject({
+      items: [{ id: "p-pub", favoriteCount: 1, viewerFaved: true }],
+      nextCursor: null,
+    });
+  });
+});
+
+// ルート → reasonStatus("invalid") → 400 の配線を全一覧エンドポイントで固定する
+// （"invalid" は reasonStatus の default 分岐なので、型でもユニットテストでも守られない）。
+describe("一覧の ?cursor: 不正カーソルは 400", () => {
+  it.each<{ name: string; path: string; userId?: string }>([
+    { name: "GET /games/public", path: "/games/public?cursor=junk" },
+    { name: "GET /me/games", path: "/me/games?cursor=junk", userId: "me" },
+    { name: "GET /problems", path: "/problems?cursor=junk" },
+    { name: "GET /problems/mine", path: "/problems/mine?cursor=junk", userId: "me" },
+    { name: "GET /favorites", path: "/favorites?cursor=junk", userId: "me" },
+    { name: "GET /users/:idOrHandle/profile", path: "/users/hother/profile?cursor=junk" },
+  ])("$name", async ({ path, userId }) => {
+    const { call } = await makeFavoritesApp();
+    const res = await call("GET", path, userId);
+    expect(res.status).toBe(400);
+    expect(await res.json()).toMatchObject({ ok: false, reason: "invalid" });
   });
 });

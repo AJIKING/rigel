@@ -1,8 +1,9 @@
 // infrastructure/kifu — GameLogRepository の Drizzle/D1 実装。
 
-import { and, asc, countDistinct, desc, eq, ne } from "drizzle-orm";
-import type { GameLog, GameLogSummary, KifuStatus, Visibility } from "../../domain/kifu/game-log";
-import type { GameLogRepository } from "../../domain/kifu/game-log.repository";
+import type { ListCursor } from "@rigel/schema";
+import { and, asc, countDistinct, desc, eq, isNotNull, lt, ne, or, sql } from "drizzle-orm";
+import type { GameLog, KifuStatus, Visibility } from "../../domain/kifu/game-log";
+import type { GameLogRepository, PublicGameGroup } from "../../domain/kifu/game-log.repository";
 import type { Db } from "../db/client";
 import { gameLogs } from "../db/schema";
 import { toGameLog as toDomain, toGameLogRow } from "./game-log-row";
@@ -93,33 +94,52 @@ export class DrizzleGameLogRepository implements GameLogRepository {
     return row?.n ?? 0;
   }
 
-  async listPublic(limit: number): Promise<GameLog[]> {
-    const rows = await this.db
-      .select()
-      .from(gameLogs)
-      .where(and(eq(gameLogs.visibility, "public"), eq(gameLogs.status, "complete")))
-      .orderBy(desc(gameLogs.createdAt))
-      .limit(limit)
-      .all();
-    return rows.map(toDomain);
-  }
-
-  async listPublicSummaries(limit: number): Promise<GameLogSummary[]> {
+  async listPublicGameGroups(
+    limit: number,
+    cursor: ListCursor | null,
+    userId?: string,
+  ): Promise<PublicGameGroup[]> {
     // kifu カラムを SELECT しない（＝巨大 JSON を読まない・parse しない）。
-    // 一覧のコストが保存内容のサイズに比例するのを断つ。
-    const rows = await this.db
+    // GROUP BY game_id で半荘を直接ページングする（Plan: docs/plans/list-pagination.md 3-4）。
+    // latestLogId は SQLite の「MAX() と同じ行の裸カラム」仕様で最新公開局の id を取る
+    // （D1 も sql.js も SQLite なので依存してよい・ドキュメント化された挙動）。
+    const latestMs = sql<number>`max(${gameLogs.createdAt})`;
+    const base = this.db
       .select({
-        id: gameLogs.id,
         gameId: gameLogs.gameId,
-        userId: gameLogs.userId,
-        createdAt: gameLogs.createdAt,
+        latestLogId: gameLogs.id,
+        latestMs,
+        publicCount: sql<number>`count(*)`,
       })
       .from(gameLogs)
-      .where(and(eq(gameLogs.visibility, "public"), eq(gameLogs.status, "complete")))
-      .orderBy(desc(gameLogs.createdAt))
+      .where(
+        and(
+          eq(gameLogs.visibility, "public"),
+          eq(gameLogs.status, "complete"),
+          isNotNull(gameLogs.gameId),
+          userId === undefined ? undefined : eq(gameLogs.userId, userId),
+        ),
+      )
+      .groupBy(gameLogs.gameId);
+    const rows = await (
+      cursor === null
+        ? base
+        : base.having(
+            or(
+              sql`${latestMs} < ${cursor.ms}`,
+              and(sql`${latestMs} = ${cursor.ms}`, lt(gameLogs.gameId, cursor.id)),
+            ),
+          )
+    )
+      .orderBy(desc(latestMs), desc(gameLogs.gameId))
       .limit(limit)
       .all();
-    return rows;
+    return rows.map((r) => ({
+      gameId: r.gameId!,
+      latestAt: new Date(r.latestMs),
+      latestLogId: r.latestLogId,
+      publicCount: r.publicCount,
+    }));
   }
 
   async deleteById(id: string): Promise<void> {

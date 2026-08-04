@@ -17,6 +17,7 @@ import type { ProblemPost } from "../domain/problem/problem";
 import type { ProblemRepository } from "../domain/problem/problem.repository";
 import type { UserRepository } from "../domain/user/user.repository";
 import type { PublicGameCard } from "./list-game-cards.usecase";
+import { fetchPage } from "./pagination";
 
 /** 自分のお気に入り一覧に出す半荘カード（公開カード＋自分のものか＋お気に入り数）。 */
 export interface FavoriteGameCard extends PublicGameCard {
@@ -119,6 +120,18 @@ export class GetFavoriteSummary {
   }
 }
 
+/** お気に入り一覧のページサイズ（Plan: docs/plans/list-pagination.md 3-3）。 */
+const FAVORITES_PAGE_SIZE = 30;
+
+export type ListMyFavoritesResult =
+  | {
+      ok: true;
+      games: FavoriteGameCard[];
+      problems: FavoriteProblemCard[];
+      nextCursor: string | null;
+    }
+  | { ok: false; reason: "invalid" };
+
 export class ListMyFavorites {
   constructor(
     private readonly deps: {
@@ -130,10 +143,17 @@ export class ListMyFavorites {
     },
   ) {}
 
-  async execute(
-    userId: string,
-  ): Promise<{ games: FavoriteGameCard[]; problems: FavoriteProblemCard[] }> {
-    const favs = await this.deps.favorites.listByUser(userId);
+  async execute(userId: string, cursorRaw?: string): Promise<ListMyFavoritesResult> {
+    // ページは「付けた順」の混在1本（半荘/何切るへは返却時に振り分ける。カーソルの id 部は
+    // targetType:targetId の複合キー）。
+    const page = await fetchPage(
+      cursorRaw,
+      FAVORITES_PAGE_SIZE,
+      (limit, cursor) => this.deps.favorites.listByUserPage(userId, limit, cursor),
+      (f) => ({ ms: f.createdAt.getTime(), id: `${f.targetType}:${f.targetId}` }),
+    );
+    if (!page.ok) return page;
+    const favs = page.items;
     const gameIds = favs.filter((f) => f.targetType === "game").map((f) => f.targetId);
     const problemIds = favs.filter((f) => f.targetType === "problem").map((f) => f.targetId);
 
@@ -197,6 +217,6 @@ export class ListMyFavorites {
       });
     }
 
-    return { games, problems };
+    return { ok: true, games, problems, nextCursor: page.nextCursor };
   }
 }

@@ -20,15 +20,19 @@ import { useEffect, useMemo, useState } from "react";
 import {
   deleteProblemAction,
   deleteProblemDraftAction,
+  getMyProblemsAction,
   getProblemDraftsAction,
   updateProblemAction,
 } from "../../app/actions";
 import { type ProblemPost } from "../../lib/api";
+import { normalizeProblemPosts } from "../../lib/problems";
+import { useLoadMore } from "../../lib/use-load-more";
 import { useAuth } from "../../lib/auth-context";
 import { fmtDateSlash } from "../../lib/format";
 import { useFavorites } from "../../lib/use-favorites";
 import { AppHeader } from "../AppHeader";
 import { GameCard } from "../GameCard";
+import { LoadMoreButton } from "../list/LoadMoreButton";
 import { MyListToolbar } from "../list/MyListToolbar";
 import { MyPageTabs } from "../mypage/MyPageTabs";
 import { ProblemThumb } from "./ProblemThumb";
@@ -43,9 +47,12 @@ import p9 from "./problem.module.css";
  */
 export function MyProblemsScreen({
   initialPosts,
+  initialCursor,
   loadFailed = false,
 }: {
   initialPosts: ProblemPost[];
+  /** 次ページのカーソル（null=これで全部）。 */
+  initialCursor: string | null;
   /** 取得に失敗した（0件ではない）。空状態の案内に化けさせないためのフラグ。 */
   loadFailed?: boolean;
 }) {
@@ -59,6 +66,13 @@ export function MyProblemsScreen({
   const [status, setStatus] = useState<string>("all");
   const [sort, setSort] = useState<MyListSortKey>("new");
   const [favOnly, setFavOnly] = useState(false);
+  // 追加読み込みの機構（ガード込み）は useLoadMore（全一覧共通）。
+  // 信頼ゲート: 検証を通っていない問題データを画面へ流さない（初回ページと同じ正規化）。
+  const { nextCursor, loadingMore, moreFailed, loadMore } = useLoadMore(
+    getMyProblemsAction,
+    (page) => setPosts((prev) => [...prev, ...normalizeProblemPosts(page.items)]),
+    initialCursor,
+  );
 
   const limit = PROBLEM_LIMIT[user?.plan ?? "free"];
   const atLimit = limit !== null && posts.length >= limit;
@@ -274,6 +288,12 @@ export function MyProblemsScreen({
               ))
             )}
           </div>
+          <LoadMoreButton
+            nextCursor={nextCursor}
+            loadingMore={loadingMore}
+            moreFailed={moreFailed}
+            onLoadMore={() => void loadMore()}
+          />
         </section>
       </main>
     </div>

@@ -4,7 +4,7 @@
 import type { Context, Hono } from "hono";
 import type { User } from "../../../domain/user/user";
 import { monthlyCallQuota } from "../../../domain/user/user";
-import { requireAuth, userProfileJson, withFavorites, type AppEnv } from "../shared";
+import { reasonStatus, requireAuth, userProfileJson, withFavorites, type AppEnv } from "../shared";
 
 /** /auth/apple/callback の転送先（mobile の lib/apple-login.ts の APPLE_REDIRECT_URL と一致必須。
  *  scheme は app.json の "scheme"）。 */
@@ -113,8 +113,15 @@ export function registerAccountRoutes(app: Hono<AppEnv>): void {
 
   // マイページ用: 自分の半荘＋局数/公開数/下書き数＋お気に入り数（人気順の並べ替えに使う）。
   app.get("/me/games", requireAuth, async (c) => {
-    const cards = await c.get("container").listMyGamesWithCounts.execute(c.get("userId")!);
-    return c.json(await withFavorites(c, "game", cards));
+    const result = await c
+      .get("container")
+      .listMyGamesWithCounts.execute(c.get("userId")!, c.req.query("cursor"));
+    if (!result.ok)
+      return c.json({ ok: false, reason: result.reason }, reasonStatus(result.reason));
+    return c.json({
+      items: await withFavorites(c, "game", result.items),
+      nextCursor: result.nextCursor,
+    });
   });
 
   // プロフィール更新（ハンドル/表示名）。プロフィールは常に公開（非公開機能は無し）。
@@ -146,11 +153,19 @@ export function registerAccountRoutes(app: Hono<AppEnv>): void {
     return c.json({ ok: true });
   });
 
-  // 別ユーザーの公開プロフィール＋公開半荘（handle か id）。閲覧自由。
+  // 別ユーザーの公開プロフィール＋公開半荘（handle か id・カーソル方式 ?cursor=）。閲覧自由。
   app.get("/users/:idOrHandle/profile", async (c) => {
-    const profile = await c.get("container").getPublicProfile.execute(c.req.param("idOrHandle"));
-    if (!profile) return c.json({ error: "not found" }, 404);
+    const result = await c
+      .get("container")
+      .getPublicProfile.execute(c.req.param("idOrHandle"), c.req.query("cursor"));
+    if (!result.ok) {
+      if (result.reason === "invalid") return c.json({ ok: false, reason: "invalid" }, 400);
+      return c.json({ error: "not found" }, 404);
+    }
     // 一覧カードと同じく★（件数・自分が付けたか）を載せる。
-    return c.json({ ...profile, games: await withFavorites(c, "game", profile.games) });
+    return c.json({
+      ...result.profile,
+      games: await withFavorites(c, "game", result.profile.games),
+    });
   });
 }

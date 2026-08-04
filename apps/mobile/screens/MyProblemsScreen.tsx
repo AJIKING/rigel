@@ -16,6 +16,7 @@ import { FlatList, Pressable, StyleSheet, Text, View } from "react-native";
 import { CenterState } from "../components/CenterState";
 import { Chip } from "../components/Chip";
 import { DangerButton } from "../components/DangerButton";
+import { ListFooter } from "../components/ListFooter";
 import { MyListToolbar } from "../components/MyListToolbar";
 import { StarButton } from "../components/StarButton";
 import { Toolbar } from "../components/Toolbar";
@@ -35,6 +36,7 @@ import type { RootStackParamList } from "../lib/navigation";
 import { KIND_LABELS } from "../lib/problems";
 import { colors, radius } from "../lib/theme";
 import { useFavorites } from "../lib/use-favorites";
+import { useLoadMore } from "../lib/use-load-more";
 
 type Nav = NativeStackNavigationProp<RootStackParamList, "Home">;
 
@@ -66,19 +68,42 @@ export function MyProblemsScreen() {
   // 解析下書き（photo-retention.md）: 写真AI再現の送信で先行作成され、閉じてもここに残る。
   const [drafts, setDrafts] = useState<ProblemDraftCard[]>([]);
 
+  // 追加読み込みの機構（多重発火・reset 競合のガード込み）は useLoadMore（全一覧共通）。
+  const { loadingMore, moreFailed, loadMore, reset, activeRef } = useLoadMore(
+    useCallback(
+      (cursor: string) => (token ? getMyProblems(token, cursor) : Promise.resolve(null)),
+      [token],
+    ),
+    useCallback(
+      (page: { items: ProblemPost[]; nextCursor: string | null }) =>
+        setPosts((prev) => [...prev, ...page.items]),
+      [],
+    ),
+  );
+
   const reload = useCallback(() => {
     if (!token) return;
+    // reload は先頭ページへ戻す（追加読み込み済みの範囲は畳まれる。編集結果の反映を優先）。
     getMyProblems(token)
-      .catch(() => [] as ProblemPost[])
-      .then((list) => {
-        setPosts(list);
+      .catch(() => ({ items: [] as ProblemPost[], nextCursor: null }))
+      .then((page) => {
+        setPosts(page.items);
+        reset(page.nextCursor);
         setLoading(false);
       });
     listProblemDrafts(token)
       .then(setDrafts)
       // 取得失敗を「下書きなし」に化けさせない（解析中の下書きが消えたと誤解される）。
       .catch(() => setErr("解析下書きを読み込めませんでした。"));
-  }, [token]);
+  }, [token, reset]);
+
+  // アンマウント後の setState を防ぐ（追加読み込みの適用ガード）。
+  useEffect(() => {
+    activeRef.current = true;
+    return () => {
+      activeRef.current = false;
+    };
+  }, [activeRef]);
 
   // 編集・作成から戻ったとき一覧を最新化する（牌譜セグメントと同じ流儀）。
   useFocusEffect(
@@ -213,6 +238,9 @@ export function MyProblemsScreen() {
           data={shown}
           keyExtractor={(p) => p.id}
           contentContainerStyle={styles.feed}
+          onEndReached={loadMore}
+          onEndReachedThreshold={0.5}
+          ListFooterComponent={<ListFooter loadingMore={loadingMore} moreFailed={moreFailed} />}
           // 解析下書き（写真AI再現の受け皿）はリストのヘッダに出す
           // （直置きだと下書きが溜まったとき本体一覧がスクロールできなくなる）。
           // 「下書き」バッジは通常問題の draft と紛れるので「解析完了」と呼び分ける。

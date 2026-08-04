@@ -11,11 +11,13 @@ import {
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
-import { type PublicGameCard } from "../../lib/api";
+import { getPublicGames, type PublicGameCard } from "../../lib/api";
 import { fmtDateSlash } from "../../lib/format";
 import { useFavorites } from "../../lib/use-favorites";
+import { useLoadMore } from "../../lib/use-load-more";
 import { AppHeader } from "../AppHeader";
 import { GameCard } from "../GameCard";
+import { LoadMoreButton } from "./LoadMoreButton";
 import gc from "../game-card.module.css";
 import s from "./kifu-list.module.css";
 
@@ -24,16 +26,23 @@ import s from "./kifu-list.module.css";
  *
  * カードは**サーバーで描く**（[決定] 2026-07-26）: SEO 対象のページなので、
  * クライアント取得だと初回 HTML が空になりクローラに中身が届かない。
- * ここは絞り込み・検索・★の操作だけを担い、初期データは props で受け取る
- * （/problems と同じ形）。自分の牌譜は MyKifuScreen（要ログイン・noindex）。
+ * 1ページ目はサーバ（page.tsx）が渡し、「もっと見る」で次ページを追記する
+ * （カーソル方式。絞り込み・検索は読み込み済みの範囲に対して働く。
+ * Plan: docs/plans/list-pagination.md 3-5）。自分の牌譜は MyKifuScreen（要ログイン・noindex）。
  */
 export function PublicKifuScreen({
-  games,
+  initialGames,
+  initialCursor,
   loadFailed = false,
+  fetchPage = getPublicGames,
 }: {
-  games: PublicGameCard[];
+  initialGames: PublicGameCard[];
+  /** 次ページのカーソル（null=これで全部）。 */
+  initialCursor: string | null;
   /** 取得に失敗した（0件ではない）。空状態の案内に化けさせないためのフラグ。 */
   loadFailed?: boolean;
+  /** テスト用の注入口（既定は公開 API クライアント）。 */
+  fetchPage?: typeof getPublicGames;
 }) {
   const router = useRouter();
   // お気に入りはサーバー保存。カードが持つ viewerFaved/favoriteCount に、この画面での操作を重ねる。
@@ -41,6 +50,13 @@ export function PublicKifuScreen({
   // 絞り込みの選択肢と意味は @rigel/ui（mobile と同一）。
   const [filter, setFilter] = useState<FeedFilterKey>("new");
   const [q, setQ] = useState("");
+  const [games, setGames] = useState<PublicGameCard[]>(initialGames);
+  // 追加読み込みの機構（ガード込み）は useLoadMore（全一覧共通）。
+  const { nextCursor, loadingMore, moreFailed, loadMore } = useLoadMore(
+    fetchPage,
+    (page) => setGames((prev) => [...prev, ...page.items]),
+    initialCursor,
+  );
 
   const view = useMemo(() => {
     let arr = apply(games);
@@ -134,6 +150,12 @@ export function PublicKifuScreen({
               ))
             )}
           </div>
+          <LoadMoreButton
+            nextCursor={nextCursor}
+            loadingMore={loadingMore}
+            moreFailed={moreFailed}
+            onLoadMore={() => void loadMore()}
+          />
         </section>
       </main>
     </div>

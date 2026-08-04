@@ -6,6 +6,8 @@
 // 対象（半荘・何切る）はポリモーフィックな参照で外部キーが張れないため、
 // 対象を消すユースケースが deleteByTarget を、退会が deleteByUser を必ず呼ぶ。
 
+import type { ListCursor } from "@rigel/schema";
+
 /** お気に入りを付けられる対象の種別。 */
 export type FavoriteTargetType = "game" | "problem";
 
@@ -21,8 +23,9 @@ export interface FavoriteRepository {
   add(favorite: Favorite): Promise<void>;
   /** 外す（付いていなければ何もしない＝冪等）。 */
   remove(userId: string, targetType: FavoriteTargetType, targetId: string): Promise<void>;
-  /** 自分が付けたお気に入り（新しい順）。 */
-  listByUser(userId: string): Promise<Favorite[]>;
+  /** 自分が付けたお気に入りの1ページ（付けた新しい順・同時刻は targetType:targetId DESC。
+   *  カーソルより古いもののみ・呼び出し側が pageSize+1 を渡す）。 */
+  listByUserPage(userId: string, limit: number, cursor: ListCursor | null): Promise<Favorite[]>;
   /** 対象ごとの件数（表示中のカードぶんだけ引く。0 件の対象はキーごと省く）。 */
   countsByTargets(
     targetType: FavoriteTargetType,

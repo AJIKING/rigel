@@ -311,9 +311,54 @@ describe("ListMyProblems / ListPublishedProblems", () => {
     await d.problems.save(post("p4", "other", "draft"));
 
     const mine = await new ListMyProblems(d.problems).execute("u1");
-    expect(mine.map((p) => p.id).sort()).toEqual(["p1", "p2"]);
+    expect(mine.ok).toBe(true);
+    if (mine.ok) expect(mine.items.map((p) => p.id).sort()).toEqual(["p1", "p2"]);
+    // 不正カーソルは invalid（400）。
+    expect(await new ListMyProblems(d.problems).execute("u1", "junk")).toEqual({
+      ok: false,
+      reason: "invalid",
+    });
 
     const published = await new ListPublishedProblems(d.problems).execute();
-    expect(published.map((p) => p.id).sort()).toEqual(["p2", "p3"]);
+    expect(published.ok).toBe(true);
+    if (published.ok) expect(published.items.map((p) => p.id).sort()).toEqual(["p2", "p3"]);
+  });
+
+  it("published 一覧はカーソルでページを辿れる（新着順・同時刻は id タイブレーク・最終ページで null）", async () => {
+    const d = deps();
+    // 31件（ページサイズ30+1）。p31 が最新・p01 が最古。p02/p03 は同時刻（id タイブレーク検証）。
+    const base = Date.parse("2026-08-01T00:00:00.000Z");
+    for (let i = 1; i <= 31; i++) {
+      const id = `p${String(i).padStart(2, "0")}`;
+      const at = new Date(i === 2 || i === 3 ? base + 2 * 60_000 : base + i * 60_000);
+      await d.problems.save({ ...post(id, "u1", "published"), createdAt: at });
+    }
+
+    const uc = new ListPublishedProblems(d.problems);
+    const page1 = await uc.execute();
+    expect(page1.ok).toBe(true);
+    if (!page1.ok) return;
+    expect(page1.items).toHaveLength(30);
+    expect(page1.items[0]!.id).toBe("p31"); // 最新が先頭
+    expect(page1.nextCursor).not.toBeNull();
+
+    const page2 = await uc.execute(page1.nextCursor!);
+    expect(page2.ok).toBe(true);
+    if (!page2.ok) return;
+    expect(page2.items).toHaveLength(1);
+    expect(page2.nextCursor).toBeNull(); // 最終ページ
+    // 重複も欠落もない（31件が一度ずつ）。
+    const all = [...page1.items, ...page2.items].map((p) => p.id);
+    expect(new Set(all).size).toBe(31);
+    // 同時刻の p02/p03 は id DESC（p03 が先）。
+    expect(all.indexOf("p03")).toBeLessThan(all.indexOf("p02"));
+  });
+
+  it("不正カーソルは invalid（400）", async () => {
+    const d = deps();
+    expect(await new ListPublishedProblems(d.problems).execute("not-a-cursor")).toEqual({
+      ok: false,
+      reason: "invalid",
+    });
   });
 });

@@ -22,14 +22,29 @@ beforeEach(() => {
   mockAuth = { token: "t" };
 });
 
-describe("usePublicGames（公開牌譜フィード・認証不要）", () => {
-  it("成功したら取得した一覧を返す", async () => {
-    mockGetPublicGames.mockResolvedValue([{ id: "g1" }]);
+describe("usePublicGames（公開牌譜フィード・認証不要・カーソル方式）", () => {
+  it("成功したら取得した1ページ目を返す", async () => {
+    mockGetPublicGames.mockResolvedValue({ items: [{ id: "g1" }], nextCursor: null });
     const { result } = renderHook(() => usePublicGames());
 
     await waitFor(() => expect(result.current.loading).toBe(false));
     expect(result.current.games).toEqual([{ id: "g1" }]);
     expect(result.current.error).toBeUndefined();
+  });
+
+  it("loadMore は次ページをカーソル付きで取得して追記し、最終ページ以降は取得しない", async () => {
+    mockGetPublicGames
+      .mockResolvedValueOnce({ items: [{ id: "g1" }], nextCursor: "1000_g1" })
+      .mockResolvedValueOnce({ items: [{ id: "g2" }], nextCursor: null });
+    const { result } = renderHook(() => usePublicGames());
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    result.current.loadMore();
+    await waitFor(() => expect(result.current.games).toEqual([{ id: "g1" }, { id: "g2" }]));
+    expect(mockGetPublicGames).toHaveBeenLastCalledWith("1000_g1");
+
+    result.current.loadMore(); // 最終ページ後は no-op
+    expect(mockGetPublicGames).toHaveBeenCalledTimes(2);
   });
 
   it("通信に失敗したらサンプルを出さず、失敗を伝える（架空の牌譜を本物のように見せない）", async () => {
@@ -61,5 +76,20 @@ describe("useMyGames（要ログイン）", () => {
     await waitFor(() => expect(result.current.loading).toBe(false));
     expect(result.current.sample).toBe(false);
     expect(result.current.error).toBeTruthy();
+  });
+
+  it("loadMore は次ページをカーソル付きで取得して追記し、最終ページ以降は取得しない", async () => {
+    mockGetMyGames
+      .mockResolvedValueOnce({ items: [{ id: "g1" }], nextCursor: "1000_g1" })
+      .mockResolvedValueOnce({ items: [{ id: "g2" }], nextCursor: null });
+    const { result } = renderHook(() => useMyGames());
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    result.current.loadMore();
+    await waitFor(() => expect(result.current.games).toEqual([{ id: "g1" }, { id: "g2" }]));
+    expect(mockGetMyGames).toHaveBeenLastCalledWith("t", "1000_g1");
+
+    result.current.loadMore(); // 最終ページ後は no-op
+    expect(mockGetMyGames).toHaveBeenCalledTimes(2);
   });
 });

@@ -42,12 +42,11 @@ const subjects: [name: string, make: () => Promise<GameLogRepository>][] = [
       await new DrizzleUserRepository(db).save(
         User.create({ id: "u1", googleSub: "sub-1", now: NOW }),
       );
-      await new DrizzleGameRepository(db).save({
-        id: "g1",
-        userId: "u1",
-        title: "",
-        createdAt: NOW,
-      });
+      // FK のため半荘を先に作る（g2/g3 は公開フィードのページング契約テスト用）。
+      const games = new DrizzleGameRepository(db);
+      for (const id of ["g1", "g2", "g3"]) {
+        await games.save({ id, userId: "u1", title: "", createdAt: NOW });
+      }
       return new DrizzleGameLogRepository(db);
     },
   ],
@@ -79,28 +78,43 @@ describe.each(subjects)("GameLogRepository 契約: %s", (_name, make) => {
     expect(saved?.seq).toBe(3);
   });
 
-  it("公開フィードは public かつ complete の局だけを返す", async () => {
-    await repo.save(log({ id: "l1", status: "draft", visibility: "public" })); // 下書き
-    await repo.save(log({ id: "l2", status: "complete", visibility: "private" })); // 非公開
-    await repo.save(log({ id: "l3", status: "complete", visibility: "public" })); // これだけ出る
+  it("公開フィードの半荘グループ: 公開×編集済だけを数え、最新公開局の時刻順に畳む（Kifu 本体は読まない）", async () => {
+    const t = (m: number) => new Date(NOW.getTime() + m * 60_000);
+    // g1: 公開2局（最新は l2）＋下書き1局（数えない）。g2: 公開1局（より新しい）。
+    await repo.save(log({ id: "l1", status: "complete", visibility: "public", createdAt: t(1) }));
+    await repo.save(
+      log({ id: "l2", status: "complete", visibility: "public", seq: 2, createdAt: t(3) }),
+    );
+    await repo.save(log({ id: "l3", status: "draft", visibility: "public", seq: 3 })); // 下書きは出ない
+    await repo.save(
+      log({ id: "l4", gameId: "g2", status: "complete", visibility: "public", createdAt: t(5) }),
+    );
 
-    const rows = await repo.listPublic(10);
-    expect(rows.map((r) => r.id)).toEqual(["l3"]);
+    const rows = await repo.listPublicGameGroups(10, null);
+    expect(rows.map((r) => r.gameId)).toEqual(["g2", "g1"]); // 最新公開局の時刻順
+    expect(rows[1]).toEqual({
+      gameId: "g1",
+      latestAt: t(3),
+      latestLogId: "l2", // 最新公開局の id
+      publicCount: 2, // 下書き・非公開は数えない
+    });
   });
 
-  it("公開フィードの要約は牌譜本体を読まない（一覧のコストを保存内容から切り離す）", async () => {
-    await repo.save(log({ id: "l1", status: "complete", visibility: "public" }));
-    await repo.save(log({ id: "l2", status: "draft", visibility: "public" })); // 下書きは出ない
+  it("公開フィードの半荘グループ: カーソルで続きへ・同時刻は gameId タイブレーク", async () => {
+    const t = (m: number) => new Date(NOW.getTime() + m * 60_000);
+    // g2 と g3 は同時刻（gameId DESC → g3 が先）・g1 が最新。
+    await repo.save(log({ id: "l1", gameId: "g1", status: "complete", visibility: "public", createdAt: t(9) })); // prettier-ignore
+    await repo.save(log({ id: "l2", gameId: "g2", status: "complete", visibility: "public", createdAt: t(5) })); // prettier-ignore
+    await repo.save(log({ id: "l3", gameId: "g3", status: "complete", visibility: "public", createdAt: t(5) })); // prettier-ignore
 
-    const rows = await repo.listPublicSummaries(10);
-    expect(rows.map((r) => r.id)).toEqual(["l1"]);
-    // 一覧に必要なのは所属半荘・著者・時刻だけ。Kifu JSON は読まない（parse もしない）。
-    expect(rows[0]).toEqual({
-      id: "l1",
-      gameId: "g1",
-      userId: "u1",
-      createdAt: NOW,
+    const page1 = await repo.listPublicGameGroups(2, null);
+    expect(page1.map((r) => r.gameId)).toEqual(["g1", "g3"]);
+    const last = page1[1]!;
+    const page2 = await repo.listPublicGameGroups(2, {
+      ms: last.latestAt.getTime(),
+      id: last.gameId,
     });
+    expect(page2.map((r) => r.gameId)).toEqual(["g2"]); // 同時刻の残りが正しく続く
   });
 
   it("編集状態ごとの半荘数を数える（保存上限の判定に使う）", async () => {

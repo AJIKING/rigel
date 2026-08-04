@@ -39,11 +39,8 @@ async function createEmptyKifuRoute(c: Context<AppEnv>, gameId?: string) {
 }
 
 export function registerGameRoutes(app: Hono<AppEnv>): void {
-  // ログインユーザーの半荘一覧。
-  app.get("/games", requireAuth, async (c) => {
-    const games = await c.get("container").listGames.execute(c.get("userId")!);
-    return c.json(games);
-  });
+  // ※ GET /games（素の半荘一覧）は消費者ゼロのため廃止（2026-08-04 品質パス）。
+  //   マイページは件数つきの GET /me/games を使う。
 
   // 半荘の元写真の一覧（恒久保存・所有者のみ。[決定] 2026-08-03 photo-retention.md）。
   // 公開半荘でも写真は露出しない。他人・不存在は 404（存在を漏らさない）。
@@ -69,11 +66,16 @@ export function registerGameRoutes(app: Hono<AppEnv>): void {
     return photoBody(c, photo);
   });
 
-  // 公開牌譜フィード: 公開局を含む半荘を新着順に（全ユーザー・閲覧は自由）。
-  // カードにはお気に入り数（人気順の並べ替えに使う）と自分が付けたかを載せる。
+  // 公開牌譜フィード: 公開局を含む半荘を最新公開局の時刻順に（全ユーザー・閲覧は自由・
+  // カーソル方式 ?cursor=）。カードにはお気に入り数と自分が付けたかを載せる。
   app.get("/games/public", async (c) => {
-    const cards = await c.get("container").listPublicGames.execute();
-    return c.json(await withFavorites(c, "game", cards));
+    const result = await c.get("container").listPublicGames.execute(c.req.query("cursor"));
+    if (!result.ok)
+      return c.json({ ok: false, reason: result.reason }, reasonStatus(result.reason));
+    return c.json({
+      items: await withFavorites(c, "game", result.items),
+      nextCursor: result.nextCursor,
+    });
   });
 
   // 公開半荘の取得（読み取り専用ビューア用。公開局＋所有者表示。閲覧は自由）。

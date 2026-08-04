@@ -21,8 +21,14 @@ export const dynamic = "force-dynamic";
 export default async function KifuListPage() {
   // 取得失敗を「0件」に化けさせない（空状態の案内を出すと通信失敗に気づけない）。
   const loaded = await getPublicGames().then(
-    (games) => ({ ok: true as const, games }),
-    () => ({ ok: false as const, games: [] }),
+    (page) => ({ ok: true as const, page }),
+    () => ({ ok: false as const, page: { items: [], nextCursor: null } }),
   );
-  return <PublicKifuScreen games={loaded.games} loadFailed={!loaded.ok} />;
+  return (
+    <PublicKifuScreen
+      initialGames={loaded.page.items}
+      initialCursor={loaded.page.nextCursor}
+      loadFailed={!loaded.ok}
+    />
+  );
 }

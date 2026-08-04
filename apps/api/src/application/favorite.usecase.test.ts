@@ -89,6 +89,7 @@ function world() {
   const now = () => NOW;
   return {
     favorites,
+    problems,
     setFavorite: new SetFavorite({ favorites, games, gameLogs, problems, now }),
     summary: new GetFavoriteSummary(favorites),
     listMine: new ListMyFavorites({ favorites, games, gameLogs, problems, users }),
@@ -162,6 +163,13 @@ describe("GetFavoriteSummary（一覧カードに重ねる集計）", () => {
 });
 
 describe("ListMyFavorites（マイページのお気に入りタブ）", () => {
+  /** ok を剥がして中身を返す（invalid ならテスト失敗）。 */
+  const listMine = async (w: ReturnType<typeof world>, cursor?: string) => {
+    const out = await w.listMine.execute("me", cursor);
+    if (!out.ok) throw new Error("ok のはず");
+    return out;
+  };
+
   it("他人の公開物と自分のもの（非公開・下書き含む）を、付けた新しい順で返す", async () => {
     const w = world();
     await w.setFavorite.execute({ userId: "me", targetType: "game", targetId: "g-mine", faved: true }); // prettier-ignore
@@ -171,7 +179,7 @@ describe("ListMyFavorites（マイページのお気に入りタブ）", () => {
     // p-mine のほうが後（＝新しい）。
     await w.favorites.add({ userId: "me", targetType: "problem", targetId: "p-mine", createdAt: new Date(NOW.getTime() + 1000) }); // prettier-ignore
 
-    const out = await w.listMine.execute("me");
+    const out = await listMine(w);
     expect(out.games.map((g) => [g.id, g.mine])).toEqual([
       ["g-pub", false],
       ["g-mine", true],
@@ -194,7 +202,12 @@ describe("ListMyFavorites（マイページのお気に入りタブ）", () => {
       createdAt: NOW,
     });
 
-    expect(await w.listMine.execute("me")).toEqual({ games: [], problems: [] });
+    expect(await w.listMine.execute("me")).toEqual({
+      ok: true,
+      games: [],
+      problems: [],
+      nextCursor: null,
+    });
   });
 
   it("カードに著者（handle/表示名）とお気に入り数を載せる", async () => {
@@ -202,7 +215,7 @@ describe("ListMyFavorites（マイページのお気に入りタブ）", () => {
     await w.setFavorite.execute({ userId: "me", targetType: "game", targetId: "g-pub", faved: true }); // prettier-ignore
     await w.setFavorite.execute({ userId: "other", targetType: "game", targetId: "g-pub", faved: true }); // prettier-ignore
 
-    const [card] = (await w.listMine.execute("me")).games;
+    const [card] = (await listMine(w)).games;
     expect(card).toMatchObject({
       id: "g-pub",
       ownerId: "other",
@@ -218,6 +231,36 @@ describe("ListMyFavorites（マイページのお気に入りタブ）", () => {
     const w = world();
     await w.setFavorite.execute({ userId: "me", targetType: "game", targetId: "g-mine", faved: true }); // prettier-ignore
     // g-mine は非公開・下書きの1局だけ。自分のものなので局数は 1 で出る。
-    expect((await w.listMine.execute("me")).games[0]).toMatchObject({ kyokuCount: 1, mine: true });
+    expect((await listMine(w)).games[0]).toMatchObject({ kyokuCount: 1, mine: true });
+  });
+
+  it("30件を超えると nextCursor を返し、次ページに重複なく続く（見えない対象で数を欠いてもページは進む）", async () => {
+    const w = world();
+    // 同一対象へのお気に入りは1人1件なので、対象を31件ぶん用意する（公開問題で揃える）。
+    for (let i = 0; i < 31; i++) {
+      const id = `pp${String(i).padStart(2, "0")}`;
+      await w.problems.save(post(id, "other"));
+      await w.favorites.add({
+        userId: "me",
+        targetType: "problem",
+        targetId: id,
+        createdAt: new Date(NOW.getTime() + i * 1000),
+      });
+    }
+
+    const page1 = await listMine(w);
+    expect(page1.problems).toHaveLength(30);
+    expect(page1.nextCursor).not.toBeNull();
+
+    const page2 = await listMine(w, page1.nextCursor!);
+    expect(page2.problems.map((p) => p.id)).toEqual(["pp00"]);
+    expect(page2.nextCursor).toBeNull();
+  });
+
+  it("不正カーソルは invalid", async () => {
+    expect(await world().listMine.execute("me", "junk")).toEqual({
+      ok: false,
+      reason: "invalid",
+    });
   });
 });

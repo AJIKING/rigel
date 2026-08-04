@@ -51,7 +51,7 @@ describe("ProblemListScreen（公開一覧。牌譜一覧と同じカードUI）
     stubMe(null);
     render(
       <AuthProvider>
-        <ProblemListScreen posts={[post("p1"), post("p2")]} />
+        <ProblemListScreen initialCursor={null} initialPosts={[post("p1"), post("p2")]} />
       </AuthProvider>,
     );
     const card = await screen.findByRole("button", { name: /問題p1/ });
@@ -65,7 +65,7 @@ describe("ProblemListScreen（公開一覧。牌譜一覧と同じカードUI）
     stubMe(null);
     render(
       <AuthProvider>
-        <ProblemListScreen posts={[post("p1")]} />
+        <ProblemListScreen initialCursor={null} initialPosts={[post("p1")]} />
       </AuthProvider>,
     );
     await screen.findByText("問題p1");
@@ -79,7 +79,7 @@ describe("ProblemListScreen（公開一覧。牌譜一覧と同じカードUI）
     stubMe(null);
     render(
       <AuthProvider>
-        <ProblemListScreen posts={[post("p1"), post("p2")]} />
+        <ProblemListScreen initialCursor={null} initialPosts={[post("p1"), post("p2")]} />
       </AuthProvider>,
     );
     fireEvent.change(await screen.findByLabelText("何切る問題を検索"), {
@@ -93,10 +93,55 @@ describe("ProblemListScreen（公開一覧。牌譜一覧と同じカードUI）
     stubMe(null);
     render(
       <AuthProvider>
-        <ProblemListScreen posts={[]} />
+        <ProblemListScreen initialCursor={null} initialPosts={[]} />
       </AuthProvider>,
     );
     expect(await screen.findByText(/まだ公開された問題がありません/)).toBeTruthy();
+  });
+
+  it("nextCursor がある間だけ「もっと見る」が出て、クリックで次ページを追記する", async () => {
+    stubMe(null);
+    const fetchPage = vi.fn().mockResolvedValue({ items: [post("p3")], nextCursor: null });
+    render(
+      <AuthProvider>
+        <ProblemListScreen
+          initialPosts={[post("p1"), post("p2")]}
+          initialCursor="1000_p2"
+          fetchPage={fetchPage}
+        />
+      </AuthProvider>,
+    );
+    const more = await screen.findByRole("button", { name: "もっと見る" });
+    fireEvent.click(more);
+    await waitFor(() => expect(screen.getByText("問題p3")).toBeTruthy());
+    expect(fetchPage).toHaveBeenCalledWith("1000_p2");
+    // 既存の表示は保たれ、最終ページに達したのでボタンは消える。
+    expect(screen.getByText("問題p1")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "もっと見る" })).toBeNull();
+  });
+
+  it("追加読み込みの失敗は一覧を保ったまま文言を出し、再試行できる", async () => {
+    stubMe(null);
+    const fetchPage = vi
+      .fn()
+      .mockRejectedValueOnce(new Error("network"))
+      .mockResolvedValueOnce({ items: [post("p3")], nextCursor: null });
+    render(
+      <AuthProvider>
+        <ProblemListScreen
+          initialPosts={[post("p1")]}
+          initialCursor="1000_p1"
+          fetchPage={fetchPage}
+        />
+      </AuthProvider>,
+    );
+    fireEvent.click(await screen.findByRole("button", { name: "もっと見る" }));
+    await waitFor(() => expect(screen.getByText(/続きを読み込めませんでした/)).toBeTruthy());
+    expect(screen.getByText("問題p1")).toBeTruthy(); // 表示中の一覧は保つ
+
+    fireEvent.click(screen.getByRole("button", { name: "もっと見る" }));
+    await waitFor(() => expect(screen.getByText("問題p3")).toBeTruthy());
+    expect(screen.queryByText(/続きを読み込めませんでした/)).toBeNull();
   });
 
   it("牌譜一覧と同じ絞り込み（新着/人気/今週/お気に入り）ができる", async () => {
@@ -110,7 +155,7 @@ describe("ProblemListScreen（公開一覧。牌譜一覧と同じカードUI）
     const recent = { ...post("new"), title: "今週の問題", createdAt: new Date().toISOString() };
     render(
       <AuthProvider>
-        <ProblemListScreen posts={[old, recent]} />
+        <ProblemListScreen initialCursor={null} initialPosts={[old, recent]} />
       </AuthProvider>,
     );
     expect(await screen.findByText("古い問題")).toBeTruthy();
@@ -137,7 +182,10 @@ describe("MyProblemsScreen（マイ何切る。牌譜マイページと同じ構
     stubMe("free");
     render(
       <AuthProvider>
-        <MyProblemsScreen initialPosts={[post("p1", "draft"), post("p2", "published")]} />
+        <MyProblemsScreen
+          initialCursor={null}
+          initialPosts={[post("p1", "draft"), post("p2", "published")]}
+        />
       </AuthProvider>,
     );
     // 「下書き/公開」は統計とバッジの両方に出る（牌譜マイページと同じ構造）。
@@ -150,7 +198,10 @@ describe("MyProblemsScreen（マイ何切る。牌譜マイページと同じ構
     stubMe("free");
     render(
       <AuthProvider>
-        <MyProblemsScreen initialPosts={[post("p1", "draft"), post("p2", "published")]} />
+        <MyProblemsScreen
+          initialCursor={null}
+          initialPosts={[post("p1", "draft"), post("p2", "published")]}
+        />
       </AuthProvider>,
     );
     fireEvent.change(await screen.findByLabelText("状態で絞り込み"), {
@@ -164,7 +215,7 @@ describe("MyProblemsScreen（マイ何切る。牌譜マイページと同じ構
     stubMe("free");
     render(
       <AuthProvider>
-        <MyProblemsScreen initialPosts={[post("p1", "draft")]} />
+        <MyProblemsScreen initialCursor={null} initialPosts={[post("p1", "draft")]} />
       </AuthProvider>,
     );
     fireEvent.click(await screen.findByRole("button", { name: "公開する" }));
@@ -179,7 +230,7 @@ describe("MyProblemsScreen（マイ何切る。牌譜マイページと同じ構
     vi.stubGlobal("confirm", confirm);
     render(
       <AuthProvider>
-        <MyProblemsScreen initialPosts={[post("p1", "draft")]} />
+        <MyProblemsScreen initialCursor={null} initialPosts={[post("p1", "draft")]} />
       </AuthProvider>,
     );
     const del = await screen.findByRole("button", { name: "削除" });
@@ -196,7 +247,7 @@ describe("MyProblemsScreen（マイ何切る。牌譜マイページと同じ構
     stubMe("free");
     render(
       <AuthProvider>
-        <MyProblemsScreen initialPosts={[]} />
+        <MyProblemsScreen initialCursor={null} initialPosts={[]} />
       </AuthProvider>,
     );
     expect(await screen.findByText(/まだ問題がありません/)).toBeTruthy();
@@ -206,7 +257,7 @@ describe("MyProblemsScreen（マイ何切る。牌譜マイページと同じ構
     stubMe("free");
     render(
       <AuthProvider>
-        <MyProblemsScreen initialPosts={[post("p1")]} />
+        <MyProblemsScreen initialCursor={null} initialPosts={[post("p1")]} />
       </AuthProvider>,
     );
     expect(await screen.findByLabelText("問題を検索")).toBeTruthy();
@@ -226,6 +277,7 @@ describe("MyProblemsScreen（マイ何切る。牌譜マイページと同じ構
     render(
       <AuthProvider>
         <MyProblemsScreen
+          initialCursor={null}
           initialPosts={[
             post("p1", "published", { viewerFaved: true }),
             post("p2", "published"),
@@ -250,6 +302,7 @@ describe("MyProblemsScreen（マイ何切る。牌譜マイページと同じ構
     render(
       <AuthProvider>
         <MyProblemsScreen
+          initialCursor={null}
           initialPosts={[
             post("p1", "published", { favoriteCount: 1 }),
             post("p2", "published", { favoriteCount: 8 }),
@@ -268,7 +321,10 @@ describe("MyProblemsScreen（マイ何切る。牌譜マイページと同じ構
     stubMe("free");
     render(
       <AuthProvider>
-        <MyProblemsScreen initialPosts={[post("p1", "published", { favoriteCount: 4 })]} />
+        <MyProblemsScreen
+          initialCursor={null}
+          initialPosts={[post("p1", "published", { favoriteCount: 4 })]}
+        />
       </AuthProvider>,
     );
     fireEvent.click(await screen.findByRole("button", { name: "お気に入り（4件）" }));
@@ -282,7 +338,10 @@ describe("MyProblemsScreen（マイ何切る。牌譜マイページと同じ構
     h.setFavoriteAction.mockResolvedValue({ ok: false, status: 404 });
     render(
       <AuthProvider>
-        <MyProblemsScreen initialPosts={[post("p1", "published", { favoriteCount: 4 })]} />
+        <MyProblemsScreen
+          initialCursor={null}
+          initialPosts={[post("p1", "published", { favoriteCount: 4 })]}
+        />
       </AuthProvider>,
     );
     fireEvent.click(await screen.findByRole("button", { name: "お気に入り（4件）" }));

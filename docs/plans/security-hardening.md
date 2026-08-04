@@ -109,11 +109,15 @@ WHERE id = ?userId
 **問題の構造**: 公開フィードが `SELECT *`（Kifu JSON 込み）で200行取り、全行に `KifuSchema.parse` を掛けている。**コストが保存された JSON サイズに比例**するので、B-1 の上限と合わせても一覧の重さが残る。
 
 **設計**: リポジトリに**一覧専用の射影メソッド**を足す（CQRS-lite）。
-- `listPublicSummaries(limit)`: `id, gameId, userId, seq, createdAt` **だけ**を SELECT（kifu カラムを読まない・parse しない）。
+- 一覧専用クエリは `id, gameId, userId, seq, createdAt` 等 **だけ**を SELECT（kifu カラムを読まない・parse しない）。
 - 半荘・著者の N+1（`findById` を件数分）は `IN (...)` の一括取得に置き換える。
 - 公開プロフィール（`getPublicProfile`）も同様に、半荘ごとの全局 parse をやめて件数だけ数える。
 
 一覧に Kifu 本体は要らない、という当たり前の分離。**これで公開エンドポイントのコストが「保存内容」から切り離される**（乱用の増幅係数が消える）。
+
+> 2026-08-04 更新: この設計は一覧ページネーション（[list-pagination.md](list-pagination.md)）で
+> `listPublicGameGroups`（GROUP BY game_id の集約・kifu 非読）として実装され、途中案の
+> `listPublicSummaries` は置き換え済み。公開プロフィールも同じ集約ページングに乗った。
 
 ---
 

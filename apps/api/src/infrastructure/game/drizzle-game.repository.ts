@@ -1,6 +1,7 @@
 // infrastructure/game — GameRepository の Drizzle/D1 実装。
 
-import { desc, eq } from "drizzle-orm";
+import type { ListCursor } from "@rigel/schema";
+import { and, desc, eq, lt, or } from "drizzle-orm";
 import type { Game } from "../../domain/game/game";
 import type { GameRepository } from "../../domain/game/game.repository";
 import type { Db } from "../db/client";
@@ -19,6 +20,27 @@ export class DrizzleGameRepository implements GameRepository {
       .from(games)
       .where(eq(games.userId, userId))
       .orderBy(desc(games.createdAt))
+      .all();
+    return rows.map(toDomain);
+  }
+
+  async listByUserPage(userId: string, limit: number, cursor: ListCursor | null): Promise<Game[]> {
+    const rows = await this.db
+      .select()
+      .from(games)
+      .where(
+        and(
+          eq(games.userId, userId),
+          cursor === null
+            ? undefined
+            : or(
+                lt(games.createdAt, new Date(cursor.ms)),
+                and(eq(games.createdAt, new Date(cursor.ms)), lt(games.id, cursor.id)),
+              ),
+        ),
+      )
+      .orderBy(desc(games.createdAt), desc(games.id))
+      .limit(limit)
       .all();
     return rows.map(toDomain);
   }

@@ -18,7 +18,7 @@ export default async function MyPageFavoritesPage() {
   // 取得失敗を「0件」に化けさせない（空状態の案内を出すと通信失敗に気づけない）。
   const loaded = await listMyFavorites(token).then(
     (r) => ({ ok: true as const, ...r }),
-    () => ({ ok: false as const, games: [], problems: [] }),
+    () => ({ ok: false as const, games: [], problems: [], nextCursor: null }),
   );
   // 信頼ゲート: 検証を通っていない問題データを画面へ流さない（壊れた1件はスキップ）。
   const safeProblems = loaded.problems.flatMap((p) => {
@@ -29,6 +29,7 @@ export default async function MyPageFavoritesPage() {
     <MyFavoritesScreen
       initialGames={loaded.games}
       initialProblems={safeProblems}
+      initialCursor={loaded.nextCursor}
       loadFailed={!loaded.ok}
     />
   );

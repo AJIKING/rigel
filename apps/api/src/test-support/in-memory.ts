@@ -1,6 +1,6 @@
 // テスト用の in-memory リポジトリ（ポートのフェイク実装）。本番バンドルには含まれない。
 
-import type { QuizKind, QuizRankingRow } from "@rigel/schema";
+import type { ListCursor, QuizKind, QuizRankingRow } from "@rigel/schema";
 import type {
   AnalysisCommitInput,
   AnalysisCounterDelta,
@@ -15,8 +15,8 @@ import type {
 } from "../domain/favorite/favorite.repository";
 import type { Game } from "../domain/game/game";
 import type { GameRepository } from "../domain/game/game.repository";
-import type { GameLog, GameLogSummary, KifuStatus, Visibility } from "../domain/kifu/game-log";
-import type { GameLogRepository } from "../domain/kifu/game-log.repository";
+import type { GameLog, KifuStatus, Visibility } from "../domain/kifu/game-log";
+import type { GameLogRepository, PublicGameGroup } from "../domain/kifu/game-log.repository";
 import type { ProblemPost } from "../domain/problem/problem";
 import type {
   ProblemAnswer,
@@ -150,24 +150,45 @@ export class InMemoryGameLogRepository implements GameLogRepository {
     return Promise.resolve(games.size);
   }
 
-  listPublic(limit: number): Promise<GameLog[]> {
+  listPublicGameGroups(
+    limit: number,
+    cursor: ListCursor | null,
+    userId?: string,
+  ): Promise<PublicGameGroup[]> {
+    // 本物（GROUP BY game_id）と同じ形: 半荘ごとに最新公開局・公開局数へ畳む。
+    const byGame = new Map<string, PublicGameGroup>();
+    for (const l of this.saved) {
+      if (l.visibility !== "public" || l.status !== "complete" || !l.gameId) continue;
+      if (userId !== undefined && l.userId !== userId) continue;
+      const cur = byGame.get(l.gameId);
+      if (!cur) {
+        byGame.set(l.gameId, {
+          gameId: l.gameId,
+          latestAt: l.createdAt,
+          latestLogId: l.id,
+          publicCount: 1,
+        });
+      } else {
+        cur.publicCount += 1;
+        if (l.createdAt.getTime() > cur.latestAt.getTime()) {
+          cur.latestAt = l.createdAt;
+          cur.latestLogId = l.id;
+        }
+      }
+    }
     return Promise.resolve(
-      this.saved
-        .filter((g) => g.visibility === "public" && g.status === "complete")
-        .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+      [...byGame.values()]
+        .filter(
+          (g) =>
+            cursor === null ||
+            g.latestAt.getTime() < cursor.ms ||
+            (g.latestAt.getTime() === cursor.ms && g.gameId < cursor.id),
+        )
+        .sort(
+          (a, b) => b.latestAt.getTime() - a.latestAt.getTime() || (a.gameId < b.gameId ? 1 : -1),
+        )
         .slice(0, limit),
     );
-  }
-
-  async listPublicSummaries(limit: number): Promise<GameLogSummary[]> {
-    const rows = await this.listPublic(limit);
-    // 本物（SELECT で kifu を読まない）と同じ形の要約を返す。
-    return rows.map((l) => ({
-      id: l.id,
-      gameId: l.gameId,
-      userId: l.userId,
-      createdAt: l.createdAt,
-    }));
   }
 
   deleteById(id: string): Promise<void> {
@@ -200,6 +221,21 @@ export class InMemoryGameRepository implements GameRepository {
 
   listByUser(userId: string): Promise<Game[]> {
     return Promise.resolve([...this.byId.values()].filter((g) => g.userId === userId));
+  }
+
+  listByUserPage(userId: string, limit: number, cursor: ListCursor | null): Promise<Game[]> {
+    return Promise.resolve(
+      [...this.byId.values()]
+        .filter((g) => g.userId === userId)
+        .filter(
+          (g) =>
+            cursor === null ||
+            g.createdAt.getTime() < cursor.ms ||
+            (g.createdAt.getTime() === cursor.ms && g.id < cursor.id),
+        )
+        .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime() || (a.id < b.id ? 1 : -1))
+        .slice(0, limit),
+    );
   }
 
   findById(id: string): Promise<Game | null> {
@@ -235,11 +271,32 @@ export class InMemoryProblemRepository implements ProblemRepository {
     return Promise.resolve([...this.byId.values()].filter((p) => p.userId === userId));
   }
 
-  listPublished(limit: number): Promise<ProblemPost[]> {
+  listByUserPage(userId: string, limit: number, cursor: ListCursor | null): Promise<ProblemPost[]> {
+    return Promise.resolve(
+      [...this.byId.values()]
+        .filter((p) => p.userId === userId)
+        .filter(
+          (p) =>
+            cursor === null ||
+            p.createdAt.getTime() < cursor.ms ||
+            (p.createdAt.getTime() === cursor.ms && p.id < cursor.id),
+        )
+        .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime() || (a.id < b.id ? 1 : -1))
+        .slice(0, limit),
+    );
+  }
+
+  listPublished(limit: number, cursor: ListCursor | null): Promise<ProblemPost[]> {
     return Promise.resolve(
       [...this.byId.values()]
         .filter((p) => p.status === "published")
-        .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+        .filter(
+          (p) =>
+            cursor === null ||
+            p.createdAt.getTime() < cursor.ms ||
+            (p.createdAt.getTime() === cursor.ms && p.id < cursor.id),
+        )
+        .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime() || (a.id < b.id ? 1 : -1))
         .slice(0, limit),
     );
   }
@@ -297,11 +354,19 @@ export class InMemoryFavoriteRepository implements FavoriteRepository {
     return Promise.resolve();
   }
 
-  listByUser(userId: string): Promise<Favorite[]> {
+  listByUserPage(userId: string, limit: number, cursor: ListCursor | null): Promise<Favorite[]> {
+    const key = (f: Favorite) => `${f.targetType}:${f.targetId}`;
     return Promise.resolve(
       this.rows
         .filter((f) => f.userId === userId)
-        .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime()),
+        .filter(
+          (f) =>
+            cursor === null ||
+            f.createdAt.getTime() < cursor.ms ||
+            (f.createdAt.getTime() === cursor.ms && key(f) < cursor.id),
+        )
+        .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime() || (key(a) < key(b) ? 1 : -1))
+        .slice(0, limit),
     );
   }
 

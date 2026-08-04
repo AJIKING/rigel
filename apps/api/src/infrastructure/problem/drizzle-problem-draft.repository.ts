@@ -58,6 +58,10 @@ export class DrizzleProblemDraftRepository implements ProblemDraftRepository {
   }
 
   async listByUser(userId: string): Promise<ProblemDraft[]> {
+    // LIMIT は付けない: DeleteAccount の写真掃除（R2）がこの全件列挙に依存する
+    // （欠けるとルール7「データ削除で必ず消す」に穴が開く）。件数は解析枠
+    // （下書きは解析実行ごとに先行作成→保存/破棄で畳まれる）で自然に有界。
+    // Plan: list-pagination.md 7章の逸脱メモ参照。
     const rows = await this.db
       .select()
       .from(problemDrafts)

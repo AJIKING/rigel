@@ -42,11 +42,6 @@ export function isVisibleTo(
   return log.visibility === "public" && log.status === "complete";
 }
 
-/** 公開フィード用の局の要約（Kifu 本体を含まない読み取りモデル）。
- *  一覧のコストを「保存された牌譜のサイズ」から切り離すために使う。 */
-export interface GameLogSummary {
-  id: string;
-  gameId: string | null;
-  userId: string;
-  createdAt: Date;
-}
+// 旧 GameLogSummary（公開フィードの局要約）は、半荘を直接ページングする
+// PublicGameGroup（game-log.repository.ts）に置き換えて廃止（2026-08-04。
+// Plan: docs/plans/list-pagination.md 3-4）。

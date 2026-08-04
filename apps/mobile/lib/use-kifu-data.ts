@@ -10,6 +10,7 @@ import {
 } from "./api";
 import { useAuth } from "./auth";
 import { sampleGameDetail, sampleMyGames } from "./sample-data";
+import { useLoadMore } from "./use-load-more";
 
 interface ResourceState<T> {
   loading: boolean;
@@ -65,19 +66,64 @@ function useAuthedData<T>(
   return { ...state, refetch };
 }
 
+/** マイ牌譜一覧（要ログイン・カーソル方式）。refetch は先頭ページへ戻す
+ *  （追加読み込み済みの範囲は畳まれる。解析完了・削除の反映を優先）。 */
 export function useMyGames() {
-  const s = useAuthedData(
-    getMyGames,
-    { sample: sampleMyGames, empty: [] as MyGameCard[] },
-    "my-games",
+  const { token, loading: authLoading } = useAuth();
+  const [state, setState] = useState<{
+    loading: boolean;
+    games: MyGameCard[];
+    sample: boolean;
+    error?: string;
+  }>({ loading: true, games: [], sample: false });
+  // refetch はこのカウンタを進めて effect を再実行させる。
+  const [tick, setTick] = useState(0);
+  const refetch = useCallback(() => setTick((t) => t + 1), []);
+  // 追加読み込みの機構（多重発火・reset 競合のガード込み）は useLoadMore（全一覧共通）。
+  const { loadingMore, moreFailed, loadMore, reset, activeRef } = useLoadMore(
+    useCallback(
+      (cursor: string) => (token ? getMyGames(token, cursor) : Promise.resolve(null)),
+      [token],
+    ),
+    useCallback(
+      (page: { items: MyGameCard[]; nextCursor: string | null }) =>
+        setState((prev) => ({ ...prev, games: [...prev.games, ...page.items] })),
+      [],
+    ),
   );
-  return {
-    loading: s.loading,
-    games: s.data,
-    sample: s.sample,
-    error: s.error,
-    refetch: s.refetch,
-  };
+
+  useEffect(() => {
+    activeRef.current = true;
+    if (authLoading) return;
+    if (!token) {
+      setState({ loading: false, games: sampleMyGames, sample: true });
+      reset(null);
+      return;
+    }
+    getMyGames(token)
+      .then((page) => {
+        if (activeRef.current) {
+          setState({ loading: false, games: page.items, sample: false });
+          reset(page.nextCursor);
+        }
+      })
+      .catch(() => {
+        if (activeRef.current) {
+          // 既に一覧が出ているなら消さない（refetch 失敗で画面を白紙に戻さない）。
+          setState((prev) => ({
+            loading: false,
+            games: prev.games,
+            sample: false,
+            error: LIST_LOAD_ERROR_MESSAGE,
+          }));
+        }
+      });
+    return () => {
+      activeRef.current = false;
+    };
+  }, [token, authLoading, tick, reset, activeRef]);
+
+  return { ...state, refetch, loadMore, loadingMore, moreFailed };
 }
 
 /**
@@ -93,24 +139,36 @@ export function usePublicGames() {
     sample: boolean;
     error?: string;
   }>({ loading: true, games: [], sample: false });
+  // 追加読み込みの機構（多重発火・reset 競合のガード込み）は useLoadMore（全一覧共通）。
+  const { loadingMore, moreFailed, loadMore, reset, activeRef } = useLoadMore(
+    getPublicGames,
+    useCallback(
+      (page: { items: PublicGameCard[]; nextCursor: string | null }) =>
+        setState((prev) => ({ ...prev, games: [...prev.games, ...page.items] })),
+      [],
+    ),
+  );
 
   useEffect(() => {
-    let active = true;
+    activeRef.current = true;
     getPublicGames()
-      .then((games) => {
-        if (active) setState({ loading: false, games, sample: false });
+      .then((page) => {
+        if (activeRef.current) {
+          setState({ loading: false, games: page.items, sample: false });
+          reset(page.nextCursor);
+        }
       })
       .catch(() => {
-        if (active) {
+        if (activeRef.current) {
           setState({ loading: false, games: [], sample: false, error: LIST_LOAD_ERROR_MESSAGE });
         }
       });
     return () => {
-      active = false;
+      activeRef.current = false;
     };
-  }, []);
+  }, [reset, activeRef]);
 
-  return state;
+  return { ...state, loadMore, loadingMore, moreFailed };
 }
 
 export function useGame(id: string) {

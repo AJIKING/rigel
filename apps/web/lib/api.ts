@@ -23,7 +23,6 @@ const client = createApiClient(process.env.NEXT_PUBLIC_API_URL ?? "");
 export const {
   authWithGoogle,
   fetchMe,
-  getGames,
   getMyGames,
   getPublicGames,
   getGame,

@@ -13,6 +13,7 @@ import type { GameLogRepository } from "../domain/kifu/game-log.repository";
 import type { AccountStore } from "../domain/user/account-store";
 import type { UserRepository } from "../domain/user/user.repository";
 import type { PublicGameCard } from "./list-game-cards.usecase";
+import { fetchPage } from "./pagination";
 
 /** 英数字とアンダースコア、3〜20文字。 */
 const HANDLE_RE = /^[a-zA-Z0-9_]{3,20}$/;
@@ -60,9 +61,17 @@ export interface PublicProfile {
   id: string;
   handle: string | null;
   displayName: string;
-  /** その人の公開半荘（新着順）。 */
+  /** その人の公開半荘（最新公開局の時刻順・1ページ分）。 */
   games: PublicGameCard[];
+  /** 公開半荘の次ページカーソル（null=これで全部）。 */
+  nextCursor: string | null;
 }
+
+/** 公開ユーザーページの半荘ページサイズ（Plan: docs/plans/list-pagination.md 3-3）。 */
+const PROFILE_GAMES_PAGE_SIZE = 20;
+
+export type GetPublicProfileResult =
+  { ok: true; profile: PublicProfile } | { ok: false; reason: "invalid" | "not_found" };
 
 export class GetPublicProfile {
   constructor(
@@ -71,35 +80,47 @@ export class GetPublicProfile {
     private readonly gameLogs: GameLogRepository,
   ) {}
 
-  /** handle 優先で解決し、無ければ id で探す。存在しなければ null（プロフィールは常に公開）。 */
-  async execute(idOrHandle: string): Promise<PublicProfile | null> {
+  /** handle 優先で解決し、無ければ id で探す（プロフィールは常に公開）。
+   *  公開半荘はカーソル方式の1ページ（旧実装の「全半荘×全局の走査」は、匿名で誘発できる
+   *  非有界読み取りだったため、公開フィードと同じ集約ページングに置き換えた）。 */
+  async execute(idOrHandle: string, cursorRaw?: string): Promise<GetPublicProfileResult> {
     const user =
       (await this.users.findByHandle(idOrHandle)) ?? (await this.users.findById(idOrHandle));
-    if (!user) return null;
+    if (!user) return { ok: false, reason: "not_found" };
 
-    const userGames = await this.games.listByUser(user.id);
+    const page = await fetchPage(
+      cursorRaw,
+      PROFILE_GAMES_PAGE_SIZE,
+      (limit, cursor) => this.gameLogs.listPublicGameGroups(limit, cursor, user.id),
+      (g) => ({ ms: g.latestAt.getTime(), id: g.gameId }),
+    );
+    if (!page.ok) return page;
+
     const cards: PublicGameCard[] = [];
-    for (const g of userGames) {
-      const logs = await this.gameLogs.listByGame(g.id);
-      const publicLogs = logs
-        // 公開フィード・isVisibleTo と同じ規律（public かつ complete）。目検前のドラフトは載せない。
-        .filter((l) => l.visibility === "public" && l.status === "complete")
-        .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
-      if (publicLogs.length > 0) {
-        cards.push({
-          id: g.id,
-          ownerId: user.id,
-          ownerHandle: user.handle,
-          ownerName: user.displayName || null,
-          title: g.title,
-          createdAt: g.createdAt,
-          kyokuCount: publicLogs.length,
-          firstLogId: publicLogs[0]!.id,
-        });
-      }
+    for (const g of page.items) {
+      const game = await this.games.findById(g.gameId);
+      if (!game) continue; // 読んでいる間に削除された半荘はスキップ
+      cards.push({
+        id: game.id,
+        ownerId: user.id,
+        ownerHandle: user.handle,
+        ownerName: user.displayName || null,
+        title: game.title,
+        createdAt: game.createdAt,
+        kyokuCount: g.publicCount,
+        firstLogId: g.latestLogId,
+      });
     }
-    cards.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
-    return { id: user.id, handle: user.handle, displayName: user.displayName, games: cards };
+    return {
+      ok: true,
+      profile: {
+        id: user.id,
+        handle: user.handle,
+        displayName: user.displayName,
+        games: cards,
+        nextCursor: page.nextCursor,
+      },
+    };
   }
 }
 

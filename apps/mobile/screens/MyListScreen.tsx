@@ -14,6 +14,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { FlatList, Pressable, StyleSheet, Text, View } from "react-native";
 import { CenterState } from "../components/CenterState";
 import { KifuCard } from "../components/KifuCard";
+import { ListFooter } from "../components/ListFooter";
 import { MyListToolbar } from "../components/MyListToolbar";
 import { Toolbar } from "../components/Toolbar";
 import { deleteGame } from "../lib/api";
@@ -32,7 +33,8 @@ type Nav = NativeStackNavigationProp<RootStackParamList, "Home">;
 export function MyListScreen() {
   const nav = useNavigation<Nav>();
   const { user, token } = useAuth();
-  const { loading, games, sample, error, refetch } = useMyGames();
+  const { loading, games, sample, error, refetch, loadMore, loadingMore, moreFailed } =
+    useMyGames();
   // お気に入りはサーバー保存。カードの値に、この画面での操作を重ねる（web のマイページと対）。
   const { apply, toggle: toggleFav, error: favError } = useFavorites();
   const [sort, setSort] = useState<MyListSortKey>("new");
@@ -182,6 +184,9 @@ export function MyListScreen() {
           data={shown}
           keyExtractor={(g) => g.id}
           contentContainerStyle={styles.feed}
+          onEndReached={loadMore}
+          onEndReachedThreshold={0.5}
+          ListFooterComponent={<ListFooter loadingMore={loadingMore} moreFailed={moreFailed} />}
           renderItem={({ item }) => (
             <KifuCard
               title={item.title || "（無題の半荘）"}
