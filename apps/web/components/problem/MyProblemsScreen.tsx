@@ -154,11 +154,6 @@ export function MyProblemsScreen({
                 <b>{posts.length - publishedCount}</b>
                 <span>下書き</span>
               </div>
-              {/* 牌譜タブと同じ3枠構成に揃える（反響が一目で分かるように）。 */}
-              <div className={s.stat}>
-                <b>{posts.reduce((n, post) => n + post.favoriteCount, 0)}</b>
-                <span>お気に入りされた数</span>
-              </div>
             </div>
             {limit !== null && (
               <p className={s.quota}>

@@ -29,15 +29,19 @@
 }
 
 /* profile */
+/* 統計枠の下にクォータ行を縦積みする（統計の数字とクォータ文を同じ行に並べると
+   不自然な横並びに見える。2026-08-05 オーナー指摘）。 */
 .profile {
   display: flex;
-  align-items: center;
-  gap: 16px;
-  padding: 28px 4px 22px;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 24px 4px 18px;
 }
 .stats {
   display: flex;
-  gap: 20px;
+  align-items: baseline;
+  gap: 24px;
 }
 .stat {
   display: flex;
@@ -244,7 +248,7 @@
 
 /* 保存上限（半荘単位）の使用数表示。 */
 .quota {
-  margin: 8px 0 0;
+  margin: 0;
   color: var(--w45);
   font-size: 12px;
   font-weight: 700;

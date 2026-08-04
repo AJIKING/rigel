@@ -177,16 +177,16 @@ describe("MyListScreen（マイ牌譜一覧）", () => {
     expect(screen.queryByText("ふつう")).toBeNull();
   });
 
-  it("統計ヘッダ（牌譜数・公開数・★された数）を出す（web マイページと同一。Phase D）", () => {
+  it("統計ヘッダ（牌譜数・公開数）を出す（web マイページと同一。★された数は撤去済み）", () => {
     setGames([
-      makeGame({ id: "g1", title: "半荘A", publicCount: 2, favoriteCount: 3 }),
-      makeGame({ id: "g2", title: "半荘B", publicCount: 0, favoriteCount: 1 }),
+      makeGame({ id: "g1", title: "半荘A", publicCount: 2 }),
+      makeGame({ id: "g2", title: "半荘B", publicCount: 0 }),
     ]);
     render(<MyListScreen />);
 
     expect(screen.getByLabelText("牌譜 2件")).toBeTruthy();
     expect(screen.getByLabelText("公開 1件")).toBeTruthy();
-    expect(screen.getByLabelText("お気に入りされた数 4件")).toBeTruthy();
+    expect(screen.queryByLabelText(/お気に入りされた数/)).toBeNull();
   });
 
   it("検索欄でタイトル部分一致に絞れる（web マイページと同一条件。Phase D）", () => {

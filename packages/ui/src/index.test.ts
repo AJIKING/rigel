@@ -695,16 +695,12 @@ describe("マイページ一覧のフィルタ（純関数。web/mobile 4画面�
   });
 });
 
-describe("myKifuStats（マイページ牌譜タブの統計3枠。web/mobile 共通の定義）", () => {
-  it("牌譜数・公開数（publicCount>0 の半荘数）・★された数（favoriteCount 総和）を返す", () => {
-    const stats = myKifuStats([
-      { publicCount: 2, favoriteCount: 3 },
-      { publicCount: 0, favoriteCount: 1 },
-    ]);
+describe("myKifuStats（マイページ牌譜タブの統計枠。web/mobile 共通の定義）", () => {
+  it("牌譜数・公開数（publicCount>0 の半荘数）を返す（★された数は撤去済み）", () => {
+    const stats = myKifuStats([{ publicCount: 2 }, { publicCount: 0 }]);
     expect(stats).toEqual([
       { label: "牌譜", count: 2 },
       { label: "公開", count: 1 },
-      { label: "お気に入りされた数", count: 4 },
     ]);
   });
 });

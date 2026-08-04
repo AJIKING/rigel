@@ -729,14 +729,14 @@ export function filterMyProblems<T extends FeedCard & { title: string; status: s
   return arr;
 }
 
-/** マイページ牌譜タブの統計3枠（web/mobile 共通の定義。「公開」= 公開局を持つ半荘数）。 */
+/** マイページ牌譜タブの統計枠（web/mobile 共通の定義。「公開」= 公開局を持つ半荘数。
+ *  「お気に入りされた数」は 2026-08-05 オーナー判断で一旦撤去）。 */
 export function myKifuStats(
-  cards: readonly { publicCount: number; favoriteCount: number }[],
+  cards: readonly { publicCount: number }[],
 ): { label: string; count: number }[] {
   return [
     { label: "牌譜", count: cards.length },
     { label: "公開", count: cards.filter((c) => c.publicCount > 0).length },
-    { label: "お気に入りされた数", count: cards.reduce((n, c) => n + c.favoriteCount, 0) },
   ];
 }
 
