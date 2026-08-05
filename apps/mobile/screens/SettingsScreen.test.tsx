@@ -7,10 +7,17 @@ import { SettingsScreen } from "./SettingsScreen";
 const mockPurchases = {
   purchasePlan: jest.fn(),
   purchasesManagementUrl: jest.fn(async (): Promise<string | null> => null),
+  restorePurchases: jest.fn(),
 };
 jest.mock("../lib/purchases", () => ({
   purchasePlan: (...a: unknown[]) => mockPurchases.purchasePlan(...a),
   purchasesManagementUrl: () => mockPurchases.purchasesManagementUrl(),
+  restorePurchases: () => mockPurchases.restorePurchases(),
+}));
+
+const mockOpenBrowser = jest.fn();
+jest.mock("expo-web-browser", () => ({
+  openBrowserAsync: (...a: unknown[]) => mockOpenBrowser(...(a as [string])),
 }));
 
 let mockAuth: {
@@ -171,6 +178,36 @@ describe("SettingsScreen（課金導線）", () => {
     fireEvent.press(await screen.findByLabelText("Next を選ぶ"));
 
     expect(await screen.findByText("アプリ内購入は現在利用できません")).toBeTruthy();
+  });
+
+  it("「購入を復元」で RevenueCat の復元を呼び、確認文言と /me 再取得を行う（機種変更・再インストールの取り戻し）", async () => {
+    mockPurchases.restorePurchases.mockResolvedValue("restored");
+    render(<SettingsScreen />);
+
+    fireEvent.press(screen.getByText("購入を復元"));
+
+    await waitFor(() => expect(mockPurchases.restorePurchases).toHaveBeenCalled());
+    expect(await screen.findByText(/購入情報を確認しました/)).toBeTruthy();
+    expect(mockAuth.refresh).toHaveBeenCalled();
+  });
+
+  it("復元の失敗・購入が使えない環境はその旨を知らせる（黙殺しない）", async () => {
+    mockPurchases.restorePurchases.mockResolvedValue("failed");
+    render(<SettingsScreen />);
+    fireEvent.press(screen.getByText("購入を復元"));
+    expect(await screen.findByText(/復元に失敗しました/)).toBeTruthy();
+
+    mockPurchases.restorePurchases.mockResolvedValue("unavailable");
+    fireEvent.press(screen.getByText("購入を復元"));
+    expect(await screen.findByText("アプリ内購入は現在利用できません")).toBeTruthy();
+  });
+
+  it("サポート: 利用規約・プライバシーポリシーをアプリ内から開ける（購読アプリの必須導線）", () => {
+    render(<SettingsScreen />);
+    fireEvent.press(screen.getByText("利用規約"));
+    expect(mockOpenBrowser).toHaveBeenCalledWith(`${SITE_ORIGIN}/terms`);
+    fireEvent.press(screen.getByText("プライバシーポリシー"));
+    expect(mockOpenBrowser).toHaveBeenCalledWith(`${SITE_ORIGIN}/privacy`);
   });
 
   it("加入中の「管理」: ストア購読なら RevenueCat の管理URL（OS の購読設定）を開く", async () => {

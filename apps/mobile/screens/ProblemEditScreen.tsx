@@ -64,6 +64,7 @@ import {
   type ProblemPost,
 } from "../lib/api";
 import { useAuth } from "../lib/auth";
+import { trackError } from "../lib/crash";
 import type { RootStackParamList } from "../lib/navigation";
 import { pickImage, type PickedImage } from "../lib/pick-image";
 import { KIND_LABELS } from "../lib/problems";
@@ -276,7 +277,8 @@ function EditorBody({
       if (outcome.kind === "cancelled") return;
       if (outcome.kind === "done") applyAiDraft(outcome.kifu);
       else setErr(outcome.kind === "failed" ? outcome.message : problemAnalysisTimeoutMessage());
-    } catch {
+    } catch (e) {
+      trackError(e, { screen: "problem_edit", op: "problem_analyze" });
       if (aliveRef.current) setErr("通信に失敗しました。");
     } finally {
       if (aliveRef.current) setAnalyzing(false);

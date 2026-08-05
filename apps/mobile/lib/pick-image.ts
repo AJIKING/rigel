@@ -21,7 +21,7 @@ export async function pickImage(): Promise<PickImageResult> {
       // もうダイアログは出ない。設定アプリで許可してもらうしかない。
       Alert.alert(
         "写真へのアクセスが許可されていません",
-        "設定アプリで rigel に写真へのアクセスを許可してください。",
+        "設定アプリで RAISHA に写真へのアクセスを許可してください。",
         [
           { text: "キャンセル", style: "cancel" },
           { text: "設定を開く", onPress: () => void Linking.openSettings() },

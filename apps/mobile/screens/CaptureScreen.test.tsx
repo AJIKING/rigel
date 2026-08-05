@@ -30,6 +30,10 @@ const mockPickImage = jest.fn<Promise<unknown>, []>();
 jest.mock("../lib/pick-image", () => ({ pickImage: () => mockPickImage() }));
 jest.mock("../lib/upload", () => ({ toUploadFile: (p: unknown) => p }));
 
+// エラー計測（Crashlytics）はモック（例外時に記録されることを検証する）。
+const mockTrackError = jest.fn();
+jest.mock("../lib/crash", () => ({ trackError: (...a: unknown[]) => mockTrackError(...a) }));
+
 // ポーリングはグローバル（use-analysis-job の Provider）の責務。画面は start に渡すだけ。
 const mockStart = jest.fn<Promise<boolean>, unknown[]>(() => Promise.resolve(true));
 let mockBusy = false;
@@ -105,6 +109,20 @@ describe("CaptureScreen（非同期ジョブの解析フロー。案B=送信し�
     await waitFor(() => expect(screen.queryByText("河の写真を選ぶ")).toBeNull());
     fireEvent.press(screen.getByText("解析して保存"));
   }
+
+  it("送信が例外で失敗したら通信エラーを表示し、エラー本体を Crashlytics に記録する", async () => {
+    // 2026-08-01 の実機障害（expo/fetch × FormData 非互換の JS 例外）と同じ経路。
+    mockAnalyze.mockRejectedValue(new Error("Network request failed"));
+    render(<CaptureScreen />);
+
+    await pickRiverAndSubmit();
+
+    expect(await screen.findByText("通信に失敗しました。")).toBeTruthy();
+    expect(mockTrackError).toHaveBeenCalledWith(expect.any(Error), {
+      screen: "capture",
+      op: "analyze",
+    });
+  });
 
   it("202 が返ったらジョブを Provider に渡し、元の画面（一覧）へ戻る", async () => {
     mockAnalyze.mockResolvedValue({ ok: true, jobId: "job-1" });

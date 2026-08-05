@@ -94,6 +94,9 @@ importers:
       '@react-native-firebase/app':
         specifier: ^25.1.0
         version: 25.1.0(expo@57.0.8)(react-native@0.86.0(@babel/core@7.29.7)(@react-native/jest-preset@0.86.0(@babel/core@7.29.7)(react@19.2.3))(@types/react@19.2.17)(react@19.2.3))(react@19.2.3)
+      '@react-native-firebase/crashlytics':
+        specifier: ^25.1.0
+        version: 25.1.0(@react-native-firebase/app@25.1.0(expo@57.0.8)(react-native@0.86.0(@babel/core@7.29.7)(@react-native/jest-preset@0.86.0(@babel/core@7.29.7)(react@19.2.3))(@types/react@19.2.17)(react@19.2.3))(react@19.2.3))(expo@57.0.8)
       '@react-navigation/native':
         specifier: ^7.3.8
         version: 7.3.8(react-native@0.86.0(@babel/core@7.29.7)(@react-native/jest-preset@0.86.0(@babel/core@7.29.7)(react@19.2.3))(@types/react@19.2.17)(react@19.2.3))(react@19.2.3)
@@ -133,6 +136,9 @@ importers:
       expo-secure-store:
         specifier: ~57.0.1
         version: 57.0.1(expo@57.0.8)
+      expo-splash-screen:
+        specifier: ~57.0.5
+        version: 57.0.5(expo@57.0.8)(typescript@5.9.3)
       expo-status-bar:
         specifier: ~57.0.1
         version: 57.0.1(expo@57.0.8)(react-native@0.86.0(@babel/core@7.29.7)(@react-native/jest-preset@0.86.0(@babel/core@7.29.7)(react@19.2.3))(@types/react@19.2.17)(react@19.2.3))(react@19.2.3)
@@ -2515,6 +2521,15 @@ packages:
       expo:
         optional: true
 
+  '@react-native-firebase/crashlytics@25.1.0':
+    resolution: {integrity: sha512-blzIOgOnQvqS3050ETY7N246UaYs76S7hRwPh9/NpActOsirLIR55j0C2l2zxncTzyWTnNn8FoMXvIdmdeC0XA==}
+    peerDependencies:
+      '@react-native-firebase/app': 25.1.0
+      expo: '>=47.0.0'
+    peerDependenciesMeta:
+      expo:
+        optional: true
+
   '@react-native/assets-registry@0.86.0':
     resolution: {integrity: sha512-nIaXbm2jX1OTYp0qbviJ3O6KZivoE8z3BnhUQ2LsqfZSWRoOK/n1qsiAr6oALiNKWnXY3j2KPwtYORnZzp8xew==}
     engines: {node: ^20.19.4 || ^22.13.0 || ^24.3.0 || >= 25.0.0}
@@ -4205,6 +4220,11 @@ packages:
   expo-server@57.0.1:
     resolution: {integrity: sha512-sBfVDH6dmKVHZxqUxbfkzS00PZELMZt1IpnHKxcOTMZtR/t7CtRAFrbXcisG+EyzeqHSVDacZT+1tbYfZt5D8w==}
     engines: {node: '>=20.16.0'}
+
+  expo-splash-screen@57.0.5:
+    resolution: {integrity: sha512-ZN0LDXlhHRNFjXTYZDojXk8IfaoUIu7qa3hhoBTXgyj1UB/iewGlH6+M3Nvhun2lY2d/+xhwqMhv0hIRoBo09Q==}
+    peerDependencies:
+      expo: '*'
 
   expo-status-bar@57.0.1:
     resolution: {integrity: sha512-Xwaq1gAoVRWx5dPG5VhT5RSbnI9OilhZnO5qoPBnUaBAa5VzRzfdS8q0/bsPt0jR2DKLtGuP0bQ6efMJ4RIMDg==}
@@ -9295,6 +9315,13 @@ snapshots:
     transitivePeerDependencies:
       - '@react-native-async-storage/async-storage'
 
+  '@react-native-firebase/crashlytics@25.1.0(@react-native-firebase/app@25.1.0(expo@57.0.8)(react-native@0.86.0(@babel/core@7.29.7)(@react-native/jest-preset@0.86.0(@babel/core@7.29.7)(react@19.2.3))(@types/react@19.2.17)(react@19.2.3))(react@19.2.3))(expo@57.0.8)':
+    dependencies:
+      '@react-native-firebase/app': 25.1.0(expo@57.0.8)(react-native@0.86.0(@babel/core@7.29.7)(@react-native/jest-preset@0.86.0(@babel/core@7.29.7)(react@19.2.3))(@types/react@19.2.17)(react@19.2.3))(react@19.2.3)
+      stacktrace-js: 2.0.2
+    optionalDependencies:
+      expo: 57.0.8(@babel/core@7.29.7)(@expo/dom-webview@57.0.1)(react-dom@19.2.7(react@19.2.3))(react-native@0.86.0(@babel/core@7.29.7)(@react-native/jest-preset@0.86.0(@babel/core@7.29.7)(react@19.2.3))(@types/react@19.2.17)(react@19.2.3))(react@19.2.3)(typescript@5.9.3)
+
   '@react-native/assets-registry@0.86.0': {}
 
   '@react-native/babel-plugin-codegen@0.86.0(@babel/core@7.29.7)':
@@ -11126,6 +11153,16 @@ snapshots:
       expo: 57.0.8(@babel/core@7.29.7)(@expo/dom-webview@57.0.1)(react-dom@19.2.7(react@19.2.3))(react-native@0.86.0(@babel/core@7.29.7)(@react-native/jest-preset@0.86.0(@babel/core@7.29.7)(react@19.2.3))(@types/react@19.2.17)(react@19.2.3))(react@19.2.3)(typescript@5.9.3)
 
   expo-server@57.0.1: {}
+
+  expo-splash-screen@57.0.5(expo@57.0.8)(typescript@5.9.3):
+    dependencies:
+      '@expo/config-plugins': 57.0.6(typescript@5.9.3)
+      '@expo/image-utils': 0.11.4(typescript@5.9.3)
+      expo: 57.0.8(@babel/core@7.29.7)(@expo/dom-webview@57.0.1)(react-dom@19.2.7(react@19.2.3))(react-native@0.86.0(@babel/core@7.29.7)(@react-native/jest-preset@0.86.0(@babel/core@7.29.7)(react@19.2.3))(@types/react@19.2.17)(react@19.2.3))(react@19.2.3)(typescript@5.9.3)
+      xml2js: 0.6.0
+    transitivePeerDependencies:
+      - supports-color
+      - typescript
 
   expo-status-bar@57.0.1(expo@57.0.8)(react-native@0.86.0(@babel/core@7.29.7)(@react-native/jest-preset@0.86.0(@babel/core@7.29.7)(react@19.2.3))(@types/react@19.2.17)(react@19.2.3))(react@19.2.3):
     dependencies:

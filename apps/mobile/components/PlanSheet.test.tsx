@@ -1,5 +1,11 @@
 import { fireEvent, render, screen } from "@testing-library/react-native";
+import { SITE_ORIGIN } from "../lib/site";
 import { PlanSheet } from "./PlanSheet";
+
+const mockOpenBrowser = jest.fn();
+jest.mock("expo-web-browser", () => ({
+  openBrowserAsync: (...a: unknown[]) => mockOpenBrowser(...(a as [string])),
+}));
 
 describe("PlanSheet（プラン選択ボトムシート）", () => {
   it("アップグレード先をストア掲載価格（Next ¥700 / Pro ¥1,800）で一覧する", () => {
@@ -12,11 +18,21 @@ describe("PlanSheet（プラン選択ボトムシート）", () => {
     expect(screen.queryByText("¥480 / 月")).toBeNull();
   });
 
-  it("注記にストア固有の文言（App Store・手数料）を出さない（Android でも同じ画面を使うため）", () => {
+  it("自動更新の仕組みを明記し、ストア固有の文言（App Store・手数料）は出さない（審査 3.1.2 / Android 共用）", () => {
     render(<PlanSheet targets={["next", "pro"]} onSelect={jest.fn()} onClose={jest.fn()} />);
-    expect(screen.getByText(/サブスクリプションはいつでも解約できます/)).toBeTruthy();
+    // 期間（1か月）と自動更新・解約方法の明示（App Store 3.1.2 の必須項目）。
+    expect(screen.getByText(/1か月ごとの自動更新/)).toBeTruthy();
+    expect(screen.getByText(/解約はいつでも/)).toBeTruthy();
     expect(screen.queryByText(/App Store/)).toBeNull();
     expect(screen.queryByText(/手数料/)).toBeNull();
+  });
+
+  it("利用規約・プライバシーポリシーへのリンクを購入画面に出す（審査 3.1.2）", () => {
+    render(<PlanSheet targets={["next"]} onSelect={jest.fn()} onClose={jest.fn()} />);
+    fireEvent.press(screen.getByText("利用規約"));
+    expect(mockOpenBrowser).toHaveBeenCalledWith(`${SITE_ORIGIN}/terms`);
+    fireEvent.press(screen.getByText("プライバシーポリシー"));
+    expect(mockOpenBrowser).toHaveBeenCalledWith(`${SITE_ORIGIN}/privacy`);
   });
 
   it("提供内容に特訓の行が出る（有料=無制限。PLAN_FEATURES 経由の自動反映）", () => {

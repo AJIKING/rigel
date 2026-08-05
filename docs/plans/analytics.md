@@ -36,6 +36,8 @@
 | `analyze_problem` | `result`: 同上 | 何切るの写真AI再現 |
 | `save_kifu` | — | 局の保存（エディタ） |
 | `answer_problem` | — | 何切る回答 |
+| `quiz_start` | `kind`: QuizKind | 特訓クイズの開始（2026-08-04 特訓開放で追加・web 結線済み） |
+| `quiz_complete` | `kind`: QuizKind | 特訓クイズの完了（成績は載せない・web 結線済み） |
 
 - ページビューは GA4 の拡張計測（history 変化）で自動取得（App Router のクライアント遷移も拾う）。
 - 課金は RevenueCat → Firebase/GA4 連携で購読イベントを流す（真実源 RevenueCat の思想と整合。フェーズ2で設定）。

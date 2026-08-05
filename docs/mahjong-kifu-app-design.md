@@ -345,7 +345,9 @@ apps/api  POST /billing/revenuecat/webhook ─▶ User.changePlan ─▶ D1 user
 ### [未確定]（=運用・調整待ち）
 - 無料/有料の機能差を呼び出し枠・public/private 上限以外にも設けるか。
 - 呼び出し枠の数値（0/100/320）はコスト実測で再調整しうる。
-- 実機での購入疎通（iOS sandbox / Play。dev build と RevenueCat の Offerings 設定が前提）。
+- 実機での購入疎通: **iOS sandbox は確認済み（2026-08-01 オーナー実施**: sandbox 購入 →
+  Webhook → plan 反映。[plans/review-login.md](plans/review-login.md)）。**Play 側が残**
+  （RevenueCat Android キー・Play 定期購入商品・RC↔Play 連携が前提。[plans/android.md](plans/android.md) §12-C）。
 - TRANSFER（購読の別アカウント移動）: 実ペイロード未採取のため未実装（現状は受けて無視＝旧ユーザーの
   plan は EXPIRATION 到達で free に収束）。実形を採取してから旧ユーザー free 化を実装する。
 
@@ -379,7 +381,7 @@ apps/api  POST /billing/revenuecat/webhook ─▶ User.changePlan ─▶ D1 user
 | 5 | ~~ORM選定~~ | **[決定] Drizzle** | スキーマ実装済み（`apps/api`）。[開発ガイド/05](開発ガイド/05_APIアーキテクチャ.md) |
 | 6 | ~~カウンタ整合性の実装~~ | **[決定] 実装済み** | AnalysisStore=D1 batch で半荘/局/カウントを原子化 |
 | 7 | ~~認証の具体実装~~ | **[決定] 実装済み** | Google + Sign in with Apple。web は HttpOnly セッション、mobile は SecureStore を使用 |
-| 7-2 | **Android アプリで Apple ログインを出すか** | **[未確定]（2026-07-27 発見。Android リリース前に決める）** | Apple/Google は `appleSub`/`googleSub` で別々に引き当てるだけで **email 突き合わせも連携機能も無い**。Android アプリは Apple ボタンを出さない（`Platform.OS === "ios"` 分岐）ため、**iOS で Apple 登録した人が Android で Google ログインすると別アカウントが新規作成され、牌譜・★・App Store で買った有料プランに到達できない**。案: ①Android にも Apple ログイン（web フロー。純正ボタン必須は iOS の HIG 要件なので自前ボタン可）②案内だけ置く ③プロバイダ連携機能を作る。詳細: [plans/android.md](plans/android.md) §12-B |
+| 7-2 | ~~Android アプリで Apple ログインを出すか~~ | **[決定] 案①を採用・実装済み（2026-07-28）** | Android にも Apple ログインを出す（web フロー: api の `/auth/apple/callback` が Apple の form_post をアプリ scheme へ中継。自前ボタン可＝純正ボタン必須は iOS の HIG 要件のみ）。これで「iOS で Apple 登録 → Android で別アカウントが生える」分断を防ぐ。**残はコンソール作業と実機疎通**（Services ID の Return URL 追加・Codemagic へ `EXPO_PUBLIC_APPLE_CLIENT_ID`・Android 実機確認。[plans/android.md](plans/android.md) §12-B） |
 | 8 | ~~無料枠件数・月額価格~~ | **[決定] 実装済み** | free 0回/private5/draft5・Next¥480 100回・Pro¥1480 320回。Stripe + RevenueCat（要鍵・ストア設定） |
 | 9 | ~~Web集客方針~~ | **[決定] SEO対応する（実装済み）** | 公開ページ（/ /kifu /problems /k /p /u /terms）は title・description・canonical・OGP を持ち sitemap.xml に掲載。本人専用ページは noindex＋robots.txt で除外。タブ名はブランド修飾なしで内容どおり（一覧=みんなの牌譜/みんなの何切る、エディタ=「半荘名 — 編集」等）。共有ロジックは `apps/web/lib/og-meta.ts`・`lib/seo.ts` |
 

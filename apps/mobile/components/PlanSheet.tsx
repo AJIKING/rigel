@@ -1,5 +1,7 @@
 import { planLabel, planMonthlyPriceAppStore, PLAN_FEATURES, type PaidPlan } from "@rigel/ui";
+import * as WebBrowser from "expo-web-browser";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { SITE_ORIGIN } from "../lib/site";
 import { colors, radius } from "../lib/theme";
 import { BottomSheet, SheetCloseButton } from "./BottomSheet";
 
@@ -53,9 +55,29 @@ export function PlanSheet({
         ))}
       </ScrollView>
 
-      {/* ストア名・手数料には触れない（iOS/Android で同じ画面を使う。価格はストア掲載価格
-          そのものなので、注記で仕組みを説明する必要も無い）。 */}
-      <Text style={styles.note}>サブスクリプションはいつでも解約できます。</Text>
+      {/* 自動更新の仕組みと規約リンクは購入画面に必須（App Store 3.1.2）。
+          ストア名・手数料には触れない（iOS/Android で同じ画面を使う）。 */}
+      {/* JSX テキストの改行は半角スペースになり和文の文中に隙間が出るため、文字列で持つ。 */}
+      <Text style={styles.note}>
+        {"サブスクリプションは1か月ごとの自動更新です。" +
+          "解約しない限り自動的に更新され、解約はいつでも OS の購読設定から行えます。"}
+      </Text>
+      <View style={styles.links}>
+        <Pressable
+          onPress={() => void WebBrowser.openBrowserAsync(`${SITE_ORIGIN}/terms`)}
+          accessibilityRole="link"
+          hitSlop={8}
+        >
+          <Text style={styles.link}>利用規約</Text>
+        </Pressable>
+        <Pressable
+          onPress={() => void WebBrowser.openBrowserAsync(`${SITE_ORIGIN}/privacy`)}
+          accessibilityRole="link"
+          hitSlop={8}
+        >
+          <Text style={styles.link}>プライバシーポリシー</Text>
+        </Pressable>
+      </View>
       <SheetCloseButton onPress={onClose} />
     </BottomSheet>
   );
@@ -87,5 +109,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   pickText: { color: "#16181d", fontWeight: "800", fontSize: 13.5 },
-  note: { color: colors.w45, fontSize: 11, marginTop: 4 },
+  note: { color: colors.w45, fontSize: 11, marginTop: 4, lineHeight: 16 },
+  links: { flexDirection: "row", gap: 16, marginTop: 6 },
+  link: { color: colors.w70, fontSize: 11.5, textDecorationLine: "underline" },
 });

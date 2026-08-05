@@ -74,6 +74,7 @@ export * from "./board";
 export * from "./edit";
 
 export * from "./analytics";
+export * from "./crash";
 // ルール設定フォームの共有定義（web RulesDialog / mobile RulesSheet 共用）。
 export * from "./rules-form";
 

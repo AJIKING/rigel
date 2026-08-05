@@ -30,6 +30,7 @@ import {
   updateGameRules,
 } from "../lib/api";
 import { useAuth } from "../lib/auth";
+import { trackError } from "../lib/crash";
 import { useAnalysisJob } from "../lib/use-analysis-job";
 import { confirmDestructive } from "../lib/confirm";
 import { fmtDate } from "../lib/format";
@@ -102,7 +103,8 @@ export function GameDetailScreen() {
       }
       await start({ jobId: res.jobId, startedAt: Date.now() });
       refetch(); // すぐ「解析中」表示に切り替える
-    } catch {
+    } catch (e) {
+      trackError(e, { screen: "game_detail", op: "retry_analysis" });
       setNote("通信に失敗しました。");
     } finally {
       setRetrying(false);

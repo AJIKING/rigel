@@ -28,6 +28,8 @@ Next.js(App Router) を **Cloudflare Workers** へ SSR 配信する。アダプ�
    | `NEXT_PUBLIC_API_URL` | 本番 API のベースURL | `https://api.raisha.jp` |
    | `NEXT_PUBLIC_SITE_URL` | サイトのベースURL（OGP/sitemap の絶対URL基準） | `https://raisha.jp` |
    | `NEXT_PUBLIC_GOOGLE_CLIENT_ID` | Google OAuth Web クライアントID | （必須） |
+   | `NEXT_PUBLIC_APPLE_CLIENT_ID` | Sign in with Apple の Services ID（未設定なら Apple ボタン非表示） | （任意） |
+   | `NEXT_PUBLIC_GA_MEASUREMENT_ID` | GA4 計測ID（未設定なら GA スクリプトを読み込まない） | （任意） |
 3. 初回 `cf:deploy` で Worker `rigel-web` は自動作成される。
 
 ## デプロイ（promote）

@@ -14,11 +14,16 @@ jest.mock("react-native-purchases", () => ({
     getOfferings: jest.fn(),
     purchasePackage: jest.fn(async () => ({})),
     getCustomerInfo: jest.fn(),
+    restorePurchases: jest.fn(async () => ({})),
   },
 }));
 // SDK キーの取得はモジュールごと差し替える（EXPO_PUBLIC_* は babel が静的展開する
 // ため、テスト実行時の process.env 代入では切り替えられない）。
 jest.mock("./purchases-keys", () => ({ revenueCatApiKey: jest.fn(() => "appl_test") }));
+
+// エラー計測（Crashlytics）はモック（課金の失敗が記録されることを検証する）。
+const mockTrackError = jest.fn();
+jest.mock("./crash", () => ({ trackError: (...a: unknown[]) => mockTrackError(...a) }));
 
 import Purchases from "react-native-purchases";
 import { revenueCatApiKey } from "./purchases-keys";
@@ -29,6 +34,7 @@ import {
   purchasePlan,
   purchasesEnabled,
   purchasesManagementUrl,
+  restorePurchases,
 } from "./purchases";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -39,6 +45,7 @@ const mockSdk = Purchases as any as {
   getOfferings: jest.Mock;
   purchasePackage: jest.Mock;
   getCustomerInfo: jest.Mock;
+  restorePurchases: jest.Mock;
 };
 /* eslint-enable @typescript-eslint/no-explicit-any */
 const mockApiKey = revenueCatApiKey as jest.Mock;
@@ -86,19 +93,37 @@ describe("purchases（RevenueCat ラッパ）", () => {
     mockSdk.getOfferings.mockResolvedValue(offeringsWith([IAP_PRODUCT_IDS.next]));
     mockSdk.purchasePackage.mockRejectedValueOnce({ userCancelled: true });
     expect(await purchasePlan("next")).toBe("cancelled");
+    // キャンセルはユーザーの意思＝エラーとして記録しない（ダッシュボードを汚さない）。
+    expect(mockTrackError).not.toHaveBeenCalled();
 
     expect(await purchasePlan("pro")).toBe("failed"); // offerings に pro が無い
 
     mockSdk.getOfferings.mockRejectedValueOnce(new Error("network"));
     expect(await purchasePlan("next")).toBe("failed");
+    // 例外による失敗は Crashlytics に記録する（screen/op の固定語彙つき）。
+    expect(mockTrackError).toHaveBeenCalledWith(expect.any(Error), {
+      screen: "settings",
+      op: "purchase",
+    });
   });
 
-  it("logIn/logOut は SDK へ委譲し、失敗しても例外を外へ漏らさない（認証を壊さない）", async () => {
+  it("logIn/logOut は SDK へ委譲し、失敗しても例外を外へ漏らさない（認証を壊さない・Crashlytics には記録）", async () => {
     await logInPurchases("u1");
     expect(mockSdk.logIn).toHaveBeenCalledWith("u1");
 
     mockSdk.logOut.mockRejectedValueOnce(new Error("anonymous"));
     await expect(logOutPurchases()).resolves.toBeUndefined();
+    expect(mockTrackError).toHaveBeenCalledWith(expect.any(Error), {
+      screen: "login",
+      op: "purchases_logout",
+    });
+
+    mockSdk.logIn.mockRejectedValueOnce(new Error("network"));
+    await logInPurchases("u2");
+    expect(mockTrackError).toHaveBeenCalledWith(expect.any(Error), {
+      screen: "login",
+      op: "purchases_login",
+    });
   });
 
   it("purchasesManagementUrl は customerInfo の managementURL を返す（無ければ null）", async () => {
@@ -112,6 +137,24 @@ describe("purchases（RevenueCat ラッパ）", () => {
     configurePurchases();
     configurePurchases();
     expect(mockSdk.configure).toHaveBeenCalledTimes(1);
+  });
+
+  it("restorePurchases は SDK の復元を呼んで restored を返す（機種変更・再インストールの取り戻し。App Store 審査要件）", async () => {
+    expect(await restorePurchases()).toBe("restored");
+    expect(mockSdk.restorePurchases).toHaveBeenCalled();
+  });
+
+  it("restorePurchases: 例外は failed（Crashlytics に記録）・キー未設定は unavailable（SDK を触らない）", async () => {
+    mockSdk.restorePurchases.mockRejectedValueOnce(new Error("network"));
+    expect(await restorePurchases()).toBe("failed");
+    expect(mockTrackError).toHaveBeenCalledWith(expect.any(Error), {
+      screen: "settings",
+      op: "restore_purchases",
+    });
+
+    mockApiKey.mockReturnValue("");
+    expect(await restorePurchases()).toBe("unavailable");
+    expect(mockSdk.restorePurchases).toHaveBeenCalledTimes(1); // 未設定時は呼ばれない
   });
 
   it("キー未設定（Expo Go / 開発）では無効: 購入は unavailable・SDK を触らない", async () => {

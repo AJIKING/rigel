@@ -1,6 +1,7 @@
 # Plan: クライアントエラー可視化（Firebase Crashlytics）＋ Analytics フェーズ2完遂
 
-> 状態: **提案（未承認・2026-08-01）**。承認後に Task 1 から着手する。
+> 状態: **承認済み（2026-08-05 オーナー「crashlytics 進めて」）。コード側（Task 2〜6）実装完了。
+> 残 = Task 1/7（Codemagic ビルド共存・実機の可読性検証。release.md C-1 に同乗）と Task 8/9。**
 > 背景: 2026-08-01 の実機障害（写真解析の「通信に失敗しました」）で、mobile の
 > `catch {}` がエラー本体を握りつぶし、原因特定に大きく遠回りした（真因は
 > expo/fetch と RN 式 FormData の非互換＝JS 例外。サーバーに届かないためサーバー
@@ -70,23 +71,25 @@
 
 ## 7. 受け入れ条件（= 最初に書く失敗テストの集合）
 
-- [ ] `trackError(e, {screen, op})` が crashlytics の `recordError` を呼び、カスタムキーを設定する
-- [ ] context の語彙は型で固定され、自由文字列はコンパイルエラーになる
-- [ ] crashlytics 呼び出しが例外を投げても `trackError` は握りつぶす（アプリを壊さない）
-- [ ] `__DEV__` では記録しない
-- [ ] CaptureScreen の解析 catch が `trackError` を呼ぶ（画面表示は従来どおり）
-- [ ] ProblemEditScreen / auth / billing の catch も同様
+- [x] `trackError(e, {screen, op})` が crashlytics の `recordError` を呼び、カスタムキーを設定する
+- [x] context の語彙は型で固定され、自由文字列はコンパイルエラーになる（@rigel/ui crash.ts）
+- [x] crashlytics 呼び出しが例外を投げても `trackError` は握りつぶす（アプリを壊さない）
+- [x] `__DEV__` では記録しない
+- [x] CaptureScreen の解析 catch が `trackError` を呼ぶ（画面表示は従来どおり）
+- [x] ProblemEditScreen / auth（Login。キャンセルは記録しない）/ billing（purchases・portal）/
+      GameDetail 再解析 / 手入力作成 の catch も同様
 - [ ] （実機・ビルド検証）テストクラッシュと `recordError` が Firebase コンソールに表示される
 
 ## 8. Task 分解（1つ＝1つの振る舞い）
 
-1. [ ] **[未確定検証] ビルド共存**: GoogleService 2ファイル配置＋ crashlytics 依存追加＋
-   config plugin → Codemagic で iOS/Android ビルドが通ることを確認（analytics.md 残作業1-2と同時）
-2. [ ] @rigel/ui にエラー文脈の固定語彙（screen/op）→ Red: 型テスト＋語彙のスナップ
-3. [ ] `lib/crash.ts` の `trackError`（recordError 呼び出し・カスタムキー・no-throw・dev 無効）→ Red
-4. [ ] CaptureScreen 解析 catch の計装 → Red: 失敗時に trackError が呼ばれる
-5. [ ] ProblemEdit / auth / billing / 保存系 catch の計装 → Red 同様
-6. [ ] Codemagic: iOS dSYM アップロードステップ追加
+1. [ ] **[未確定検証] ビルド共存**: GoogleService 2ファイル配置（オーナー）＋ crashlytics 依存・
+   config plugin（済）→ Codemagic で iOS/Android ビルドが通ることを確認（analytics.md 残作業1-2と同時）
+2. [x] @rigel/ui にエラー文脈の固定語彙（screen/op）→ 型テスト＋語彙のスナップ（2026-08-05）
+3. [x] `lib/crash.ts` の `trackError`（recordError 呼び出し・カスタムキー・no-throw・dev 無効）
+4. [x] CaptureScreen 解析 catch の計装（失敗時に trackError が呼ばれるテスト付き）
+5. [x] ProblemEdit / auth（Apple はキャンセル除外）/ billing（purchase・restore・portal・
+   logIn/logOut）/ GameDetail 再解析 / 手入力作成 catch の計装
+6. [x] Codemagic: iOS dSYM アップロードステップ追加（archive/GoogleService 不在時は警告スキップ）
 7. [ ] **[未確定検証] 実機**: テストクラッシュ + recordError 送信 → コンソールで可読性確認 →
    結果を本 Plan と analytics.md に反映（`[決定]` 化）
 8. [ ] analytics.md 残作業: DebugView 確認・analyze_kifu / save_kifu 等の残イベント結線

@@ -118,19 +118,27 @@ App Store の「概要」と同文を使う（Play はキーワード欄が無�
 
 ## 審査用アカウント
 
-サインインは Google / Apple のみのため、審査には以下を用意する。
+> **2026-08-05 更新**: 旧案（レビュー専用 Google アカウント＋RevenueCat Granted Entitlements）は
+> 断念し、**合言葉ログイン（案B・実装済み 2026-08-01）** に置き換えた。理由と運用手順の
+> 真実源は [docs/plans/review-login.md](../plans/review-login.md)。
+> （Google は 2FA/本人確認で共有アカウントが審査中にブロックされ得る。Promotional
+> Entitlement は現行 Webhook の GRANT_EVENTS に乗らないため plan に反映されない。）
 
-1. レビュー専用 Google アカウントを新規作成（個人情報を含めない。復旧用メール設定＋
-   事前に一度別端末でログインして本人確認を済ませておく）
-2. そのアカウントで RAISHA にサインアップ（プロフィールは自動生成のまま）
-3. プラン付与は **RevenueCat の Granted Entitlements** で `next` を付与
-   （Webhook 経由で users.plan に反映。D1 直接書き換えは真実源の原則に反するので禁止）。
-   free は解析枠 0 のため、これが無いと審査官がコア機能（AI 牌譜化）に触れられない
-4. 記載場所:
-   - App Store Connect → App Review 情報: 認証情報＋「Apple ID で即時新規登録可」
-     「サインインなしでも公開牌譜・何切るは閲覧可（ゲスト）」を明記
-   - Play Console → アプリのコンテンツ → アプリのアクセス権: 同じ認証情報を登録
-5. IAP の動作確認は審査官の Sandbox 購入で行われる旨を備考に記載
+1. 提出前に `wrangler secret put REVIEW_LOGIN_SECRET`（32文字以上）を設定
+2. 実機のログイン画面で**ロゴを長押し（600ms）**→ 合言葉入力でログインし、審査ユーザー
+   （sub=`review:store`）を作成
+3. D1 で `UPDATE users SET plan='pro', plan_store='PROMOTIONAL' WHERE google_sub='review:store'`
+   （free は解析枠 0 のため、これが無いと審査官がコア機能＝AI 牌譜化に触れられない）
+4. サンプル半荘・何切るを投入して初見の画面が空にならないようにする
+5. 記載場所:
+   - App Store Connect → App Review 情報: 「ログイン画面のロゴを長押し → コード欄が出る」
+     手順＋合言葉。「Apple ID で即時新規登録可」「サインインなしでも公開牌譜・何切るは
+     閲覧可（ゲスト）」も明記
+   - Play Console → アプリのコンテンツ → アプリのアクセス権: 同じ手順・合言葉を登録
+6. IAP の動作確認は審査官の Sandbox 購入で行われる旨を備考に記載
+   （本番は SANDBOX イベントを無視する。審査期間中のみ `REVENUECAT_ALLOW_SANDBOX=true`
+   にする判断は review-login.md のリスク節を参照）
+7. **審査完了後に `wrangler secret delete REVIEW_LOGIN_SECRET`**（合言葉ログインを閉じる）
 
 ## 入稿時の注意
 

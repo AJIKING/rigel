@@ -27,6 +27,10 @@ jest.mock("expo-apple-authentication", () => {
   };
 });
 
+// エラー計測（Crashlytics）はモック（キャンセルは記録せず、実エラーだけ記録する検証用）。
+const mockTrackError = jest.fn();
+jest.mock("../lib/crash", () => ({ trackError: (...a: unknown[]) => mockTrackError(...a) }));
+
 const mockSignInWithApple = jest.fn((_idToken: string, _code?: string) => Promise.resolve());
 const mockSignInWithReviewCode = jest.fn((_code: string) => Promise.resolve());
 const mockStartGuest = jest.fn();
@@ -58,13 +62,29 @@ describe("LoginScreen の Sign in with Apple", () => {
     );
   });
 
-  it("キャンセル（例外）では何も起きない", async () => {
+  it("キャンセル（例外）では何も起きない（Crashlytics にも記録しない）", async () => {
     mockSignInAsync.mockRejectedValue({ code: "ERR_REQUEST_CANCELED" });
     render(<LoginScreen />);
 
     fireEvent.press(screen.getByText("Appleでサインイン"));
 
     await waitFor(() => expect(mockSignInAsync).toHaveBeenCalled());
+    expect(mockSignInWithApple).not.toHaveBeenCalled();
+    expect(mockTrackError).not.toHaveBeenCalled();
+  });
+
+  it("キャンセル以外の失敗は黙って戻るが、エラー本体を Crashlytics に記録する", async () => {
+    mockSignInAsync.mockRejectedValue(new Error("apple native failure"));
+    render(<LoginScreen />);
+
+    fireEvent.press(screen.getByText("Appleでサインイン"));
+
+    await waitFor(() =>
+      expect(mockTrackError).toHaveBeenCalledWith(expect.any(Error), {
+        screen: "login",
+        op: "apple_sign_in",
+      }),
+    );
     expect(mockSignInWithApple).not.toHaveBeenCalled();
   });
 });

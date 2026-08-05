@@ -25,6 +25,7 @@ import {
   type AppleWebLoginConfig,
 } from "../lib/apple-login";
 import { useAuth } from "../lib/auth";
+import { trackError } from "../lib/crash";
 import { googleClientConfig } from "../lib/google-login";
 import { SITE_ORIGIN } from "../lib/site";
 import { colors, radius } from "../lib/theme";
@@ -146,11 +147,15 @@ export function LoginScreen() {
         })
       : null;
 
-  // Google から id_token が返ったらサーバ認証へ。
+  // Google から id_token が返ったらサーバ認証へ。失敗は黙って戻る（再押下でやり直せる）が、
+  // エラー本体は Crashlytics で見えるようにする。
   useEffect(() => {
     if (response?.type === "success") {
       const idToken = response.params.id_token;
-      if (idToken) void signInWithGoogle(idToken).catch(() => undefined);
+      if (idToken)
+        void signInWithGoogle(idToken).catch((e) =>
+          trackError(e, { screen: "login", op: "google_sign_in" }),
+        );
     }
   }, [response, signInWithGoogle]);
 
@@ -164,9 +169,12 @@ export function LoginScreen() {
       if (cred.identityToken) {
         await signInWithApple(cred.identityToken, cred.authorizationCode ?? undefined);
       }
-    } catch {
+    } catch (e) {
       // キャンセル（ERR_REQUEST_CANCELED）を含め黙って戻る（ボタンの再押下でやり直せる。
-      // Google 側の .catch(() => undefined) と同じ流儀）。
+      // Google 側と同じ流儀）。キャンセル以外のエラー本体は Crashlytics に記録する。
+      if ((e as { code?: string }).code !== "ERR_REQUEST_CANCELED") {
+        trackError(e, { screen: "login", op: "apple_sign_in" });
+      }
     }
   }
 
@@ -183,8 +191,10 @@ export function LoginScreen() {
       if (result.type !== "success") return;
       const parsed = parseAppleCallbackUrl(result.url, state);
       if (parsed) await signInWithApple(parsed.idToken, parsed.authorizationCode);
-    } catch {
-      // onApplePress（iOS）と同じ流儀: キャンセル含め黙って戻る。
+    } catch (e) {
+      // onApplePress（iOS）と同じ流儀: 黙って戻る（キャンセルは result.type で弾かれるため
+      // ここに来るのは実エラーのみ）。エラー本体は Crashlytics に記録する。
+      trackError(e, { screen: "login", op: "apple_sign_in" });
     }
   }
 

@@ -8,6 +8,7 @@
 
 import Purchases from "react-native-purchases";
 import type { PaidPlan } from "@rigel/ui";
+import { trackError } from "./crash";
 import { IAP_PRODUCT_IDS } from "./iap";
 import { revenueCatApiKey } from "./purchases-keys";
 
@@ -33,6 +34,7 @@ export async function logInPurchases(userId: string): Promise<void> {
     await Purchases.logIn(userId);
   } catch (e) {
     console.warn("RevenueCat logIn に失敗", e);
+    trackError(e, { screen: "login", op: "purchases_login" });
   }
 }
 
@@ -43,6 +45,7 @@ export async function logOutPurchases(): Promise<void> {
     await Purchases.logOut();
   } catch (e) {
     console.warn("RevenueCat logOut に失敗", e);
+    trackError(e, { screen: "login", op: "purchases_logout" });
   }
 }
 
@@ -62,7 +65,26 @@ export async function purchasePlan(plan: PaidPlan): Promise<PurchaseOutcome> {
     await Purchases.purchasePackage(pkg);
     return "purchased";
   } catch (e) {
-    return (e as { userCancelled?: boolean }).userCancelled ? "cancelled" : "failed";
+    if ((e as { userCancelled?: boolean }).userCancelled) return "cancelled";
+    // キャンセル以外の失敗は記録する（「購入に失敗しました」しか手掛かりが無い状態を防ぐ）。
+    trackError(e, { screen: "settings", op: "purchase" });
+    return "failed";
+  }
+}
+
+export type RestoreOutcome = "restored" | "failed" | "unavailable";
+
+/** 過去の購入を復元する（機種変更・再インストールでの取り戻し。App Store 審査要件）。
+ *  plan への反映はサーバ側（RevenueCat Webhook → users.plan）経由なので、呼び出し側は
+ *  復元後に /me を再取得する。 */
+export async function restorePurchases(): Promise<RestoreOutcome> {
+  if (!purchasesEnabled()) return "unavailable";
+  try {
+    await Purchases.restorePurchases();
+    return "restored";
+  } catch (e) {
+    trackError(e, { screen: "settings", op: "restore_purchases" });
+    return "failed";
   }
 }
 
@@ -72,7 +94,8 @@ export async function purchasesManagementUrl(): Promise<string | null> {
   try {
     const info = await Purchases.getCustomerInfo();
     return info.managementURL ?? null;
-  } catch {
+  } catch (e) {
+    trackError(e, { screen: "settings", op: "billing_portal" });
     return null;
   }
 }

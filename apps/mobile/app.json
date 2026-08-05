@@ -12,7 +12,7 @@
     "ios": {
       "bundleIdentifier": "jp.co.plaria.rigel",
       "usesAppleSignIn": true,
-      "supportsTablet": true,
+      "supportsTablet": false,
       "googleServicesFile": "./GoogleService-Info.plist",
       "config": {
         "usesNonExemptEncryption": false
@@ -43,12 +43,29 @@
       "expo-apple-authentication",
       "@react-native-firebase/app",
       "@react-native-firebase/analytics",
+      "@react-native-firebase/crashlytics",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "卓の写真から牌譜を作成するために、写真ライブラリへのアクセスを許可してください。",
+          "cameraPermission": false,
+          "microphonePermission": false
+        }
+      ],
       [
         "expo-build-properties",
         {
           "ios": {
             "useFrameworks": "static"
           }
+        }
+      ],
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/adaptive-icon.png",
+          "imageWidth": 180,
+          "backgroundColor": "#0f1115"
         }
       ]
     ]

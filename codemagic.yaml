@@ -114,6 +114,21 @@ workflows:
           xcode-project build-ipa \
             --workspace "$XCODE_WORKSPACE" \
             --scheme "$XCODE_SCHEME"
+
+      - name: dSYM を Crashlytics へアップロード
+        # release ビルドのネイティブクラッシュをシンボル化するため（docs/plans/crashlytics.md Task 6）。
+        # 見つからない場合は警告してスキップ（dSYM が無くてもビルド成果物自体は有効なので壊さない。
+        # Android の mapping アップロードは @react-native-firebase/crashlytics の Gradle plugin が自動）。
+        script: |
+          set -eo pipefail
+          ARCHIVE=$(find "$CM_BUILD_DIR/build/ios/xcarchive" -maxdepth 1 -name "*.xcarchive" | head -n 1 || true)
+          UPLOAD="$CM_BUILD_DIR/apps/mobile/ios/Pods/FirebaseCrashlytics/upload-symbols"
+          GSP="$CM_BUILD_DIR/apps/mobile/GoogleService-Info.plist"
+          if [ -z "$ARCHIVE" ] || [ ! -x "$UPLOAD" ] || [ ! -f "$GSP" ]; then
+            echo "WARN: dSYM アップロードをスキップ（archive/upload-symbols/GoogleService-Info.plist のいずれかが無い）"
+            exit 0
+          fi
+          "$UPLOAD" -gsp "$GSP" -p ios "$ARCHIVE/dSYMs"
     artifacts:
       - build/ios/ipa/*.ipa
       - /tmp/xcodebuild_logs/*.log

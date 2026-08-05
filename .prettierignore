@@ -8,5 +8,9 @@
 pnpm-lock.yaml
 .claude/settings.local.json
 
+# Firebase コンソールからダウンロードする機械生成ファイル（再取得のたびに差分を出さない）
+apps/mobile/google-services.json
+apps/mobile/GoogleService-Info.plist
+
 # Markdown は手作業で整形（CJKの表・ASCII図を Prettier に崩させない）
 **/*.md

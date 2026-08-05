@@ -19,6 +19,7 @@ import { Stepper } from "../components/Stepper";
 import { TilePickerSheet } from "../components/editor/TilePickerSheet";
 import { analyze, createEmptyKifu, createGame } from "../lib/api";
 import { useAuth } from "../lib/auth";
+import { trackError } from "../lib/crash";
 import type { RootStackParamList } from "../lib/navigation";
 import { pickImage, type PickedImage as Picked } from "../lib/pick-image";
 import { colors } from "../lib/theme";
@@ -79,7 +80,8 @@ export function CaptureScreen() {
       else if (res.status === 409) setManualError(LIMIT_MESSAGES.gameFull);
       else if (res.status === 403) setManualError(LIMIT_MESSAGES.draftGames);
       else setManualError("作成に失敗しました。");
-    } catch {
+    } catch (e) {
+      trackError(e, { screen: "capture", op: "create_kifu" });
       setManualError("通信に失敗しました。");
     } finally {
       setCreating(false);
@@ -140,7 +142,10 @@ export function CaptureScreen() {
         return;
       }
       nav.goBack();
-    } catch {
+    } catch (e) {
+      // 2026-08-01 の実機障害（expo/fetch × FormData 非互換）はここで握りつぶされ
+      // 原因特定に遠回りした。以後、実機のエラー本体は Crashlytics で見る。
+      trackError(e, { screen: "capture", op: "analyze" });
       setError("通信に失敗しました。");
     } finally {
       setSubmitting(false);

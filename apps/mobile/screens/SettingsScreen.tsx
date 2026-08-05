@@ -8,6 +8,7 @@ import {
   type PaidPlan,
   type Plan,
 } from "@rigel/ui";
+import * as WebBrowser from "expo-web-browser";
 import { useEffect, useState } from "react";
 import { Linking, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import Svg, { Circle, Path } from "react-native-svg";
@@ -15,7 +16,8 @@ import { AppBar } from "../components/AppBar";
 import { PlanSheet } from "../components/PlanSheet";
 import { createPortal, deleteAccount, updateProfile } from "../lib/api";
 import { useAuth } from "../lib/auth";
-import { purchasePlan, purchasesManagementUrl } from "../lib/purchases";
+import { trackError } from "../lib/crash";
+import { purchasePlan, purchasesManagementUrl, restorePurchases } from "../lib/purchases";
 import { SITE_ORIGIN } from "../lib/site";
 import { colors, radius } from "../lib/theme";
 
@@ -105,6 +107,22 @@ export function SettingsScreen() {
     // cancelled はユーザーの意思なので黙る。
   }
 
+  // 過去の購入の復元（機種変更・再インストール。App Store 審査要件の定番導線）。
+  // plan への反映はサーバ側（RevenueCat Webhook）経由なので、復元後に /me を再取得する。
+  async function onRestore() {
+    if (!token) return;
+    setBillingNote(null);
+    const outcome = await restorePurchases();
+    if (outcome === "restored") {
+      setBillingNote("購入情報を確認しました。プランへの反映には少し時間がかかることがあります。");
+      void refresh();
+    } else if (outcome === "failed") {
+      setBillingNote("復元に失敗しました。通信状況を確認してもう一度お試しください。");
+    } else {
+      setBillingNote("アプリ内購入は現在利用できません");
+    }
+  }
+
   // 加入中のプラン変更・解約。ストア購読（IAP）は OS の購読管理（RevenueCat の管理URL）へ、
   // web 購入（Stripe）は決済ポータルへ（Checkout の作り直しは二重課金になる）。
   async function onOpenPortal() {
@@ -126,7 +144,8 @@ export function SettingsScreen() {
             ? "加入中のプランが見つかりませんでした"
             : "ポータルを開けませんでした",
         );
-    } catch {
+    } catch (e) {
+      trackError(e, { screen: "settings", op: "billing_portal" });
       setBillingNote("通信に失敗しました。");
     }
   }
@@ -194,7 +213,7 @@ export function SettingsScreen() {
 
         <SectionTitle>料金プラン</SectionTitle>
         <Group>
-          <View style={styles.plan}>
+          <View style={[styles.plan, token ? styles.planDivider : null]}>
             <Text style={styles.pin}>現在</Text>
             <View style={{ flex: 1 }}>
               <Text style={styles.planName}>{planLabel(plan)}</Text>
@@ -221,12 +240,38 @@ export function SettingsScreen() {
               </Pressable>
             ) : null}
           </View>
+          {/* 過去の購入の復元（機種変更・再インストール。購入導線とセットで出す）。 */}
+          {token ? (
+            <Pressable onPress={() => void onRestore()}>
+              <Item icon={<IconRestore />} last>
+                <Text style={styles.itemTitle}>購入を復元</Text>
+                <Chevron />
+              </Item>
+            </Pressable>
+          ) : null}
         </Group>
         {billingNote ? (
           <Text style={styles.billingNote} testID="billing-note">
             {billingNote}
           </Text>
         ) : null}
+
+        {/* 規約・ポリシーはアプリ内から必ず開ける（購読アプリの必須導線。ログイン不要）。 */}
+        <SectionTitle>サポート</SectionTitle>
+        <Group>
+          <Pressable onPress={() => void WebBrowser.openBrowserAsync(`${SITE_ORIGIN}/terms`)}>
+            <Item icon={<IconDoc />}>
+              <Text style={styles.itemTitle}>利用規約</Text>
+              <Chevron />
+            </Item>
+          </Pressable>
+          <Pressable onPress={() => void WebBrowser.openBrowserAsync(`${SITE_ORIGIN}/privacy`)}>
+            <Item icon={<IconShield />} last>
+              <Text style={styles.itemTitle}>プライバシーポリシー</Text>
+              <Chevron />
+            </Item>
+          </Pressable>
+        </Group>
 
         {/* アカウント操作はログイン時のみ（ゲストにはアカウントが無いので無意味）。 */}
         {token ? (
@@ -368,6 +413,28 @@ function IconTrash({ danger }: { danger?: boolean }) {
     </Svg>
   );
 }
+function IconRestore() {
+  return (
+    <Svg width={17} height={17} viewBox="0 0 24 24">
+      <Path d="M4 10a8 8 0 1 1 2 6" {...stroke()} />
+      <Path d="M4 5v5h5" {...stroke()} />
+    </Svg>
+  );
+}
+function IconDoc() {
+  return (
+    <Svg width={17} height={17} viewBox="0 0 24 24">
+      <Path d="M6 3h9l4 4v14H6z M14 3v5h5 M9 12h6M9 16h6" {...stroke()} />
+    </Svg>
+  );
+}
+function IconShield() {
+  return (
+    <Svg width={17} height={17} viewBox="0 0 24 24">
+      <Path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6z" {...stroke()} />
+    </Svg>
+  );
+}
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.bg },
@@ -432,6 +499,11 @@ const styles = StyleSheet.create({
   disabled: { opacity: 0.5 },
   saveText: { color: "#16181d", fontWeight: "800", fontSize: 13 },
   plan: { flexDirection: "row", alignItems: "center", gap: 11, padding: 14 },
+  // 「購入を復元」行と重ねるときの区切り線（Item と同じ hairline）。
+  planDivider: {
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.line2,
+  },
   pin: {
     color: colors.accent,
     fontSize: 11,
