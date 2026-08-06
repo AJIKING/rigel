@@ -140,6 +140,59 @@ App Store の「概要」と同文を使う（Play はキーワード欄が無�
    にする判断は review-login.md のリスク節を参照）
 7. **審査完了後に `wrangler secret delete REVIEW_LOGIN_SECRET`**（合言葉ログインを閉じる）
 
+### 記入テンプレ（そのまま貼る。`<REVIEW_CODE>` を実際の合言葉に置換）
+
+通常のユーザー名＋パスワードのアカウントが存在しないため、**認証情報欄には合言葉を書き、
+備考欄で手順を説明する**（非標準ログインの定番の書き方。欄を空にすると差し戻される）。
+
+**App Store Connect → App Review に関する情報**
+- 「サインインが必要です」に**チェック**
+- ユーザー名: `review`（形式上の値。実際の手順は備考参照）
+- パスワード: `<REVIEW_CODE>`
+- 備考（メモ）欄:
+
+```
+This app uses Google / Apple sign-in only, so instead of a username/password
+account we provide a dedicated review login.
+
+How to sign in as the review account:
+1. On the login screen, long-press the app logo "RAISHA" (about 1 second).
+2. A review-code input field appears.
+3. Enter the code below and tap the sign-in button.
+Review code: <REVIEW_CODE>
+
+Notes:
+- The review account is pre-loaded with sample game records and a paid (Pro)
+  plan, so all core features (AI photo-to-game-record, quiz training, ranking)
+  can be tested immediately.
+- Public game records and quizzes can also be browsed WITHOUT signing in
+  (guest mode), and a new account can be created instantly with Sign in with
+  Apple.
+- Subscriptions (Next / Pro) can be tested from Settings > 料金プラン via
+  sandbox purchase.
+```
+
+**Play Console → アプリのコンテンツ → アプリのアクセス権**
+- 「すべてまたは一部の機能が制限されている」を選択 → 認証情報を追加
+- 手順名: `審査用ログイン（合言葉）`
+- ユーザー名: `review` / パスワード: `<REVIEW_CODE>`
+- その他の情報:
+
+```
+本アプリのサインインは Google / Apple のみのため、審査用に合言葉ログインを用意しています。
+1. ログイン画面のロゴ「RAISHA」を約1秒長押し
+2. 表示される「審査コード」欄に上記パスワード（合言葉）を入力してサインイン
+※ 審査用アカウントにはサンプル牌譜と有料プラン（Pro）を設定済みで、全機能を試せます。
+※ サインインなしでも公開牌譜・何切る・特訓はゲストとして閲覧/プレイできます。
+```
+
+**Play Console → アプリのコンテンツ → データセーフティ（アカウント削除）**
+- 「ユーザーがアカウントと関連データの削除をリクエストする場合に使うリンク」:
+  `https://raisha.jp/account-deletion`（専用ページ 2026-08-05 実装。ウェブからの削除手順・
+  削除範囲・有料プラン中は先に解約が必要な旨を明記。**記入前に web の promote が必要**）
+- 「一部のデータの削除をリクエストできるようにしていますか」→ はい
+  （半荘・局・何切る・写真は個別に削除可能）
+
 ## 入稿時の注意
 
 - ストア掲載名の変更: App Store Connect「アプリ情報 → 名前」/ Play Console
