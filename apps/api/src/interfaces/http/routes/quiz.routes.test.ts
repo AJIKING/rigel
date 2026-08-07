@@ -364,7 +364,7 @@ describe("GET /ranking（匿名可・verified セッションの集計のみ）"
     expect(body.kind).toBe("chinitsu");
     expect(body.period).toBe("all");
     expect(body.me).toBeNull();
-    const entries = body.correct as Record<string, unknown>[];
+    const entries = body.entries as Record<string, unknown>[];
     expect(entries).toHaveLength(1);
     // userId・email 等の内部情報は返さない（公開情報＝handle/displayName と集計値のみ）。
     expect(Object.keys(entries[0]!).sort()).toEqual([
@@ -373,9 +373,11 @@ describe("GET /ranking（匿名可・verified セッションの集計のみ）"
       "displayName",
       "handle",
       "rank",
+      "score",
       "total",
     ]);
-    expect(entries[0]).toMatchObject({ rank: 1, correct: 1, total: 1 });
+    // スコア = 正答数 × 正答率（単一ボード [決定] 2026-08-07）。
+    expect(entries[0]).toMatchObject({ rank: 1, correct: 1, total: 1, score: 1 });
   });
 
   it("申告のみ（answers なし=unverified）のセッションはランキングに載らない", async () => {
@@ -386,7 +388,7 @@ describe("GET /ranking（匿名可・verified セッションの集計のみ）"
     );
     await request("/quiz/sessions/q1", await authInit("u-free", { method: "PATCH", json: RESULT }));
     const res = await request("/ranking?kind=chinitsu&period=all");
-    expect(((await res.json()) as { correct: unknown[] }).correct).toEqual([]);
+    expect(((await res.json()) as { entries: unknown[] }).entries).toEqual([]);
   });
 
   it("サインイン時は自分の順位（me）が付き、キャッシュさせない", async () => {
@@ -394,8 +396,8 @@ describe("GET /ranking（匿名可・verified セッションの集計のみ）"
     const res = await request("/ranking?kind=chinitsu&period=all", await authInit("u-paid"));
     expect(res.status).toBe(200);
     expect(res.headers.get("cache-control")).toBe("private, no-store");
-    const body = (await res.json()) as { me: { correctRank: number } | null };
-    expect(body.me).toMatchObject({ correctRank: 1, correct: 1, total: 1 });
+    const body = (await res.json()) as { me: { rank: number } | null };
+    expect(body.me).toMatchObject({ rank: 1, correct: 1, total: 1, score: 1 });
   });
 
   it("period 省略は weekly・不正な kind/period は 400", async () => {

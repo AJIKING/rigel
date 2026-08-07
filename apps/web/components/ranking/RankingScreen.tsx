@@ -1,18 +1,18 @@
 "use client";
 
-import type { QuizRankingDto, QuizRankingEntryDto, QuizRankingPeriodDto } from "@rigel/client";
+import type { QuizRankingDto, QuizRankingPeriodDto } from "@rigel/client";
 import type { QuizKind } from "@rigel/schema";
 import {
   accuracyLabel,
   quizRankingName,
+  quizScoreLabel,
   LIST_LOAD_ERROR_MESSAGE,
   QUIZ_KIND_LABELS,
   QUIZ_KINDS,
-  QUIZ_RANKING_ACCURACY_NOTE,
-  QUIZ_RANKING_BOARD_LABELS,
+  QUIZ_RANKING_BOARD_LABEL,
   QUIZ_RANKING_EMPTY_MESSAGE,
-  QUIZ_RANKING_ME_EXCLUDED_NOTE,
   QUIZ_RANKING_PERIODS,
+  QUIZ_RANKING_SCORE_NOTE,
 } from "@rigel/ui";
 import Link from "next/link";
 import { useRef, useState } from "react";
@@ -23,7 +23,8 @@ import r from "./ranking.module.css";
 
 /**
  * 特訓ランキング（/ranking・公開ページ。[決定] 2026-08-04 強制表示）。
- * 種目×期間（週間/月間/全期間）で「正解数」「正答率」の2ボードを出す。
+ * 種目×期間（週間/月間/全期間）で単一の「スコア」ボードを出す
+ * （スコア = 正解数 × 正答率。[決定] 2026-08-07 2ボードから統合）。
  * 載るのは verified セッション（サーバ再採点済み）の集計値と常時公開のプロフィール情報
  * （displayName/handle）のみ。サインイン時は自分の順位（圏外含む）を上に出す。
  * 初期表示はサーバ取得（page.tsx）・チップ切替はサーバアクションで再取得。
@@ -112,17 +113,11 @@ export function RankingScreen({
           {data?.me && (
             <p className={r.meRow}>
               <span>
-                あなた: 正解数 <b>{data.me.correctRank}位</b>（{data.me.correct}問）
+                あなた: <b>{data.me.rank}位</b>（{QUIZ_RANKING_BOARD_LABEL}{" "}
+                {quizScoreLabel(data.me.score)}）
               </span>
               <span>
-                正答率{" "}
-                {data.me.accuracyRank === null ? (
-                  <>{QUIZ_RANKING_ME_EXCLUDED_NOTE}</>
-                ) : (
-                  <>
-                    <b>{data.me.accuracyRank}位</b>（{accuracyLabel(data.me.accuracy)}）
-                  </>
-                )}
+                {data.me.correct}問・{accuracyLabel(data.me.accuracy)}
               </span>
             </p>
           )}
@@ -131,61 +126,41 @@ export function RankingScreen({
               チップ操作で再取得できる）。取得中は前の表示を保ったまま薄くする。 */}
           {data && (
             <div className={`${r.boards} ${pending ? r.busy : ""}`} aria-busy={pending}>
-              <Board
-                title={QUIZ_RANKING_BOARD_LABELS.correct}
-                entries={data.correct}
-                value={(e) => `${e.correct}問`}
-              />
-              <Board
-                title={QUIZ_RANKING_BOARD_LABELS.accuracy}
-                note={QUIZ_RANKING_ACCURACY_NOTE}
-                entries={data.accuracy}
-                value={(e) => accuracyLabel(e.accuracy)}
-              />
+              <div className={r.board}>
+                <h2 className={r.boardTitle}>{QUIZ_RANKING_BOARD_LABEL}</h2>
+                <p className={r.boardNote}>{QUIZ_RANKING_SCORE_NOTE}</p>
+                {data.entries.length === 0 ? (
+                  <p className={r.empty}>{QUIZ_RANKING_EMPTY_MESSAGE}</p>
+                ) : (
+                  <ol className={r.list} aria-label={`${QUIZ_RANKING_BOARD_LABEL}ランキング`}>
+                    {data.entries.map((e) => (
+                      <li key={`${e.rank}-${e.handle}`} className={r.row}>
+                        <span className={`${r.rank} ${e.rank <= 3 ? r.rankTop : ""}`}>
+                          {e.rank}
+                        </span>
+                        {/* 表示は常時公開のプロフィール情報のみ（解決規則は quizRankingName に共有）。
+                            handle があれば公開ページへリンクする。 */}
+                        {e.handle ? (
+                          <Link href={`/u/${e.handle}`} className={r.name}>
+                            {quizRankingName(e)}
+                          </Link>
+                        ) : (
+                          <span className={r.name}>{quizRankingName(e)}</span>
+                        )}
+                        {/* 内訳（正解数・正答率）を添えてスコアの根拠を見えるようにする。 */}
+                        <span className={r.sub}>
+                          {e.correct}問・{accuracyLabel(e.accuracy)}
+                        </span>
+                        <span className={r.value}>{quizScoreLabel(e.score)}</span>
+                      </li>
+                    ))}
+                  </ol>
+                )}
+              </div>
             </div>
           )}
         </section>
       </main>
-    </div>
-  );
-}
-
-function Board({
-  title,
-  note,
-  entries,
-  value,
-}: {
-  title: string;
-  note?: string;
-  entries: QuizRankingEntryDto[];
-  value: (e: QuizRankingEntryDto) => string;
-}) {
-  return (
-    <div className={r.board}>
-      <h2 className={r.boardTitle}>{title}</h2>
-      {note && <p className={r.boardNote}>{note}</p>}
-      {entries.length === 0 ? (
-        <p className={r.empty}>{QUIZ_RANKING_EMPTY_MESSAGE}</p>
-      ) : (
-        <ol className={r.list} aria-label={`${title}ランキング`}>
-          {entries.map((e) => (
-            <li key={`${e.rank}-${e.handle}`} className={r.row}>
-              <span className={`${r.rank} ${e.rank <= 3 ? r.rankTop : ""}`}>{e.rank}</span>
-              {/* 表示は常時公開のプロフィール情報のみ（解決規則は quizRankingName に共有）。
-                  handle があれば公開ページへリンクする。 */}
-              {e.handle ? (
-                <Link href={`/u/${e.handle}`} className={r.name}>
-                  {quizRankingName(e)}
-                </Link>
-              ) : (
-                <span className={r.name}>{quizRankingName(e)}</span>
-              )}
-              <span className={r.value}>{value(e)}</span>
-            </li>
-          ))}
-        </ol>
-      )}
     </div>
   );
 }

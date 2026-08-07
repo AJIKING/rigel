@@ -904,7 +904,8 @@ export interface QuizRankingRow {
   total: number;
 }
 
-/** ボードの1行（公開情報のみ。userId は含めない）。 */
+/** ボードの1行（公開情報のみ。userId は含めない）。
+ *  [決定] 2026-08-07 オーナー: ボードは単一の「スコア」（= 正解数 × 正答率）に統合。 */
 export interface QuizRankingEntry {
   rank: number;
   handle: string;
@@ -913,16 +914,17 @@ export interface QuizRankingEntry {
   total: number;
   /** correct / total（0..1。total=0 は 0）。 */
   accuracy: number;
+  /** スコア = 正解数 × 正答率（= correct² / total。total=0 は 0）。 */
+  score: number;
 }
 
 /** 自分の順位（サインイン時のみ。圏外でも順位を出す）。 */
 export interface QuizRankingMe {
-  correctRank: number;
-  /** 最低解答数未満は正答率ボードの対象外なので null。 */
-  accuracyRank: number | null;
+  rank: number;
   correct: number;
   total: number;
   accuracy: number;
+  score: number;
 }
 
 /**

@@ -21,7 +21,6 @@ export type {
   ProblemStatus,
   PublicProfile,
   QuizRankingDto,
-  QuizRankingEntryDto,
   QuizRankingPeriodDto,
   QuizSessionDto,
 } from "@rigel/client";

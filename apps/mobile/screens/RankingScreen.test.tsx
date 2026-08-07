@@ -12,7 +12,7 @@ jest.mock("../lib/auth", () => ({
   useAuth: () => ({ token: mockToken, user: null }),
 }));
 
-function entry(over: Partial<QuizRankingDto["correct"][number]> = {}) {
+function entry(over: Partial<QuizRankingDto["entries"][number]> = {}) {
   return {
     rank: 1,
     handle: "taro",
@@ -20,6 +20,7 @@ function entry(over: Partial<QuizRankingDto["correct"][number]> = {}) {
     correct: 120,
     total: 200,
     accuracy: 0.6,
+    score: 72, // 120 × 60%
     ...over,
   };
 }
@@ -28,8 +29,7 @@ function dto(over: Partial<QuizRankingDto> = {}): QuizRankingDto {
   return {
     kind: "score",
     period: "weekly",
-    correct: [entry()],
-    accuracy: [entry({ handle: "jiro", displayName: "次郎", accuracy: 0.9 })],
+    entries: [entry()],
     me: null,
     ...over,
   };
@@ -42,24 +42,21 @@ beforeEach(() => {
 });
 
 describe("RankingScreen（特訓ランキング。匿名可）", () => {
-  it("初期表示は先頭種目×週間で取得し、2ボードに順位・表示名・値が並ぶ", async () => {
+  it("初期表示は先頭種目×週間で取得し、スコアボードに順位・表示名・内訳・スコアが並ぶ", async () => {
     render(<RankingScreen />);
 
-    expect(await screen.findByText("正解数")).toBeTruthy();
+    expect(await screen.findByText("スコア = 正解数 × 正答率")).toBeTruthy();
     expect(mockGetQuizRanking).toHaveBeenCalledWith("score", "weekly", undefined);
-    const correct = within(screen.getByTestId("board-correct"));
-    expect(correct.getByText("太郎")).toBeTruthy();
-    expect(correct.getByText("120問")).toBeTruthy();
-    const accuracy = within(screen.getByTestId("board-accuracy"));
-    expect(accuracy.getByText("次郎")).toBeTruthy();
-    expect(accuracy.getByText("90%")).toBeTruthy();
-    expect(accuracy.getByText("50問以上回答した人が対象")).toBeTruthy();
+    const board = within(screen.getByTestId("board-score"));
+    expect(board.getByText("太郎")).toBeTruthy();
+    expect(board.getByText("120問・60%")).toBeTruthy(); // 内訳
+    expect(board.getByText("72.0")).toBeTruthy(); // スコア（小数1桁）
   });
 
   it("種目・期間の切替で再取得し、取得中も前の表示を保つ（全面スピナーに戻さない）", async () => {
     let resolveNext: ((d: QuizRankingDto) => void) | null = null;
     render(<RankingScreen />);
-    await screen.findByText("正解数");
+    await screen.findByText("太郎");
 
     // 2回目以降の取得は保留にして「取得中」の表示を確かめる。
     mockGetQuizRanking.mockImplementation(
@@ -86,22 +83,28 @@ describe("RankingScreen（特訓ランキング。匿名可）", () => {
     expect(screen.queryByText(/読み込めませんでした/)).toBeNull();
   });
 
-  it("サインイン時は token 付きで取得し、自分の順位（me）を出す", async () => {
+  it("サインイン時は token 付きで取得し、自分の順位（me）をスコアつきで出す", async () => {
     mockToken = "t";
     mockGetQuizRanking.mockResolvedValue(
-      dto({ me: { correctRank: 12, accuracyRank: 3, correct: 40, total: 50, accuracy: 0.8 } }),
+      dto({ me: { rank: 12, correct: 40, total: 50, accuracy: 0.8, score: 32 } }),
     );
     render(<RankingScreen />);
 
     expect(await screen.findByText(/あなた:/)).toBeTruthy();
     expect(mockGetQuizRanking).toHaveBeenCalledWith("score", "weekly", "t");
     expect(screen.getByText(/12位/)).toBeTruthy();
-    expect(screen.getByText(/3位/)).toBeTruthy();
+    expect(screen.getByText(/スコア 32\.0/)).toBeTruthy();
   });
 
   it("取得失敗は読み込みエラーの文言（「0件」と混同させない）", async () => {
     mockGetQuizRanking.mockRejectedValue(new Error("network"));
     render(<RankingScreen />);
     expect(await screen.findByText(/読み込めませんでした/)).toBeTruthy();
+  });
+
+  it("記録が無ければ空状態の文言を出す（web と同一文言）", async () => {
+    mockGetQuizRanking.mockResolvedValue(dto({ entries: [] }));
+    render(<RankingScreen />);
+    expect(await screen.findByText("まだ記録がありません")).toBeTruthy();
   });
 });

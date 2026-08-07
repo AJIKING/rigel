@@ -6,7 +6,7 @@ import { getSessionToken } from "../../lib/session";
 // 公開ページ（verified セッションの集計値と常時公開のプロフィール情報のみ）。
 export const metadata = {
   title: "特訓ランキング | RAISHA",
-  description: "60秒特訓の週間・月間・全期間ランキング。正解数と正答率で競える。",
+  description: "60秒特訓の週間・月間・全期間ランキング。正解数×正答率のスコアで競える。",
 };
 
 // 集計はリクエスト時に行う（ビルド時に固めない）。

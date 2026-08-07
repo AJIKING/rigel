@@ -20,7 +20,7 @@ import {
   type QuizRankingPeriod,
   type QuizSubmittedAnswer,
 } from "@rigel/schema";
-import { buildQuizRanking, QUIZ_SESSION_SECONDS, type QuizRankingBoards } from "@rigel/ui";
+import { buildQuizRanking, QUIZ_SESSION_SECONDS, type QuizRankingBoard } from "@rigel/ui";
 import {
   withResult,
   withVerifiedResult,
@@ -210,7 +210,7 @@ export class GetQuizSession {
 }
 
 export type GetQuizRankingResult =
-  | ({ ok: true; kind: QuizKind; period: QuizRankingPeriod } & QuizRankingBoards)
+  | ({ ok: true; kind: QuizKind; period: QuizRankingPeriod } & QuizRankingBoard)
   | { ok: false; reason: "invalid" };
 
 /** 期間→集計窓の開始時刻（null=全期間）。**exhaustive な Record** なので、背骨の

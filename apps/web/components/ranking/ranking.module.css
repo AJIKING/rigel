@@ -1,5 +1,6 @@
 /* ============================================================
-   特訓ランキング（/ranking）— 種目・期間チップと2ボード（正解数/正答率）
+   特訓ランキング（/ranking）— 種目・期間チップと単一スコアボード
+   （スコア = 正解数 × 正答率。[決定] 2026-08-07 2ボードから統合）
    トーンはマイページ「特訓」タブ（training-stats.module.css）に合わせる:
    チップ＝ピル / 行＝chrome-2→chrome のダークカード。
    ============================================================ */
@@ -15,8 +16,9 @@
   composes: seg from "../mypage/training-stats.module.css";
 }
 
-/* 自分の順位（サインイン時のみ・両ボードの上に1行）。 */
+/* 自分の順位（サインイン時のみ・ボードの上に1行。幅はボードと揃える）。 */
 .meRow {
+  max-width: 620px;
   margin: 0 0 12px;
   padding: 10px 14px;
   background: linear-gradient(165deg, var(--chrome-2), var(--chrome));
@@ -34,22 +36,16 @@
   font-weight: 800;
 }
 
-/* 2ボードを横に並べる（狭幅は縦積み）。 */
+/* 単一スコアボード（[決定] 2026-08-07 2ボードから統合）。
+   広幅で1枚のボードが間延びしないよう幅を絞る（旧2ボード時の1枚分に近い読み幅）。 */
 .boards {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 14px;
+  max-width: 620px;
   transition: opacity 0.15s var(--ease);
 }
 /* チップ切替の取得中: 前の表示を保ったまま薄くする（真っ白・レイアウトシフトを避ける）。 */
 .busy {
   opacity: 0.5;
   pointer-events: none;
-}
-@media (max-width: 760px) {
-  .boards {
-    grid-template-columns: 1fr;
-  }
 }
 .board {
   background: linear-gradient(165deg, var(--chrome-2), var(--chrome));
@@ -111,8 +107,17 @@
 .name:hover {
   text-decoration: underline;
 }
+/* スコア本体（順位の物差し）。内訳（.sub）より主に見えるよう太字にする。 */
 .value {
-  color: var(--w70);
+  color: var(--white);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+/* スコアの内訳（正答数・正答率）。スコア本体より控えめに。 */
+.sub {
+  color: var(--w45);
+  font-size: 11px;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }

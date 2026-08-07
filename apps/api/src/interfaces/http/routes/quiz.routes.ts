@@ -78,8 +78,7 @@ export function registerQuizRoutes(app: Hono<AppEnv>): void {
     return c.json({
       kind: result.kind,
       period: result.period,
-      correct: result.correct,
-      accuracy: result.accuracy,
+      entries: result.entries,
       me: result.me,
     });
   });

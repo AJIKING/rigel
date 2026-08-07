@@ -454,9 +454,10 @@ describe("GetQuizRanking（verified のみ・期間窓・匿名可。Plan 4-2）
     const r = await d.ranking.execute({ kind: "chinitsu", period: "all", viewerId: null });
     expect(r.ok).toBe(true);
     if (r.ok) {
-      expect(r.correct.map((e) => [e.handle, e.correct, e.total])).toEqual([
-        ["@u1", 12, 20], // 7+5 / 10+10
-        ["@u4", 10, 10],
+      // スコア = 正答数×正答率: u4 = 10×100% = 10 > u1 = 12×60% = 7.2（単一ボード [決定] 2026-08-07）。
+      expect(r.entries.map((e) => [e.handle, e.correct, e.total, e.score])).toEqual([
+        ["@u4", 10, 10, 10],
+        ["@u1", 12, 20, 7.2], // 7+5 / 10+10
       ]);
       expect(r.me).toBeNull();
     }
@@ -467,7 +468,7 @@ describe("GetQuizRanking（verified のみ・期間窓・匿名可。Plan 4-2）
     seedRows(d);
     const r = await d.ranking.execute({ kind: "chinitsu", period: "weekly", viewerId: null });
     expect(r.ok).toBe(true);
-    if (r.ok) expect(r.correct.map((e) => e.handle)).toEqual(["@u1"]); // u4 は 7/18（先週）
+    if (r.ok) expect(r.entries.map((e) => e.handle)).toEqual(["@u1"]); // u4 は 7/18（先週）
   });
 
   it("monthly は JST 月初 0:00 起点の窓で、前月分を含めない", async () => {
@@ -490,7 +491,7 @@ describe("GetQuizRanking（verified のみ・期間窓・匿名可。Plan 4-2）
     const r = await d.ranking.execute({ kind: "chinitsu", period: "monthly", viewerId: null });
     expect(r.ok).toBe(true);
     if (r.ok) {
-      const handles = r.correct.map((e) => e.handle);
+      const handles = r.entries.map((e) => e.handle);
       expect(handles).toContain("@u1"); // 7/24（今月）
       expect(handles).toContain("@u4"); // 7/18（今月・週間窓の外）
       expect(handles).not.toContain("@u5"); // 6/30（前月）
@@ -502,7 +503,8 @@ describe("GetQuizRanking（verified のみ・期間窓・匿名可。Plan 4-2）
     seedRows(d);
     const r = await d.ranking.execute({ kind: "chinitsu", period: "all", viewerId: "u4" });
     expect(r.ok).toBe(true);
-    if (r.ok) expect(r.me).toMatchObject({ correctRank: 2, correct: 10, total: 10 });
+    // u4 = スコア 10（10問・100%）で1位（u1 = 7.2）。
+    if (r.ok) expect(r.me).toMatchObject({ rank: 1, correct: 10, total: 10, score: 10 });
   });
 
   it.each([

@@ -85,17 +85,15 @@ export interface QuizSessionDetailDto extends QuizSessionDto {
 
 // 特訓ランキングの wire 型は背骨（@rigel/schema）が単一真実源（2026-08-04 レビューで
 // 手書き重複を解消）。従来名（*Dto）は互換のための別名。
-export type {
-  QuizRankingEntry as QuizRankingEntryDto,
-  QuizRankingPeriod as QuizRankingPeriodDto,
-} from "@rigel/schema";
+// （EntryDto 別名は単一ボード化で消費者ゼロになったため削除。2026-08-07）
+export type { QuizRankingPeriod as QuizRankingPeriodDto } from "@rigel/schema";
 
-/** 特訓ランキング（正解数・正答率の2ボード＋サインイン時は自分の順位）。 */
+/** 特訓ランキング（単一スコアボード＝スコア = 正答数 × 正答率。
+ *  サインイン時は自分の順位つき。[決定] 2026-08-07）。 */
 export interface QuizRankingDto {
   kind: QuizKind;
   period: QuizRankingPeriod;
-  correct: QuizRankingEntry[];
-  accuracy: QuizRankingEntry[];
+  entries: QuizRankingEntry[];
   me: QuizRankingMe | null;
 }
 

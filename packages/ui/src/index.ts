@@ -59,7 +59,7 @@ export * from "./quiz-session-machine";
 // 特訓クイズの履歴グラフ整形（マイページ「特訓」の日毎集計・サマリ・系列）。
 export * from "./favorites";
 export * from "./quiz-stats";
-// 特訓ランキング（期間・2ボードの並べ方・しきい値。api/web/mobile 共有）。
+// 特訓ランキング（期間・単一スコアボードの並べ方とスコア定義。api/web/mobile 共有）。
 export * from "./quiz-ranking";
 // 局跨ぎの点棒集計（持ち点・成績）。
 export * from "./standings";

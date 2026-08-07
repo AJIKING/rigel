@@ -11,7 +11,7 @@ vi.mock("../../app/actions", () => ({ getQuizRankingAction: vi.fn() }));
 
 import { RankingScreen } from "./RankingScreen";
 
-function entry(over: Partial<QuizRankingDto["correct"][number]> = {}) {
+function entry(over: Partial<QuizRankingDto["entries"][number]> = {}) {
   return {
     rank: 1,
     handle: "taro",
@@ -19,6 +19,7 @@ function entry(over: Partial<QuizRankingDto["correct"][number]> = {}) {
     correct: 120,
     total: 200,
     accuracy: 0.6,
+    score: 72, // 120 × 60%
     ...over,
   };
 }
@@ -27,33 +28,16 @@ function dto(over: Partial<QuizRankingDto> = {}): QuizRankingDto {
   return {
     kind: "score",
     period: "weekly",
-    correct: [
+    entries: [
       entry(),
       entry({
         rank: 2,
         handle: "jiro",
         displayName: "次郎",
         correct: 90,
-        total: 100,
-        accuracy: 0.9,
-      }),
-    ],
-    accuracy: [
-      entry({
-        rank: 1,
-        handle: "jiro",
-        displayName: "次郎",
-        correct: 90,
-        total: 100,
-        accuracy: 0.9,
-      }),
-      entry({
-        rank: 2,
-        handle: "taro",
-        displayName: "太郎",
-        correct: 120,
-        total: 200,
-        accuracy: 0.6,
+        total: 130,
+        accuracy: 90 / 130,
+        score: 90 * (90 / 130), // ≒ 62.3
       }),
     ],
     me: null,
@@ -71,31 +55,28 @@ function renderScreen(initial: QuizRankingDto, fetchRanking = vi.fn()) {
   return fetchRanking;
 }
 
-describe("RankingScreen（特訓ランキング。公開・2ボード）", () => {
-  it("正解数・正答率の2ボードに順位・表示名・値が並び、名前は /u/handle へリンクする", () => {
+describe("RankingScreen（特訓ランキング。公開・単一スコアボード [決定] 2026-08-07）", () => {
+  it("スコアボードに順位・表示名・内訳・スコアが並び、名前は /u/handle へリンクする", () => {
     renderScreen(dto());
 
-    const correct = screen.getByRole("list", { name: "正解数ランキング" });
-    const rows = within(correct).getAllByRole("listitem");
+    // スコアの定義注記（正解数 × 正答率）を出す。
+    expect(screen.getByText("スコア = 正解数 × 正答率")).toBeTruthy();
+
+    const board = screen.getByRole("list", { name: "スコアランキング" });
+    const rows = within(board).getAllByRole("listitem");
     expect(rows).toHaveLength(2);
     expect(within(rows[0]!).getByText("1")).toBeTruthy();
     const link = within(rows[0]!).getByRole("link", { name: "太郎" });
     expect(link.getAttribute("href")).toBe("/u/taro");
-    expect(within(rows[0]!).getByText("120問")).toBeTruthy();
-
-    const accuracy = screen.getByRole("list", { name: "正答率ランキング" });
-    const aRows = within(accuracy).getAllByRole("listitem");
-    expect(within(aRows[0]!).getByRole("link", { name: "次郎" })).toBeTruthy();
-    expect(within(aRows[0]!).getByText("90%")).toBeTruthy();
-    // 正答率ボードにはしきい値の注記。
-    expect(screen.getByText("50問以上回答した人が対象")).toBeTruthy();
+    expect(within(rows[0]!).getByText("120問・60%")).toBeTruthy(); // 内訳
+    expect(within(rows[0]!).getByText("72.0")).toBeTruthy(); // スコア（小数1桁）
+    expect(within(rows[1]!).getByText("62.3")).toBeTruthy();
   });
 
   it("種目・期間チップの切替で fetchRanking を呼び、応答でボードが入れ替わる", async () => {
     const next = dto({
       kind: "efficiency",
-      correct: [entry({ handle: "hanako", displayName: "花子", correct: 55 })],
-      accuracy: [],
+      entries: [entry({ handle: "hanako", displayName: "花子", correct: 55 })],
     });
     const fetchRanking = vi.fn().mockResolvedValue(next);
     renderScreen(dto(), fetchRanking);
@@ -110,20 +91,21 @@ describe("RankingScreen（特訓ランキング。公開・2ボード）", () =>
     expect(fetchRanking).toHaveBeenLastCalledWith("efficiency", "monthly");
   });
 
-  it("me があれば自分の順位（圏外・正答率対象外も含む）を上に出す", () => {
+  it("me があれば自分の順位（圏外含む）をスコアつきで上に出す", () => {
     renderScreen(
       dto({
-        me: { correctRank: 123, accuracyRank: null, correct: 10, total: 20, accuracy: 0.5 },
+        me: { rank: 123, correct: 10, total: 20, accuracy: 0.5, score: 5 },
       }),
     );
     expect(screen.getByText(/あなた:/)).toBeTruthy();
     expect(screen.getByText("123位")).toBeTruthy();
-    expect(screen.getByText(/対象外（50問以上で掲載）/)).toBeTruthy();
+    expect(screen.getByText(/スコア 5\.0/)).toBeTruthy();
+    expect(screen.getByText(/10問・50%/)).toBeTruthy();
   });
 
-  it("記録が無いボードは空状態の文言を出す", () => {
-    renderScreen(dto({ correct: [], accuracy: [] }));
-    expect(screen.getAllByText("まだ記録がありません")).toHaveLength(2);
+  it("記録が無ければ空状態の文言を出す", () => {
+    renderScreen(dto({ entries: [] }));
+    expect(screen.getByText("まだ記録がありません")).toBeTruthy();
   });
 
   it("初期取得失敗（initial=null）はエラー文言を出し、空ボードに偽装しない。チップで再取得できる", async () => {
@@ -140,7 +122,7 @@ describe("RankingScreen（特訓ランキング。公開・2ボード）", () =>
     fireEvent.click(screen.getByRole("button", { name: "月間" }));
     await act(async () => {});
     expect(fetchRanking).toHaveBeenCalledWith("score", "monthly");
-    expect(screen.getByRole("list", { name: "正解数ランキング" })).toBeTruthy();
+    expect(screen.getByRole("list", { name: "スコアランキング" })).toBeTruthy();
     expect(screen.queryByRole("alert")).toBeNull();
   });
 
@@ -156,11 +138,11 @@ describe("RankingScreen（特訓ランキング。公開・2ボード）", () =>
 
     fireEvent.click(screen.getByRole("button", { name: "月間" }));
     const boards = screen
-      .getByRole("list", { name: "正解数ランキング" })
+      .getByRole("list", { name: "スコアランキング" })
       .closest("[aria-busy]") as HTMLElement;
     expect(boards.getAttribute("aria-busy")).toBe("true");
     // 前の表示は保たれている（真っ白にしない）。
-    expect(screen.getAllByRole("link", { name: "太郎" }).length).toBeGreaterThan(0);
+    expect(screen.getByRole("link", { name: "太郎" })).toBeTruthy();
 
     await act(async () => resolveFetch(dto()));
     expect(boards.getAttribute("aria-busy")).toBe("false");
@@ -172,7 +154,7 @@ describe("RankingScreen（特訓ランキング。公開・2ボード）", () =>
     fireEvent.click(screen.getByRole("button", { name: "月間" }));
     await act(async () => {});
     expect(screen.getByRole("alert").textContent).toMatch(/読み込めませんでした/);
-    // 既存表示は保たれる（太郎は正解数・正答率の両ボードに載っている）。
-    expect(screen.getAllByRole("link", { name: "太郎" }).length).toBeGreaterThan(0);
+    // 既存表示は保たれる。
+    expect(screen.getByRole("link", { name: "太郎" })).toBeTruthy();
   });
 });
