@@ -183,10 +183,18 @@ workflows:
         # set -e / EXPO_NO_GIT_STATUS / 生成検証は iOS 側と同じ理由。
         script: |
           set -eo pipefail
+          echo "== building commit: $(git rev-parse HEAD) =="
           cd apps/mobile
           npx expo --version
           CI=1 EXPO_NO_GIT_STATUS=1 npx expo prebuild --platform android --no-install --clean
           test -f android/gradlew || { echo "ERROR: expo prebuild が android/ を生成していません（上のログを確認）"; exit 1; }
+          # 広告ID権限の除去（blockedPermissions）が生成マニフェストに乗っているかを早期検証
+          # （Play の広告ID申告=「いいえ」と矛盾する AAB を作ってから publish で落ちるのを防ぐ。
+          #   gms の AD_ID と Android 13+ の ACCESS_ADSERVICES_AD_ID の両方が対象）。
+          for p in "com.google.android.gms.permission.AD_ID" "android.permission.ACCESS_ADSERVICES_AD_ID"; do
+            grep -q "$p\" tools:node=\"remove\"" android/app/src/main/AndroidManifest.xml \
+              || { echo "ERROR: $p の除去指定が生成されていない（app.json の android.blockedPermissions を確認）"; exit 1; }
+          done
 
       - name: キーストアを配置
         script: |
@@ -199,12 +207,27 @@ workflows:
 
       - name: AAB をビルド（injected signing で署名）
         script: |
+          set -eo pipefail
           cd apps/mobile/android
           ./gradlew bundleRelease \
             -Pandroid.injected.signing.store.file="$CM_BUILD_DIR/apps/mobile/android/app/release.keystore" \
             -Pandroid.injected.signing.store.password="$CM_KEYSTORE_PASSWORD" \
             -Pandroid.injected.signing.key.alias="$CM_KEY_ALIAS" \
             -Pandroid.injected.signing.key.password="$CM_KEY_PASSWORD"
+          # マージ後マニフェストの最終検証: AD_ID が残っていたら publish 前にここで止める
+          # （tools:node="remove" がライブラリ由来の権限を消しているかの実地確認）。
+          MERGED=$(find app/build/intermediates -path "*merged_manifest*" -name AndroidManifest.xml | head -1)
+          [ -z "$MERGED" ] && MERGED=$(find app/build/intermediates -path "*bundle_manifest*" -name AndroidManifest.xml | head -1)
+          [ -z "$MERGED" ] && MERGED=$(find app/build/intermediates -path "*release*" -name AndroidManifest.xml | head -1)
+          echo "merged manifest: $MERGED"
+          # gms の AD_ID と AdServices の ACCESS_ADSERVICES_AD_ID の両方を検査
+          # （大文字 AD_ID の一致＝uses-library の android.ext.adservices は対象外）。
+          if grep -q "AD_ID" "$MERGED"; then
+            echo "ERROR: マージ後マニフェストに広告ID権限が残っている（Play の申告と矛盾する）"
+            grep -n "AD_ID" "$MERGED" || true
+            exit 1
+          fi
+          echo "OK: マージ後マニフェストに広告ID権限なし"
     artifacts:
       - apps/mobile/android/app/build/outputs/**/*.aab
     publishing:

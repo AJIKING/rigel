@@ -34,7 +34,11 @@
         "backgroundColor": "#13a274"
       },
       "googleServicesFile": "./google-services.json",
-      "blockedPermissions": ["com.google.android.gms.permission.AD_ID"]
+      "blockedPermissions": [
+        "com.google.android.gms.permission.AD_ID",
+        "android.permission.ACCESS_ADSERVICES_AD_ID",
+        "android.permission.ACCESS_ADSERVICES_ATTRIBUTION"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
