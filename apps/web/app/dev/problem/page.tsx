@@ -36,7 +36,9 @@ const POST: ProblemPost = {
           { type: "chi", tiles: [{ tile: "2s" }, { tile: "3s" }, { tile: "4s" }], from: "south" },
         ],
       },
-      south: {},
+      // 他家の河を1枚置いて「場況あり」にする（場況が無いと平面表示になり卓が描かれず、
+      // 卓上の副露レイアウトを測れない。isFlatProblem・[決定] 2026-08-08）。
+      south: { river: [{ order: 1, tile: "1z" }] },
       west: {},
       north: {},
     },
