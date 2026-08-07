@@ -15,20 +15,13 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { FlatList, Pressable, StyleSheet, Text, View } from "react-native";
 import { CenterState } from "../components/CenterState";
 import { Chip } from "../components/Chip";
-import { DangerButton } from "../components/DangerButton";
 import { ListFooter } from "../components/ListFooter";
 import { MyListToolbar } from "../components/MyListToolbar";
+import { ProblemHandPreview } from "../components/ProblemHandPreview";
 import { StarButton } from "../components/StarButton";
 import { Toolbar } from "../components/Toolbar";
 import type { ProblemDraftCard } from "@rigel/client";
-import {
-  deleteProblem,
-  deleteProblemDraft,
-  getMyProblems,
-  listProblemDrafts,
-  updateProblem,
-  type ProblemPost,
-} from "../lib/api";
+import { deleteProblemDraft, getMyProblems, listProblemDrafts, type ProblemPost } from "../lib/api";
 import { useAuth } from "../lib/auth";
 import { confirmDestructive } from "../lib/confirm";
 import { relativeTime } from "../lib/format";
@@ -143,38 +136,6 @@ export function MyProblemsScreen() {
 
   const limit = PROBLEM_LIMIT[user?.plan ?? "free"];
   const atLimit = limit !== null && posts.length >= limit;
-
-  /** draft⇔published の切替（楽観更新・失敗でロールバック）。 */
-  function toggleStatus(post: ProblemPost) {
-    if (!token) return;
-    const next = post.status === "draft" ? "published" : "draft";
-    setPosts((cur) => cur.map((p) => (p.id === post.id ? { ...p, status: next } : p)));
-    updateProblem(token, post.id, { status: next })
-      .then((res) => {
-        if (!res.ok) throw new Error("failed");
-      })
-      .catch(() => {
-        setPosts((cur) => cur.map((p) => (p.id === post.id ? { ...p, status: post.status } : p)));
-        setErr("状態の変更に失敗しました。");
-      });
-  }
-
-  /** 削除（確認ダイアログ→成功で一覧から除去）。 */
-  function onDelete(post: ProblemPost) {
-    if (!token) return;
-    confirmDestructive({
-      // 文言は web/mobile 共通の DELETE_CONFIRM（@rigel/ui）。
-      ...DELETE_CONFIRM.problem(post.title),
-      onConfirm: () => {
-        deleteProblem(token, post.id)
-          .then((res) => {
-            if (res.ok) setPosts((cur) => cur.filter((p) => p.id !== post.id));
-            else setErr("削除に失敗しました。");
-          })
-          .catch(() => setErr("削除に失敗しました。"));
-      },
-    });
-  }
 
   return (
     <View style={styles.root}>
@@ -299,11 +260,17 @@ export function MyProblemsScreen() {
           }
           renderItem={({ item }) => (
             <View style={styles.card}>
+              {/* 自分の問題はタップで編集へ（公開切替・削除・回答画面の確認は編集画面に集約。
+                  [決定] 2026-08-08 オーナー。公開一覧は従来どおり回答画面）。 */}
               <Pressable
-                onPress={() => nav.navigate("ProblemAnswer", { problemId: item.id })}
+                onPress={() => nav.navigate("ProblemEdit", { problemId: item.id })}
                 accessibilityRole="button"
               >
                 <Text style={styles.cardTitle}>{item.title || "（無題の問題）"}</Text>
+                {/* 牌姿プレビュー（一覧で「何の問題か」が一目で分かるように。web と対）。 */}
+                <View style={styles.preview}>
+                  <ProblemHandPreview problem={item.problem} />
+                </View>
                 <View style={styles.metaRow}>
                   <Text style={styles.kind}>{KIND_LABELS[item.problem.kind]}</Text>
                   <Text style={item.status === "draft" ? styles.badgeDraft : styles.badgePub}>
@@ -318,19 +285,6 @@ export function MyProblemsScreen() {
                   count={item.favoriteCount}
                   onPress={() => toggleFav("problem", item)}
                 />
-              </View>
-              <View style={styles.acts}>
-                <Chip
-                  label={item.status === "draft" ? "公開する" : "下書きに戻す"}
-                  a11ySelected={false}
-                  onPress={() => toggleStatus(item)}
-                />
-                <Chip
-                  label="編集"
-                  a11ySelected={false}
-                  onPress={() => nav.navigate("ProblemEdit", { problemId: item.id })}
-                />
-                <DangerButton label="削除" onPress={() => onDelete(item)} />
               </View>
             </View>
           )}
@@ -373,6 +327,8 @@ const styles = StyleSheet.create({
   },
   cardTitle: { color: colors.white, fontSize: 14, fontWeight: "700", marginBottom: 5 },
   metaRow: { flexDirection: "row", alignItems: "center", gap: 8 },
+  /* 牌姿プレビュー行（タイトルとメタの間）。 */
+  preview: { marginBottom: 6, paddingRight: 20 },
   kind: { color: colors.accent, fontSize: 11.5, fontWeight: "700" },
   badgeDraft: { color: colors.vermilion, fontSize: 11.5, fontWeight: "700" },
   badgePub: { color: colors.accent, fontSize: 11.5, fontWeight: "700" },

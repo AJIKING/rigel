@@ -22,14 +22,22 @@ jest.mock("../lib/auth", () => ({
 const mockGetProblem = jest.fn();
 const mockCreateProblem = jest.fn();
 const mockUpdateProblem = jest.fn();
+const mockDeleteProblem = jest.fn();
 const mockAnalyzeProblem = jest.fn();
 const mockGetProblemAnalysisJob = jest.fn();
 jest.mock("../lib/api", () => ({
   getProblem: (...args: unknown[]) => mockGetProblem(...args),
   createProblem: (...args: unknown[]) => mockCreateProblem(...args),
   updateProblem: (...args: unknown[]) => mockUpdateProblem(...args),
+  deleteProblem: (...args: unknown[]) => mockDeleteProblem(...args),
   analyzeProblem: (...args: unknown[]) => mockAnalyzeProblem(...args),
   getProblemAnalysisJob: (...args: unknown[]) => mockGetProblemAnalysisJob(...args),
+}));
+
+// 削除確認はテストでは即 onConfirm（Alert はネイティブのためモック）。文言検証用に引数を残す。
+const mockConfirm = jest.fn(({ onConfirm }: { onConfirm: () => void }) => onConfirm());
+jest.mock("../lib/confirm", () => ({
+  confirmDestructive: (params: { onConfirm: () => void }) => mockConfirm(params),
 }));
 
 const mockPickImage = jest.fn();
@@ -356,6 +364,31 @@ describe("ProblemEditScreen（何切る問題の作成/編集）", () => {
     expect(screen.queryByText(/手牌の写真を選ぶ/)).toBeNull();
     fireEvent.press(screen.getByText(/写真から作成/));
     expect(screen.getByText(/手牌の写真を選ぶ/)).toBeTruthy();
+  });
+
+  it("既存問題の管理行: 「回答画面を見る」で公開画面へ、「この問題を削除」は確認を経て削除し戻る", async () => {
+    mockParams = { problemId: "p1" };
+    mockGetProblem.mockResolvedValue(makePost({ id: "p1", title: "既存の問題" }));
+    mockDeleteProblem.mockResolvedValue({ ok: true, status: 200 });
+    render(<ProblemEditScreen />);
+    await screen.findByDisplayValue("既存の問題");
+
+    fireEvent.press(screen.getByText("回答画面を見る →"));
+    expect(mockNavigate).toHaveBeenCalledWith("ProblemAnswer", { problemId: "p1" });
+
+    fireEvent.press(screen.getByText("この問題を削除"));
+    // 確認文言は web/mobile 共通の DELETE_CONFIRM（回答分布も消えることを告げる）。
+    expect(mockConfirm.mock.calls[0]?.[0]).toMatchObject({
+      message: expect.stringContaining("回答の分布も削除され"),
+    });
+    expect(mockDeleteProblem).toHaveBeenCalledWith("t", "p1");
+    await waitFor(() => expect(mockGoBack).toHaveBeenCalled());
+  });
+
+  it("新規作成では管理行（回答画面リンク・削除）を出さない", () => {
+    render(<ProblemEditScreen />); // mockParams = undefined（新規）
+    expect(screen.queryByText("回答画面を見る →")).toBeNull();
+    expect(screen.queryByText("この問題を削除")).toBeNull();
   });
 
   it("problemId 付きは既存の問題を読み込み、保存で updateProblem を呼ぶ", async () => {

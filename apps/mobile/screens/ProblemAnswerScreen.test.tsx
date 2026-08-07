@@ -2,7 +2,7 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react-nativ
 import { Share, StyleSheet } from "react-native";
 import { SITE_ORIGIN } from "../lib/site";
 import { colors } from "../lib/theme";
-import { makeCallProblem, makePost } from "./problem-test-helpers";
+import { makeCallProblem, makePost, makeProblem } from "./problem-test-helpers";
 import { ProblemAnswerScreen } from "./ProblemAnswerScreen";
 
 const mockNavigate = jest.fn();
@@ -73,6 +73,30 @@ describe("ProblemAnswerScreen（何切る回答画面）", () => {
     expect(screen.queryByText("点数")).toBeNull();
     // 手前席も牌譜と同じ「○家」表記（「あなた」とは表示しない）。
     expect(screen.queryByText("あなた")).toBeNull();
+  });
+
+  it("場況の無い平面何切るは卓を描かず、ドラ表示牌だけを行で出す（フラット表示）", async () => {
+    // 既定フィクスチャ = scores 無し・他家の手牌/副露/河 無し・自河 無し → フラット。
+    const post = makePost({
+      problem: makeProblem({
+        meta: { dealer: "east", roundWind: "east", junme: 6, dora: ["1z"] },
+      }),
+    });
+    mockGetProblem.mockResolvedValue(post);
+    render(<ProblemAnswerScreen />);
+
+    expect(await screen.findByText("ドラ表示牌")).toBeTruthy();
+    // 卓（BoardTable）は描かない（卓中央の「東場 6巡目」が出ない）。
+    expect(screen.queryByText("東場 6巡目")).toBeNull();
+  });
+
+  it("場況（他家の河など）がある問題は従来どおり卓（BoardTable）で描く", async () => {
+    // 鳴き判断フィクスチャは南家の河があるためフラットにならない。
+    mockGetProblem.mockResolvedValue(makePost({ problem: makeCallProblem() }));
+    render(<ProblemAnswerScreen />);
+
+    expect(await screen.findByText("東場 6巡目")).toBeTruthy();
+    expect(screen.queryByText("ドラ表示牌")).toBeNull();
   });
 
   it("回答前は出題者のコメントを表示しない", async () => {

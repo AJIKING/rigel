@@ -65,10 +65,10 @@
 - [ ] B-8. 【後回し・Android フェーズ】Codemagic `rigel_mobile_env` に `EXPO_PUBLIC_APPLE_CLIENT_ID`
       と `REVENUECAT_ANDROID_KEY` を追加（iOS ビルドは既存の変数群のままで可）
 
-**Google Play / RevenueCat（Android。iOS 先行なら後回し可）**（docs/plans/android.md §12-C/D）
-- [ ] B-9. Play Console: 内部テスト・定期購読商品（価格一致必須）・データセーフティ申告
-- [ ] B-10. OAuth の SHA-1 **二重登録**（アップロード鍵＋Play アプリ署名鍵。`[未確定] B`）
-- [ ] B-11. RevenueCat: Android SDK キー発行・Play 連携（サービスアカウント）
+**Google Play / RevenueCat（Android）**（docs/plans/android.md §12-C/D）
+- [x] B-9. Play Console: 内部テスト（build 22 公開 2026-08-08）・定期購読商品・各種申告・審査提出
+- [x] B-10. OAuth の SHA-1 登録（2026-08-08 オーナー完了報告。実機の Google ログインで最終確認）
+- [x] B-11. RevenueCat: Android SDK キー・Play 連携（2026-08-08 オーナー完了報告）
 
 **審査運用（提出直前）**（docs/plans/review-login.md・store-listing.md）
 - [ ] B-12. `REVIEW_LOGIN_SECRET` 投入 → 実機で審査ユーザー作成 → D1 で pro 化 →
@@ -127,7 +127,9 @@
 - [ ] Crashlytics: 実機からテストエラー送信 → Firebase コンソールで可読性確認（crashlytics.md Task 7）
 - [ ] **審査完了後に `wrangler secret delete REVIEW_LOGIN_SECRET`**
 
-Android（Phase R4）は iOS 公開後: B-9〜B-11 → Android ビルド → 実機 → 内部テスト → 提出。
+Android（Phase R4）: **審査提出済み（2026-08-08）**。経緯 = AD_ID（gms + AdServices の
+広告ID権限を blockedPermissions で除去・codemagic.yaml にガード追加）→ build 22 を
+内部テストへ → コンソール整備（カテゴリ/申告/RevenueCat/SHA-1）→ 変更を送信。
 「後回し」に落としたもの（B-1/B-2/B-3/B-5/B-8/B-13/C-4/D-5・Services ID）は 1章に理由つきで
 残してあり、リリース後に必要になったタイミングで拾う。
 

@@ -211,36 +211,18 @@ describe("MyProblemsScreen（マイ何切る。牌譜マイページと同じ構
     expect(screen.queryByText("問題p2")).toBeNull();
   });
 
-  it("公開切替で updateProblemAction(status) を呼ぶ", async () => {
+  it("カードのタップで編集画面へ。公開切替・編集・削除ボタンは一覧に出さない（編集画面に集約。[決定] 2026-08-08）", async () => {
     stubMe("free");
     render(
       <AuthProvider>
         <MyProblemsScreen initialCursor={null} initialPosts={[post("p1", "draft")]} />
       </AuthProvider>,
     );
-    fireEvent.click(await screen.findByRole("button", { name: "公開する" }));
-    await waitFor(() =>
-      expect(h.updateProblemAction).toHaveBeenCalledWith("p1", { status: "published" }),
-    );
-  });
-
-  it("削除は説明つき confirm を経て確定（回答分布も消える旨を明示。文言は共通の DELETE_CONFIRM）", async () => {
-    stubMe("free");
-    const confirm = vi.fn().mockReturnValueOnce(false).mockReturnValueOnce(true);
-    vi.stubGlobal("confirm", confirm);
-    render(
-      <AuthProvider>
-        <MyProblemsScreen initialCursor={null} initialPosts={[post("p1", "draft")]} />
-      </AuthProvider>,
-    );
-    const del = await screen.findByRole("button", { name: "削除" });
-    fireEvent.click(del);
-    expect(confirm).toHaveBeenCalledWith(expect.stringContaining("回答の分布も削除され"));
-    expect(h.deleteProblemAction).not.toHaveBeenCalled(); // キャンセル
-
-    fireEvent.click(del);
-    await waitFor(() => expect(h.deleteProblemAction).toHaveBeenCalledWith("p1"));
-    vi.unstubAllGlobals();
+    fireEvent.click(await screen.findByText("問題p1"));
+    expect(push).toHaveBeenCalledWith("/problems/p1/edit");
+    expect(screen.queryByRole("button", { name: "公開する" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "編集" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "削除" })).toBeNull();
   });
 
   it("空のときは作成導線を出す", async () => {

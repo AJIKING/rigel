@@ -18,6 +18,7 @@ import {
   chiRunLabel,
   choiceKeyLabel,
   kifuToProblemDraft,
+  isFlatProblem,
   problemChiVariants,
   problemHandMax,
   problemRiverTiles,
@@ -299,6 +300,81 @@ describe("チーの構成（鳴き判断の回答）", () => {
     ).toBe("345筒でチーして1萬切り");
     expect(choiceKeyLabel("call:chi:345p:1m")).toBe("345筒でチーして1萬切り");
     expect(choiceKeyLabel("call:chi:1m")).toBe("チーして1萬切り");
+  });
+});
+
+describe("isFlatProblem（平面何切る＝場況なしの判定。[決定] 2026-08-08 フラット表示）", () => {
+  /** 平面何切るの最小形（自席の手牌＋ツモのみ。他席・河は空）。 */
+  function flatProblem(over: Record<string, unknown> = {}): Problem {
+    return ProblemSchema.parse({
+      schemaVersion: PROBLEM_SCHEMA_VERSION,
+      kind: "discard",
+      pov: "south",
+      drawn: "5p",
+      seats: {
+        east: {},
+        south: { hand: HAND_13.map((t) => ({ tile: t })) },
+        west: {},
+        north: {},
+      },
+      meta: { dealer: "east", junme: 6, dora: ["3z"] },
+      ...over,
+    });
+  }
+
+  it("自席の手牌（＋ツモ・ドラ）だけの問題は平面", () => {
+    expect(isFlatProblem(flatProblem())).toBe(true);
+  });
+
+  it("自席に副露があっても平面（副露は手牌の一部として平面表示できる）", () => {
+    const p = flatProblem({
+      seats: {
+        east: {},
+        south: {
+          hand: HAND_13.slice(0, 10).map((t) => ({ tile: t })),
+          melds: [
+            { type: "pon", tiles: [{ tile: "1z" }, { tile: "1z" }, { tile: "1z" }], from: "east" },
+          ],
+        },
+        west: {},
+        north: {},
+      },
+    });
+    expect(isFlatProblem(p)).toBe(true);
+  });
+
+  it("自席の河に牌があれば平面ではない（巡目の場況がある＝卓で見せる）", () => {
+    const p = flatProblem({
+      seats: {
+        east: {},
+        south: {
+          hand: HAND_13.map((t) => ({ tile: t })),
+          river: [{ order: 1, tile: "9s" }],
+        },
+        west: {},
+        north: {},
+      },
+    });
+    expect(isFlatProblem(p)).toBe(false);
+  });
+
+  it("点数の記録があれば平面ではない（点数状況は卓のネームプレートでしか出せない）", () => {
+    const p = flatProblem({ scores: { east: 25000, south: 25000, west: 25000, north: 25000 } });
+    expect(isFlatProblem(p)).toBe(false);
+  });
+
+  it("他家に河・手牌・副露のどれかがあれば平面ではない（鳴き判断問題を含む）", () => {
+    // makeProblem は西家の河に対象牌がある鳴き判断問題。
+    expect(isFlatProblem(makeProblem())).toBe(false);
+    const withOppHand = flatProblem({
+      seats: {
+        east: { hand: [{ tile: null }] }, // 伏せ牌1枚でも場況情報
+        south: { hand: HAND_13.map((t) => ({ tile: t })) },
+        west: {},
+        north: {},
+      },
+    });
+    expect(isFlatProblem(withOppHand)).toBe(false);
   });
 });
 

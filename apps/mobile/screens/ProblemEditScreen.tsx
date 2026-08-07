@@ -29,6 +29,7 @@ import {
   seatLabel,
   tileLabel,
   toggleDraftRiverTsumogiri,
+  DELETE_CONFIRM,
   LIMIT_MESSAGES,
   SEAT_ORDER,
   type DraftRiverTile,
@@ -57,6 +58,7 @@ import { TilePickerSheet } from "../components/editor/TilePickerSheet";
 import {
   analyzeProblem,
   createProblem,
+  deleteProblem,
   getProblem,
   getProblemAnalysisJob,
   getProblemDraft,
@@ -64,6 +66,7 @@ import {
   type ProblemPost,
 } from "../lib/api";
 import { useAuth } from "../lib/auth";
+import { confirmDestructive } from "../lib/confirm";
 import { trackError } from "../lib/crash";
 import type { RootStackParamList } from "../lib/navigation";
 import { pickImage, type PickedImage } from "../lib/pick-image";
@@ -425,6 +428,22 @@ function EditorBody({
     setErr(res.status === 403 ? LIMIT_MESSAGES.problems : "保存に失敗しました。");
   }
 
+  /** 問題の削除（既存のみ。確認は web/mobile 共通の DELETE_CONFIRM 文言）。 */
+  function onDelete() {
+    if (!token || !initial) return;
+    confirmDestructive({
+      ...DELETE_CONFIRM.problem(title),
+      onConfirm: () => {
+        deleteProblem(token, initial.id)
+          .then((res) => {
+            if (res.ok) nav.goBack();
+            else setErr("削除に失敗しました。");
+          })
+          .catch(() => setErr("削除に失敗しました。"));
+      },
+    });
+  }
+
   /** ピッカーの見出し（入力先ごと）。 */
   function pickerTitleOf(t: Target): string {
     if (t === "hand") return `手牌に追加（${hand.length}/${handMax}枚）`;
@@ -738,6 +757,29 @@ function EditorBody({
           onChangeText={setExplanation}
         />
 
+        {/* 既存の問題だけ: 回答画面の確認と削除（一覧のボタンを廃止してここに集約。
+            [決定] 2026-08-08 オーナー。web の管理行と対）。 */}
+        {initial ? (
+          <View style={styles.manageRow}>
+            <Pressable
+              onPress={() => nav.navigate("ProblemAnswer", { problemId: initial.id })}
+              accessibilityRole="button"
+              hitSlop={8}
+            >
+              <Text style={styles.viewLink}>回答画面を見る →</Text>
+            </Pressable>
+            <Text style={styles.manageNote}>（保存済みの内容が表示されます）</Text>
+            <Pressable
+              onPress={onDelete}
+              disabled={busy}
+              accessibilityRole="button"
+              style={styles.deleteBtn}
+            >
+              <Text style={styles.deleteText}>この問題を削除</Text>
+            </Pressable>
+          </View>
+        ) : null}
+
         {err ? <Text style={styles.err}>{err}</Text> : null}
       </ScrollView>
 
@@ -1003,6 +1045,27 @@ const styles = StyleSheet.create({
   addSmall: { width: 26, height: 36 },
   addText: { color: colors.accent, fontSize: 18, fontWeight: "800" },
   err: { color: colors.danger, fontSize: 12.5 },
+  /* 既存問題の管理行（回答画面リンク・削除。web の manageRow と対）。 */
+  manageRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    flexWrap: "wrap",
+    gap: 8,
+    marginTop: 14,
+    paddingTop: 12,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.line,
+  },
+  viewLink: { color: colors.accent, fontSize: 13, fontWeight: "700" },
+  manageNote: { color: colors.w45, fontSize: 10.5, flex: 1 },
+  deleteBtn: {
+    borderWidth: 1,
+    borderColor: colors.danger,
+    borderRadius: radius.base,
+    paddingVertical: 7,
+    paddingHorizontal: 12,
+  },
+  deleteText: { color: colors.danger, fontSize: 12.5, fontWeight: "700" },
   saveBar: {
     flexDirection: "row",
     alignItems: "center",

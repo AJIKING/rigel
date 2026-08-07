@@ -223,6 +223,83 @@
   margin-left: 12px;
 }
 
+/* 編集画面下部の管理行（回答画面リンク・削除。既存の問題のみ）。 */
+.manageRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line, rgba(255, 255, 255, 0.08));
+}
+.viewLink {
+  color: var(--accent, #4dd2a0);
+  font-size: 13px;
+  text-decoration: none;
+}
+.viewLink:hover {
+  text-decoration: underline;
+}
+.manageNote {
+  margin-left: 6px;
+  font-size: 11px;
+  color: var(--w45, rgba(255, 255, 255, 0.45));
+}
+.deleteBtn {
+  background: none;
+  border: 1px solid var(--danger, #e5484d);
+  color: var(--danger, #e5484d);
+  border-radius: var(--r, 3px);
+  font-size: 12.5px;
+  padding: 7px 14px;
+  cursor: pointer;
+}
+.deleteBtn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+/* ---- 平面何切る（場況なし）のフラット表示（[決定] 2026-08-08）----
+   卓を描かないぶん手牌が主役になるので一回り大きく。ドラ・副露は行で添える。 */
+.flatHand .handTile {
+  width: 46px;
+}
+.flatDoraRow {
+  margin-top: 16px;
+}
+.flatDoraTile {
+  position: relative;
+  width: 26px;
+  aspect-ratio: 1 / 1.35;
+  display: inline-block;
+}
+.flatDoraTile img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+/* 自席の副露（手牌の右に少し離して1組ずつ）。 */
+.flatMeld {
+  display: inline-flex;
+  gap: 2px;
+  margin-left: 14px;
+  align-self: flex-end;
+}
+.flatMeldTile {
+  position: relative;
+  width: 32px;
+  aspect-ratio: 1 / 1.35;
+}
+.flatMeldTile img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
 .answerBox,
 .resultBox {
   margin-top: 20px;

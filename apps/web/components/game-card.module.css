@@ -139,7 +139,12 @@
   box-shadow: none;
 }
 
-/* 何切るカード: 卓面（.thumb の緑地）に手牌を並べるサムネ。カード幅に応じて縮む。 */
+/* 何切るカード: 卓面（.thumb の緑地）に手牌を並べるサムネ。カード幅に応じて縮む。
+   牌姿が一覧の主情報なので大きめに（高さ 82→108・牌 15→21px 上限。
+   2026-08-08 オーナー指摘で拡大。牌譜カードの装飾サムネ（.thumb 単体）は据え置き）。 */
+.thumbTall {
+  height: 108px;
+}
 .ptiles {
   position: absolute;
   inset: 0;
@@ -150,8 +155,8 @@
 }
 .ptile {
   position: relative;
-  flex: 0 1 15px;
-  max-width: 15px;
+  flex: 0 1 21px;
+  max-width: 21px;
   width: 100%;
   aspect-ratio: 1 / 1.35;
   margin-right: 1px;

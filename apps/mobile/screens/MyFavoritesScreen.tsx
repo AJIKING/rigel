@@ -14,6 +14,7 @@ import { CenterState } from "../components/CenterState";
 import { KifuCard } from "../components/KifuCard";
 import { ListFooter } from "../components/ListFooter";
 import { MyListToolbar } from "../components/MyListToolbar";
+import { ProblemHandPreview } from "../components/ProblemHandPreview";
 import { Segment } from "../components/Segment";
 import { listMyFavorites, type MyFavorites } from "../lib/api";
 import { useAuth } from "../lib/auth";
@@ -183,6 +184,8 @@ export function MyFavoritesScreen() {
             ) : (
               <KifuCard
                 title={item.card.title || "（無題の問題）"}
+                // 牌姿プレビュー（公開一覧・マイ一覧と同じ見せ方）。
+                preview={<ProblemHandPreview problem={item.card.problem} />}
                 badges={[
                   { label: KIND_LABELS[item.card.problem.kind], tone: "muted" },
                   {

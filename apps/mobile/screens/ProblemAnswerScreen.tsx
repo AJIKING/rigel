@@ -8,6 +8,7 @@ import {
   canSubmitProblemAnswer,
   chiRunLabel,
   choiceKeyLabel,
+  isFlatProblem,
   problemChiVariants,
   problemRoundLabel,
   problemToKifu,
@@ -87,6 +88,11 @@ function AnswerBody({ post, token }: { post: ProblemPost; token: string | null }
   const targetTile = problemTargetTile(problem);
   const dealer = problem.meta.dealer;
   const { width } = useWindowDimensions();
+
+  // 平面何切る（場況なし）は麻雀卓を描かず、手牌中心のフラット表示にする
+  // （[決定] 2026-08-08 オーナー。判定は @rigel/ui の isFlatProblem＝web と共有）。
+  const flat = isFlatProblem(problem);
+  const povMelds = problem.seats[pov].melds;
 
   // 盤面は牌譜と同じ回転卓（BoardTable）で描く。河は全表示（既定）・鳴き判断は対象牌を強調（web と同じ方針）。
   const boardKifu = useMemo(() => problemToKifu(problem), [problem]);
@@ -217,20 +223,33 @@ function AnswerBody({ post, token }: { post: ProblemPost; token: string | null }
             : ""}
       </Text>
 
-      {/* 盤面（牌譜と同じ回転卓）。ドラ・本場・供託は BoardTable が卓中央に表示する。
-          点数（手入力の記録）も牌譜再生と同じくネームプレートに出す（盤面外だと見えない）。 */}
-      <View style={styles.boardWrap}>
-        <BoardTable
-          kifu={boardKifu}
-          bottomSeat={pov}
-          dealer={dealer ?? pov}
-          roundLabel={roundLabel}
-          showHands={false}
-          size={boardSize}
-          points={problem.scores}
-          highlightRiver={highlightRiver}
-        />
-      </View>
+      {/* 場況ありは牌譜と同じ回転卓（BoardTable）。ドラ・本場・供託は卓中央・点数はネームプレート。
+          平面何切るは卓を描かず、ドラ表示牌だけを行で見せる（フラット表示）。 */}
+      {flat ? (
+        problem.meta.dora.length > 0 ? (
+          <>
+            <Text style={styles.section}>ドラ表示牌</Text>
+            <View style={styles.doraRow}>
+              {problem.meta.dora.map((t, i) => (
+                <MiniTile key={`${t}-${i}`} code={t} w={24} h={34} />
+              ))}
+            </View>
+          </>
+        ) : null
+      ) : (
+        <View style={styles.boardWrap}>
+          <BoardTable
+            kifu={boardKifu}
+            bottomSeat={pov}
+            dealer={dealer ?? pov}
+            roundLabel={roundLabel}
+            showHands={false}
+            size={boardSize}
+            points={problem.scores}
+            highlightRiver={highlightRiver}
+          />
+        </View>
+      )}
 
       {/* 自分の手牌（理牌済み）＋ツモ牌 */}
       <Text style={styles.section}>手牌</Text>
@@ -263,6 +282,16 @@ function AnswerBody({ post, token }: { post: ProblemPost; token: string | null }
             <MiniTile code={problem.drawn} w={30} h={42} />
           </Pressable>
         ) : null}
+        {/* 平面表示では卓が無いので、自席の副露も手牌の並びに添える。 */}
+        {flat
+          ? povMelds.map((m, mi) => (
+              <View key={mi} style={styles.flatMeld}>
+                {m.tiles.map((t, ti) =>
+                  t.tile ? <MiniTile key={ti} code={t.tile} w={24} h={34} /> : null,
+                )}
+              </View>
+            ))
+          : null}
       </View>
       {/* ツモ牌は手牌の右に離して置く。初見でも分かるよう言葉でも添える（web と同一文言）。 */}
       {problem.drawn ? (
@@ -407,6 +436,9 @@ const styles = StyleSheet.create({
   draftBadge: { color: colors.vermilion, fontSize: 12, fontWeight: "700" },
   meta: { color: colors.w45, fontSize: 12 },
   boardWrap: { alignItems: "center", marginTop: 2 },
+  /* 平面何切る（フラット表示）: ドラ表示牌の行と、自席の副露（手牌の右に離す）。 */
+  doraRow: { flexDirection: "row", gap: 2 },
+  flatMeld: { flexDirection: "row", gap: 2, marginLeft: 12 },
   question: { color: colors.white, fontSize: 16, fontWeight: "800", marginTop: 2 },
   section: { color: colors.w45, fontSize: 12, fontWeight: "800", marginTop: 6 },
   hand: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: 4 },

@@ -18,11 +18,9 @@ import type { ProblemDraftCard } from "@rigel/client";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import {
-  deleteProblemAction,
   deleteProblemDraftAction,
   getMyProblemsAction,
   getProblemDraftsAction,
-  updateProblemAction,
 } from "../../app/actions";
 import { type ProblemPost } from "../../lib/api";
 import { normalizeProblemPosts } from "../../lib/problems";
@@ -115,28 +113,6 @@ export function MyProblemsScreen({
     () => sortMyList(filterMyProblems(apply(posts), { q, status, favOnly }), sort),
     [posts, status, sort, favOnly, q, apply],
   );
-
-  /** draft⇔published の切替（楽観更新・失敗でロールバック）。 */
-  async function toggleStatus(post: ProblemPost) {
-    const next = post.status === "draft" ? "published" : "draft";
-    setPosts((cur) => cur.map((x) => (x.id === post.id ? { ...x, status: next } : x)));
-    const res = await updateProblemAction(post.id, { status: next }).catch(() => ({
-      ok: false,
-      status: 0,
-    }));
-    if (!res.ok) {
-      setPosts((cur) => cur.map((x) => (x.id === post.id ? { ...x, status: post.status } : x)));
-      setErr("状態の変更に失敗しました。");
-    }
-  }
-
-  /** 削除（説明つき confirm。文言は web/mobile 共通の DELETE_CONFIRM）。 */
-  async function onDelete(post: ProblemPost) {
-    if (!window.confirm(deleteConfirmText(DELETE_CONFIRM.problem(post.title)))) return;
-    const res = await deleteProblemAction(post.id).catch(() => ({ ok: false, status: 0 }));
-    if (res.ok) setPosts((cur) => cur.filter((x) => x.id !== post.id));
-    else setErr("削除に失敗しました。");
-  }
 
   return (
     <div className={`${s.shell} themeApp`}>
@@ -258,27 +234,9 @@ export function MyProblemsScreen({
                   faved={post.viewerFaved}
                   favCount={post.favoriteCount}
                   onToggleFav={() => toggleFav("problem", post)}
-                  onOpen={() => router.push(`/p/${post.id}`)}
-                  actions={
-                    <>
-                      <button type="button" onClick={() => void toggleStatus(post)}>
-                        {post.status === "draft" ? "公開する" : "下書きに戻す"}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => router.push(`/problems/${post.id}/edit`)}
-                      >
-                        編集
-                      </button>
-                      <button
-                        type="button"
-                        className={gc.danger}
-                        onClick={() => void onDelete(post)}
-                      >
-                        削除
-                      </button>
-                    </>
-                  }
+                  // 自分の問題はタップで編集へ（公開切替・削除・回答画面の確認は編集画面に集約。
+                  // [決定] 2026-08-08 オーナー。他人の問題を開く公開一覧は従来どおり回答画面）。
+                  onOpen={() => router.push(`/problems/${post.id}/edit`)}
                 />
               ))
             )}

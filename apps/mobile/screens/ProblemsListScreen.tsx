@@ -7,6 +7,7 @@ import { AppBar } from "../components/AppBar";
 import { CenterState } from "../components/CenterState";
 import { KifuCard } from "../components/KifuCard";
 import { ListFooter } from "../components/ListFooter";
+import { ProblemHandPreview } from "../components/ProblemHandPreview";
 import { Toolbar } from "../components/Toolbar";
 import { getPublicProblems, type ProblemPost } from "../lib/api";
 import { relativeTime } from "../lib/format";
@@ -113,6 +114,8 @@ export function ProblemsListScreen() {
               favCount={item.favoriteCount}
               onToggleFav={() => toggleFav("problem", item)}
               onPress={() => nav.navigate("ProblemAnswer", { problemId: item.id })}
+              // 牌姿プレビュー（何の問題かが一覧で分かる。web の ProblemThumb と対）。
+              preview={<ProblemHandPreview problem={item.problem} />}
             />
           )}
         />

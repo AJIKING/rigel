@@ -8,8 +8,10 @@ import { makeDiscardPost, stubMe } from "./test-helpers";
 const h = vi.hoisted(() => ({
   createProblemAction: vi.fn(),
   updateProblemAction: vi.fn(),
+  deleteProblemAction: vi.fn(),
   analyzeProblemAction: vi.fn(),
   getProblemAnalysisJobAction: vi.fn(),
+  getProblemDraftAction: vi.fn(),
 }));
 vi.mock("../../app/actions", () => h);
 const push = vi.hoisted(() => vi.fn());
@@ -51,6 +53,7 @@ beforeEach(() => {
   push.mockReset();
   h.createProblemAction.mockReset().mockResolvedValue({ ok: true, problemId: "p1" });
   h.updateProblemAction.mockReset().mockResolvedValue({ ok: true, status: 200 });
+  h.deleteProblemAction.mockReset().mockResolvedValue({ ok: true, status: 200 });
   h.analyzeProblemAction.mockReset();
   h.getProblemAnalysisJobAction.mockReset();
 });
@@ -65,6 +68,36 @@ function fillHand() {
   fireEvent.click(screen.getByRole("button", { name: "筒" })); // スートタブ
   for (const label of TILE_LABELS.slice(9)) pick(label);
 }
+
+describe("ProblemEditorScreen: 既存問題の管理（削除・回答画面リンク。[決定] 2026-08-08）", () => {
+  it("既存の問題には回答画面リンクと削除を出し、削除は confirm 経由で一覧へ戻る", async () => {
+    stubMe("free");
+    const confirm = vi.fn().mockReturnValueOnce(false).mockReturnValueOnce(true);
+    vi.stubGlobal("confirm", confirm);
+    renderEditor(makeDiscardPost());
+
+    const link = await screen.findByRole("link", { name: "回答画面を見る →" });
+    expect(link.getAttribute("href")).toBe("/p/p1");
+
+    const del = screen.getByRole("button", { name: "この問題を削除" });
+    fireEvent.click(del);
+    // 回答分布も消える旨の説明つき confirm（文言は web/mobile 共通の DELETE_CONFIRM）。
+    expect(confirm).toHaveBeenCalledWith(expect.stringContaining("回答の分布も削除され"));
+    expect(h.deleteProblemAction).not.toHaveBeenCalled(); // キャンセル
+
+    fireEvent.click(del);
+    await waitFor(() => expect(h.deleteProblemAction).toHaveBeenCalledWith("p1"));
+    expect(push).toHaveBeenCalledWith("/mypage/problems");
+  });
+
+  it("新規作成では管理行（回答画面リンク・削除）を出さない", async () => {
+    stubMe("free");
+    renderEditor();
+    await screen.findByRole("button", { name: "公開して保存" });
+    expect(screen.queryByText("回答画面を見る →")).toBeNull();
+    expect(screen.queryByRole("button", { name: "この問題を削除" })).toBeNull();
+  });
+});
 
 describe("ProblemEditorScreen: 写真から作成（AI再現）", () => {
   const aiKifu = () =>

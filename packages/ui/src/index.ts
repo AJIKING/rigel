@@ -902,6 +902,27 @@ export function collectReviewItems(kifu: Kifu): ReviewItem[] {
 // ============================================================
 
 /**
+ * 平面何切る（場況なし）か（[決定] 2026-08-08 フラット表示）。
+ * 出題視点以外の3席に牌が1枚も無く、自席の河も空で、点数の記録も無ければ「平面」＝
+ * 回答画面は麻雀卓（回転卓）を描かず、手牌中心のフラットレイアウトで見せる。
+ * 自席の副露は手牌の一部として平面でも表示できるため許容する。
+ * 1枚でも場況情報（他家の河・手牌・副露、自分の河、点数状況）があれば卓で見せる
+ * （点数は卓のネームプレートでしか表示できない）。
+ */
+export function isFlatProblem(problem: Problem): boolean {
+  if (problem.scores) return false;
+  for (const seat of SEAT_ORDER) {
+    const board = problem.seats[seat];
+    if (seat === problem.pov) {
+      if (board.river.length > 0) return false;
+    } else if (board.hand.length > 0 || board.melds.length > 0 || board.river.length > 0) {
+      return false;
+    }
+  }
+  return true;
+}
+
+/**
  * 問題の盤面を牌譜(Kifu)へ写す（BoardTable 等の描画部品を再利用するため）。
  * pov を手前(cameraBottomSeat)に置き、視点の手牌は理牌する。
  * capturedAt は描画専用の固定値（問題に撮影時刻は無い）。

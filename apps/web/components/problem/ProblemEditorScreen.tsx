@@ -14,6 +14,7 @@ import {
   addDraftMeld,
   assembleProblem,
   compareTiles,
+  deleteConfirmText,
   draftToKifu,
   kifuToProblemDraft,
   parseRiverEditTarget,
@@ -25,6 +26,7 @@ import {
   seatLabel,
   tileLabel,
   toggleDraftRiverTsumogiri,
+  DELETE_CONFIRM,
   LIMIT_MESSAGES,
   NUMS,
   PROBLEM_KIND_LABELS,
@@ -33,9 +35,15 @@ import {
   type DraftRiverTile,
   type PickerSuit,
 } from "@rigel/ui";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { createProblemAction, getProblemDraftAction, updateProblemAction } from "../../app/actions";
+import {
+  createProblemAction,
+  deleteProblemAction,
+  getProblemDraftAction,
+  updateProblemAction,
+} from "../../app/actions";
 import { type ProblemPost } from "../../lib/api";
 import { useAuth } from "../../lib/auth-context";
 import { useBoardScale } from "../../lib/use-board-scale";
@@ -373,6 +381,17 @@ export function ProblemEditorScreen({
     setErr(
       "status" in res && res.status === 403 ? LIMIT_MESSAGES.problems : "保存に失敗しました。",
     );
+  }
+
+  /** 問題の削除（既存のみ。確認は web/mobile 共通の DELETE_CONFIRM 文言）。 */
+  async function onDelete() {
+    if (!initial) return;
+    if (!window.confirm(deleteConfirmText(DELETE_CONFIRM.problem(title)))) return;
+    setBusy(true);
+    const res = await deleteProblemAction(initial.id).catch(() => ({ ok: false, status: 0 }));
+    setBusy(false);
+    if (res.ok) router.push("/mypage/problems");
+    else setErr("削除に失敗しました。");
   }
 
   // 入力先は「自分の手」と「ドラ表示牌・河」の2グループに分けて見せる（1本のセグメントに
@@ -737,6 +756,27 @@ export function ProblemEditorScreen({
             公開して保存
           </button>
         </div>
+
+        {/* 既存の問題だけ: 回答画面の確認と削除（一覧のボタンを廃止してここに集約。
+            [決定] 2026-08-08 オーナー）。 */}
+        {initial && (
+          <div className={s.manageRow}>
+            <span>
+              <Link href={`/p/${initial.id}`} className={s.viewLink}>
+                回答画面を見る →
+              </Link>
+              <span className={s.manageNote}>（保存済みの内容が表示されます）</span>
+            </span>
+            <button
+              type="button"
+              className={s.deleteBtn}
+              disabled={busy}
+              onClick={() => void onDelete()}
+            >
+              この問題を削除
+            </button>
+          </div>
+        )}
       </main>
 
       {rulesOpen && (

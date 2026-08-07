@@ -49,6 +49,36 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
+describe("ProblemAnswerScreen: 平面何切るのフラット表示（[決定] 2026-08-08）", () => {
+  it("場況なし（他家・河・点数なし）は卓を描かず、ドラ表示牌を行で見せる", async () => {
+    stubMe("free");
+    const post = makeDiscardPost();
+    post.problem = ProblemSchema.parse({
+      ...post.problem,
+      schemaVersion: PROBLEM_SCHEMA_VERSION,
+      meta: { ...post.problem.meta, dora: ["3z"] },
+    });
+    const { container } = renderScreen(post);
+    await screen.findByText("あなたなら何を切る？");
+
+    // 卓（ネームプレート [data-seat]）は描かれない。
+    expect(container.querySelectorAll("[data-seat]")).toHaveLength(0);
+    // ドラ表示牌は行で見せる。
+    expect(screen.getByText("ドラ表示牌")).toBeTruthy();
+    // 手牌はそのまま選べる（回答体験は不変）。
+    fireEvent.click(screen.getByRole("button", { name: "1萬" }));
+    expect(screen.getByText(/1萬切り/)).toBeTruthy();
+  });
+
+  it("場況あり（鳴き判断＝他家の河がある）は従来どおり卓を描く", async () => {
+    stubMe("free");
+    const { container } = renderScreen(makeCallPost());
+    await screen.findByText(/どうする？/);
+    expect(container.querySelectorAll("[data-seat]").length).toBeGreaterThan(0);
+    expect(screen.queryByText("ドラ表示牌")).toBeNull();
+  });
+});
+
 describe("ProblemAnswerScreen: 何切る", () => {
   it("点数は牌譜と同じくネームプレート（席の横）に出す。盤面外の点数行は出さない", async () => {
     stubMe("free");

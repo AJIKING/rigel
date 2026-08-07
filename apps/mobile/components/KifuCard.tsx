@@ -29,6 +29,7 @@ export function KifuCard({
   onToggleFav,
   onPress,
   onLongPress,
+  preview,
 }: {
   title: string;
   /** 先頭に並べるバッジ（例: 公開/非公開、下書きN/編集済）。 */
@@ -43,14 +44,17 @@ export function KifuCard({
   onPress?: () => void;
   /** 長押し（例: 削除メニュー）。 */
   onLongPress?: () => void;
+  /** タイトル下のプレビュー（例: 何切るの牌姿）。指定時は左の装飾チップを出さない。 */
+  preview?: React.ReactNode;
 }) {
   return (
     <Pressable style={styles.card} onPress={onPress} onLongPress={onLongPress} delayLongPress={350}>
-      <TileChip size={64} center="dot" />
+      {preview ? null : <TileChip size={64} center="dot" />}
       <View style={styles.main}>
         <Text style={styles.title} numberOfLines={2}>
           {title}
         </Text>
+        {preview ? <View style={styles.preview}>{preview}</View> : null}
         <View style={styles.meta}>
           {badges.map((b) => (
             <View key={b.label} style={styles.metaItem}>
@@ -109,6 +113,8 @@ const styles = StyleSheet.create({
     marginHorizontal: 6,
   },
   star: { position: "absolute", top: 9, right: 9 },
+  /* タイトル下のプレビュー（何切るの牌姿など）。 */
+  preview: { marginBottom: 6 },
   // 押せるバッジ（著者名など）は下線で静的バッジと見分けられるようにする。
   badgeLink: { textDecorationLine: "underline" },
 });

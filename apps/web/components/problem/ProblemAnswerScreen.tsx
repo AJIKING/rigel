@@ -9,6 +9,7 @@ import {
   canSubmitProblemAnswer,
   chiRunLabel,
   choiceKeyLabel,
+  isFlatProblem,
   problemChiVariants,
   problemToKifu,
   seatLabel,
@@ -133,6 +134,11 @@ export function ProblemAnswerScreen({ post }: { post: ProblemPost }) {
     setTimeout(() => setShareLabel("共有"), 1500);
   }
 
+  // 平面何切る（場況なし）は麻雀卓を描かず、手牌中心のフラット表示にする
+  // （[決定] 2026-08-08 オーナー。判定は @rigel/ui の isFlatProblem＝mobile と共有）。
+  const flat = isFlatProblem(problem);
+  const povMelds = problem.seats[pov].melds;
+
   // 盤面は牌譜ビューアと同じ卓（ViewBoard）で描く。河は全表示（既定）・鳴き判断は対象牌を強調。
   const boardKifu = useMemo(() => problemToKifu(problem), [problem]);
   const highlightRiver =
@@ -184,22 +190,38 @@ export function ProblemAnswerScreen({ post }: { post: ProblemPost }) {
               : ""}
         </h2>
 
-        {/* 盤面は牌譜ビューアと同じ卓（河・鳴きは卓上に。鳴き判断は対象牌を強調）。 */}
-        <div className={s.boardPanel}>
-          {/* 点数（手入力の記録）は牌譜再生と同じくネームプレートに出す（盤面外だと見えない）。 */}
-          <ViewBoard
-            kifu={boardKifu}
-            bottomSeat={pov}
-            dealer={dealer ?? pov}
-            scale={scale}
-            points={problem.scores}
-            highlightRiver={highlightRiver}
-            center={<ProblemBoardCenter meta={problem.meta} />}
-          />
-        </div>
+        {/* 場況ありは牌譜ビューアと同じ卓（河・鳴きは卓上に。鳴き判断は対象牌を強調）。
+            平面何切るは卓を描かず、ドラ表示牌だけを行で見せる（フラット表示）。 */}
+        {flat ? (
+          problem.meta.dora.length > 0 && (
+            <div className={`${s.handRow} ${s.flatDoraRow}`}>
+              <span className={s.rowLabel}>ドラ表示牌</span>
+              <span className={s.tiles}>
+                {problem.meta.dora.map((t, i) => (
+                  <span key={`${t}-${i}`} className={s.flatDoraTile}>
+                    <OssTileFace code={t} />
+                  </span>
+                ))}
+              </span>
+            </div>
+          )
+        ) : (
+          <div className={s.boardPanel}>
+            {/* 点数（手入力の記録）は牌譜再生と同じくネームプレートに出す（盤面外だと見えない）。 */}
+            <ViewBoard
+              kifu={boardKifu}
+              bottomSeat={pov}
+              dealer={dealer ?? pov}
+              scale={scale}
+              points={problem.scores}
+              highlightRiver={highlightRiver}
+              center={<ProblemBoardCenter meta={problem.meta} />}
+            />
+          </div>
+        )}
 
-        {/* 自分の手牌（理牌済み）＋ツモ牌 */}
-        <div className={s.handRow}>
+        {/* 自分の手牌（理牌済み）＋ツモ牌。平面表示では手牌が主役なので一回り大きく描く。 */}
+        <div className={`${s.handRow} ${flat ? s.flatHand : ""}`}>
           <span className={s.rowLabel}>手牌</span>
           <span className={s.hand}>
             {hand.map((t, i) => {
@@ -230,6 +252,19 @@ export function ProblemAnswerScreen({ post }: { post: ProblemPost }) {
                 <OssTileFace code={problem.drawn} />
               </button>
             )}
+            {/* 平面表示では卓が無いので、自席の副露も手牌の並びに添える。 */}
+            {flat &&
+              povMelds.map((m, mi) => (
+                <span key={mi} className={s.flatMeld}>
+                  {m.tiles.map((t, ti) =>
+                    t.tile ? (
+                      <span key={ti} className={s.flatMeldTile}>
+                        <OssTileFace code={t.tile} />
+                      </span>
+                    ) : null,
+                  )}
+                </span>
+              ))}
           </span>
         </div>
         {problem.drawn && (

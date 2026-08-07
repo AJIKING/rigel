@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react-native";
+import { fireEvent, render, screen, within } from "@testing-library/react-native";
 import { makePost } from "./problem-test-helpers";
 import { MyProblemsScreen } from "./MyProblemsScreen";
 
@@ -55,38 +55,23 @@ describe("MyProblemsScreen（マイ何切る）", () => {
     expect(screen.getByText("2 / 20問")).toBeTruthy();
   });
 
-  it("「公開する」を押すと updateProblem が status:published で呼ばれ、表示が楽観更新される", async () => {
+  it("カードのタップで編集画面へ。公開切替・編集・削除ボタンは一覧に出さない（編集画面に集約。[決定] 2026-08-08）", async () => {
     mockGetMyProblems.mockResolvedValue({ items: twoPosts(), nextCursor: null });
-    mockUpdateProblem.mockResolvedValue({ ok: true, status: 200 });
     render(<MyProblemsScreen />);
 
-    fireEvent.press(await screen.findByText("公開する"));
-    expect(mockUpdateProblem).toHaveBeenCalledWith("t", "p1", { status: "published" });
-    // 楽観更新: ボタンが「下書きに戻す」に変わる（2件とも公開中）。
-    expect(screen.getAllByText("下書きに戻す")).toHaveLength(2);
-    expect(screen.queryByText("下書き")).toBeNull();
+    fireEvent.press(await screen.findByText("下書きの問題"));
+    expect(mockNavigate).toHaveBeenCalledWith("ProblemEdit", { problemId: "p1" });
+    expect(screen.queryByText("公開する")).toBeNull();
+    expect(screen.queryByText("編集")).toBeNull();
+    expect(screen.queryByText("削除")).toBeNull();
   });
 
-  it("削除は確認ダイアログを経てから deleteProblem を呼び、一覧から消える", async () => {
-    mockGetMyProblems.mockResolvedValue({ items: twoPosts(), nextCursor: null });
-    mockDeleteProblem.mockResolvedValue({ ok: true, status: 200 });
-    render(<MyProblemsScreen />);
-
-    fireEvent.press((await screen.findAllByText("削除"))[0]!);
-    expect(mockConfirm).toHaveBeenCalled();
-    expect(mockDeleteProblem).toHaveBeenCalledWith("t", "p1");
-    await waitFor(() => expect(screen.queryByText("下書きの問題")).toBeNull());
-  });
-
-  it("「＋ 新規」で作成画面へ、「編集」でその問題の編集画面へ遷移する", async () => {
+  it("「＋ 新規」で作成画面へ遷移する", async () => {
     mockGetMyProblems.mockResolvedValue({ items: twoPosts(), nextCursor: null });
     render(<MyProblemsScreen />);
 
     fireEvent.press(await screen.findByText("＋ 新規"));
     expect(mockNavigate).toHaveBeenCalledWith("ProblemEdit");
-
-    fireEvent.press(screen.getAllByText("編集")[1]!);
-    expect(mockNavigate).toHaveBeenCalledWith("ProblemEdit", { problemId: "p2" });
   });
 
   it("上限（20問）に達すると警告文言（LIMIT_MESSAGES.problems）を出す", async () => {

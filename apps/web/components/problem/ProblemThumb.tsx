@@ -8,7 +8,7 @@ import gc from "../game-card.module.css";
 export function ProblemThumb({ problem }: { problem: Problem }) {
   const hand = problemHandTiles(problem);
   return (
-    <div className={gc.thumb}>
+    <div className={`${gc.thumb} ${gc.thumbTall}`}>
       <span className={gc.ptiles}>
         {hand.map((t, i) => (
           <span key={i} className={gc.ptile}>
