@@ -30,10 +30,11 @@
 - [x] A-4. 権限アラートの旧名「rigel」→「RAISHA」修正（2026-08-05）
 - [x] A-5. **store-listing.md の審査用アカウント節を案B（合言葉ログイン）に更新**（2026-08-05。
       旧案=専用 Google アカウント＋Granted Entitlements の記述が残っていた）
-- [x] A-6. **splash** — ダーク背景 `#0f1115` の無地のみ（2026-08-05 オーナー指示で
-      アイコン表示を撤去。起動後すぐアプリ側のローディング表示へ切り替わる）。
-      ※ Android 12+ は OS 仕様で起動時に必ずアプリアイコンが小さく出る（消せない）。
-      iOS は完全に無地。見た目の最終確認は C-1 のビルドで
+- [x] A-6. **splash** — iOS はダーク背景 `#0f1115` の無地のみ（2026-08-05 オーナー指示で
+      アイコン表示を撤去）。**Android は plugin の仕様で image 必須**（image 無しだと
+      prebuild が `@drawable/splashscreen_logo` を参照したまま生成せずビルドが落ちる。
+      2026-08-07 の Android ビルド失敗で判明）→ android スコープで adaptive-icon を指定。
+      Android 12+ はどのみち OS 仕様でアイコンが出るため見た目は変わらない
 - [ ] A-7. ストアスクショの再生成（`pnpm shots`。2026-07-30 生成のまま → 特訓開放・
       ランキング・マイページ統計変更が反映されていない）。**提出直前に一度回すのが安全**
 
@@ -107,21 +108,24 @@
 
 ## 2. 最小リリースパス（[決定] 2026-08-05「本当に必要な対応だけに限定」。実行はこれだけ）
 
-1. [ ] **api promote → web promote**（GitHub Actions 手動実行。migration 0019/0020 は deploy が
-       自動適用。モバイルのバイナリは新 API 形（{items, nextCursor}）前提なので api が先）
-2. [ ] **Apple Developer**: App ID `jp.co.plaria.rigel` に Sign in with Apple capability を有効化
-       （署名プロファイル生成に必要。これだけ。Services ID / .p8 は後回し）
-3. [ ] **App Store Connect**: アプリ登録・定期購読商品2つ（`rigel.next.monthly` ¥700 /
-       `rigel.pro.monthly` ¥1,800・RevenueCat の Offerings と紐付け）・App Privacy 申告
-       （/privacy の記載が元ネタ）
-4. [ ] **Codemagic `ios-testflight` 実行**（SDK 57 移行後初ビルド。Pod 共存・splash・
-       写真権限文言はここで確認できる）
+1. [x] **api promote → web promote** — 2026-08-07 確認: /ranking が新形式（entries+score）・
+       /account-deletion が 200（アプリのバイナリと整合）
+2. [x] **Apple Developer**: SIWA capability — ビルド署名・提出が通ったことから設定済みと確認
+3. [x] **App Store Connect**: アプリ登録・サブスク商品・審査提出（2026-08-07 オーナー実施）
+4. [x] **Codemagic `ios-testflight`** — SDK 57 + Firebase/Crashlytics + RevenueCat の Pod 共存で
+       ビルド成功（2026-08-07。crashlytics.md Task 1 のビルド共存 `[未確定]` はこれで解消）
 5. [ ] **実機スモーク（TestFlight）**: 中核ループ（撮影→解析→保存→閲覧→修正）・
        **`toAbsoluteSeat` の回転方向**（実写1枚で目視。誤ると全席90°ズレ＝コア品質）・
-       Google/Apple ログイン・購入復元
-6. [ ] **審査用ログイン運用**（review-login.md）: `REVIEW_LOGIN_SECRET` 投入 → 実機で
-       審査ユーザー作成 → D1 で pro 化 → サンプルデータ投入 → 審査メモ記載
-7. [ ] **提出**（スクショは既存 7/30 版で可。UI 乖離が気になれば `pnpm shots` で再生成）
+       Google/Apple ログイン・購入復元。**未実施なら審査中でも今すぐやる価値あり**
+6. [x] **審査用ログイン運用** — 2026-08-07 D1 確認: 審査ユーザー存在・plan=pro
+       （PROMOTIONAL）・半荘3件・特訓2件。※何切るのサンプルは 0件（公開1件は他ユーザー分）
+7. [x] **提出済み**（2026-08-07）
+
+**審査中〜公開直後のフォロー**:
+- [ ] 公開牌譜フィードが 0件（public な complete 局が無い）→ 審査メモの「ゲストで公開牌譜を
+      閲覧可」の実演が空になる。審査ユーザーのサンプル半荘を公開設定に切り替えると埋まる
+- [ ] Crashlytics: 実機からテストエラー送信 → Firebase コンソールで可読性確認（crashlytics.md Task 7）
+- [ ] **審査完了後に `wrangler secret delete REVIEW_LOGIN_SECRET`**
 
 Android（Phase R4）は iOS 公開後: B-9〜B-11 → Android ビルド → 実機 → 内部テスト → 提出。
 「後回し」に落としたもの（B-1/B-2/B-3/B-5/B-8/B-13/C-4/D-5・Services ID）は 1章に理由つきで
