@@ -1,8 +1,9 @@
 // application — 何切る問題の CRUD ユースケース。
-// 問題本体は使う前に必ず ProblemSchema.parse で検証する（信頼ゲート:
-// 検証を通っていないデータを下流に流さない）。保存上限は free 20問（draft+published 合算）。
+// 問題本体は使う前に必ず検証する（信頼ゲート: 検証を通っていないデータを下流に流さない）。
+// 保存経路はドラ必須込みの ProblemSaveSchema・読み出しは既存データ互換の ProblemSchema。
+// 保存上限は free 20問（draft+published 合算）。
 
-import { ProblemSchema } from "@rigel/schema";
+import { ProblemSaveSchema } from "@rigel/schema";
 import type { AnalysisJobRepository } from "../domain/analysis/analysis-job";
 import { problemDraftPrefix } from "../domain/analysis/analysis-transport";
 import type { FavoriteRepository } from "../domain/favorite/favorite.repository";
@@ -56,7 +57,8 @@ export class CreateProblem {
   }): Promise<CreateProblemResult> {
     const title = params.title.trim();
     if (title.length > TITLE_MAX) return { ok: false, reason: "invalid" };
-    const parsed = ProblemSchema.safeParse(params.problem);
+    // 保存経路はドラ必須込みの ProblemSaveSchema（読み出しは寛容な ProblemSchema のまま）。
+    const parsed = ProblemSaveSchema.safeParse(params.problem);
     if (!parsed.success) return { ok: false, reason: "invalid" };
     if (
       await isOverLimit(this.deps.users, params.userId, problemLimit, () =>
@@ -111,7 +113,7 @@ export class UpdateProblem {
     }
     let problem = post.problem;
     if (params.problem !== undefined) {
-      const parsed = ProblemSchema.safeParse(params.problem);
+      const parsed = ProblemSaveSchema.safeParse(params.problem);
       if (!parsed.success) return { ok: false, reason: "invalid" };
       problem = parsed.data;
     }

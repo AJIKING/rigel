@@ -147,6 +147,14 @@ describe("CreateProblem", () => {
     ).toEqual({ ok: false, reason: "invalid" });
   });
 
+  it("ドラ表示牌が無い問題は invalid（保存経路は ProblemSaveSchema。[決定] 2026-08-08）", async () => {
+    const d = deps();
+    const noDora = { ...minimalProblemInput(), meta: { dora: [] } };
+    expect(
+      await new CreateProblem(d).execute({ userId: "u1", title: "t", problem: noDora }),
+    ).toEqual({ ok: false, reason: "invalid" });
+  });
+
   it("free は draft+published 合算20問で problem_limit、有料は無制限", async () => {
     const d = deps();
     for (let i = 0; i < 20; i++) {
@@ -207,6 +215,18 @@ describe("UpdateProblem", () => {
         userId: "u1",
         problemId: "p1",
         problem: { bad: 1 },
+      }),
+    ).toEqual({ ok: false, reason: "invalid" });
+  });
+
+  it("ドラ表示牌が無い問題データへの更新は invalid（保存経路は ProblemSaveSchema）", async () => {
+    const d = deps();
+    await d.problems.save(post("p1", "u1"));
+    expect(
+      await new UpdateProblem(d.problems).execute({
+        userId: "u1",
+        problemId: "p1",
+        problem: { ...minimalProblemInput(), meta: { dora: [] } },
       }),
     ).toEqual({ ok: false, reason: "invalid" });
   });

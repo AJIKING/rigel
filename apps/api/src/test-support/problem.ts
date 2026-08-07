@@ -31,6 +31,8 @@ export function minimalProblemInput(): Record<string, unknown> {
       west: {},
       north: {},
     },
+    // ドラ表示牌は保存経路（ProblemSaveSchema）で必須（[決定] 2026-08-08）。
+    meta: { dora: ["7z"] },
   };
 }
 

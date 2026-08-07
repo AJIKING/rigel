@@ -3,8 +3,10 @@ import {
   choiceKey,
   isValidAnswer,
   ProblemActionSchema,
+  ProblemSaveSchema,
   ProblemSchema,
   problemTargetTile,
+  PROBLEM_DORA_REQUIRED_MESSAGE,
   PROBLEM_SCHEMA_VERSION,
   type Tile,
 } from "./index";
@@ -230,6 +232,29 @@ describe("ProblemSchema: 何切る（discard）", () => {
   it("正解（answer）というフィールドは持たない（多様な正解を前提に分布を見る）", () => {
     const p = ProblemSchema.parse(discardProblem());
     expect("answer" in p).toBe(false);
+  });
+});
+
+describe("ProblemSaveSchema: 保存経路のみドラ表示牌必須（[決定] 2026-08-08）", () => {
+  it("ドラ未選択は保存用検証で弾く（読み出しの ProblemSchema は既存データ互換で寛容なまま）", () => {
+    const input = discardProblem(); // meta 省略 = dora []
+    expect(ProblemSchema.safeParse(input).success).toBe(true);
+    const r = ProblemSaveSchema.safeParse(input);
+    expect(r.success).toBe(false);
+    if (!r.success) expect(r.error.issues[0]?.message).toBe(PROBLEM_DORA_REQUIRED_MESSAGE);
+  });
+
+  it("ドラが1枚あれば保存用検証も通る（call も同様）", () => {
+    expect(ProblemSaveSchema.safeParse(discardProblem({ meta: { dora: ["7z"] } })).success).toBe(
+      true,
+    );
+    expect(ProblemSaveSchema.safeParse(callProblem({ meta: { dora: ["7z"] } })).success).toBe(true);
+  });
+
+  it("スキーマ本体の違反（手牌枚数など）が先に出る（ドラの指摘は後段）", () => {
+    const r = ProblemSaveSchema.safeParse(discardProblem({ seats: seatsWithHand(["1m"]) }));
+    expect(r.success).toBe(false);
+    if (!r.success) expect(r.error.issues[0]?.message).toContain("13枚");
   });
 });
 

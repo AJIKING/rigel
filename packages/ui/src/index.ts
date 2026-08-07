@@ -14,7 +14,7 @@ import {
   MONTHLY_CALL_QUOTA,
   PRIVATE_KIFU_LIMIT,
   PROBLEM_LIMIT,
-  ProblemSchema,
+  ProblemSaveSchema,
   SCHEMA_VERSION,
   TileSchema,
   PROBLEM_SCHEMA_VERSION,
@@ -37,6 +37,9 @@ import {
 } from "@rigel/schema";
 import { pointsLabel, seatsFromDealer, windOf } from "./board";
 import { chiVariants, meldTiles, sortHandTiles, SUITS, type MeldPick } from "./edit";
+
+// 保存経路のドラ必須文言（定義は schema=背骨。web/mobile は従来どおり @rigel/ui から参照できる）。
+export { PROBLEM_DORA_REQUIRED_MESSAGE } from "@rigel/schema";
 
 // 打点計算（han/fu + ルール → 支払い）。
 export * from "./score";
@@ -1221,11 +1224,9 @@ export function draftToKifu(draft: ProblemBoardDraft): Kifu {
   });
 }
 
-/** 保存前ゲートのドラ必須エラー文言（web/mobile で共用。表記ゆれ防止）。 */
-export const PROBLEM_DORA_REQUIRED_MESSAGE = "ドラ表示牌を1枚以上選んでください。";
-
 /**
  * 編集状態から Problem を組み立てて検証する（保存前のクライアント側ゲート）。
+ * 検証は API の保存経路と同じ ProblemSaveSchema（ドラ必須込み。文言も単一定義）。
  * スキーマ違反は日本語のエラー文言で返す。kind に応じてツモ牌/対象席を整形し、
  * 河には order 連番を振る。正解は設けない（多様な正解を前提に分布を見る）。
  */
@@ -1245,7 +1246,7 @@ export function assembleProblem(draft: ProblemDraft): { problem?: Problem; error
       },
     ]),
   );
-  const parsed = ProblemSchema.safeParse({
+  const parsed = ProblemSaveSchema.safeParse({
     schemaVersion: PROBLEM_SCHEMA_VERSION,
     kind: draft.kind,
     pov: draft.pov,
@@ -1266,11 +1267,6 @@ export function assembleProblem(draft: ProblemDraft): { problem?: Problem; error
   });
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "入力に誤りがあります。" };
-  }
-  // ドラ表示牌は必須（2026-08-08 オーナー。ドラの無い実戦は無い）。スキーマは既存データの
-  // 後方互換のため縛らず、保存前ゲート（ここ）だけで新規・編集時に要求する。
-  if (parsed.data.meta.dora.length === 0) {
-    return { error: PROBLEM_DORA_REQUIRED_MESSAGE };
   }
   return { problem: parsed.data };
 }

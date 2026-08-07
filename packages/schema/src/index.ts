@@ -698,6 +698,20 @@ export const ProblemSchema = z
   });
 export type Problem = z.infer<typeof ProblemSchema>;
 
+/** 保存経路のドラ必須エラー文言（エディタの保存前ゲートと API 保存検証で共用）。 */
+export const PROBLEM_DORA_REQUIRED_MESSAGE = "ドラ表示牌を1枚以上選んでください。";
+
+/**
+ * 保存経路用の Problem 検証（[決定] 2026-08-08 ドラ表示牌必須。ドラの無い実戦は無い）。
+ * 読み出しは既存データ互換のため ProblemSchema（寛容）のまま。新規作成・更新だけこれで縛る。
+ * ProblemSchema 本体の違反があるときはそちらのエラーが先に出る（この refine は本体成功後のみ実行）。
+ */
+export const ProblemSaveSchema = ProblemSchema.superRefine((p, ctx) => {
+  if (p.meta.dora.length === 0) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: PROBLEM_DORA_REQUIRED_MESSAGE });
+  }
+});
+
 /** 鳴き判断の対象牌（対象席の河の末尾の1枚）。discard 問題・河が空なら null。 */
 export function problemTargetTile(problem: Problem): Tile | null {
   if (problem.targetSeat === null) return null;
