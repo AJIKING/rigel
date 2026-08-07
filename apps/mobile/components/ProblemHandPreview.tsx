@@ -4,10 +4,10 @@
 import type { Problem } from "@rigel/schema";
 import { problemHandTiles } from "@rigel/ui";
 import { StyleSheet, View } from "react-native";
-import { MiniTile } from "./MiniTile";
+import { MiniTile, TILE_ASPECT } from "./MiniTile";
 
 export function ProblemHandPreview({ problem, tileW = 19 }: { problem: Problem; tileW?: number }) {
-  const tileH = Math.round(tileW * 1.42);
+  const tileH = Math.round(tileW * TILE_ASPECT);
   return (
     <View style={styles.row}>
       {problemHandTiles(problem).map((t, i) => (

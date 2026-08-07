@@ -1,7 +1,14 @@
 "use client";
 
 import { toAbsoluteSeat, type CameraSeat, type Kifu, type Seat, type Tile } from "@rigel/schema";
-import { meldTileViews, seatLabel, signedPoints, splitDrawnTile, type DrawnTile } from "@rigel/ui";
+import {
+  meldTileViews,
+  pointsLabel,
+  seatLabel,
+  signedPoints,
+  splitDrawnTile,
+  type DrawnTile,
+} from "@rigel/ui";
 import { chunk, windOf } from "../../lib/board";
 import { OssTileFace } from "../OssTileFace";
 import s from "./kifu-view.module.css";
@@ -159,7 +166,7 @@ export function ViewBoard({
               {/* 風の1文字は親基準の表記なので、絶対席モードでは出さない（混乱の元）。 */}
               {absolutePlates ? null : <span className={s.wd}>{wind}</span>}
               <span className={s.nm}>{name}</span>
-              {points && <span className={s.pts}>{points[seat].toLocaleString()}点</span>}
+              {points && <span className={s.pts}>{pointsLabel(points[seat])}</span>}
               {/* リーグ戦等の積み上げポイント状況（players がある半荘のみ）。
                   全員 0.0 なら未記録とみなして隠す（呼び出し側のトグルで出せる）。 */}
               {showPlayerPoints && player && (

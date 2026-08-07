@@ -56,8 +56,8 @@ describe("ProblemAnswerScreen（何切る回答画面）", () => {
     expect(screen.queryByText(/を鳴きますか/)).toBeNull();
   });
 
-  it("点数は牌譜と同じくネームプレート（席の横）に出す。盤面外の点数行は出さない", async () => {
-    const post = makePost();
+  it("卓表示（場況あり）の点数は牌譜と同じくネームプレート（席の横）に出す", async () => {
+    const post = makePost({ problem: makeCallProblem() });
     post.problem = {
       ...post.problem,
       scores: { east: 25000, south: 11600, west: 38400, north: 25000 },
@@ -75,19 +75,33 @@ describe("ProblemAnswerScreen（何切る回答画面）", () => {
     expect(screen.queryByText("あなた")).toBeNull();
   });
 
-  it("場況の無い平面何切るは卓を描かず、ドラ表示牌だけを行で出す（フラット表示）", async () => {
-    // 既定フィクスチャ = scores 無し・他家の手牌/副露/河 無し・自河 無し → フラット。
+  it("場況の無い平面何切るは卓を描かず、緑パネルに場況ヘッダ＋ドラを出す（フラット表示）", async () => {
+    // 既定フィクスチャ = scores 無し・他家の手牌/副露/河 無し・自河 無し・ドラ1枚 → フラット。
+    mockGetProblem.mockResolvedValue(makePost());
+    render(<ProblemAnswerScreen />);
+
+    expect(await screen.findByText("ドラ表示牌")).toBeTruthy();
+    // 場況ヘッダ（場風 巡目 自風。文言は @rigel/ui の problemFlatInfoLabel）。
+    expect(screen.getByText("東場 6巡目 東家")).toBeTruthy();
+    // 卓（BoardTable）は描かない（卓中央の「東場 6巡目」単体テキストが出ない）。
+    expect(screen.queryByText("東場 6巡目")).toBeNull();
+  });
+
+  it("点数だけの問題は平面のまま、点数行（親から風順）をヘッダに出す（[決定] 2026-08-08 改）", async () => {
     const post = makePost({
       problem: makeProblem({
-        meta: { dealer: "east", roundWind: "east", junme: 6, dora: ["1z"] },
+        scores: { east: 25000, south: 11600, west: 38400, north: 24000 },
       }),
     });
     mockGetProblem.mockResolvedValue(post);
     render(<ProblemAnswerScreen />);
 
-    expect(await screen.findByText("ドラ表示牌")).toBeTruthy();
-    // 卓（BoardTable）は描かない（卓中央の「東場 6巡目」が出ない）。
-    expect(screen.queryByText("東場 6巡目")).toBeNull();
+    // 点数はテキスト行（風表記・カンマ区切り・親から風順で1行に連結）。
+    expect(
+      await screen.findByText("東家 25,000点 ・ 南家 11,600点 ・ 西家 38,400点 ・ 北家 24,000点"),
+    ).toBeTruthy();
+    // ネームプレートの点数（卓）は出さない。
+    expect(screen.queryByText("11,600点")).toBeNull();
   });
 
   it("場況（他家の河など）がある問題は従来どおり卓（BoardTable）で描く", async () => {
@@ -96,7 +110,8 @@ describe("ProblemAnswerScreen（何切る回答画面）", () => {
     render(<ProblemAnswerScreen />);
 
     expect(await screen.findByText("東場 6巡目")).toBeTruthy();
-    expect(screen.queryByText("ドラ表示牌")).toBeNull();
+    // 平面ヘッダ（巡目+自風の連結ラベル）は出さない（ドラは卓中央が出すので文言では判別しない）。
+    expect(screen.queryByText("東場 6巡目 東家")).toBeNull();
   });
 
   it("回答前は出題者のコメントを表示しない", async () => {

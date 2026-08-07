@@ -4,6 +4,9 @@ import { Image, StyleSheet, Text, View, type ViewStyle } from "react-native";
 import { colors } from "../lib/theme";
 import { TILE_FRONT, TILE_IMAGES } from "./tile-images";
 
+/** 牌の縦横比（h = w × これ）。一覧プレビュー・平面何切るの牌サイズ算出で共用する。 */
+export const TILE_ASPECT = 1.42;
+
 // 牌を少し浮かせる立体感（web の box-shadow 近似。RN は gradient/inset 影が無いので影のみ）。
 const RAISED = {
   shadowColor: "#000",

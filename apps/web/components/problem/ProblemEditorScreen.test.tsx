@@ -1,4 +1,5 @@
 import { KifuSchema, ProblemSchema, type Problem } from "@rigel/schema";
+import { PROBLEM_DORA_REQUIRED_MESSAGE } from "@rigel/ui";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { type ProblemPost } from "../../lib/api";
@@ -69,6 +70,12 @@ function fillHand() {
   for (const label of TILE_LABELS.slice(9)) pick(label);
 }
 
+/** ドラ表示牌を1枚（9筒）入れる（保存ゲートのドラ必須 2026-08-08 を満たす）。 */
+function fillDora() {
+  fireEvent.click(screen.getByRole("button", { name: "ドラ表示牌" }));
+  pick("9筒");
+}
+
 describe("ProblemEditorScreen: 既存問題の管理（削除・回答画面リンク。[決定] 2026-08-08）", () => {
   it("既存の問題には回答画面リンクと削除を出し、削除は confirm 経由で一覧へ戻る", async () => {
     stubMe("free");
@@ -76,7 +83,7 @@ describe("ProblemEditorScreen: 既存問題の管理（削除・回答画面リ�
     vi.stubGlobal("confirm", confirm);
     renderEditor(makeDiscardPost());
 
-    const link = await screen.findByRole("link", { name: "回答画面を見る →" });
+    const link = await screen.findByRole("link", { name: "回答画面を見る" });
     expect(link.getAttribute("href")).toBe("/p/p1");
 
     const del = screen.getByRole("button", { name: "この問題を削除" });
@@ -94,7 +101,7 @@ describe("ProblemEditorScreen: 既存問題の管理（削除・回答画面リ�
     stubMe("free");
     renderEditor();
     await screen.findByRole("button", { name: "公開して保存" });
-    expect(screen.queryByText("回答画面を見る →")).toBeNull();
+    expect(screen.queryByText("回答画面を見る")).toBeNull();
     expect(screen.queryByRole("button", { name: "この問題を削除" })).toBeNull();
   });
 });
@@ -169,9 +176,10 @@ describe("ProblemEditorScreen: 何切るの作成", () => {
     await screen.findByRole("group", { name: "牌を選ぶ" });
     fillHand();
 
-    // ツモ牌へ切替 → 5筒。
+    // ツモ牌へ切替 → 5筒。ドラ表示牌も1枚（保存ゲートで必須）。
     fireEvent.click(screen.getByRole("button", { name: "ツモ牌" }));
     pick("5筒");
+    fillDora();
 
     fireEvent.change(screen.getByLabelText("タイトル"), { target: { value: "テスト問題" } });
     fireEvent.change(screen.getByLabelText(/出題者のコメント/), {
@@ -209,10 +217,22 @@ describe("ProblemEditorScreen: 何切るの作成", () => {
     // 入力済みの「ツモ牌」行に表示され、タップで外せる。
     expect(screen.getByRole("button", { name: "ツモ牌の 5筒 を外す" })).toBeTruthy();
 
+    fillDora();
     fireEvent.click(screen.getByRole("button", { name: "下書き保存" }));
     await waitFor(() => expect(h.createProblemAction).toHaveBeenCalled());
     const [input] = h.createProblemAction.mock.calls[0] as [{ problem: Problem }];
     expect(input.problem.drawn).toBe("5p");
+  });
+
+  it("ドラ表示牌が未選択だと保存できずエラー文言を出す（2026-08-08 オーナー）", async () => {
+    stubMe("free");
+    renderEditor();
+    await screen.findByRole("group", { name: "牌を選ぶ" });
+    fillHand(); // 13枚 → 入力先は自動でツモ牌へ
+    pick("5筒"); // ツモ牌
+    fireEvent.click(screen.getByRole("button", { name: "下書き保存" }));
+    expect(await screen.findByText(PROBLEM_DORA_REQUIRED_MESSAGE)).toBeTruthy();
+    expect(h.createProblemAction).not.toHaveBeenCalled();
   });
 
   it("手牌が13枚未満だと保存できずエラー文言を出す", async () => {
@@ -236,6 +256,7 @@ describe("ProblemEditorScreen: 何切るの作成", () => {
     fillHand();
     fireEvent.click(screen.getByRole("button", { name: "ツモ牌" }));
     pick("5筒");
+    fillDora();
     fireEvent.click(screen.getByRole("button", { name: "下書き保存" }));
     expect(await screen.findByText(/20問まで/)).toBeTruthy();
   });
@@ -306,6 +327,7 @@ describe("ProblemEditorScreen: 河の牌の編集（タップで変更・削除�
     await screen.findByRole("group", { name: "牌を選ぶ" });
     fillHand(); // 13枚 → 入力先は自動でツモ牌へ
     pick("5筒"); // ツモ牌
+    fillDora();
 
     // 東家の河に 1筒 を置く（既定は手出し）。
     fireEvent.click(screen.getByRole("button", { name: "東家の河" }));

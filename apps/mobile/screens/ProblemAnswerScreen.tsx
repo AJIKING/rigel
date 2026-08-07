@@ -10,6 +10,8 @@ import {
   choiceKeyLabel,
   isFlatProblem,
   problemChiVariants,
+  problemFlatInfoLabel,
+  problemFlatScoresLabel,
   problemRoundLabel,
   problemToKifu,
   seatLabel,
@@ -35,7 +37,7 @@ import Svg, { Path } from "react-native-svg";
 import { BoardTable } from "../components/BoardTable";
 import { CenterState } from "../components/CenterState";
 import { Chip } from "../components/Chip";
-import { MiniTile } from "../components/MiniTile";
+import { MiniTile, TILE_ASPECT } from "../components/MiniTile";
 import {
   answerProblem,
   getProblem,
@@ -53,6 +55,10 @@ import { colors, radius } from "../lib/theme";
  * 出題者のコメントとみんなの回答分布を見る）。回答するまでコメント・分布は見せない。
  * 集計（回答の保存と分布）はログイン時のみ（未ログインは回答体験＋コメントまで）。
  */
+// 平面表示のレイアウト定数（本文/パネルの余白・牌の間隔）。styles と平面の牌幅計算の
+// 両方がこれを参照する（数値の二重管理で片方だけ触ると静かに崩れるのを防ぐ）。
+const LAYOUT = { bodyPad: 16, panelPad: 14, handGap: 4, drawnGap: 10, meldGap: 12 } as const;
+
 export function ProblemAnswerScreen() {
   const route = useRoute<RouteProp<RootStackParamList, "ProblemAnswer">>();
   const { token } = useAuth();
@@ -102,6 +108,30 @@ function AnswerBody({ post, token }: { post: ProblemPost; token: string | null }
       : null;
   // 場風+巡目（共有関数）。本場・供託・ドラは BoardTable が meta から表示する。
   const roundLabel = problemRoundLabel(problem.meta);
+  // 平面ヘッダの点数行（親から風順・連結済み。scores 無し/卓表示は null=行ごと出さない）。
+  const flatScores = flat ? problemFlatScoresLabel(problem) : null;
+  // 平面表示は手牌+ツモ+副露を折り返さず1列に収める（牌幅を画面幅から算出）。
+  // 折り返すと選択枠が上段の牌に被るため段組みにしない（2026-08-08 オーナー）。
+  // 余白・間隔は styles と同じ定数（下の LAYOUT）を参照し、数値の二重管理を避ける。
+  const flatTileCount =
+    hand.length + (problem.drawn ? 1 : 0) + povMelds.reduce((n, m) => n + m.tiles.length, 0);
+  const flatHandGaps =
+    LAYOUT.handGap * Math.max(0, flatTileCount - 1) +
+    (problem.drawn ? LAYOUT.drawnGap : 0) +
+    LAYOUT.meldGap * povMelds.length;
+  const handTileW = flat
+    ? Math.max(
+        16,
+        Math.min(
+          30,
+          Math.floor(
+            (width - 2 * LAYOUT.bodyPad - 2 * LAYOUT.panelPad - flatHandGaps) /
+              Math.max(1, flatTileCount),
+          ),
+        ),
+      )
+    : 30;
+  const handTileH = Math.round(handTileW * TILE_ASPECT);
   // 卓サイズは KifuEditor のプレビューと同じ算出（画面幅に合わせて clamp）。
   const boardSize = Math.max(240, Math.min(width - 28, 340));
 
@@ -196,6 +226,54 @@ function AnswerBody({ post, token }: { post: ProblemPost; token: string | null }
     problem.meta.kyotaku > 0 ? `供託${problem.meta.kyotaku}本` : null,
   ].filter((p): p is string => p !== null);
 
+  // 自分の手牌（理牌済み）＋ツモ牌。平面表示では緑パネル内に載せるため、
+  // 卓表示と共用の JSX を1か所に持つ（フラット時は自席の副露も並びに添える）。
+  const handSection = (
+    <>
+      <Text style={[styles.section, flat ? styles.sectionOnFelt : null]}>手牌</Text>
+      <View style={[styles.hand, flat ? styles.handNoWrap : null]}>
+        {hand.map((t, i) => {
+          const on = picked !== null && !picked.drawn && picked.index === i;
+          return t.tile ? (
+            <Pressable
+              key={i}
+              style={on ? styles.sel : null}
+              disabled={answered !== null || !needsTile}
+              onPress={() => pickTile(t.tile!, false, i)}
+              accessibilityRole="button"
+              accessibilityLabel={tileLabel(t.tile)}
+              accessibilityState={{ selected: on }}
+            >
+              <MiniTile code={t.tile} w={handTileW} h={handTileH} />
+            </Pressable>
+          ) : null;
+        })}
+        {problem.drawn ? (
+          <Pressable
+            style={[styles.drawn, picked?.drawn ? styles.sel : null]}
+            disabled={answered !== null}
+            onPress={() => pickTile(problem.drawn!, true, -1)}
+            accessibilityRole="button"
+            accessibilityLabel={tileLabel(problem.drawn)}
+            accessibilityState={{ selected: picked?.drawn === true }}
+          >
+            <MiniTile code={problem.drawn} w={handTileW} h={handTileH} />
+          </Pressable>
+        ) : null}
+        {/* 平面表示では卓が無いので、自席の副露も手牌の並びに添える。 */}
+        {flat
+          ? povMelds.map((m, mi) => (
+              <View key={mi} style={styles.flatMeld}>
+                {m.tiles.map((t, ti) =>
+                  t.tile ? <MiniTile key={ti} code={t.tile} w={handTileW} h={handTileH} /> : null,
+                )}
+              </View>
+            ))
+          : null}
+      </View>
+    </>
+  );
+
   return (
     <ScrollView style={styles.root} contentContainerStyle={styles.body}>
       <View style={styles.titleRow}>
@@ -224,75 +302,41 @@ function AnswerBody({ post, token }: { post: ProblemPost; token: string | null }
       </Text>
 
       {/* 場況ありは牌譜と同じ回転卓（BoardTable）。ドラ・本場・供託は卓中央・点数はネームプレート。
-          平面何切るは卓を描かず、ドラ表示牌だけを行で見せる（フラット表示）。 */}
+          平面何切るは卓を描かず、緑の卓布パネルに場況ヘッダ（場風・巡目・自風・ドラ・点数）と
+          手牌を載せる（[決定] 2026-08-08 オーナー。文言は @rigel/ui を web と共用）。 */}
       {flat ? (
-        problem.meta.dora.length > 0 ? (
-          <>
-            <Text style={styles.section}>ドラ表示牌</Text>
-            <View style={styles.doraRow}>
-              {problem.meta.dora.map((t, i) => (
-                <MiniTile key={`${t}-${i}`} code={t} w={24} h={34} />
-              ))}
-            </View>
-          </>
-        ) : null
-      ) : (
-        <View style={styles.boardWrap}>
-          <BoardTable
-            kifu={boardKifu}
-            bottomSeat={pov}
-            dealer={dealer ?? pov}
-            roundLabel={roundLabel}
-            showHands={false}
-            size={boardSize}
-            points={problem.scores}
-            highlightRiver={highlightRiver}
-          />
-        </View>
-      )}
-
-      {/* 自分の手牌（理牌済み）＋ツモ牌 */}
-      <Text style={styles.section}>手牌</Text>
-      <View style={styles.hand}>
-        {hand.map((t, i) => {
-          const on = picked !== null && !picked.drawn && picked.index === i;
-          return t.tile ? (
-            <Pressable
-              key={i}
-              style={on ? styles.sel : null}
-              disabled={answered !== null || !needsTile}
-              onPress={() => pickTile(t.tile!, false, i)}
-              accessibilityRole="button"
-              accessibilityLabel={tileLabel(t.tile)}
-              accessibilityState={{ selected: on }}
-            >
-              <MiniTile code={t.tile} w={30} h={42} />
-            </Pressable>
-          ) : null;
-        })}
-        {problem.drawn ? (
-          <Pressable
-            style={[styles.drawn, picked?.drawn ? styles.sel : null]}
-            disabled={answered !== null}
-            onPress={() => pickTile(problem.drawn!, true, -1)}
-            accessibilityRole="button"
-            accessibilityLabel={tileLabel(problem.drawn)}
-            accessibilityState={{ selected: picked?.drawn === true }}
-          >
-            <MiniTile code={problem.drawn} w={30} h={42} />
-          </Pressable>
-        ) : null}
-        {/* 平面表示では卓が無いので、自席の副露も手牌の並びに添える。 */}
-        {flat
-          ? povMelds.map((m, mi) => (
-              <View key={mi} style={styles.flatMeld}>
-                {m.tiles.map((t, ti) =>
-                  t.tile ? <MiniTile key={ti} code={t.tile} w={24} h={34} /> : null,
-                )}
+        <View style={styles.flatPanel}>
+          <View style={styles.flatInfoRow}>
+            <Text style={styles.flatInfo}>{problemFlatInfoLabel(problem)}</Text>
+            {problem.meta.dora.length > 0 ? (
+              <View style={styles.flatDora}>
+                <Text style={styles.flatDoraLabel}>ドラ表示牌</Text>
+                {problem.meta.dora.map((t, i) => (
+                  <MiniTile key={`${t}-${i}`} code={t} w={22} h={31} />
+                ))}
               </View>
-            ))
-          : null}
-      </View>
+            ) : null}
+          </View>
+          {flatScores ? <Text style={styles.flatScores}>{flatScores}</Text> : null}
+          {handSection}
+        </View>
+      ) : (
+        <>
+          <View style={styles.boardWrap}>
+            <BoardTable
+              kifu={boardKifu}
+              bottomSeat={pov}
+              dealer={dealer ?? pov}
+              roundLabel={roundLabel}
+              showHands={false}
+              size={boardSize}
+              points={problem.scores}
+              highlightRiver={highlightRiver}
+            />
+          </View>
+          {handSection}
+        </>
+      )}
       {/* ツモ牌は手牌の右に離して置く。初見でも分かるよう言葉でも添える（web と同一文言）。 */}
       {problem.drawn ? (
         <Text style={styles.drawnNote}>右端はツモ牌（タップするとツモ切りになります）</Text>
@@ -430,19 +474,40 @@ function ShareIcon({ color }: { color: string }) {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.bg },
-  body: { padding: 16, paddingBottom: 32, gap: 10 },
+  body: { padding: LAYOUT.bodyPad, paddingBottom: 32, gap: 10 },
   titleRow: { flexDirection: "row", alignItems: "center", gap: 10 },
   title: { flex: 1, color: colors.white, fontSize: 17, fontWeight: "800" },
   draftBadge: { color: colors.vermilion, fontSize: 12, fontWeight: "700" },
   meta: { color: colors.w45, fontSize: 12 },
   boardWrap: { alignItems: "center", marginTop: 2 },
-  /* 平面何切る（フラット表示）: ドラ表示牌の行と、自席の副露（手牌の右に離す）。 */
-  doraRow: { flexDirection: "row", gap: 2 },
-  flatMeld: { flexDirection: "row", gap: 2, marginLeft: 12 },
+  /* 平面何切る（フラット表示）: 緑の卓布パネル（卓と同じ colors.em）に
+     場況ヘッダ（場風・巡目・自風・ドラ・点数）と手牌を載せる。 */
+  flatPanel: {
+    backgroundColor: colors.em,
+    borderRadius: radius.card,
+    marginTop: 4,
+    padding: LAYOUT.panelPad,
+    paddingBottom: 12,
+    gap: 8,
+  },
+  flatInfoRow: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: 14 },
+  flatInfo: { color: colors.white, fontSize: 13.5, fontWeight: "700" },
+  flatDora: { flexDirection: "row", alignItems: "center", gap: 6 },
+  flatDoraLabel: { color: "rgba(255,255,255,0.85)", fontSize: 11.5 },
+  flatScores: {
+    color: "rgba(255,255,255,0.92)",
+    fontSize: 12.5,
+    fontVariant: ["tabular-nums"],
+  },
+  /* パネル内の「手牌」ラベルは布地向けに明るく。 */
+  sectionOnFelt: { color: "rgba(255,255,255,0.85)", marginTop: 0 },
+  flatMeld: { flexDirection: "row", gap: 2, marginLeft: LAYOUT.meldGap },
   question: { color: colors.white, fontSize: 16, fontWeight: "800", marginTop: 2 },
   section: { color: colors.w45, fontSize: 12, fontWeight: "800", marginTop: 6 },
-  hand: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: 4 },
-  drawn: { marginLeft: 10 },
+  hand: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: LAYOUT.handGap },
+  /* 平面表示は折り返さない（牌幅を画面幅に合わせて縮めて1列に収める）。 */
+  handNoWrap: { flexWrap: "nowrap" },
+  drawn: { marginLeft: LAYOUT.drawnGap },
   drawnNote: { color: colors.w45, fontSize: 11, marginTop: -4 },
   sel: {
     borderWidth: 2,

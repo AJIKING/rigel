@@ -1,24 +1,25 @@
 /* ============================================================
-   特訓ランキング（/ranking）— 種目・期間チップと単一スコアボード
+   特訓ランキング（/ranking）— 種目・期間セレクトと単一スコアボード
    （スコア = 正解数 × 正答率。[決定] 2026-08-07 2ボードから統合）
-   トーンはマイページ「特訓」タブ（training-stats.module.css）に合わせる:
-   チップ＝ピル / 行＝chrome-2→chrome のダークカード。
+   セレクトは一覧ツールバー（kifu-list.module.css の .sortwrap）と同じ部品。
+   行は枠なしのプレーンなリスト（カード枠・見出し・定義注記は 2026-08-08 廃止）。
    ============================================================ */
 
-.toolbar {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  padding: 20px 0 14px;
-}
-/* チップ列の見た目はマイページ特訓タブと同じ部品（定義を共有。ここは参照のみ）。 */
-.seg {
-  composes: seg from "../mypage/training-stats.module.css";
+/* ボード幅の1カラム（見出し〜ボードまで全部この幅）。広幅で左に張り付かせない。 */
+.col {
+  max-width: 620px;
+  margin: 0 auto;
 }
 
-/* 自分の順位（サインイン時のみ・ボードの上に1行。幅はボードと揃える）。 */
+/* 絞り込みセレクトの見た目は kifu-list.module.css の .sortwrap を共用（ここは並びだけ）。 */
+.toolbar {
+  display: flex;
+  gap: 10px;
+  padding: 16px 0 14px;
+}
+
+/* 自分の順位（サインイン時のみ・ボードの上に1行。幅は .col が絞る）。 */
 .meRow {
-  max-width: 620px;
   margin: 0 0 12px;
   padding: 10px 14px;
   background: linear-gradient(165deg, var(--chrome-2), var(--chrome));
@@ -36,34 +37,14 @@
   font-weight: 800;
 }
 
-/* 単一スコアボード（[決定] 2026-08-07 2ボードから統合）。
-   広幅で1枚のボードが間延びしないよう幅を絞る（旧2ボード時の1枚分に近い読み幅）。 */
+/* 単一スコアボード（[決定] 2026-08-07 2ボードから統合）。幅は .col が絞り中央に置く。 */
 .boards {
-  max-width: 620px;
   transition: opacity 0.15s var(--ease);
 }
-/* チップ切替の取得中: 前の表示を保ったまま薄くする（真っ白・レイアウトシフトを避ける）。 */
+/* セレクト切替の取得中: 前の表示を保ったまま薄くする（真っ白・レイアウトシフトを避ける）。 */
 .busy {
   opacity: 0.5;
   pointer-events: none;
-}
-.board {
-  background: linear-gradient(165deg, var(--chrome-2), var(--chrome));
-  border: 1px solid var(--line);
-  border-radius: var(--r);
-  padding: 12px 14px;
-}
-.boardTitle {
-  margin: 0 0 4px;
-  font-family: var(--round);
-  font-size: 13px;
-  font-weight: 800;
-  color: var(--white);
-}
-.boardNote {
-  margin: 0 0 8px;
-  font-size: 10.5px;
-  color: var(--w45);
 }
 .list {
   list-style: none;

@@ -32,7 +32,8 @@ export function makeProblem(overrides: Record<string, unknown> = {}): Problem {
       west: {},
       north: {},
     },
-    meta: { dealer: "east", roundWind: "east", junme: 6 },
+    // ドラ表示牌は保存ゲートで必須（2026-08-08）。既存問題の再保存テストが通る形にしておく。
+    meta: { dealer: "east", roundWind: "east", junme: 6, dora: ["7z"] },
     explanation: "テスト解説",
     ...overrides,
   });

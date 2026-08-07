@@ -52,13 +52,8 @@ afterEach(() => {
 describe("ProblemAnswerScreen: 平面何切るのフラット表示（[決定] 2026-08-08）", () => {
   it("場況なし（他家・河・点数なし）は卓を描かず、ドラ表示牌を行で見せる", async () => {
     stubMe("free");
-    const post = makeDiscardPost();
-    post.problem = ProblemSchema.parse({
-      ...post.problem,
-      schemaVersion: PROBLEM_SCHEMA_VERSION,
-      meta: { ...post.problem.meta, dora: ["3z"] },
-    });
-    const { container } = renderScreen(post);
+    // 既定フィクスチャがドラ1枚（7z）を持つ（保存ゲートのドラ必須に合わせた形）。
+    const { container } = renderScreen(makeDiscardPost());
     await screen.findByText("あなたなら何を切る？");
 
     // 卓（ネームプレート [data-seat]）は描かれない。
@@ -77,10 +72,16 @@ describe("ProblemAnswerScreen: 平面何切るのフラット表示（[決定] 2
     expect(container.querySelectorAll("[data-seat]").length).toBeGreaterThan(0);
     expect(screen.queryByText("ドラ表示牌")).toBeNull();
   });
-});
 
-describe("ProblemAnswerScreen: 何切る", () => {
-  it("点数は牌譜と同じくネームプレート（席の横）に出す。盤面外の点数行は出さない", async () => {
+  it("平面ヘッダに場況（巡目・自風）を出す（文言は @rigel/ui の problemFlatInfoLabel）", async () => {
+    stubMe("free");
+    renderScreen(makeDiscardPost());
+    await screen.findByText("あなたなら何を切る？");
+    // 既定フィクスチャ: 場風なし・親未設定（=自席East）・巡目1 → 「1巡目 東家」。
+    expect(screen.getByText("1巡目 東家")).toBeTruthy();
+  });
+
+  it("点数だけの問題は平面のまま、点数行（親から風順）をヘッダに出す（[決定] 2026-08-08 改）", async () => {
     stubMe("free");
     const post = makeDiscardPost();
     post.problem = {
@@ -89,6 +90,25 @@ describe("ProblemAnswerScreen: 何切る", () => {
     };
     const { container } = renderScreen(post);
     await screen.findByText("あなたなら何を切る？");
+
+    // 卓（ネームプレート）には落とさない。
+    expect(container.querySelectorAll("[data-seat]")).toHaveLength(0);
+    // 点数はテキスト行（風表記・カンマ区切り）。
+    expect(screen.getByText(/東家 25,000点/)).toBeTruthy();
+    expect(screen.getByText(/南家 11,600点/)).toBeTruthy();
+  });
+});
+
+describe("ProblemAnswerScreen: 何切る", () => {
+  it("卓表示（場況あり）の点数は牌譜と同じくネームプレート（席の横）に出す", async () => {
+    stubMe("free");
+    const post = makeCallPost();
+    post.problem = {
+      ...post.problem,
+      scores: { east: 25000, south: 11600, west: 38400, north: 25000 },
+    };
+    const { container } = renderScreen(post);
+    await screen.findByText(/どうする？/);
 
     // ネームプレート（[data-seat] 内）に各席の点数が出る（牌譜ビューアと同一様式）。
     const seatText = Array.from(container.querySelectorAll("[data-seat]"))
@@ -102,8 +122,8 @@ describe("ProblemAnswerScreen: 何切る", () => {
 
   it("点数未入力（scores=null）はネームプレートに点数を出さない", async () => {
     stubMe("free");
-    const { container } = renderScreen(makeDiscardPost());
-    await screen.findByText("あなたなら何を切る？");
+    const { container } = renderScreen(makeCallPost());
+    await screen.findByText(/どうする？/);
     const seatText = Array.from(container.querySelectorAll("[data-seat]"))
       .map((el) => el.textContent)
       .join(" ");

@@ -42,6 +42,8 @@ export function makeDiscardPost(overrides: Partial<ProblemPost> = {}): ProblemPo
         west: {},
         north: {},
       },
+      // ドラ表示牌は保存ゲートで必須（2026-08-08）。既存問題の再保存テストが通る形にしておく。
+      meta: { dora: ["7z"] },
       explanation: "ピンズの伸びを見て字牌側から整理する。",
     }),
     ...overrides,
@@ -63,6 +65,8 @@ export function makeCallPost(overrides: Partial<ProblemPost> = {}): ProblemPost 
         west: {},
         north: {},
       },
+      // discard 側フィクスチャと同じくドラ1枚（保存ゲートのドラ必須と乖離させない）。
+      meta: { dora: ["7z"] },
       explanation: "門前を崩さない。",
     }),
     ...overrides,

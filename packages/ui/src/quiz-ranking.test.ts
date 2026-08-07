@@ -10,7 +10,6 @@ import {
   quizScoreOf,
   QUIZ_RANKING_BOARD_LABEL,
   QUIZ_RANKING_PERIODS,
-  QUIZ_RANKING_SCORE_NOTE,
   QUIZ_RANKING_TOP_N,
   type QuizRankingRow,
 } from "./quiz-ranking";
@@ -31,10 +30,9 @@ describe("定数（[決定] 2026-08-04/2026-08-07 と実装既定値）", () => 
     expect(QUIZ_RANKING_PERIODS[0]!.label).toBe("週間");
   });
 
-  it("上位表示数（実装既定値）とボード文言（「正解数」は結果画面の既存表記と統一）", () => {
+  it("上位表示数（実装既定値）とボード文言（定義注記は廃止・2026-08-08 オーナー削除依頼）", () => {
     expect(QUIZ_RANKING_TOP_N).toBe(50);
     expect(QUIZ_RANKING_BOARD_LABEL).toBe("スコア");
-    expect(QUIZ_RANKING_SCORE_NOTE).toBe("スコア = 正解数 × 正答率");
   });
 
   it("表示名は displayName → handle → フォールバック の順で解決する（web/mobile 共通規則）", () => {

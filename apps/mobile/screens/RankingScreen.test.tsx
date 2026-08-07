@@ -45,7 +45,9 @@ describe("RankingScreen（特訓ランキング。匿名可）", () => {
   it("初期表示は先頭種目×週間で取得し、スコアボードに順位・表示名・内訳・スコアが並ぶ", async () => {
     render(<RankingScreen />);
 
-    expect(await screen.findByText("スコア = 正解数 × 正答率")).toBeTruthy();
+    expect(await screen.findByText("太郎")).toBeTruthy();
+    // スコアの定義注記は出さない（2026-08-08 オーナー削除依頼）。
+    expect(screen.queryByText("スコア = 正解数 × 正答率")).toBeNull();
     expect(mockGetQuizRanking).toHaveBeenCalledWith("score", "weekly", undefined);
     const board = within(screen.getByTestId("board-score"));
     expect(board.getByText("太郎")).toBeTruthy();

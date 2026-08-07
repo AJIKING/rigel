@@ -40,12 +40,10 @@ export const QUIZ_RANKING_TOP_N = 50;
 /** ボードの空状態。 */
 export const QUIZ_RANKING_EMPTY_MESSAGE = "まだ記録がありません";
 
-/** ボード見出し（web の h2 / aria-label・mobile のタイトル・自分の順位行で共用。
- *  ベタ書きに戻すと web/mobile のドリフトを機械検査できないので定数で共有する）。 */
+/** ボードのラベル（web は aria-label と自分の順位行・mobile はカードのタイトルで使用。
+ *  web の見出し表示は 2026-08-08 に廃止。ベタ書きに戻すと web/mobile のドリフトを
+ *  機械検査できないので定数で共有する）。 */
 export const QUIZ_RANKING_BOARD_LABEL = "スコア";
-
-/** スコアの定義注記（ボード見出しの下に出す。「正解数」は結果画面・マイページの既存表記に合わせる）。 */
-export const QUIZ_RANKING_SCORE_NOTE = "スコア = 正解数 × 正答率";
 
 /** displayName も handle も空のときの表示名フォールバック。 */
 export const QUIZ_RANKING_NAME_FALLBACK = "プレイヤー";

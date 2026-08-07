@@ -59,8 +59,8 @@ describe("RankingScreen（特訓ランキング。公開・単一スコアボー
   it("スコアボードに順位・表示名・内訳・スコアが並び、名前は /u/handle へリンクする", () => {
     renderScreen(dto());
 
-    // スコアの定義注記（正解数 × 正答率）を出す。
-    expect(screen.getByText("スコア = 正解数 × 正答率")).toBeTruthy();
+    // スコアの定義注記は出さない（2026-08-08 オーナー削除依頼）。
+    expect(screen.queryByText("スコア = 正解数 × 正答率")).toBeNull();
 
     const board = screen.getByRole("list", { name: "スコアランキング" });
     const rows = within(board).getAllByRole("listitem");
@@ -73,7 +73,7 @@ describe("RankingScreen（特訓ランキング。公開・単一スコアボー
     expect(within(rows[1]!).getByText("62.3")).toBeTruthy();
   });
 
-  it("種目・期間チップの切替で fetchRanking を呼び、応答でボードが入れ替わる", async () => {
+  it("種目・期間のセレクトで fetchRanking を呼び、応答でボードが入れ替わる（チップは廃止）", async () => {
     const next = dto({
       kind: "efficiency",
       entries: [entry({ handle: "hanako", displayName: "花子", correct: 55 })],
@@ -81,12 +81,20 @@ describe("RankingScreen（特訓ランキング。公開・単一スコアボー
     const fetchRanking = vi.fn().mockResolvedValue(next);
     renderScreen(dto(), fetchRanking);
 
-    fireEvent.click(screen.getByRole("button", { name: "牌効率" }));
+    // 旧チップ（ボタン）は出さない（セレクトボックスへ置換。2026-08-08 オーナー）。
+    expect(screen.queryByRole("button", { name: "牌効率" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "月間" })).toBeNull();
+
+    fireEvent.change(screen.getByRole("combobox", { name: "種目" }), {
+      target: { value: "efficiency" },
+    });
     await act(async () => {});
     expect(fetchRanking).toHaveBeenCalledWith("efficiency", "weekly");
     expect(screen.getByRole("link", { name: "花子" })).toBeTruthy();
 
-    fireEvent.click(screen.getByRole("button", { name: "月間" }));
+    fireEvent.change(screen.getByRole("combobox", { name: "期間" }), {
+      target: { value: "monthly" },
+    });
     await act(async () => {});
     expect(fetchRanking).toHaveBeenLastCalledWith("efficiency", "monthly");
   });
@@ -108,7 +116,7 @@ describe("RankingScreen（特訓ランキング。公開・単一スコアボー
     expect(screen.getByText("まだ記録がありません")).toBeTruthy();
   });
 
-  it("初期取得失敗（initial=null）はエラー文言を出し、空ボードに偽装しない。チップで再取得できる", async () => {
+  it("初期取得失敗（initial=null）はエラー文言を出し、空ボードに偽装しない。セレクトで再取得できる", async () => {
     const fetchRanking = vi.fn().mockResolvedValue(dto());
     stubMe(null);
     render(
@@ -119,7 +127,9 @@ describe("RankingScreen（特訓ランキング。公開・単一スコアボー
     expect(screen.getByRole("alert").textContent).toMatch(/読み込めませんでした/);
     expect(screen.queryByText("まだ記録がありません")).toBeNull();
 
-    fireEvent.click(screen.getByRole("button", { name: "月間" }));
+    fireEvent.change(screen.getByRole("combobox", { name: "期間" }), {
+      target: { value: "monthly" },
+    });
     await act(async () => {});
     expect(fetchRanking).toHaveBeenCalledWith("score", "monthly");
     expect(screen.getByRole("list", { name: "スコアランキング" })).toBeTruthy();
@@ -136,7 +146,9 @@ describe("RankingScreen（特訓ランキング。公開・単一スコアボー
     );
     renderScreen(dto(), fetchRanking);
 
-    fireEvent.click(screen.getByRole("button", { name: "月間" }));
+    fireEvent.change(screen.getByRole("combobox", { name: "期間" }), {
+      target: { value: "monthly" },
+    });
     const boards = screen
       .getByRole("list", { name: "スコアランキング" })
       .closest("[aria-busy]") as HTMLElement;
@@ -151,7 +163,9 @@ describe("RankingScreen（特訓ランキング。公開・単一スコアボー
   it("切替の取得失敗はエラー文言を出す（既存表示は保つ）", async () => {
     const fetchRanking = vi.fn().mockRejectedValue(new Error("network"));
     renderScreen(dto(), fetchRanking);
-    fireEvent.click(screen.getByRole("button", { name: "月間" }));
+    fireEvent.change(screen.getByRole("combobox", { name: "期間" }), {
+      target: { value: "monthly" },
+    });
     await act(async () => {});
     expect(screen.getByRole("alert").textContent).toMatch(/読み込めませんでした/);
     // 既存表示は保たれる。

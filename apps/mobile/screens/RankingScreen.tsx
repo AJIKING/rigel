@@ -9,7 +9,6 @@ import {
   QUIZ_RANKING_BOARD_LABEL,
   QUIZ_RANKING_EMPTY_MESSAGE,
   QUIZ_RANKING_PERIODS,
-  QUIZ_RANKING_SCORE_NOTE,
 } from "@rigel/ui";
 import { useEffect, useState } from "react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
@@ -91,7 +90,6 @@ export function RankingScreen() {
           ) : null}
           <View style={styles.board} testID="board-score">
             <Text style={styles.boardTitle}>{QUIZ_RANKING_BOARD_LABEL}</Text>
-            <Text style={styles.boardNote}>{QUIZ_RANKING_SCORE_NOTE}</Text>
             {data.entries.length === 0 ? (
               <Text style={styles.empty}>{QUIZ_RANKING_EMPTY_MESSAGE}</Text>
             ) : (
@@ -158,7 +156,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
   },
   boardTitle: { color: colors.white, fontSize: 13.5, fontWeight: "800" },
-  boardNote: { color: colors.w45, fontSize: 10.5, marginTop: 2 },
   row: {
     flexDirection: "row",
     alignItems: "center",

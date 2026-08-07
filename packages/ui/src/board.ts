@@ -18,6 +18,17 @@ export function windOf(seat: Seat, dealer: Seat): string {
   return WINDS[(SEAT_ORDER.indexOf(seat) - SEAT_ORDER.indexOf(dealer) + 4) % 4]!;
 }
 
+/** 親起点の席順（親→下家→対面→上家 = 東南西北の並びを dealer から回す）。 */
+export function seatsFromDealer(dealer: Seat): Seat[] {
+  const i = SEAT_ORDER.indexOf(dealer);
+  return [0, 1, 2, 3].map((k) => SEAT_ORDER[(i + k) % 4]!);
+}
+
+/** 点数の表示（例 25000 → "25,000点"）。ネームプレート・平面ヘッダ・開始点で共用。 */
+export function pointsLabel(points: number): string {
+  return `${points.toLocaleString()}点`;
+}
+
 /** 局のインデックス(0始まり)を「東一局」などの表示名に。 */
 export function roundName(index: number): string {
   return `${WINDS[Math.min(Math.floor(index / 4), 3)]}${KANJI[index % 4]}局`;

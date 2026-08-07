@@ -11,6 +11,7 @@ import {
   playbackKifu,
   resultLabel,
   rulePresetLabel,
+  pointsLabel,
   signedPoints,
   ruleSummaryRows,
   stepDisplay,
@@ -592,7 +593,7 @@ export function KifuViewer({ detail, gameId }: { detail: PublicGameDetail; gameI
                   <span className={s.an}>{windOf(seat, dealer)}家</span>
                   <span className={s.ar}>
                     {viewKifu.seats[seat].hand.length}枚 / 河{viewKifu.seats[seat].river.length}
-                    {` / ${startPoints[seat].toLocaleString()}点`}
+                    {` / ${pointsLabel(startPoints[seat])}`}
                   </span>
                 </div>
               ))}

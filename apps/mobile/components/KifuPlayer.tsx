@@ -7,6 +7,7 @@ import {
   resultLabel,
   roundNameForSeq,
   rulePresetLabel,
+  pointsLabel,
   signedPoints,
   ruleSummaryRows,
   stepDisplay,
@@ -365,7 +366,7 @@ export function KifuPlayer({
                 <KV
                   key={seat}
                   k={`${windOf(seat, dealer)}家`}
-                  v={`手牌${viewKifu.seats[seat].hand.length}枚 / 河${viewKifu.seats[seat].river.length}${` / ${startPoints[seat].toLocaleString()}点`}`}
+                  v={`手牌${viewKifu.seats[seat].hand.length}枚 / 河${viewKifu.seats[seat].river.length} / ${pointsLabel(startPoints[seat])}`}
                 />
               ))}
             </Section>

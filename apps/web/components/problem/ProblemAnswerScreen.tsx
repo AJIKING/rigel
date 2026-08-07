@@ -11,6 +11,8 @@ import {
   choiceKeyLabel,
   isFlatProblem,
   problemChiVariants,
+  problemFlatInfoLabel,
+  problemFlatScoresLabel,
   problemToKifu,
   seatLabel,
   sortHandTiles,
@@ -148,6 +150,59 @@ export function ProblemAnswerScreen({ post }: { post: ProblemPost }) {
   const mainRef = useRef<HTMLDivElement>(null);
   const scale = useBoardScale(mainRef);
 
+  // 平面ヘッダの点数行（親から風順・連結済み。scores 無し/卓表示は null=行ごと出さない）。
+  const flatScores = flat ? problemFlatScoresLabel(problem) : null;
+
+  // 自分の手牌（理牌済み）＋ツモ牌。平面表示では緑パネル内に一回り大きく描くため、
+  // 卓表示と共用の JSX を1か所に持つ（フラット時は自席の副露も並びに添える）。
+  const handRow = (
+    <div className={`${s.handRow} ${flat ? s.flatHand : ""}`}>
+      <span className={s.rowLabel}>手牌</span>
+      <span className={s.hand}>
+        {hand.map((t, i) => {
+          const on = picked !== null && !picked.drawn && picked.index === i;
+          return t.tile ? (
+            <button
+              key={i}
+              type="button"
+              className={`${s.handTile} ${on ? s.sel : ""}`}
+              aria-label={tileLabel(t.tile)}
+              aria-pressed={on}
+              disabled={answered !== null || !needsTile}
+              onClick={() => pickTile(t.tile!, false, i)}
+            >
+              <OssTileFace code={t.tile} />
+            </button>
+          ) : null;
+        })}
+        {problem.drawn && (
+          <button
+            type="button"
+            className={`${s.handTile} ${s.drawn} ${picked?.drawn ? s.sel : ""}`}
+            aria-label={tileLabel(problem.drawn)}
+            aria-pressed={picked?.drawn === true}
+            disabled={answered !== null}
+            onClick={() => pickTile(problem.drawn!, true, -1)}
+          >
+            <OssTileFace code={problem.drawn} />
+          </button>
+        )}
+        {flat &&
+          povMelds.map((m, mi) => (
+            <span key={mi} className={s.flatMeld}>
+              {m.tiles.map((t, ti) =>
+                t.tile ? (
+                  <span key={ti} className={s.flatMeldTile}>
+                    <OssTileFace code={t.tile} />
+                  </span>
+                ) : null,
+              )}
+            </span>
+          ))}
+      </span>
+    </div>
+  );
+
   return (
     <div className={`${s.app} themeBoard`}>
       {/* ヘッダは一覧・マイページと同じ共通ヘッダー（画面遷移で変わらない）。 */}
@@ -191,82 +246,45 @@ export function ProblemAnswerScreen({ post }: { post: ProblemPost }) {
         </h2>
 
         {/* 場況ありは牌譜ビューアと同じ卓（河・鳴きは卓上に。鳴き判断は対象牌を強調）。
-            平面何切るは卓を描かず、ドラ表示牌だけを行で見せる（フラット表示）。 */}
+            平面何切るは卓を描かず、緑の卓布パネルに場況ヘッダ（場風・巡目・自風・ドラ・点数）
+            と手牌を載せる（[決定] 2026-08-08 オーナー。文言は @rigel/ui を web/mobile で共用）。 */}
         {flat ? (
-          problem.meta.dora.length > 0 && (
-            <div className={`${s.handRow} ${s.flatDoraRow}`}>
-              <span className={s.rowLabel}>ドラ表示牌</span>
-              <span className={s.tiles}>
-                {problem.meta.dora.map((t, i) => (
-                  <span key={`${t}-${i}`} className={s.flatDoraTile}>
-                    <OssTileFace code={t} />
-                  </span>
-                ))}
-              </span>
-            </div>
-          )
-        ) : (
-          <div className={s.boardPanel}>
-            {/* 点数（手入力の記録）は牌譜再生と同じくネームプレートに出す（盤面外だと見えない）。 */}
-            <ViewBoard
-              kifu={boardKifu}
-              bottomSeat={pov}
-              dealer={dealer ?? pov}
-              scale={scale}
-              points={problem.scores}
-              highlightRiver={highlightRiver}
-              center={<ProblemBoardCenter meta={problem.meta} />}
-            />
-          </div>
-        )}
-
-        {/* 自分の手牌（理牌済み）＋ツモ牌。平面表示では手牌が主役なので一回り大きく描く。 */}
-        <div className={`${s.handRow} ${flat ? s.flatHand : ""}`}>
-          <span className={s.rowLabel}>手牌</span>
-          <span className={s.hand}>
-            {hand.map((t, i) => {
-              const on = picked !== null && !picked.drawn && picked.index === i;
-              return t.tile ? (
-                <button
-                  key={i}
-                  type="button"
-                  className={`${s.handTile} ${on ? s.sel : ""}`}
-                  aria-label={tileLabel(t.tile)}
-                  aria-pressed={on}
-                  disabled={answered !== null || !needsTile}
-                  onClick={() => pickTile(t.tile!, false, i)}
-                >
-                  <OssTileFace code={t.tile} />
-                </button>
-              ) : null;
-            })}
-            {problem.drawn && (
-              <button
-                type="button"
-                className={`${s.handTile} ${s.drawn} ${picked?.drawn ? s.sel : ""}`}
-                aria-label={tileLabel(problem.drawn)}
-                aria-pressed={picked?.drawn === true}
-                disabled={answered !== null}
-                onClick={() => pickTile(problem.drawn!, true, -1)}
-              >
-                <OssTileFace code={problem.drawn} />
-              </button>
-            )}
-            {/* 平面表示では卓が無いので、自席の副露も手牌の並びに添える。 */}
-            {flat &&
-              povMelds.map((m, mi) => (
-                <span key={mi} className={s.flatMeld}>
-                  {m.tiles.map((t, ti) =>
-                    t.tile ? (
-                      <span key={ti} className={s.flatMeldTile}>
-                        <OssTileFace code={t.tile} />
+          <section className={s.flatPanel}>
+            <p className={s.flatInfo}>
+              <span>{problemFlatInfoLabel(problem)}</span>
+              {problem.meta.dora.length > 0 && (
+                <span className={s.flatDora}>
+                  <span className={s.flatDoraLabel}>ドラ表示牌</span>
+                  <span className={s.tiles}>
+                    {problem.meta.dora.map((t, i) => (
+                      <span key={`${t}-${i}`} className={s.flatDoraTile}>
+                        <OssTileFace code={t} />
                       </span>
-                    ) : null,
-                  )}
+                    ))}
+                  </span>
                 </span>
-              ))}
-          </span>
-        </div>
+              )}
+            </p>
+            {flatScores && <p className={s.flatScores}>{flatScores}</p>}
+            {handRow}
+          </section>
+        ) : (
+          <>
+            <div className={s.boardPanel}>
+              {/* 点数（手入力の記録）は牌譜再生と同じくネームプレートに出す（盤面外だと見えない）。 */}
+              <ViewBoard
+                kifu={boardKifu}
+                bottomSeat={pov}
+                dealer={dealer ?? pov}
+                scale={scale}
+                points={problem.scores}
+                highlightRiver={highlightRiver}
+                center={<ProblemBoardCenter meta={problem.meta} />}
+              />
+            </div>
+            {handRow}
+          </>
+        )}
         {problem.drawn && (
           <p className={s.drawnNote}>右端はツモ牌（タップするとツモ切りになります）</p>
         )}

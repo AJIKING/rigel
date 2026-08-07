@@ -1,4 +1,5 @@
 import { KifuSchema, ProblemSchema, type Problem } from "@rigel/schema";
+import { PROBLEM_DORA_REQUIRED_MESSAGE } from "@rigel/ui";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react-native";
 import { makePost } from "./problem-test-helpers";
 import { ProblemEditScreen } from "./ProblemEditScreen";
@@ -70,6 +71,14 @@ function inputDrawn5p() {
   fireEvent.press(screen.getByLabelText("5筒"));
 }
 
+/** ドラ表示牌を1枚（1索）入れる（保存ゲートのドラ必須 2026-08-08 を満たす）。 */
+function inputDora1s() {
+  fireEvent.press(screen.getByLabelText("ドラ表示牌を追加"));
+  fireEvent.press(screen.getByText("索"));
+  fireEvent.press(screen.getByLabelText("1索"));
+  fireEvent.press(screen.getByText("閉じる"));
+}
+
 describe("ProblemEditScreen（何切る問題の作成/編集）", () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -139,6 +148,7 @@ describe("ProblemEditScreen（何切る問題の作成/編集）", () => {
     fireEvent.changeText(screen.getByLabelText("タイトル"), "テスト作成");
     inputFullHand();
     inputDrawn5p();
+    inputDora1s();
     fireEvent.changeText(
       screen.getByLabelText("出題者のコメント（任意。回答後に表示されます）"),
       "テストコメント",
@@ -175,6 +185,7 @@ describe("ProblemEditScreen（何切る問題の作成/編集）", () => {
     fireEvent.changeText(screen.getByLabelText("タイトル"), "ルールつき");
     inputFullHand();
     inputDrawn5p();
+    inputDora1s();
     fireEvent.press(screen.getByText("公開して保存"));
 
     await waitFor(() => expect(mockCreateProblem).toHaveBeenCalledTimes(1));
@@ -195,6 +206,16 @@ describe("ProblemEditScreen（何切る問題の作成/編集）", () => {
     // 13枚目を置いた時点で入力先はツモ牌。そのまま置くとツモ牌になり、チップで外せる。
     fireEvent.press(screen.getByLabelText("5筒"));
     expect(screen.getByLabelText("ツモ牌 5筒 を外す")).toBeTruthy();
+  });
+
+  it("ドラ表示牌が未選択だと保存せずエラー文言を出す（2026-08-08 オーナー）", async () => {
+    render(<ProblemEditScreen />);
+    inputFullHand();
+    inputDrawn5p();
+    fireEvent.press(screen.getByText("下書き保存"));
+
+    expect(await screen.findByText(PROBLEM_DORA_REQUIRED_MESSAGE)).toBeTruthy();
+    expect(mockCreateProblem).not.toHaveBeenCalled();
   });
 
   it("手牌が13枚に足りないと保存せずエラー文言（13枚）を出す", async () => {
@@ -218,6 +239,7 @@ describe("ProblemEditScreen（何切る問題の作成/編集）", () => {
 
     inputFullHand();
     inputDrawn5p();
+    inputDora1s();
     fireEvent.press(screen.getByText("公開して保存"));
 
     expect(await screen.findByText(/無料プランの何切る問題は20問まで/)).toBeTruthy();
@@ -237,10 +259,10 @@ describe("ProblemEditScreen（何切る問題の作成/編集）", () => {
 
   it("盤面プレビューは既定で表示され、折りたたみできる", () => {
     render(<ProblemEditScreen />);
-    // 既定 open：卓中央に場風+巡目（既定=東場・6巡目）が出る。
-    expect(screen.getByText("東場 6巡目")).toBeTruthy();
+    // 既定 open：卓中央に場風+巡目（既定=東場・1巡目。2026-08-08 オーナー。旧6巡目）が出る。
+    expect(screen.getByText("東場 1巡目")).toBeTruthy();
     fireEvent.press(screen.getByText(/プレビュー/));
-    expect(screen.queryByText("東場 6巡目")).toBeNull();
+    expect(screen.queryByText("東場 1巡目")).toBeNull();
   });
 
   describe("袋小路（無反応・解決不能なエラー）を作らない", () => {
@@ -304,6 +326,7 @@ describe("ProblemEditScreen（何切る問題の作成/編集）", () => {
     render(<ProblemEditScreen />);
     inputFullHand();
     inputDrawn5p();
+    inputDora1s();
 
     // 東家の河に 9筒 を置く（既定は手出し。手牌・プレビューに無い牌でラベル衝突を避ける）。
     fireEvent.press(screen.getByLabelText("東家の河に追加"));
@@ -373,7 +396,7 @@ describe("ProblemEditScreen（何切る問題の作成/編集）", () => {
     render(<ProblemEditScreen />);
     await screen.findByDisplayValue("既存の問題");
 
-    fireEvent.press(screen.getByText("回答画面を見る →"));
+    fireEvent.press(screen.getByText("回答画面を見る"));
     expect(mockNavigate).toHaveBeenCalledWith("ProblemAnswer", { problemId: "p1" });
 
     fireEvent.press(screen.getByText("この問題を削除"));
@@ -387,7 +410,7 @@ describe("ProblemEditScreen（何切る問題の作成/編集）", () => {
 
   it("新規作成では管理行（回答画面リンク・削除）を出さない", () => {
     render(<ProblemEditScreen />); // mockParams = undefined（新規）
-    expect(screen.queryByText("回答画面を見る →")).toBeNull();
+    expect(screen.queryByText("回答画面を見る")).toBeNull();
     expect(screen.queryByText("この問題を削除")).toBeNull();
   });
 

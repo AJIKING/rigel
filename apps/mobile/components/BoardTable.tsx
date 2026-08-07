@@ -4,6 +4,7 @@ import {
   meldTileViews,
   seatLabel,
   seatResult,
+  pointsLabel,
   signedPoints,
   splitDrawnTile,
   windOf,
@@ -305,7 +306,7 @@ export function BoardTable({
               <Text style={styles.nm} numberOfLines={1}>
                 {name}
               </Text>
-              {points ? <Text style={styles.pts}>{points[seat].toLocaleString()}点</Text> : null}
+              {points ? <Text style={styles.pts}>{pointsLabel(points[seat])}</Text> : null}
               {/* リーグ戦等の積み上げポイント状況（players がある半荘のみ）。
                   全員 0.0 なら未記録とみなして隠す（呼び出し側のトグルで出せる）。 */}
               {showPlayerPoints && player ? (

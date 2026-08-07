@@ -35,6 +35,7 @@ import {
   type Seat,
   type Tile,
 } from "@rigel/schema";
+import { pointsLabel, seatsFromDealer, windOf } from "./board";
 import { chiVariants, meldTiles, sortHandTiles, SUITS, type MeldPick } from "./edit";
 
 // 打点計算（han/fu + ルール → 支払い）。
@@ -903,14 +904,13 @@ export function collectReviewItems(kifu: Kifu): ReviewItem[] {
 
 /**
  * 平面何切る（場況なし）か（[決定] 2026-08-08 フラット表示）。
- * 出題視点以外の3席に牌が1枚も無く、自席の河も空で、点数の記録も無ければ「平面」＝
+ * 出題視点以外の3席に牌が1枚も無く、自席の河も空なら「平面」＝
  * 回答画面は麻雀卓（回転卓）を描かず、手牌中心のフラットレイアウトで見せる。
- * 自席の副露は手牌の一部として平面でも表示できるため許容する。
- * 1枚でも場況情報（他家の河・手牌・副露、自分の河、点数状況）があれば卓で見せる
- * （点数は卓のネームプレートでしか表示できない）。
+ * 自席の副露は手牌の一部として、点数の記録は平面ヘッダのテキスト行として
+ * 平面でも表示できるため許容する（[決定] 2026-08-08 改。当初は点数で卓に落としていた）。
+ * 1枚でも牌の場況情報（他家の河・手牌・副露、自分の河）があれば卓で見せる。
  */
 export function isFlatProblem(problem: Problem): boolean {
-  if (problem.scores) return false;
   for (const seat of SEAT_ORDER) {
     const board = problem.seats[seat];
     if (seat === problem.pov) {
@@ -920,6 +920,32 @@ export function isFlatProblem(problem: Problem): boolean {
     }
   }
   return true;
+}
+
+/** 平面ヘッダで使う親（未設定は出題視点を親とみなす）。 */
+function problemDealer(problem: Problem): Seat {
+  return problem.meta.dealer ?? problem.pov;
+}
+
+/**
+ * 平面何切るのヘッダ行（例: "東場 6巡目 南家"）。場風が無ければ巡目から。
+ * 自席の風は親基準（windOf）。web/mobile のフラット表示で共用する（表記ゆれ防止）。
+ */
+export function problemFlatInfoLabel(problem: Problem): string {
+  return `${problemRoundLabel(problem.meta)} ${windOf(problem.pov, problemDealer(problem))}家`;
+}
+
+/**
+ * 平面何切るの点数行（例: "東家 25,000点 ・ 南家 24,000点 ・ …"）。親から風順に連結して返す。
+ * 区切りも含めて共有する（web/mobile で表記を割らない）。scores が無ければ null（行ごと出さない）。
+ */
+export function problemFlatScoresLabel(problem: Problem): string | null {
+  const scores = problem.scores;
+  if (!scores) return null;
+  const dealer = problemDealer(problem);
+  return seatsFromDealer(dealer)
+    .map((seat) => `${windOf(seat, dealer)}家 ${pointsLabel(scores[seat])}`)
+    .join(" ・ ");
 }
 
 /**
@@ -1195,6 +1221,9 @@ export function draftToKifu(draft: ProblemBoardDraft): Kifu {
   });
 }
 
+/** 保存前ゲートのドラ必須エラー文言（web/mobile で共用。表記ゆれ防止）。 */
+export const PROBLEM_DORA_REQUIRED_MESSAGE = "ドラ表示牌を1枚以上選んでください。";
+
 /**
  * 編集状態から Problem を組み立てて検証する（保存前のクライアント側ゲート）。
  * スキーマ違反は日本語のエラー文言で返す。kind に応じてツモ牌/対象席を整形し、
@@ -1237,6 +1266,11 @@ export function assembleProblem(draft: ProblemDraft): { problem?: Problem; error
   });
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "入力に誤りがあります。" };
+  }
+  // ドラ表示牌は必須（2026-08-08 オーナー。ドラの無い実戦は無い）。スキーマは既存データの
+  // 後方互換のため縛らず、保存前ゲート（ここ）だけで新規・編集時に要求する。
+  if (parsed.data.meta.dora.length === 0) {
+    return { error: PROBLEM_DORA_REQUIRED_MESSAGE };
   }
   return { problem: parsed.data };
 }

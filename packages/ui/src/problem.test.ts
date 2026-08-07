@@ -19,6 +19,8 @@ import {
   choiceKeyLabel,
   kifuToProblemDraft,
   isFlatProblem,
+  problemFlatInfoLabel,
+  problemFlatScoresLabel,
   problemChiVariants,
   problemHandMax,
   problemRiverTiles,
@@ -36,6 +38,7 @@ import {
   PROBLEM_KIND_LABELS,
   PROBLEM_LIMIT,
   LIMIT_MESSAGES,
+  PROBLEM_DORA_REQUIRED_MESSAGE,
   type ProblemDraft,
 } from "./index";
 
@@ -358,9 +361,29 @@ describe("isFlatProblem（平面何切る＝場況なしの判定。[決定] 202
     expect(isFlatProblem(p)).toBe(false);
   });
 
-  it("点数の記録があれば平面ではない（点数状況は卓のネームプレートでしか出せない）", () => {
+  it("点数の記録があっても平面（点数は平面ヘッダのテキスト行で出す。[決定] 2026-08-08 改）", () => {
     const p = flatProblem({ scores: { east: 25000, south: 25000, west: 25000, north: 25000 } });
-    expect(isFlatProblem(p)).toBe(false);
+    expect(isFlatProblem(p)).toBe(true);
+  });
+
+  it("平面ヘッダの場況ラベル: 場風 巡目 自席の風（親基準）を1行にする", () => {
+    // 既定フィクスチャ: 場風なし・親=東・自分=南 → 場は省略・自風は南家。
+    expect(problemFlatInfoLabel(flatProblem())).toBe("6巡目 南家");
+    // 親=南・自分=南なら自風は東家（親）。
+    const p = flatProblem({ meta: { dealer: "south", roundWind: "east", junme: 3 } });
+    expect(problemFlatInfoLabel(p)).toBe("東場 3巡目 東家");
+  });
+
+  it("平面ヘッダの点数行: 親から風順に「○家 ○○点」を連結（区切りも共有）。scores 無しは null", () => {
+    expect(problemFlatScoresLabel(flatProblem())).toBeNull();
+    const p = flatProblem({
+      meta: { dealer: "south", roundWind: "east", junme: 6 },
+      scores: { east: 11600, south: 25000, west: 38400, north: 24000 },
+    });
+    // 親=南家スタートの風順（南→西→北→東）で、風表記＋カンマ区切り＋「 ・ 」連結。
+    expect(problemFlatScoresLabel(p)).toBe(
+      "東家 25,000点 ・ 南家 38,400点 ・ 西家 24,000点 ・ 北家 11,600点",
+    );
   });
 
   it("他家に河・手牌・副露のどれかがあれば平面ではない（鳴き判断問題を含む）", () => {
@@ -697,6 +720,26 @@ describe("assembleProblem（編集状態→Problem の組み立て・検証。we
 
   it("枚数不足は日本語のエラーを返す", () => {
     expect(assembleProblem(draft({ hand: HAND_13.slice(0, 12) })).error).toContain("13枚");
+  });
+
+  it("ドラ表示牌が未選択なら保存させない（2026-08-08 オーナー。ドラの無い実戦は無い）", () => {
+    const { problem, error } = assembleProblem(
+      draft({
+        meta: { dealer: "east", roundWind: "east", honba: 1, kyotaku: 0, junme: 6, dora: [] },
+      }),
+    );
+    expect(problem).toBeUndefined();
+    expect(error).toBe(PROBLEM_DORA_REQUIRED_MESSAGE);
+  });
+
+  it("ドラ未選択よりスキーマ違反（手牌枚数など）の指摘を優先する", () => {
+    const { error } = assembleProblem(
+      draft({
+        hand: HAND_13.slice(0, 12),
+        meta: { dealer: "east", roundWind: "east", honba: 1, kyotaku: 0, junme: 6, dora: [] },
+      }),
+    );
+    expect(error).toContain("13枚");
   });
 
   it("鳴き判断はツモ牌を落とし対象席を立てる（kind に応じた整形）", () => {

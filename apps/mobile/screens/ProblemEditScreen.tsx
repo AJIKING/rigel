@@ -159,7 +159,8 @@ function EditorBody({
   const [targetSeat, setTargetSeat] = useState<Seat>(p0?.targetSeat ?? "south");
   const [roundWind, setRoundWind] = useState<Seat>(p0?.meta.roundWind ?? "east");
   const [dealer, setDealer] = useState<Seat>(p0?.meta.dealer ?? "east");
-  const [junme, setJunme] = useState(p0?.meta.junme ?? 6);
+  // 巡目の既定は1（2026-08-08 オーナー。旧6巡目は「中盤の何切る」前提が強すぎた）。
+  const [junme, setJunme] = useState(p0?.meta.junme ?? 1);
   const [honba, setHonba] = useState(p0?.meta.honba ?? 0);
   const [kyotaku, setKyotaku] = useState(p0?.meta.kyotaku ?? 0);
   const [scoresOn, setScoresOn] = useState(p0?.scores != null);
@@ -766,7 +767,7 @@ function EditorBody({
               accessibilityRole="button"
               hitSlop={8}
             >
-              <Text style={styles.viewLink}>回答画面を見る →</Text>
+              <Text style={styles.viewLink}>回答画面を見る</Text>
             </Pressable>
             <Text style={styles.manageNote}>（保存済みの内容が表示されます）</Text>
             <Pressable

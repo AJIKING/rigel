@@ -15,14 +15,9 @@ import {
   type Tile,
   type TimelineEvent,
 } from "@rigel/schema";
+import { seatsFromDealer } from "./board";
 
 const SEAT_ORDER: Seat[] = ["east", "south", "west", "north"];
-
-/** 親起点の席順（親→下家→対面→上家 = 東南西北の並びを dealer から回す）。 */
-function seatsFromDealer(dealer: Seat): Seat[] {
-  const i = SEAT_ORDER.indexOf(dealer);
-  return [0, 1, 2, 3].map((k) => SEAT_ORDER[(i + k) % 4]!);
-}
 
 /**
  * 既存の席ごと river/melds から輪番仮定でタイムラインを組む（移行用）。
